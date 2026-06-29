@@ -250,7 +250,7 @@
     }
 
     /* SVG character sizing */
-    .char-svg { width: 90px; height: 105px; }
+    .char-svg { width: 90px; height: 105px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.13)); }
 
     /* Custom character image */
     .char-img-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
@@ -966,16 +966,22 @@
       box-shadow: 0 6px 20px rgba(0,0,0,0.09);
     }
     .sp-char-card.c1 {
-      background: linear-gradient(160deg, #D8EEFF, #BDDAFF);
-      border: 2px solid rgba(91,155,213,0.25);
-      animation: char-idle 3.2s ease-in-out infinite;
+      background: white;
+      border: 2.5px solid #5B9BD5;
+      box-shadow: 0 6px 22px rgba(91,155,213,0.28);
+      animation: sp-char-float 3.2s ease-in-out infinite;
     }
     .sp-char-card.c2 {
-      background: linear-gradient(160deg, #FFE8F4, #FFD4EC);
-      border: 2px solid rgba(255,143,160,0.25);
-      animation: char-idle 3.2s ease-in-out infinite 0.7s;
+      background: white;
+      border: 2.5px solid #FF8FA0;
+      box-shadow: 0 6px 22px rgba(255,143,160,0.28);
+      animation: sp-char-float 3.2s ease-in-out infinite 0.8s;
     }
-    .sp-char-card .char-svg { width: 62px !important; height: 74px !important; }
+    @keyframes sp-char-float {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-9px); }
+    }
+    .sp-char-card .char-svg { width: 62px !important; height: 74px !important; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.11)) !important; }
     .sp-char-card .char-img-custom { width: 62px !important; height: 74px !important; }
     .sp-char-label {
       font-size: 11px; font-weight: 700;
@@ -1112,13 +1118,13 @@
           <svg class="char-svg" id="char-svg-2" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
             <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(255,143,160,0.15)"/>
             <g id="adai-left-ear">
-              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#F8F0F4" stroke="#F0C0D4" stroke-width="1.5"/>
+              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#FFE8F0" stroke="#E8A0BC" stroke-width="1.8"/>
             </g>
             <g id="adai-right-ear">
-              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#F8F0F4" stroke="#F0C0D4" stroke-width="1.5"/>
+              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#FFE8F0" stroke="#E8A0BC" stroke-width="1.8"/>
             </g>
-            <ellipse cx="55" cy="86" rx="37" ry="42" fill="white" stroke="#F0C0D4" stroke-width="1.5"/>
-            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FAF8F8" stroke="#F0C0D4" stroke-width="1"/>
+            <ellipse cx="55" cy="86" rx="37" ry="42" fill="#FFF5F8" stroke="#E8A0BC" stroke-width="1.8"/>
+            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FFFAFC" stroke="#E8A0BC" stroke-width="1"/>
             <path d="M 55 38 Q 42 28 38 36 Q 36 44 44 47 Q 50 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
             <path d="M 55 38 Q 68 28 72 36 Q 74 44 66 47 Q 60 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
             <ellipse cx="55" cy="40.5" rx="5.5" ry="6" fill="#E8607A"/>
