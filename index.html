@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>🐾 恋爱积分簿</title>
+  <style>
+    :root {
+      --blue: #5B9BD5;
+      --blue-light: #A8D8F5;
+      --sky: #D4EAFF;
+      --pink: #FFB3C6;
+      --pink-light: #FFD6E4;
+      --gold: #FFD700;
+      --gold-dark: #F0B429;
+      --green: #6BCB77;
+      --red: #FF6B6B;
+      --purple: #C9B1FF;
+      --white: #FFFFFF;
+      --dark: #2D3748;
+      --text: #4A5568;
+      --sub: #718096;
+      --card: rgba(255,255,255,0.93);
+      --card-border: rgba(91,155,213,0.15);
+      --radius: 24px;
+      --radius-sm: 14px;
+      --shadow: 0 8px 32px rgba(91,155,213,0.18);
+      --shadow-sm: 0 4px 16px rgba(91,155,213,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      background: linear-gradient(160deg, #B8D9F8 0%, #CEEAFF 28%, #E8E2FF 60%, #FFE2F0 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--dark);
+    }
+
+    /* ── Floating clouds ── */
+    .clouds-bg {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50px;
+      opacity: 0.55;
+    }
+    .cloud::before { content:''; position:absolute; background:white; border-radius:50%; }
+    .c1 { width:90px; height:28px; top:8%; left:-100px; animation: drift 22s linear infinite; }
+    .c1::before { width:50px; height:50px; top:-28px; left:12px; }
+    .c2 { width:70px; height:22px; top:18%; left:-80px; animation: drift 30s linear infinite 8s; opacity:0.35; }
+    .c2::before { width:38px; height:38px; top:-20px; left:10px; }
+    .c3 { width:120px; height:32px; top:5%; left:-130px; animation: drift 18s linear infinite 14s; opacity:0.4; }
+    .c3::before { width:60px; height:60px; top:-35px; left:20px; }
+    .c4 { width:80px; height:24px; top:28%; left:-90px; animation: drift 25s linear infinite 4s; opacity:0.3; }
+    .c4::before { width:44px; height:44px; top:-24px; left:14px; }
+    .c5 { width:60px; height:20px; top:12%; left:-70px; animation: drift 35s linear infinite 18s; opacity:0.45; }
+    .c5::before { width:34px; height:34px; top:-18px; left:8px; }
+    @keyframes drift { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 200px)); } }
+
+    /* ── Floating deco elements ── */
+    .float-deco {
+      position: fixed; font-size: 17px; opacity: 0.09; pointer-events: none; z-index: 0;
+      animation: deco-float 7s ease-in-out infinite;
+    }
+    .float-deco:nth-child(2n) { animation-duration: 9s; animation-direction: alternate; font-size: 14px; opacity: 0.07; }
+    .float-deco:nth-child(3n) { animation-duration: 5.5s; animation-delay: 1.2s; }
+    @keyframes deco-float {
+      0%, 100% { transform: translateY(0) rotate(-8deg) scale(1); }
+      50% { transform: translateY(-16px) rotate(8deg) scale(1.08); }
+    }
+
+    /* ── Layout ── */
+    #app { position: relative; z-index: 1; max-width: 430px; margin: 0 auto; padding: 0 0 100px 0; }
+
+    /* ── Setup / Auth overlay ── */
+    #setup-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: linear-gradient(160deg, #C2DFF5, #EAE0FF);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 24px; padding: 32px;
+    }
+    #setup-overlay.hidden { display: none; }
+    .setup-card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 32px 28px;
+      width: 100%; max-width: 360px;
+    }
+    .setup-card h2 { font-size: 22px; color: var(--blue); margin-bottom: 6px; }
+    .setup-card p { font-size: 13px; color: var(--sub); margin-bottom: 24px; }
+    .setup-logo { text-align: center; font-size: 64px; animation: bounce 2s ease-in-out infinite; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    .field-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .field-group label { font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: 0.05em; }
+    .field-group input {
+      width: 100%; padding: 12px 16px;
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--dark);
+      background: white; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field-group input:focus { border-color: var(--blue); }
+    .btn-primary {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--blue), #7BB8E8);
+      color: white; border: none; border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(91,155,213,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:active { transform: scale(0.97); box-shadow: none; }
+    .demo-link {
+      text-align: center; font-size: 13px; color: var(--blue);
+      cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 24px 20px 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .header-top {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%;
+    }
+    .app-title { font-size: 20px; font-weight: 700; color: var(--blue); }
+    .settings-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--card); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; box-shadow: var(--shadow-sm);
+      transition: transform 0.15s;
+    }
+    .settings-btn:active { transform: scale(0.92); }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .music-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--card); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; box-shadow: var(--shadow-sm);
+      transition: transform 0.15s, background 0.2s;
+      position: relative;
+    }
+    .music-btn.playing { background: linear-gradient(135deg, #D4EAFF, #C2DFF5); }
+    .music-btn:active { transform: scale(0.92); }
+    .music-note {
+      display: inline-block;
+      animation: note-spin 1.8s ease-in-out infinite;
+    }
+    .music-btn:not(.playing) .music-note { animation: none; }
+    @keyframes note-spin {
+      0%,100% { transform: rotate(-12deg) scale(1); }
+      50%      { transform: rotate(12deg) scale(1.15); }
+    }
+
+    /* ── Characters ── */
+    .characters-row {
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 0; margin: 4px 0;
+    }
+    .char-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      cursor: default;
+    }
+    .char-wrap.pochacco { animation: char-idle 3.4s ease-in-out infinite; }
+    .char-wrap.adai     { animation: char-idle 3.4s ease-in-out infinite 0.9s; }
+    @keyframes char-idle {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      25%     { transform: translateY(-9px) rotate(-1.5deg); }
+      50%     { transform: translateY(-12px) rotate(0deg); }
+      75%     { transform: translateY(-9px) rotate(1.5deg); }
+    }
+    .char-wrap.happy { animation: char-happy 0.52s cubic-bezier(0.34,1.56,0.64,1) infinite; }
+    @keyframes char-happy {
+      0%,100% { transform: translateY(0) scale(1,1) rotate(-2deg); }
+      45%     { transform: translateY(-22px) scale(1.06,0.94) rotate(2deg); }
+    }
+    .char-wrap.sad { animation: char-sad 1.8s ease-in-out infinite; }
+    @keyframes char-sad {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      50%     { transform: translateY(5px) rotate(-3deg); }
+    }
+    .char-wrap.celebrate { animation: celebrate 0.42s cubic-bezier(0.34,1.56,0.64,1) infinite; }
+    @keyframes celebrate {
+      0%   { transform: translateY(0) scale(1,1) rotate(-5deg); }
+      30%  { transform: translateY(-28px) scale(1.12,0.9) rotate(5deg); }
+      60%  { transform: translateY(-22px) scale(1.08,0.96) rotate(-3deg); }
+      100% { transform: translateY(0) scale(1,1) rotate(-5deg); }
+    }
+
+    /* ── Ear animations (big floppy blob-ear style) ── */
+    #pochacco-left-ear {
+      transform-box: fill-box; transform-origin: right top;
+      animation: ear-wiggle-left 3.6s ease-in-out infinite;
+    }
+    #pochacco-right-ear {
+      transform-box: fill-box; transform-origin: left top;
+      animation: ear-wiggle-right 3.6s ease-in-out infinite 0.6s;
+    }
+    @keyframes ear-wiggle-left {
+      0%,100% { transform: rotate(0deg); }
+      30%     { transform: rotate(-10deg); }
+      65%     { transform: rotate(6deg); }
+    }
+    @keyframes ear-wiggle-right {
+      0%,100% { transform: rotate(0deg); }
+      30%     { transform: rotate(10deg); }
+      65%     { transform: rotate(-6deg); }
+    }
+    .char-wrap.happy #pochacco-left-ear  { animation: ear-wiggle-left  0.4s ease-in-out infinite alternate; }
+    .char-wrap.happy #pochacco-right-ear { animation: ear-wiggle-right 0.4s ease-in-out infinite alternate; }
+    .char-wrap.celebrate #pochacco-left-ear  { animation: ear-wiggle-left  0.25s ease-in-out infinite alternate; }
+    .char-wrap.celebrate #pochacco-right-ear { animation: ear-wiggle-right 0.25s ease-in-out infinite alternate; }
+    .char-wrap.sad #pochacco-left-ear  { animation: ear-droop-left  2.2s ease-in-out infinite; }
+    .char-wrap.sad #pochacco-right-ear { animation: ear-droop-right 2.2s ease-in-out infinite; }
+    @keyframes ear-droop-left  { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(10deg); } }
+    @keyframes ear-droop-right { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-10deg); } }
+
+    /* ── Eye blink ── */
+    @keyframes dog-blink {
+      0%, 91%, 96%, 100% { transform: scaleY(1); }
+      93.5%              { transform: scaleY(0.06); }
+    }
+    #c1-eye-l { transform-box:fill-box; transform-origin:center; animation:dog-blink 4.8s ease-in-out infinite; }
+    #c1-eye-r { transform-box:fill-box; transform-origin:center; animation:dog-blink 4.8s ease-in-out infinite 0.08s; }
+    #c2-eye-l { transform-box:fill-box; transform-origin:center; animation:dog-blink 5.6s ease-in-out infinite 2.1s; }
+    #c2-eye-r { transform-box:fill-box; transform-origin:center; animation:dog-blink 5.6s ease-in-out infinite 2.18s; }
+    .char-name {
+      font-size: 12px; font-weight: 600;
+      color: var(--sub); letter-spacing: 0.05em;
+    }
+    .vs-heart {
+      font-size: 26px; margin: 0 4px; padding-bottom: 28px;
+      animation: heartbeat 1.4s ease-in-out infinite;
+    }
+    @keyframes heartbeat {
+      0%,100% { transform: scale(1); }
+      14% { transform: scale(1.2); }
+      28% { transform: scale(1); }
+      42% { transform: scale(1.15); }
+      56% { transform: scale(1); }
+    }
+
+    /* SVG character sizing */
+    .char-svg { width: 90px; height: 105px; }
+
+    /* Custom character image */
+    .char-img-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+    .char-img-custom {
+      width: 90px; height: 105px;
+      object-fit: cover; object-position: top;
+      border-radius: 50% 50% 40% 40%;
+      border: 3px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 16px rgba(91,155,213,0.2);
+    }
+    .char-img-custom.pink { border-color: rgba(255,179,198,0.8); }
+
+    /* Character image picker in settings */
+    .char-pickers-row {
+      display: flex; gap: 12px; margin-bottom: 16px;
+    }
+    .char-picker-card {
+      flex: 1; background: #F7F9FC; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--card-border);
+      padding: 14px 10px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .char-picker-card:hover { border-color: var(--blue); }
+    .char-picker-card input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .char-picker-preview {
+      width: 62px; height: 72px; margin: 0 auto 8px;
+      object-fit: cover; object-position: top;
+      border-radius: 50% 50% 40% 40%;
+      border: 2px solid rgba(91,155,213,0.2);
+      display: block;
+    }
+    .char-picker-preview.svg-preview { width: 62px; height: 72px; }
+    .char-picker-label { font-size: 12px; font-weight: 600; color: var(--sub); }
+    .char-picker-btn {
+      margin-top: 6px; font-size: 11px; color: var(--blue); font-weight: 600;
+    }
+    .char-picker-reset {
+      position: absolute; top: 6px; right: 6px;
+      font-size: 14px; cursor: pointer; opacity: 0.5;
+      background: white; border-radius: 50%; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
+    }
+    .char-picker-reset:hover { opacity: 1; }
+
+    /* ── Mode toggle ── */
+    .mode-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 6px 20px;
+    }
+    .mode-label { font-size: 13px; font-weight: 600; color: var(--sub); transition: color 0.3s; }
+    .mode-label.active { color: var(--dark); }
+    .mode-toggle-wrap {
+      position: relative; width: 60px; height: 30px;
+      background: var(--card); border-radius: 20px;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
+      cursor: pointer; transition: background 0.3s;
+      border: 1.5px solid var(--card-border);
+    }
+    .mode-toggle-wrap.punishment { background: linear-gradient(135deg, #FFE0E0, #FFCECE); }
+    .mode-toggle-wrap.reward { background: linear-gradient(135deg, #E0F0FF, #C8DFFF); }
+    .mode-knob {
+      position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .mode-toggle-wrap.punishment .mode-knob { transform: translateX(30px); }
+
+    /* ── Score card ── */
+    .score-card {
+      margin: 8px 16px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1.5px solid var(--card-border);
+      padding: 0 0 20px;
+      overflow: hidden;
+    }
+    .score-card-header {
+      background: linear-gradient(120deg, #5B9BD5 0%, #7BBCE8 60%, #A8D8F5 100%);
+      padding: 10px 20px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .score-card-body { padding: 16px 24px 0; }
+    .month-label {
+      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .score-display {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 6px 0;
+    }
+    .score-number {
+      font-size: 56px; font-weight: 800; line-height: 1;
+      transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .score-number.positive { color: var(--blue); }
+    .score-number.negative { color: var(--red); }
+    .score-unit { font-size: 18px; font-weight: 600; color: var(--sub); }
+
+    .progress-section { margin-top: 16px; }
+    .progress-labels {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .progress-label { font-size: 12px; color: var(--sub); }
+    .progress-pct {
+      font-size: 14px; font-weight: 700;
+      padding: 2px 10px; border-radius: 20px;
+      background: var(--sky); color: var(--blue);
+    }
+    .progress-bar-track {
+      height: 20px; background: #EEF4FB;
+      border-radius: 12px; overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 12px;
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+      position: relative; overflow: hidden;
+      min-width: 0;
+    }
+    .progress-bar-fill::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+      animation: shimmer 2s linear infinite;
+    }
+    @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
+    .progress-bar-fill.reward { background: linear-gradient(90deg, #A8D8F5, var(--blue), #FFD700); }
+    .progress-bar-fill.punishment { background: linear-gradient(90deg, var(--green), #F9C74F, var(--red)); }
+    .progress-paw {
+      position: absolute; top: 50%; right: -3px;
+      transform: translateY(-50%);
+      font-size: 18px; pointer-events: none;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.2));
+      animation: paw-bounce 1s ease-in-out infinite;
+    }
+    @keyframes paw-bounce {
+      0%,100% { transform: translateY(-50%) scale(1); }
+      50%      { transform: translateY(-58%) scale(1.15); }
+    }
+
+    .status-text {
+      margin-top: 12px;
+      font-size: 14px; font-weight: 600;
+      color: var(--text); text-align: center;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 700;
+      margin-left: 6px;
+    }
+    .badge-reward { background: linear-gradient(135deg, #FFD700, #FFA500); color: white; }
+    .badge-safe { background: linear-gradient(135deg, var(--green), #4CAF50); color: white; }
+    .badge-danger { background: linear-gradient(135deg, var(--red), #E53935); color: white; }
+
+    /* ── Quick entry ── */
+    .section-title {
+      font-size: 16px; font-weight: 700; color: var(--dark);
+      padding: 16px 20px 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .categories-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; padding: 0 16px;
+    }
+    .cat-card {
+      background: var(--card);
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      cursor: pointer;
+      display: flex; flex-direction: column; gap: 4px;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      position: relative; overflow: hidden;
+      user-select: none;
+    }
+    .cat-card:active { transform: scale(0.95); box-shadow: none; }
+    .cat-card.positive { border-color: rgba(91,155,213,0.25); }
+    .cat-card.negative { border-color: rgba(255,107,107,0.20); }
+    .cat-card.positive:active { background: #F0F7FF; }
+    .cat-card.negative:active { background: #FFF4F4; }
+    .cat-card.positive::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--blue-light), var(--blue));
+      border-radius: 4px 4px 0 0;
+    }
+    .cat-card.negative::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--pink), var(--red));
+      border-radius: 4px 4px 0 0;
+    }
+    .cat-icon { font-size: 26px; margin-bottom: 2px; }
+    .cat-name { font-size: 13px; font-weight: 600; color: var(--dark); }
+    .cat-pts {
+      font-size: 15px; font-weight: 800;
+    }
+    .cat-pts.positive { color: var(--blue); }
+    .cat-pts.negative { color: var(--red); }
+    .add-custom-btn {
+      margin: 12px 16px 0;
+      width: calc(100% - 32px);
+      padding: 13px;
+      background: white; border: 1.5px dashed var(--blue-light);
+      border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 600; color: var(--blue);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .add-custom-btn:active { background: var(--sky); }
+
+    /* ── Recent entries ── */
+    .entries-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+    .entry-item {
+      background: var(--card);
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .entry-icon { font-size: 22px; flex-shrink: 0; }
+    .entry-info { flex: 1; min-width: 0; }
+    .entry-cat { font-size: 14px; font-weight: 600; color: var(--dark); }
+    .entry-desc { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .entry-date { font-size: 11px; color: var(--sub); }
+    .entry-pts {
+      font-size: 16px; font-weight: 800; flex-shrink: 0;
+    }
+    .entry-pts.positive { color: var(--blue); }
+    .entry-pts.negative { color: var(--red); }
+    .entry-edit {
+      font-size: 15px; cursor: pointer; opacity: 0.3;
+      padding: 4px; border-radius: 50%; transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+    .entry-edit:active { opacity: 0.8; }
+    .entry-delete {
+      font-size: 16px; cursor: pointer; opacity: 0.3;
+      padding: 4px; border-radius: 50%; transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+    .entry-delete:active { opacity: 0.8; }
+    .empty-state {
+      text-align: center; padding: 32px 20px;
+      color: var(--sub); font-size: 14px;
+    }
+    .empty-state .es-icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+      border-top: 1.5px solid var(--card-border);
+      display: flex; z-index: 50;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 10px 0 14px;
+      cursor: pointer; gap: 3px;
+      transition: transform 0.15s;
+    }
+    .nav-item:active { transform: scale(0.9); }
+    .nav-icon { font-size: 22px; }
+    .nav-label { font-size: 10px; font-weight: 600; color: var(--sub); letter-spacing: 0.03em; }
+    .nav-item.active .nav-icon { filter: none; }
+    .nav-item.active .nav-label { color: var(--blue); font-weight: 700; }
+    .nav-settle {
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      margin: 8px 0; border-radius: var(--radius-sm);
+      flex: 1.2;
+    }
+    .nav-settle .nav-label { color: white; font-weight: 700; }
+    .nav-settle .nav-icon { filter: none; }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(30,40,60,0.45);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-sheet {
+      width: 100%; max-width: 430px;
+      background: white; border-radius: 24px 24px 0 0;
+      padding: 20px 20px 40px;
+      max-height: 88vh; overflow-y: auto;
+      transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal-overlay.open .modal-sheet { transform: translateY(0); }
+    .modal-handle {
+      width: 36px; height: 4px; background: #E2E8F0; border-radius: 4px;
+      margin: 0 auto 20px;
+    }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; color: var(--dark); }
+
+    /* Table styles in modal */
+    .tier-table { display: flex; flex-direction: column; gap: 10px; }
+    .tier-row {
+      display: flex; align-items: center; gap: 14px;
+      background: #F7F9FC; border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      border: 1.5px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .tier-row.current-tier { border-color: var(--blue); background: var(--sky); }
+    .tier-icon { font-size: 28px; flex-shrink: 0; }
+    .tier-info { flex: 1; }
+    .tier-name { font-size: 15px; font-weight: 700; color: var(--dark); }
+    .tier-desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .tier-pts-label {
+      font-size: 13px; font-weight: 700; white-space: nowrap;
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .tier-pts-reward { background: linear-gradient(135deg, #FFD700, #FFA500); color: white; }
+    .tier-pts-punish { background: linear-gradient(135deg, var(--red), #E53935); color: white; }
+
+    /* Add entry modal */
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--sub); text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .modal-field input, .modal-field select, .modal-field textarea {
+      width: 100%; padding: 12px 16px;
+      border: 1.5px solid var(--card-border); border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--dark); background: white;
+      outline: none; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus {
+      border-color: var(--blue);
+    }
+    .modal-field textarea { resize: none; height: 80px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .btn-secondary {
+      flex: 1; padding: 14px;
+      background: #F7F9FC; border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 600; color: var(--text);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-secondary:active { background: #EEF2F7; }
+    .btn-danger {
+      flex: 1; padding: 14px;
+      background: linear-gradient(135deg, var(--red), #E53935);
+      color: white; border: none; border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,107,107,0.3);
+    }
+
+    /* History list */
+    .history-item {
+      background: #F7F9FC; border-radius: var(--radius-sm);
+      padding: 16px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .history-month { font-size: 13px; font-weight: 700; color: var(--blue); min-width: 56px; }
+    .history-info { flex: 1; }
+    .history-result { font-size: 14px; font-weight: 600; color: var(--dark); }
+    .history-score { font-size: 12px; color: var(--sub); }
+    .history-badge {
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+    }
+    .history-badge.reward { background: #FFF3CC; color: #B8860B; }
+    .history-badge.punishment { background: #FFE0E0; color: #CC3333; }
+    .history-badge.settled { background: #E0F0E0; color: #2E7D32; }
+
+    /* Settle modal */
+    .settle-preview {
+      text-align: center; padding: 24px 0;
+    }
+    .settle-preview .sp-icon { font-size: 60px; margin-bottom: 12px; }
+    .settle-preview .sp-title { font-size: 20px; font-weight: 700; color: var(--dark); }
+    .settle-preview .sp-score { font-size: 15px; color: var(--sub); margin-top: 6px; }
+    .settle-preview .sp-result {
+      margin-top: 20px; padding: 16px;
+      border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 600;
+    }
+    .settle-preview .sp-result.reward { background: linear-gradient(135deg, #FFF8E0, #FFF3CC); border: 2px solid var(--gold); color: #8B6914; }
+    .settle-preview .sp-result.punishment { background: linear-gradient(135deg, #FFF0F0, #FFE0E0); border: 2px solid var(--red); color: #CC2222; }
+    .settle-preview .sp-result.none { background: #F7F9FC; border: 2px solid #E2E8F0; color: var(--sub); }
+
+    /* Particles */
+    .particle {
+      position: fixed; pointer-events: none; z-index: 999;
+      font-size: 20px; animation: fly-up 1s forwards ease-out;
+    }
+    @keyframes fly-up {
+      0%   { transform: translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+    }
+
+    /* Confetti */
+    .confetti-piece {
+      position: fixed; pointer-events: none; z-index: 999;
+      width: 8px; height: 8px; border-radius: 2px;
+      animation: confetti-fall 1.5s forwards;
+    }
+    @keyframes confetti-fall {
+      0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+    }
+
+    /* Flash overlay for punishment */
+    .flash-overlay {
+      position: fixed; inset: 0; z-index: 998;
+      background: rgba(255,80,80,0.3);
+      pointer-events: none; opacity: 0;
+      animation: flash-in 0.6s forwards;
+    }
+    @keyframes flash-in {
+      0%   { opacity: 0; }
+      30%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      background: rgba(30,40,60,0.88); color: white;
+      padding: 10px 20px; border-radius: 30px;
+      font-size: 14px; font-weight: 600; z-index: 200;
+      animation: toast-show 2.5s forwards;
+      white-space: nowrap;
+    }
+    @keyframes toast-show {
+      0%   { opacity:0; transform:translateX(-50%) translateY(10px); }
+      15%  { opacity:1; transform:translateX(-50%) translateY(0); }
+      75%  { opacity:1; }
+      100% { opacity:0; }
+    }
+
+    /* Loading */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      padding: 32px; gap: 8px; color: var(--sub); font-size: 14px;
+    }
+    .spinner {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--blue-light); border-top-color: var(--blue);
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Score bump animation */
+    @keyframes score-bump {
+      0%,100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+    .score-bump { animation: score-bump 0.35s ease-out; }
+
+    /* ── Manage button ── */
+    .manage-btn {
+      font-size: 12px; font-weight: 700; color: var(--blue);
+      background: var(--sky); border: none;
+      padding: 5px 13px; border-radius: 20px;
+      cursor: pointer; margin-left: auto; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .manage-btn:active { background: var(--blue-light); }
+
+    /* ── Manage list modal ── */
+    .manage-add-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 13px 16px; margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--blue), #7BB8E8);
+      color: white; border: none; border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(91,155,213,0.3);
+      transition: transform 0.15s;
+    }
+    .manage-add-btn:active { transform: scale(0.98); }
+    .manage-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 0; border-bottom: 1px solid #F0F4F8;
+    }
+    .manage-row:last-child { border-bottom: none; }
+    .manage-icon { font-size: 24px; flex-shrink: 0; width: 32px; text-align: center; }
+    .manage-info { flex: 1; min-width: 0; }
+    .manage-name { font-size: 14px; font-weight: 600; color: var(--dark); }
+    .manage-sub  { font-size: 12px; color: var(--sub); margin-top: 1px; }
+    .manage-pts-pos { font-size: 13px; font-weight: 700; color: var(--blue); white-space: nowrap; padding: 3px 8px; background: var(--sky); border-radius: 10px; }
+    .manage-pts-neg { font-size: 13px; font-weight: 700; color: var(--red);  white-space: nowrap; padding: 3px 8px; background: #FFF0F0; border-radius: 10px; }
+    .manage-pts-thr { font-size: 13px; font-weight: 700; color: #B8860B;    white-space: nowrap; padding: 3px 8px; background: #FFF8E0; border-radius: 10px; }
+    .manage-inactive { opacity: 0.4; }
+    .manage-action-btn {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: none; cursor: pointer; font-size: 15px;
+      background: #F7F9FC; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .manage-action-btn:active { background: #E2E8F0; }
+    .manage-action-btn.del:active { background: #FFE0E0; }
+    .active-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--green);
+    }
+    .active-dot.off { background: #CBD5E0; }
+
+    /* ── Edit form ── */
+    .ef-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid #F0F4F8;
+      gap: 12px;
+    }
+    .ef-label { font-size: 14px; font-weight: 600; color: var(--dark); }
+    .ef-sublabel { font-size: 12px; color: var(--sub); }
+    .ef-icon-input {
+      width: 52px; height: 52px; font-size: 28px; text-align: center;
+      border: 1.5px solid var(--card-border); border-radius: 12px;
+      background: white; cursor: pointer; outline: none;
+      font-family: inherit;
+    }
+    .ef-icon-input:focus { border-color: var(--blue); }
+    .ef-text-input {
+      flex: 1; padding: 10px 14px;
+      border: 1.5px solid var(--card-border); border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--dark); background: white;
+      outline: none; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .ef-text-input:focus { border-color: var(--blue); }
+    .ef-num-input {
+      width: 90px; padding: 10px 14px; text-align: center;
+      border: 1.5px solid var(--card-border); border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 700; color: var(--dark); background: white;
+      outline: none; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .ef-num-input:focus { border-color: var(--blue); }
+    .ef-toggle-wrap {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+    }
+    .ef-toggle {
+      width: 48px; height: 26px; border-radius: 13px;
+      background: #CBD5E0; position: relative; transition: background 0.3s;
+      flex-shrink: 0; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      border: none; outline: none;
+    }
+    .ef-toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: transform 0.3s;
+    }
+    .ef-toggle:checked { background: var(--green); }
+    .ef-toggle:checked::after { transform: translateX(22px); }
+    .ef-textarea {
+      width: 100%; padding: 10px 14px; resize: none; height: 72px;
+      border: 1.5px solid var(--card-border); border-radius: var(--radius-sm);
+      font-size: 14px; color: var(--dark); background: white;
+      outline: none; font-family: inherit; transition: border-color 0.2s;
+    }
+    .ef-textarea:focus { border-color: var(--blue); }
+    .sn-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; color: var(--blue);
+      background: var(--sky); padding: 3px 10px; border-radius: 20px;
+    }
+
+    /* ── Per-character score selector ── */
+    .char-wrap { cursor: pointer; }
+    .char-wrap .char-img-wrap {
+      border-radius: 60%;
+      border: 3px solid transparent;
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    }
+    .char-wrap.pochacco.selected .char-img-wrap {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 5px rgba(91,155,213,0.18);
+      transform: scale(1.06);
+    }
+    .char-wrap.adai.selected .char-img-wrap {
+      border-color: #FF8FA0;
+      box-shadow: 0 0 0 5px rgba(255,143,160,0.18);
+      transform: scale(1.06);
+    }
+    .char-wrap.not-selected { opacity: 0.5; }
+    .char-wrap.not-selected .char-img-wrap { transform: scale(0.96); }
+    .char-score-badge {
+      margin-top: 5px;
+      font-size: 13px; font-weight: 800;
+      padding: 3px 12px; border-radius: 20px;
+      background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.09);
+      display: inline-block;
+      transition: all 0.3s;
+    }
+    .char-score-badge.pos { color: var(--blue); }
+    .char-score-badge.neg { color: var(--red); }
+    .char-score-badge.zero { color: var(--sub); }
+
+    /* ── Active-for indicator ── */
+    .active-for-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 20px 10px;
+      font-size: 13px; color: var(--sub);
+    }
+    .active-char-chip {
+      font-weight: 700; color: white;
+      padding: 2px 12px; border-radius: 20px;
+      font-size: 12px; transition: background 0.3s;
+    }
+    .active-char-chip.char1 { background: var(--blue); }
+    .active-char-chip.char2 { background: #FF8FA0; }
+
+    /* ── Entry character badge ── */
+    .entry-char-badge {
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .entry-char-badge.char1 { background: var(--sky); color: var(--blue); }
+    .entry-char-badge.char2 { background: #FFE8EE; color: #FF8FA0; }
+
+    /* ── Per-character settle cards ── */
+    .settle-char-row {
+      display: flex; gap: 12px; margin: 16px 0;
+    }
+    .settle-char-card {
+      flex: 1; border-radius: var(--radius-sm);
+      padding: 14px 12px; text-align: center;
+      border: 2px solid transparent;
+    }
+    .settle-char-card.char1 { background: var(--sky); border-color: var(--blue-light); }
+    .settle-char-card.char2 { background: #FFE8EE; border-color: #FFD6E4; }
+    .settle-char-card .sc-name { font-size: 13px; font-weight: 700; color: var(--sub); }
+    .settle-char-card .sc-score { font-size: 24px; font-weight: 800; margin: 4px 0; }
+    .settle-char-card.char1 .sc-score { color: var(--blue); }
+    .settle-char-card.char2 .sc-score { color: #FF8FA0; }
+    .settle-char-card .sc-pct { font-size: 11px; color: var(--sub); }
+    .settle-char-card .sc-result {
+      margin-top: 8px; font-size: 12px; font-weight: 600;
+      padding: 4px 8px; border-radius: 10px;
+      background: rgba(255,255,255,0.7);
+    }
+
+    /* Responsive */
+    @media (max-width: 390px) {
+      .char-svg { width: 78px; height: 92px; }
+      .score-number { font-size: 46px; }
+    }
+
+    /* ── Start / splash page ── */
+    #start-page {
+      position: fixed; inset: 0; z-index: 60;
+      background: linear-gradient(160deg, #B8D9F8 0%, #CEEAFF 28%, #E8E2FF 60%, #FFE2F0 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px 24px; overflow-y: auto;
+      animation: sp-enter 0.7s cubic-bezier(0.22,1,0.36,1);
+    }
+    #start-page.sp-exiting {
+      animation: sp-exit 0.65s cubic-bezier(0.55,0,1,0.45) forwards;
+      pointer-events: none;
+    }
+    @keyframes sp-enter {
+      from { opacity: 0; transform: scale(0.96) translateY(16px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes sp-exit {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(0.94); }
+    }
+    .sp-deco {
+      position: absolute; font-size: 18px; opacity: 0.12; pointer-events: none;
+      animation: deco-float 7s ease-in-out infinite;
+    }
+    .sp-content {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; text-align: center; width: 100%; max-width: 340px;
+      position: relative; z-index: 1;
+    }
+    .sp-paw-logo {
+      font-size: 44px; line-height: 1;
+      animation: sp-bounce 2.2s ease-in-out infinite;
+      filter: drop-shadow(0 4px 10px rgba(91,155,213,0.35));
+    }
+    @keyframes sp-bounce {
+      0%,100% { transform: translateY(0) rotate(-6deg); }
+      50%     { transform: translateY(-10px) rotate(6deg); }
+    }
+    .sp-title {
+      font-size: 30px; font-weight: 900; margin: 2px 0 0;
+      background: linear-gradient(130deg, #2E7BD5 0%, #7B6CF5 50%, #FF6FA0 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      letter-spacing: 0.03em; line-height: 1.1;
+    }
+    .sp-tagline {
+      font-size: 13px; color: var(--sub); font-weight: 500; margin: 0;
+      letter-spacing: 0.02em;
+    }
+    .sp-chars-row {
+      display: flex; align-items: center; gap: 12px; margin: 8px 0 4px;
+    }
+    .sp-char-card {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 8px 12px; border-radius: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+    }
+    .sp-char-card.c1 {
+      background: linear-gradient(160deg, #D8EEFF, #BDDAFF);
+      border: 2px solid rgba(91,155,213,0.25);
+      animation: char-idle 3.2s ease-in-out infinite;
+    }
+    .sp-char-card.c2 {
+      background: linear-gradient(160deg, #FFE8F4, #FFD4EC);
+      border: 2px solid rgba(255,143,160,0.25);
+      animation: char-idle 3.2s ease-in-out infinite 0.7s;
+    }
+    .sp-char-card .char-svg { width: 62px !important; height: 74px !important; }
+    .sp-char-card .char-img-custom { width: 62px !important; height: 74px !important; }
+    .sp-char-label {
+      font-size: 11px; font-weight: 700;
+    }
+    .sp-char-card.c1 .sp-char-label { color: var(--blue); }
+    .sp-char-card.c2 .sp-char-label { color: #FF8FA0; }
+    .sp-vs-heart {
+      font-size: 28px;
+      animation: heartbeat 1.4s ease-in-out infinite;
+    }
+    .sp-btn {
+      margin-top: 4px; padding: 14px 36px;
+      background: linear-gradient(135deg, #5B9BD5 0%, #7BB8E8 100%);
+      color: white; border: none; border-radius: 50px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 6px 28px rgba(91,155,213,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      animation: btn-pulse 2.6s ease-in-out infinite;
+    }
+    .sp-btn:active { transform: scale(0.96); }
+    @keyframes btn-pulse {
+      0%,100% { box-shadow: 0 6px 28px rgba(91,155,213,0.5); }
+      50%     { box-shadow: 0 8px 36px rgba(91,155,213,0.75); }
+    }
+    .sp-btn-emoji { font-size: 18px; }
+    .sp-hint {
+      font-size: 11px; color: var(--sub); opacity: 0.65; margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Start / Splash page ── -->
+<div id="start-page">
+  <div class="sp-deco" style="top:7%;left:10%;animation-delay:0s">⭐</div>
+  <div class="sp-deco" style="top:12%;right:9%;animation-delay:1.5s">✨</div>
+  <div class="sp-deco" style="top:80%;left:8%;animation-delay:2.8s">🐾</div>
+  <div class="sp-deco" style="top:75%;right:11%;animation-delay:0.8s">💙</div>
+  <div class="sp-deco" style="top:45%;left:5%;animation-delay:3.5s">🌟</div>
+
+  <div class="sp-content">
+    <div class="sp-paw-logo">🐾</div>
+    <div class="sp-title">恋爱积分簿</div>
+    <p class="sp-tagline">记录每一份甜蜜与爱 🌸</p>
+
+    <div class="sp-chars-row">
+      <div class="sp-char-card c1">
+        <div id="sp-char-img-1"></div>
+        <div class="sp-char-label" id="sp-name-1">Pochacco</div>
+      </div>
+      <div class="sp-vs-heart">💙</div>
+      <div class="sp-char-card c2">
+        <div id="sp-char-img-2"></div>
+        <div class="sp-char-label" id="sp-name-2">阿呆</div>
+      </div>
+    </div>
+
+    <button class="sp-btn" onclick="startApp()">
+      <span class="sp-btn-emoji">🎵</span>
+      开始我们的故事
+    </button>
+    <p class="sp-hint">点击后背景音乐将自动播放</p>
+  </div>
+</div>
+
+<!-- Decorative background -->
+<div class="clouds-bg">
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+  <div class="cloud c4"></div>
+  <div class="cloud c5"></div>
+</div>
+<div class="float-deco" style="top:10%;right:7%;animation-delay:0s">⭐</div>
+<div class="float-deco" style="top:22%;left:5%;animation-delay:1.8s">🐾</div>
+<div class="float-deco" style="top:38%;right:9%;animation-delay:3.5s">✨</div>
+<div class="float-deco" style="top:55%;left:4%;animation-delay:0.6s">💙</div>
+<div class="float-deco" style="top:70%;right:5%;animation-delay:2.8s">🐾</div>
+<div class="float-deco" style="top:84%;left:7%;animation-delay:1.2s">⭐</div>
+
+<!-- Setup overlay hidden by default -->
+<div id="setup-overlay" class="hidden"></div>
+
+<!-- Main app -->
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">🐾 恋爱积分簿</div>
+      <div class="header-right">
+        <button class="music-btn" id="music-btn" onclick="Music.toggle()" title="背景音乐">
+          <span class="music-note" id="music-icon">🎵</span>
+        </button>
+        <button class="settings-btn" onclick="App.showSettings()">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Characters -->
+    <div class="characters-row">
+      <div class="char-wrap pochacco selected" id="char-pochacco" onclick="App.selectChar('char1')">
+        <div class="char-img-wrap" id="char-img-wrap-1">
+          <!-- Initial placeholder (app.js replaces with POCHACCO_SVG) -->
+          <svg class="char-svg" id="char-svg-1" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(0,0,0,0.09)"/>
+            <g id="pochacco-left-ear">
+              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
+            </g>
+            <g id="pochacco-right-ear">
+              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
+            </g>
+            <ellipse cx="55" cy="86" rx="37" ry="42" fill="white" stroke="#D8D8D8" stroke-width="1.5"/>
+            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#F8F8F8" stroke="#E0E0E0" stroke-width="1"/>
+            <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <circle id="c1-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
+            <circle id="c1-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
+            <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
+            <path id="pochacco-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect x="33" y="90" width="44" height="8" rx="4" fill="#5B9BD5" stroke="#2B6AB3" stroke-width="0.5"/>
+            <circle cx="55" cy="94" r="3.5" fill="#2B6AB3"/>
+            <circle cx="55" cy="94" r="1.5" fill="#A8D4F8"/>
+          </svg>
+        </div>
+        <div class="char-name" id="char-name-1">线条小狗·他</div>
+        <div class="char-score-badge zero" id="char1-score-badge">+0</div>
+      </div>
+
+      <div class="vs-heart">💙</div>
+
+      <!-- 阿呆 character -->
+      <div class="char-wrap adai not-selected" id="char-adai" onclick="App.selectChar('char2')">
+        <div class="char-img-wrap" id="char-img-wrap-2">
+          <svg class="char-svg" id="char-svg-2" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(255,143,160,0.15)"/>
+            <g id="adai-left-ear">
+              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#F8F0F4" stroke="#F0C0D4" stroke-width="1.5"/>
+            </g>
+            <g id="adai-right-ear">
+              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#F8F0F4" stroke="#F0C0D4" stroke-width="1.5"/>
+            </g>
+            <ellipse cx="55" cy="86" rx="37" ry="42" fill="white" stroke="#F0C0D4" stroke-width="1.5"/>
+            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FAF8F8" stroke="#F0C0D4" stroke-width="1"/>
+            <path d="M 55 38 Q 42 28 38 36 Q 36 44 44 47 Q 50 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
+            <path d="M 55 38 Q 68 28 72 36 Q 74 44 66 47 Q 60 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
+            <ellipse cx="55" cy="40.5" rx="5.5" ry="6" fill="#E8607A"/>
+            <circle cx="55" cy="39" r="2.5" fill="#FFB3C6"/>
+            <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <circle id="c2-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
+            <circle id="c2-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
+            <line x1="38" y1="52" x2="35.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="41.5" y1="51" x2="40" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="72" y1="52" x2="74.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+            <line x1="68.5" y1="51" x2="70" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
+            <path id="adai-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect x="33" y="90" width="44" height="8" rx="4" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.5"/>
+            <circle cx="55" cy="94" r="3.5" fill="#E8607A"/>
+            <circle cx="55" cy="94" r="1.5" fill="#FFD4E8"/>
+          </svg>
+        </div>
+        <div class="char-name" id="char-name-2" style="color:#FF8FA0">线条小狗·她</div>
+        <div class="char-score-badge zero" id="char2-score-badge">+0</div>
+      </div>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="mode-row">
+      <span class="mode-label" id="label-reward">🏆 奖励模式</span>
+      <div class="mode-toggle-wrap reward" id="mode-toggle" onclick="App.toggleMode()">
+        <div class="mode-knob" id="mode-knob">🏆</div>
+      </div>
+      <span class="mode-label" id="label-punishment">😈 惩罚模式</span>
+    </div>
+  </div>
+
+  <!-- Score card -->
+  <div class="score-card">
+    <div class="score-card-header">
+      <div class="month-label" id="month-label">-- 年 -- 月</div>
+      <span style="font-size:18px;opacity:0.85">🐾 ⭐ 🐾</span>
+    </div>
+    <div class="score-card-body">
+      <div class="score-display">
+        <div class="score-number positive" id="score-number">0</div>
+        <div class="score-unit">分</div>
+      </div>
+
+      <div class="progress-section">
+        <div class="progress-labels">
+          <span class="progress-label" id="progress-left-label">0 分</span>
+          <span class="progress-pct" id="progress-pct">0%</span>
+          <span class="progress-label" id="progress-right-label">100 分</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill reward" id="progress-fill" style="width:0%">
+            <span class="progress-paw">🐾</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-text" id="status-text">还差 <span id="status-gap">100</span> 分达成奖励</div>
+    </div>
+  </div>
+
+  <!-- Categories (quick entry) -->
+  <div class="section-title">✏️ 快速记分 <button class="manage-btn" onclick="App.openManage('category')">⚙️ 管理</button></div>
+  <div class="active-for-row">正在为 <span class="active-char-chip char1" id="active-for-chip">加载中</span> 记分</div>
+  <div class="categories-grid" id="categories-grid">
+    <div class="loading"><div class="spinner"></div> 加载中…</div>
+  </div>
+  <button class="add-custom-btn" onclick="App.openAddModal()">＋ 自定义记录</button>
+
+  <!-- Recent entries -->
+  <div class="section-title">📋 本月记录</div>
+  <div class="entries-list" id="entries-list">
+    <div class="loading"><div class="spinner"></div> 加载中…</div>
+  </div>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="App.nav('home')" id="nav-home">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">主页</div>
+  </div>
+  <div class="nav-item" onclick="App.nav('tables')" id="nav-tables">
+    <div class="nav-icon">📊</div>
+    <div class="nav-label">积分表</div>
+  </div>
+  <div class="nav-item nav-settle" onclick="App.openSettleModal()" id="nav-settle">
+    <div class="nav-icon">🎯</div>
+    <div class="nav-label">月末结算</div>
+  </div>
+  <div class="nav-item" onclick="App.nav('history')" id="nav-history">
+    <div class="nav-icon">📅</div>
+    <div class="nav-label">历史</div>
+  </div>
+  <div class="nav-item" onclick="App.nav('settings')" id="nav-settings">
+    <div class="nav-icon">⚙️</div>
+    <div class="nav-label">设置</div>
+  </div>
+</nav>
+
+<!-- Tables modal -->
+<div class="modal-overlay" id="modal-tables">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;margin-bottom:20px">
+      <div class="modal-title" style="margin-bottom:0;flex:1" id="modal-tables-title">📊 积分表</div>
+      <button class="manage-btn" id="tables-manage-btn" onclick="App.openManageFromTable()">⚙️ 管理</button>
+    </div>
+    <div id="modal-tables-content"></div>
+  </div>
+</div>
+
+<!-- Add entry modal -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-add-title">✏️ 自定义记分</div>
+    <input type="hidden" id="add-entry-id"/>
+    <div class="modal-field">
+      <label>分类</label>
+      <select id="add-cat-select"><option>加载中…</option></select>
+    </div>
+    <div class="modal-field">
+      <label>分数 (正 = 加分, 负 = 扣分)</label>
+      <input id="add-pts" type="number" placeholder="10" value="10"/>
+    </div>
+    <div class="modal-field">
+      <label>说明 (可选)</label>
+      <textarea id="add-desc" placeholder="今天发生了什么…"></textarea>
+    </div>
+    <div class="modal-field">
+      <label>日期</label>
+      <input id="add-date" type="date"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-add')">取消</button>
+      <button class="btn-primary" onclick="App.submitEntry()" style="flex:1" id="modal-add-btn">记录 ✨</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settle modal -->
+<div class="modal-overlay" id="modal-settle">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎯 月末结算</div>
+    <div class="settle-preview" id="settle-preview"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-settle')">再想想</button>
+      <button class="btn-primary" onclick="App.confirmSettle()" style="flex:1">确认结算 🎊</button>
+    </div>
+  </div>
+</div>
+
+<!-- History modal -->
+<div class="modal-overlay" id="modal-history">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📅 历史记录</div>
+    <div id="history-content"></div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ 设置</div>
+
+    <!-- Character names -->
+    <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">角色名字</div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <div class="modal-field" style="flex:1;margin-bottom:0">
+        <label>💙 角色一</label>
+        <input id="cfg-name1" type="text" placeholder="Pochacco" maxlength="12"/>
+      </div>
+      <div class="modal-field" style="flex:1;margin-bottom:0">
+        <label>🩷 角色二</label>
+        <input id="cfg-name2" type="text" placeholder="阿呆" maxlength="12"/>
+      </div>
+    </div>
+
+    <!-- Character images -->
+    <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">角色图片 <span style="font-weight:400;text-transform:none;letter-spacing:0">(点击更换)</span></div>
+    <div class="char-pickers-row">
+      <div class="char-picker-card" id="picker-card-1" onclick="document.getElementById('img1-file').click()">
+        <div class="char-picker-reset" id="img1-reset" onclick="event.stopPropagation();App.resetCharImg(1)" title="重置" style="display:none">✕</div>
+        <div id="img1-preview-wrap">
+          <!-- populated by JS -->
+        </div>
+        <input type="file" id="img1-file" accept="image/*" style="display:none" onchange="App.setCharImg(1,this)"/>
+        <div class="char-picker-label" id="img1-name">💙 角色一</div>
+        <div class="char-picker-btn">📷 更换图片</div>
+      </div>
+      <div class="char-picker-card" id="picker-card-2" onclick="document.getElementById('img2-file').click()">
+        <div class="char-picker-reset" id="img2-reset" onclick="event.stopPropagation();App.resetCharImg(2)" title="重置" style="display:none">✕</div>
+        <div id="img2-preview-wrap">
+          <!-- populated by JS -->
+        </div>
+        <input type="file" id="img2-file" accept="image/*" style="display:none" onchange="App.setCharImg(2,this)"/>
+        <div class="char-picker-label" id="img2-name">🩷 角色二</div>
+        <div class="char-picker-btn">📷 更换图片</div>
+      </div>
+    </div>
+
+    <!-- Score thresholds -->
+    <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">积分设定</div>
+    <div class="modal-field">
+      <label>奖励目标分数</label>
+      <input id="cfg-reward-target" type="number" placeholder="100"/>
+    </div>
+    <div class="modal-field">
+      <label>惩罚阈值分数 (负数)</label>
+      <input id="cfg-punish-threshold" type="number" placeholder="-80"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-settings')">取消</button>
+      <button class="btn-primary" onclick="App.saveConfig()" style="flex:1">保存 ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage list modal (categories / rewards / punishments) -->
+<div class="modal-overlay" id="modal-manage">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;margin-bottom:16px">
+      <div class="modal-title" style="margin-bottom:0;flex:1" id="manage-modal-title">管理</div>
+      <span class="sn-badge" id="manage-sn-badge">☁️ SN</span>
+    </div>
+    <button class="manage-add-btn" id="manage-add-btn" onclick="App.openEditForm(null)">＋ 添加新项目</button>
+    <div id="manage-list"></div>
+  </div>
+</div>
+
+<!-- Edit / Add item modal -->
+<div class="modal-overlay" id="modal-edit-form">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="edit-form-title">编辑</div>
+
+    <!-- Icon -->
+    <div class="ef-row">
+      <div><div class="ef-label">图标</div><div class="ef-sublabel">点击输入 Emoji</div></div>
+      <input class="ef-icon-input" id="ef-icon" type="text" maxlength="4" placeholder="😊"/>
+    </div>
+
+    <!-- Name -->
+    <div class="ef-row">
+      <div class="ef-label">名称</div>
+      <input class="ef-text-input" id="ef-name" type="text" maxlength="30" placeholder="名称…"/>
+    </div>
+
+    <!-- Points -->
+    <div class="ef-row" id="ef-pts-row">
+      <div><div class="ef-label" id="ef-pts-label">分数</div><div class="ef-sublabel" id="ef-pts-sub">正数加分，负数扣分</div></div>
+      <input class="ef-num-input" id="ef-pts" type="number" placeholder="10"/>
+    </div>
+
+    <!-- Description (rewards/punishments only) -->
+    <div id="ef-desc-field" style="padding:14px 0;border-bottom:1px solid #F0F4F8">
+      <div class="ef-label" style="margin-bottom:8px">说明</div>
+      <textarea class="ef-textarea" id="ef-desc" placeholder="详细说明…"></textarea>
+    </div>
+
+    <!-- Active toggle (categories only) -->
+    <div class="ef-row" id="ef-active-row">
+      <div><div class="ef-label">显示在快速记分</div><div class="ef-sublabel">关闭后隐藏但不删除</div></div>
+      <label class="ef-toggle-wrap">
+        <input type="checkbox" class="ef-toggle" id="ef-active" checked/>
+      </label>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn-secondary" onclick="App.closeModal('modal-edit-form')">取消</button>
+      <button class="btn-primary" onclick="App.saveEditForm()" style="flex:1">保存 ✅</button>
+    </div>
+  </div>
+</div>
+
+<audio id="bg-audio" src="no-copyright-music-pochacco-lulu.mp3" loop preload="auto"></audio>
+<script src="app.js"></script>
+</body>
+</html>
