@@ -1178,8 +1178,14 @@ const App = (() => {
     const w2 = document.getElementById('char-img-wrap-2');
     const s1 = document.getElementById('sp-char-img-1');
     const s2 = document.getElementById('sp-char-img-2');
-    if (s1 && w1) s1.innerHTML = w1.innerHTML;
-    if (s2 && w2) s2.innerHTML = w2.innerHTML;
+    function cloneNoIds(src) {
+      const t = document.createElement('div');
+      t.innerHTML = src.innerHTML;
+      t.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      return t.innerHTML;
+    }
+    if (s1 && w1) s1.innerHTML = cloneNoIds(w1);
+    if (s2 && w2) s2.innerHTML = cloneNoIds(w2);
     const sn1 = document.getElementById('sp-name-1');
     const sn2 = document.getElementById('sp-name-2');
     if (sn1) sn1.textContent = S.charName1 || 'Pochacco';
