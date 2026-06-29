@@ -413,13 +413,13 @@ const App = (() => {
   const ADAI_SVG = `<svg class="char-svg" id="char-svg-2" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
     <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(255,143,160,0.15)"/>
     <g id="adai-left-ear">
-      <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#FFE8F0" stroke="#E8A0BC" stroke-width="1.8"/>
+      <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
     </g>
     <g id="adai-right-ear">
-      <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#FFE8F0" stroke="#E8A0BC" stroke-width="1.8"/>
+      <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
     </g>
-    <ellipse cx="55" cy="86" rx="37" ry="42" fill="#FFF5F8" stroke="#E8A0BC" stroke-width="1.8"/>
-    <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FFFAFC" stroke="#E8A0BC" stroke-width="1"/>
+    <ellipse cx="55" cy="86" rx="37" ry="42" fill="#FFC8DE" stroke="#D9607A" stroke-width="1.8"/>
+    <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FFD9EB" stroke="#D9607A" stroke-width="1"/>
     <path d="M 55 38 Q 42 28 38 36 Q 36 44 44 47 Q 50 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
     <path d="M 55 38 Q 68 28 72 36 Q 74 44 66 47 Q 60 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
     <ellipse cx="55" cy="40.5" rx="5.5" ry="6" fill="#E8607A"/>
