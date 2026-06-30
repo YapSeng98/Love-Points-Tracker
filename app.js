@@ -1207,7 +1207,7 @@ const App = (() => {
       try {
         await Data.init();
         await refresh();
-        document.getElementById('setup-overlay').classList.add('hidden');
+        // Do NOT hide overlay here — startApp() always shows login page
       } catch (err) {
         S.usingSN = false;
         localStorage.removeItem('sn_auth');
@@ -1270,9 +1270,21 @@ function startApp() {
   sp.classList.add('sp-exiting');
   sp.addEventListener('animationend', () => {
     sp.remove();
-    if (!localStorage.getItem('sn_auth')) {
-      document.getElementById('setup-overlay').classList.remove('hidden');
+
+    // Pre-fill login form if user was previously logged in
+    const savedName = localStorage.getItem('sn_username');
+    const savedChar = localStorage.getItem('sn_char') || 'char1';
+    if (savedName) {
+      const nameEl = document.getElementById('sn-username');
+      if (nameEl) nameEl.value = savedName;
+      const radio = document.querySelector(`input[name="sn-char"][value="${savedChar}"]`);
+      if (radio) radio.checked = true;
+      const btn = document.getElementById('sn-connect-btn');
+      if (btn) btn.textContent = `继续 (${savedName})`;
     }
+
+    // Always show login page — user must confirm identity each session
+    document.getElementById('setup-overlay').classList.remove('hidden');
   }, { once: true });
 }
 
