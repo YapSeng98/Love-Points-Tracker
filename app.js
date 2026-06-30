@@ -1168,10 +1168,30 @@ const App = (() => {
 
   /* ── Boot ── */
   async function boot() {
-    S.usingSN    = false;
-    S.snInstance = 'localhost (Demo)';
-    await Data.init();
-    await refresh();
+    const savedInstance = localStorage.getItem('sn_instance');
+    const savedAuth     = localStorage.getItem('sn_auth');
+
+    if (savedInstance && savedAuth) {
+      S.snInstance = savedInstance;
+      S.authHeader = savedAuth;
+      S.usingSN    = true;
+      try {
+        await Data.init();
+        await refresh();
+        document.getElementById('setup-overlay').classList.add('hidden');
+      } catch (err) {
+        S.usingSN = false;
+        localStorage.removeItem('sn_instance');
+        localStorage.removeItem('sn_auth');
+        await Data.init();
+        await refresh();
+      }
+    } else {
+      S.usingSN    = false;
+      S.snInstance = 'localhost (Demo)';
+      await Data.init();
+      await refresh();
+    }
 
     /* populate start page with rendered characters + names */
     const w1 = document.getElementById('char-img-wrap-1');
