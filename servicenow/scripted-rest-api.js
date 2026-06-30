@@ -3,7 +3,7 @@
   恋爱积分簿 — ServiceNow Scripted REST API
   Application: Global scope
   API Name: love_score
-  Base Path: /api/global/love_score
+  Base Path: /api/x_887486_love_app/love_score
   ============================================================
 
   SETUP STEPS in ServiceNow:

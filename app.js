@@ -6,7 +6,7 @@
 const App = (() => {
 
   /* ── Config ── */
-  const SN_API_PATH = '/api/global/love_score';
+  const SN_API_PATH = '/api/x_887486_love_app/love_score';
 
   /* ── State ── */
   let S = {
