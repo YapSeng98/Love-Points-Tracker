@@ -6,9 +6,9 @@
 const App = (() => {
 
   /* ── Config ── */
-  const SN_API_PATH     = '/api/x_887486_love_app/love_score';
-  const SN_INSTANCE     = 'dev405150.service-now.com';
-  const SN_API_USER     = 'love_score_api';
+  const SN_API_PATH = '/api/x_887486_love_app/love_score';
+  const SN_INSTANCE = 'dev405150.service-now.com';
+  const SN_API_USER = 'love_score_api';
 
   /* ── State ── */
   let S = {
@@ -538,30 +538,53 @@ const App = (() => {
 
   /* ── Public API ── */
   async function connect() {
-    const pin = document.getElementById('sn-pin').value.trim();
-    if (!pin) { showToast('请输入 PIN 码 ⚠️'); return; }
+    const username = document.getElementById('sn-username').value.trim();
+    const password = document.getElementById('sn-password').value;
+    const charId   = document.querySelector('input[name="sn-char"]:checked')?.value || 'char1';
 
-    S.snInstance  = SN_INSTANCE;
-    S.authHeader  = 'Basic ' + btoa(`${SN_API_USER}:${pin}`);
-    S.usingSN     = true;
+    if (!username) { _loginErr('请输入你的姓名'); return; }
+    if (!password) { _loginErr('请输入密码');     return; }
+
+    S.snInstance = SN_INSTANCE;
+    S.authHeader = 'Basic ' + btoa(`${SN_API_USER}:${password}`);
+    S.usingSN    = true;
 
     const btn = document.getElementById('sn-connect-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '连接中…'; }
+    if (btn) { btn.disabled = true; btn.textContent = '验证中…'; }
+    _loginErr('');
 
     try {
+      // Validate password + look up / register this user in u_love_auth
+      const result = await snFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, charId }),
+      });
+
+      S.activeChar = result.charId || charId;
+      const displayName = result.username || username;
+
+      localStorage.setItem('sn_auth',     S.authHeader);
+      localStorage.setItem('sn_username', displayName);
+      localStorage.setItem('sn_char',     S.activeChar);
+
       await Data.init();
-      localStorage.setItem('sn_instance', SN_INSTANCE);
-      localStorage.setItem('sn_auth', S.authHeader);
-      document.getElementById('setup-overlay').classList.add('hidden');
       await refresh();
-      showToast('✅ 已连接 ServiceNow！');
+      document.getElementById('setup-overlay').classList.add('hidden');
+
+      const action = result.action === 'registered' ? '🎉 注册成功，欢迎 ' : '✅ 欢迎回来，';
+      showToast(action + displayName + '！');
     } catch (err) {
-      showToast('❌ PIN 错误或网络问题');
-      S.usingSN = false;
+      S.usingSN    = false;
       S.authHeader = '';
-      if (btn) { btn.disabled = false; btn.textContent = '🔗 进入'; }
-      document.getElementById('sn-pin-err').textContent = 'PIN 不正确，请重试';
+      const msg = err.message.includes('401') ? '密码错误，请重试' : '连接失败: ' + err.message;
+      _loginErr(msg);
+      if (btn) { btn.disabled = false; btn.textContent = '登录 / 注册'; }
     }
+  }
+
+  function _loginErr(msg) {
+    const el = document.getElementById('sn-login-err');
+    if (el) el.textContent = msg;
   }
 
   async function demoMode() {
@@ -923,8 +946,9 @@ const App = (() => {
   }
 
   function logout() {
-    localStorage.removeItem('sn_instance');
     localStorage.removeItem('sn_auth');
+    localStorage.removeItem('sn_username');
+    localStorage.removeItem('sn_char');
     location.reload();
   }
 
@@ -1173,12 +1197,12 @@ const App = (() => {
 
   /* ── Boot ── */
   async function boot() {
-    const savedInstance = localStorage.getItem('sn_instance');
-    const savedAuth     = localStorage.getItem('sn_auth');
+    const savedAuth = localStorage.getItem('sn_auth');
 
-    if (savedInstance && savedAuth) {
-      S.snInstance = savedInstance;
+    if (savedAuth) {
+      S.snInstance = SN_INSTANCE;
       S.authHeader = savedAuth;
+      S.activeChar = localStorage.getItem('sn_char') || 'char1';
       S.usingSN    = true;
       try {
         await Data.init();
@@ -1186,8 +1210,9 @@ const App = (() => {
         document.getElementById('setup-overlay').classList.add('hidden');
       } catch (err) {
         S.usingSN = false;
-        localStorage.removeItem('sn_instance');
         localStorage.removeItem('sn_auth');
+        localStorage.removeItem('sn_username');
+        localStorage.removeItem('sn_char');
         await Data.init();
         await refresh();
       }

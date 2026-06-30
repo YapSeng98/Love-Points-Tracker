@@ -23,6 +23,14 @@
   u_love_punishment: sys_id → id  |  u_emoji → icon  |  u_name → name  |  u_points → minPts  |  u_desc → desc
   u_love_monthly  : u_month → month  |  u_char1_pts → char1Pts  |  u_char2_pts → char2Pts  |  u_result_1 → result1  |  u_result_2 → result2  |  u_mode → mode  |  u_settled_at → settledAt
   u_love_config   : u_mode → mode  |  u_reward_target → rewardTarget  |  u_punish_threshold → punishThreshold
+  u_love_auth     : u_username → username  |  u_char_id → charId  |  u_last_login → lastLogin
+
+  AUTH FLOW:
+  POST /auth/login  → SN validates Basic Auth (love_score_api:password) automatically.
+                      Script then checks u_love_auth for the username:
+                        match  → return { action:'login',      charId, username }
+                        no match → insert, return { action:'registered', charId, username }
+                        (wrong password is rejected by SN before script runs → 401)
   ============================================================
 */
 
@@ -459,5 +467,63 @@
     } else {
         response.setStatus(404);
         response.setBody({ result: { error: 'Not found' } });
+    }
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 21: POST /auth/login
+   HTTP Method: POST  |  Path: /auth/login
+   ─────────────────────────────────────────────────────────
+   SN validates Basic Auth (love_score_api:password) before
+   this script runs — wrong password → automatic 401.
+   Script only handles the u_love_auth table logic.
+
+   NEW TABLE REQUIRED: u_love_auth
+     u_username  String(100)
+     u_char_id   String(10)    "char1" or "char2"
+     u_last_login  Date/Time
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body     = request.body && request.body.data;
+    var username = body ? (body.username || '').toString().trim() : '';
+    var charId   = body ? (body.charId   || 'char1').toString()  : 'char1';
+
+    if (!username) {
+        response.setStatus(400);
+        response.setBody({ result: { error: '请输入姓名' } });
+        return;
+    }
+
+    var gr = new GlideRecord('u_love_auth');
+    gr.addQuery('u_username', username);
+    gr.query();
+
+    if (gr.next()) {
+        // User already registered — return stored charId
+        gr.setValue('u_last_login', new GlideDateTime());
+        gr.update();
+        response.setStatus(200);
+        response.setBody({ result: {
+            success:  true,
+            action:   'login',
+            username: gr.getValue('u_username'),
+            charId:   gr.getValue('u_char_id')
+        }});
+    } else {
+        // First time — register this name
+        var newGr = new GlideRecord('u_love_auth');
+        newGr.initialize();
+        newGr.setValue('u_username',   username);
+        newGr.setValue('u_char_id',    charId);
+        newGr.setValue('u_last_login', new GlideDateTime());
+        newGr.insert();
+        response.setStatus(201);
+        response.setBody({ result: {
+            success:  true,
+            action:   'registered',
+            username: username,
+            charId:   charId
+        }});
     }
 })(request, response);
