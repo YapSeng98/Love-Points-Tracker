@@ -49,6 +49,20 @@ const App = (() => {
     return data;
   }
 
+  // SN PDI MySQL uses utf8mb3 (3-byte max) — 4-byte emoji get corrupted on write.
+  // Workaround: escape surrogate pairs to \uXXXX\uXXXX ASCII sequences before storing.
+  function encodeForSN(str) {
+    if (!str) return str;
+    return str.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, (m) =>
+      `\\u${m.charCodeAt(0).toString(16)}\\u${m.charCodeAt(1).toString(16)}`
+    );
+  }
+
+  function decodeFromSN(str) {
+    if (!str || !str.includes('\\u')) return str;
+    return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  }
+
   async function snFetch(path, opts = {}) {
     const url = `https://${S.snInstance}${SN_API_PATH}${path}`;
     const res = await fetch(url, {
@@ -138,9 +152,10 @@ const App = (() => {
         }
         if (cfg.char1Name) { S.charName1 = cfg.char1Name; localStorage.setItem('sn_charname1', cfg.char1Name); }
         if (cfg.char2Name) { S.charName2 = cfg.char2Name; localStorage.setItem('sn_charname2', cfg.char2Name); }
-        S.categories      = await snFetch('/categories');
-        S.rewards         = await snFetch('/rewards');
-        S.punishments     = await snFetch('/punishments');
+        const decodeIcons = (arr) => arr.map(x => ({ ...x, icon: decodeFromSN(x.icon) }));
+        S.categories  = decodeIcons(await snFetch('/categories'));
+        S.rewards     = decodeIcons(await snFetch('/rewards'));
+        S.punishments = decodeIcons(await snFetch('/punishments'));
       } else {
         const d = LS.load();
         S.mode            = d.mode;
@@ -157,13 +172,19 @@ const App = (() => {
     },
 
     async getEntries(month) {
-      if (S.usingSN) return snFetch(`/entries?month=${month}`);
+      if (S.usingSN) {
+        const entries = await snFetch(`/entries?month=${month}`);
+        return entries.map(e => ({ ...e, icon: decodeFromSN(e.icon) }));
+      }
       const d = LS.load();
       return (d.entries[month] || []).sort((a,b) => new Date(b.date)-new Date(a.date));
     },
 
     async addEntry(entry) {
-      if (S.usingSN) return snFetch('/entries', { method:'POST', body: JSON.stringify(entry) });
+      if (S.usingSN) {
+        const encoded = { ...entry, icon: encodeForSN(entry.icon) };
+        return snFetch('/entries', { method:'POST', body: JSON.stringify(encoded) });
+      }
       const d = LS.load();
       if (!d.entries[entry.month]) d.entries[entry.month] = [];
       const e = { ...entry, id: 'e'+Date.now() };
@@ -180,7 +201,10 @@ const App = (() => {
     },
 
     async updateEntry(id, month, data) {
-      if (S.usingSN) return snFetch(`/entries/${id}`, { method:'PUT', body: JSON.stringify(data) });
+      if (S.usingSN) {
+        const encoded = data.icon ? { ...data, icon: encodeForSN(data.icon) } : data;
+        return snFetch(`/entries/${id}`, { method:'PUT', body: JSON.stringify(encoded) });
+      }
       const d = LS.load();
       if (d.entries[month]) {
         const idx = d.entries[month].findIndex(e => e.id === id);
@@ -225,7 +249,8 @@ const App = (() => {
     async addItem(type, data) {
       if (S.usingSN) {
         const r = await snFetch(this._endpoint(type), { method:'POST', body: JSON.stringify(data) });
-        return r;
+        // SN only returns { id, success } — rebuild full item for in-memory use
+        return { ...data, icon: decodeFromSN(data.icon), id: r.id };
       }
       const d = LS.load();
       const item = { ...data, id: type[0] + Date.now() };
@@ -1276,7 +1301,9 @@ const App = (() => {
 
   async function saveEditForm() {
     const { type, id } = editCtx;
-    const icon   = document.getElementById('ef-icon').value.trim() || '📌';
+    const icon   = S.usingSN
+      ? encodeForSN(document.getElementById('ef-icon').value.trim() || '📌')
+      : (document.getElementById('ef-icon').value.trim() || '📌');
     const name   = document.getElementById('ef-name').value.trim();
     const pts    = parseInt(document.getElementById('ef-pts').value)  || 0;
     const desc   = document.getElementById('ef-desc').value.trim();
@@ -1294,7 +1321,7 @@ const App = (() => {
         // update in-memory state
         const arr = type === 'category' ? S.categories : type === 'reward' ? S.rewards : S.punishments;
         const idx = arr.findIndex(x => x.id === id);
-        if (idx >= 0) arr[idx] = { ...arr[idx], ...data };
+        if (idx >= 0) arr[idx] = { ...arr[idx], ...data, icon: decodeFromSN(data.icon) };
         showToast('✅ 已更新 → ' + (S.usingSN ? 'SN 已同步' : '本地已保存'));
       } else {
         const created = await Data.addItem(type, data);
