@@ -1238,7 +1238,12 @@ function startApp() {
   Music.toggle();
   const sp = document.getElementById('start-page');
   sp.classList.add('sp-exiting');
-  sp.addEventListener('animationend', () => sp.remove(), { once: true });
+  sp.addEventListener('animationend', () => {
+    sp.remove();
+    if (!localStorage.getItem('sn_auth')) {
+      document.getElementById('setup-overlay').classList.remove('hidden');
+    }
+  }, { once: true });
 }
 
 /* ── Background music (local MP3) ── */
