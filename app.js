@@ -589,7 +589,7 @@ const App = (() => {
       S.apiKey  = '';
       const msg = err.message.includes('401') ? '账号或密码错误'
                 : err.message.includes('404') ? '账号不存在，请先注册'
-                : '连接失败: ' + err.message;
+                : '登录失败，请稍后再试';
       _loginErr(msg);
       if (btn) { btn.disabled = false; btn.textContent = '登录'; }
     }
@@ -643,7 +643,8 @@ const App = (() => {
     } catch (err) {
       const msg = err.message.includes('409') ? '账号已存在，请直接登录'
                 : err.message.includes('404') ? '配对码无效，请重新确认'
-                : '注册失败: ' + err.message;
+                : err.message.includes('400') ? '请填写完整信息'
+                : '注册失败，请稍后再试';
       _regErr(msg);
       if (btn) { btn.disabled = false; btn.textContent = '注册'; }
     }
