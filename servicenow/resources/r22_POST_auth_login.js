@@ -41,13 +41,26 @@
         }
     }
 
+    var partnerName = '';
+    if (matchId) {
+        var charId = gr.getValue('u_char_id') || 'char1';
+        var partnerGr = new GlideRecord('x_887486_love_app_u_love_auth');
+        partnerGr.addQuery('u_match', matchId);
+        partnerGr.addQuery('u_char_id', charId === 'char1' ? 'char2' : 'char1');
+        partnerGr.query();
+        if (partnerGr.next()) {
+            partnerName = partnerGr.getValue('u_username') || '';
+        }
+    }
+
     response.setStatus(200);
     response.setBody({
-        success:  true,
-        username: gr.getValue('u_username'),
-        charId:   gr.getValue('u_char_id') || 'char1',
-        matchId:  matchId,
-        pairCode: pairCode,
-        apiKey:   apiKey,
+        success:     true,
+        username:    gr.getValue('u_username'),
+        charId:      gr.getValue('u_char_id') || 'char1',
+        matchId:     matchId,
+        pairCode:    pairCode,
+        apiKey:      apiKey,
+        partnerName: partnerName,
     });
 })(request, response);

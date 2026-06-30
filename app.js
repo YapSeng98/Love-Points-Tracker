@@ -584,10 +584,20 @@ const App = (() => {
       S.activeChar = result.charId    || 'char1';
       S.usingSN    = true;
 
-      localStorage.setItem('sn_api_key',  S.apiKey);
-      localStorage.setItem('sn_username', username);
-      localStorage.setItem('sn_char',     S.activeChar);
-      localStorage.setItem('sn_match',    S.matchId);
+      if (S.activeChar === 'char1') {
+        S.charName1 = username;
+        if (result.partnerName) S.charName2 = result.partnerName;
+      } else {
+        S.charName2 = username;
+        if (result.partnerName) S.charName1 = result.partnerName;
+      }
+
+      localStorage.setItem('sn_api_key',   S.apiKey);
+      localStorage.setItem('sn_username',  username);
+      localStorage.setItem('sn_char',      S.activeChar);
+      localStorage.setItem('sn_match',     S.matchId);
+      localStorage.setItem('sn_charname1', S.charName1);
+      localStorage.setItem('sn_charname2', S.charName2);
 
       if (!S.matchId) {
         // Registered but partner hasn't paired yet — show pair code screen
@@ -645,10 +655,19 @@ const App = (() => {
       S.activeChar = charId;
       S.usingSN    = true;
 
-      localStorage.setItem('sn_api_key',  S.apiKey);
-      localStorage.setItem('sn_username', username);
-      localStorage.setItem('sn_char',     S.activeChar);
-      localStorage.setItem('sn_match',    S.matchId);
+      if (charId === 'char1') {
+        S.charName1 = username;
+      } else {
+        S.charName2 = username;
+        if (result.partnerName) S.charName1 = result.partnerName;
+      }
+
+      localStorage.setItem('sn_api_key',   S.apiKey);
+      localStorage.setItem('sn_username',  username);
+      localStorage.setItem('sn_char',      S.activeChar);
+      localStorage.setItem('sn_match',     S.matchId);
+      localStorage.setItem('sn_charname1', S.charName1);
+      localStorage.setItem('sn_charname2', S.charName2);
 
       if (charId === 'char1') {
         // Show pair code for partner to use
@@ -1074,6 +1093,8 @@ const App = (() => {
     localStorage.removeItem('sn_username');
     localStorage.removeItem('sn_char');
     localStorage.removeItem('sn_match');
+    localStorage.removeItem('sn_charname1');
+    localStorage.removeItem('sn_charname2');
     location.reload();
   }
 
@@ -1327,8 +1348,10 @@ const App = (() => {
     if (savedKey) {
       S.snInstance = SN_INSTANCE;
       S.apiKey     = savedKey;
-      S.activeChar = localStorage.getItem('sn_char')  || 'char1';
-      S.matchId    = localStorage.getItem('sn_match') || '';
+      S.activeChar = localStorage.getItem('sn_char')      || 'char1';
+      S.matchId    = localStorage.getItem('sn_match')     || '';
+      S.charName1  = localStorage.getItem('sn_charname1') || S.charName1;
+      S.charName2  = localStorage.getItem('sn_charname2') || S.charName2;
       S.usingSN    = true;
       try {
         await Data.init();

@@ -57,13 +57,25 @@
     if (matchId) authGr.setValue('u_match', matchId);
     authGr.insert();
 
+    var partnerName = '';
+    if (charId === 'char2' && matchId) {
+        var partnerGr = new GlideRecord('x_887486_love_app_u_love_auth');
+        partnerGr.addQuery('u_match', matchId);
+        partnerGr.addQuery('u_char_id', 'char1');
+        partnerGr.query();
+        if (partnerGr.next()) {
+            partnerName = partnerGr.getValue('u_username') || '';
+        }
+    }
+
     response.setBody({
-        success:   true,
-        username:  username,
-        charId:    charId,
-        matchId:   matchId,
-        pairCode:  returnPairCode,
-        apiKey:    apiKey,
+        success:     true,
+        username:    username,
+        charId:      charId,
+        matchId:     matchId,
+        pairCode:    returnPairCode,
+        apiKey:      apiKey,
+        partnerName: partnerName,
     });
     response.setStatus(201);
 })(request, response);
