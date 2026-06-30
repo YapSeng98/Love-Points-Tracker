@@ -1,0 +1,463 @@
+/*
+  ============================================================
+  恋爱积分簿 — ServiceNow Scripted REST API
+  Application: Global scope
+  API Name: love_score
+  Base Path: /api/global/love_score
+  ============================================================
+
+  SETUP STEPS in ServiceNow:
+  1. System Web Services → Scripted REST APIs → New
+  2. Name: Love Score API  |  API ID: love_score  |  Save
+  3. Open Resources tab → add each resource below as a separate record
+  4. For each: paste ONLY the (function process...) block, not the comments
+
+  CORS:
+  System Properties → search "glide.rest.cors.allowed_origins"
+  Add: https://yapseng98.github.io
+
+  CONFIRMED COLUMN MAPPING (verified against SN tables 2026-06-30):
+  u_love_category : sys_id → id  |  u_emoji → icon  |  u_name → name  |  u_points → pts  |  u_active → active
+  u_love_entry    : sys_id → id  |  u_char → charId  |  u_icon → icon  |  u_points → pts  |  u_note → desc  |  u_month → month  |  u_date → date  |  u_category → catId  |  u_category_name → catName
+  u_love_reward   : sys_id → id  |  u_emoji → icon  |  u_name → name  |  u_points → minPts  |  u_desc → desc
+  u_love_punishment: sys_id → id  |  u_emoji → icon  |  u_name → name  |  u_points → minPts  |  u_desc → desc
+  u_love_monthly  : u_month → month  |  u_char1_pts → char1Pts  |  u_char2_pts → char2Pts  |  u_result_1 → result1  |  u_result_2 → result2  |  u_mode → mode  |  u_settled_at → settledAt
+  u_love_config   : u_mode → mode  |  u_reward_target → rewardTarget  |  u_punish_threshold → punishThreshold
+  ============================================================
+*/
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 1: GET /config
+   HTTP Method: GET  |  Path: /config
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var gr = new GlideRecord('u_love_config');
+    gr.query();
+    if (gr.next()) {
+        response.setBody({ result: {
+            mode:             gr.getValue('u_mode') || 'reward',
+            rewardTarget:     parseInt(gr.getValue('u_reward_target'))   || 100,
+            punishThreshold:  parseInt(gr.getValue('u_punish_threshold')) || -80,
+        }});
+    } else {
+        response.setBody({ result: { mode: 'reward', rewardTarget: 100, punishThreshold: -80 } });
+    }
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 2: PUT /config
+   HTTP Method: PUT  |  Path: /config
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+    var gr = new GlideRecord('u_love_config');
+    gr.query();
+    if (!gr.next()) { gr.initialize(); }
+
+    if (body.mode             !== undefined) gr.setValue('u_mode',             body.mode);
+    if (body.rewardTarget     !== undefined) gr.setValue('u_reward_target',    body.rewardTarget);
+    if (body.punishThreshold  !== undefined) gr.setValue('u_punish_threshold', body.punishThreshold);
+    gr.save();
+    response.setBody({ result: { success: true } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 3: GET /categories
+   HTTP Method: GET  |  Path: /categories
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var gr = new GlideRecord('u_love_category');
+    gr.orderBy('u_name');
+    gr.query();
+    var cats = [];
+    while (gr.next()) {
+        cats.push({
+            id:     gr.getValue('sys_id'),
+            icon:   gr.getValue('u_emoji'),
+            name:   gr.getValue('u_name'),
+            pts:    parseInt(gr.getValue('u_points')),
+            active: gr.getValue('u_active') === '1' || gr.getValue('u_active') === true,
+        });
+    }
+    response.setBody({ result: cats });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 4: GET /entries
+   HTTP Method: GET  |  Path: /entries
+   Query param: month (YYYY-MM), defaults to current month
+   Returns only unsettled entries (u_monthly IS EMPTY)
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var month = request.queryParams.month;
+    if (!month) {
+        var d = new GlideDateTime();
+        month = d.getLocalDate().substring(0, 7);
+    }
+
+    var gr = new GlideRecord('u_love_entry');
+    gr.addQuery('u_month', month);
+    gr.addNullQuery('u_monthly');
+    gr.orderByDesc('u_date');
+    gr.query();
+
+    var entries = [];
+    while (gr.next()) {
+        entries.push({
+            id:      gr.getValue('sys_id'),
+            catId:   gr.getValue('u_category'),
+            catName: gr.getValue('u_category_name'),
+            icon:    gr.getValue('u_icon'),
+            pts:     parseInt(gr.getValue('u_points')),
+            desc:    gr.getValue('u_note'),
+            charId:  gr.getValue('u_char') || 'char1',
+            month:   gr.getValue('u_month'),
+            date:    gr.getValue('u_date'),
+        });
+    }
+    response.setBody({ result: entries });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 5: POST /entries
+   HTTP Method: POST  |  Path: /entries
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+    var gr = new GlideRecord('u_love_entry');
+    gr.initialize();
+    gr.setValue('u_char',          body.charId   || 'char1');
+    gr.setValue('u_category',      body.catId    || '');
+    gr.setValue('u_category_name', body.catName  || '');
+    gr.setValue('u_category_pts',  parseInt(body.pts) || 0);
+    gr.setValue('u_icon',          body.icon     || '📌');
+    gr.setValue('u_points',        parseInt(body.pts) || 0);
+    gr.setValue('u_note',          body.desc     || '');
+    gr.setValue('u_month',         body.month    || '');
+    gr.setValue('u_date',          body.date     || new GlideDateTime().getLocalDate());
+    var sysId = gr.insert();
+
+    response.setBody({ result: { id: sysId, success: true } });
+    response.setStatus(201);
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 6: PUT /entries/{id}
+   HTTP Method: PUT  |  Path: /entries/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id   = request.pathParams.id;
+    var body = request.body.data;
+    var gr   = new GlideRecord('u_love_entry');
+    if (!gr.get(id)) {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+        return;
+    }
+    if (body.catId   !== undefined) gr.setValue('u_category',      body.catId);
+    if (body.catName !== undefined) gr.setValue('u_category_name', body.catName);
+    if (body.icon    !== undefined) gr.setValue('u_icon',          body.icon);
+    if (body.pts     !== undefined) gr.setValue('u_points',        parseInt(body.pts));
+    if (body.desc    !== undefined) gr.setValue('u_note',          body.desc);
+    if (body.date    !== undefined) gr.setValue('u_date',          body.date);
+    if (body.charId  !== undefined) gr.setValue('u_char',          body.charId);
+    gr.update();
+    response.setBody({ result: { success: true } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 7: DELETE /entries/{id}
+   HTTP Method: DELETE  |  Path: /entries/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id = request.pathParams.id;
+    var gr = new GlideRecord('u_love_entry');
+    if (gr.get(id)) {
+        gr.deleteRecord();
+        response.setBody({ result: { success: true } });
+    } else {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+    }
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 8: GET /rewards
+   HTTP Method: GET  |  Path: /rewards
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var gr = new GlideRecord('u_love_reward');
+    gr.orderBy('u_points');
+    gr.query();
+    var list = [];
+    while (gr.next()) {
+        list.push({
+            id:     gr.getValue('sys_id'),
+            icon:   gr.getValue('u_emoji'),
+            name:   gr.getValue('u_name'),
+            minPts: parseInt(gr.getValue('u_points')),
+            desc:   gr.getValue('u_desc'),
+        });
+    }
+    response.setBody({ result: list });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 9: GET /punishments
+   HTTP Method: GET  |  Path: /punishments
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var gr = new GlideRecord('u_love_punishment');
+    gr.orderBy('u_points');
+    gr.query();
+    var list = [];
+    while (gr.next()) {
+        list.push({
+            id:     gr.getValue('sys_id'),
+            icon:   gr.getValue('u_emoji'),
+            name:   gr.getValue('u_name'),
+            minPts: parseInt(gr.getValue('u_points')),
+            desc:   gr.getValue('u_desc'),
+        });
+    }
+    response.setBody({ result: list });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 10: GET /history
+   HTTP Method: GET  |  Path: /history
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var gr = new GlideRecord('u_love_monthly');
+    gr.orderByDesc('u_month');
+    gr.setLimit(24);
+    gr.query();
+    var list = [];
+    while (gr.next()) {
+        list.push({
+            month:     gr.getValue('u_month'),
+            char1Pts:  parseInt(gr.getValue('u_char1_pts') || 0),
+            char2Pts:  parseInt(gr.getValue('u_char2_pts') || 0),
+            mode:      gr.getValue('u_mode'),
+            result1:   gr.getValue('u_result_1'),
+            result2:   gr.getValue('u_result_2'),
+            settledAt: gr.getValue('u_settled_at'),
+        });
+    }
+    response.setBody({ result: list });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 11: POST /monthly/settle
+   HTTP Method: POST  |  Path: /monthly/settle
+   Writes monthly summary + stamps all entries for that month
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+
+    // 1. Write the monthly summary record
+    var gr = new GlideRecord('u_love_monthly');
+    gr.initialize();
+    gr.setValue('u_month',      body.month            || '');
+    gr.setValue('u_char1_pts',  parseInt(body.char1Pts) || 0);
+    gr.setValue('u_char2_pts',  parseInt(body.char2Pts) || 0);
+    gr.setValue('u_mode',       body.mode             || 'reward');
+    gr.setValue('u_result_1',   body.result1          || '');
+    gr.setValue('u_result_2',   body.result2          || '');
+    gr.setValue('u_settled_at', new GlideDateTime().toString());
+    var monthSysId = gr.insert();
+
+    // 2. Stamp all unsettled entries for this month with the monthly record
+    var entryGr = new GlideRecord('u_love_entry');
+    entryGr.addQuery('u_month', body.month);
+    entryGr.addNullQuery('u_monthly');
+    entryGr.query();
+    while (entryGr.next()) {
+        entryGr.setValue('u_monthly', monthSysId);
+        entryGr.update();
+    }
+
+    response.setBody({ result: { success: true, monthId: monthSysId } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 12: POST /categories
+   HTTP Method: POST  |  Path: /categories
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+    var gr = new GlideRecord('u_love_category');
+    gr.initialize();
+    gr.setValue('u_emoji',  body.icon   || '📌');
+    gr.setValue('u_name',   body.name   || '');
+    gr.setValue('u_points', parseInt(body.pts) || 0);
+    gr.setValue('u_active', body.active !== false);
+    var sysId = gr.insert();
+    response.setBody({ result: { id: sysId, success: true } });
+    response.setStatus(201);
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 13: PUT /categories/{id}
+   HTTP Method: PUT  |  Path: /categories/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id   = request.pathParams.id;
+    var body = request.body.data;
+    var gr   = new GlideRecord('u_love_category');
+    if (!gr.get(id)) {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+        return;
+    }
+    if (body.icon   !== undefined) gr.setValue('u_emoji',  body.icon);
+    if (body.name   !== undefined) gr.setValue('u_name',   body.name);
+    if (body.pts    !== undefined) gr.setValue('u_points', parseInt(body.pts));
+    if (body.active !== undefined) gr.setValue('u_active', body.active);
+    gr.update();
+    response.setBody({ result: { success: true } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 14: DELETE /categories/{id}
+   HTTP Method: DELETE  |  Path: /categories/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id = request.pathParams.id;
+    var gr = new GlideRecord('u_love_category');
+    if (gr.get(id)) {
+        gr.deleteRecord();
+        response.setBody({ result: { success: true } });
+    } else {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+    }
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 15: POST /rewards
+   HTTP Method: POST  |  Path: /rewards
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+    var gr = new GlideRecord('u_love_reward');
+    gr.initialize();
+    gr.setValue('u_emoji',  body.icon    || '🎁');
+    gr.setValue('u_name',   body.name    || '');
+    gr.setValue('u_points', parseInt(body.minPts) || 0);
+    gr.setValue('u_desc',   body.desc    || '');
+    var sysId = gr.insert();
+    response.setBody({ result: { id: sysId, success: true } });
+    response.setStatus(201);
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 16: PUT /rewards/{id}
+   HTTP Method: PUT  |  Path: /rewards/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id   = request.pathParams.id;
+    var body = request.body.data;
+    var gr   = new GlideRecord('u_love_reward');
+    if (!gr.get(id)) {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+        return;
+    }
+    if (body.icon   !== undefined) gr.setValue('u_emoji',  body.icon);
+    if (body.name   !== undefined) gr.setValue('u_name',   body.name);
+    if (body.minPts !== undefined) gr.setValue('u_points', parseInt(body.minPts));
+    if (body.desc   !== undefined) gr.setValue('u_desc',   body.desc);
+    gr.update();
+    response.setBody({ result: { success: true } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 17: DELETE /rewards/{id}
+   HTTP Method: DELETE  |  Path: /rewards/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id = request.pathParams.id;
+    var gr = new GlideRecord('u_love_reward');
+    if (gr.get(id)) {
+        gr.deleteRecord();
+        response.setBody({ result: { success: true } });
+    } else {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+    }
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 18: POST /punishments
+   HTTP Method: POST  |  Path: /punishments
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var body = request.body.data;
+    var gr = new GlideRecord('u_love_punishment');
+    gr.initialize();
+    gr.setValue('u_emoji',  body.icon    || '😈');
+    gr.setValue('u_name',   body.name    || '');
+    gr.setValue('u_points', parseInt(body.minPts) || 0);
+    gr.setValue('u_desc',   body.desc    || '');
+    var sysId = gr.insert();
+    response.setBody({ result: { id: sysId, success: true } });
+    response.setStatus(201);
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 19: PUT /punishments/{id}
+   HTTP Method: PUT  |  Path: /punishments/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id   = request.pathParams.id;
+    var body = request.body.data;
+    var gr   = new GlideRecord('u_love_punishment');
+    if (!gr.get(id)) {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+        return;
+    }
+    if (body.icon   !== undefined) gr.setValue('u_emoji',  body.icon);
+    if (body.name   !== undefined) gr.setValue('u_name',   body.name);
+    if (body.minPts !== undefined) gr.setValue('u_points', parseInt(body.minPts));
+    if (body.desc   !== undefined) gr.setValue('u_desc',   body.desc);
+    gr.update();
+    response.setBody({ result: { success: true } });
+})(request, response);
+
+
+/* ─────────────────────────────────────────────────────────
+   RESOURCE 20: DELETE /punishments/{id}
+   HTTP Method: DELETE  |  Path: /punishments/{id}
+   ───────────────────────────────────────────────────────── */
+(function process(request, response) {
+    var id = request.pathParams.id;
+    var gr = new GlideRecord('u_love_punishment');
+    if (gr.get(id)) {
+        gr.deleteRecord();
+        response.setBody({ result: { success: true } });
+    } else {
+        response.setStatus(404);
+        response.setBody({ result: { error: 'Not found' } });
+    }
+})(request, response);
