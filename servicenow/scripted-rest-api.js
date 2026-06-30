@@ -58,10 +58,9 @@
             mode:             gr.getValue('u_mode') || 'reward',
             rewardTarget:     parseInt(gr.getValue('u_reward_target'))   || 100,
             punishThreshold:  parseInt(gr.getValue('u_punish_threshold')) || -80,
-            matchId:          gr.getValue('u_match') || '',
         }});
     } else {
-        response.setBody({ result: { mode: 'reward', rewardTarget: 100, punishThreshold: -80, matchId: '' } });
+        response.setBody({ result: { mode: 'reward', rewardTarget: 100, punishThreshold: -80 } });
     }
 })(request, response);
 
@@ -544,23 +543,18 @@
     gr.query();
 
     if (gr.next()) {
-        // User found — update last_login and return their matchId
+        // User found — update last_login and return stored charId
         gr.setValue('u_last_login', new GlideDateTime());
         gr.update();
-
-        // u_love_auth.u_match is a Reference field → getValue returns the match sys_id
-        var matchId = gr.getValue('u_match') || '';
-
         response.setStatus(200);
         response.setBody({ result: {
             success:  true,
             action:   'login',
             username: gr.getValue('u_username'),
-            charId:   gr.getValue('u_char_id'),
-            matchId:  matchId
+            charId:   gr.getValue('u_char_id')
         }});
     } else {
-        // New user — auto-register (admin must link them to a match in SN)
+        // New user — auto-register
         var newGr = new GlideRecord('u_love_auth');
         newGr.initialize();
         newGr.setValue('u_username',   username);
@@ -572,8 +566,7 @@
             success:  true,
             action:   'registered',
             username: username,
-            charId:   charId,
-            matchId:  ''
+            charId:   charId
         }});
     }
 })(request, response);
