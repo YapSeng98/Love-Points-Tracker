@@ -704,7 +704,7 @@
     }
 
     // Generate a random api_key (UUID-style)
-    var apiKey = GlideStringUtil.generateGUID();
+    var apiKey = gs.generateGUID();
     var matchId = '';
     var returnPairCode = '';
     var matchGr = new GlideRecord('u_love_match');
@@ -810,7 +810,7 @@
     }
 
     // Refresh api_key on each login (optional but good practice)
-    var apiKey = gr.getValue('u_api_key') || GlideStringUtil.generateGUID();
+    var apiKey = gr.getValue('u_api_key') || gs.generateGUID();
     gr.setValue('u_api_key',    apiKey);
     gr.setValue('u_last_login', new GlideDateTime());
     gr.update();
