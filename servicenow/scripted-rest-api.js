@@ -60,7 +60,7 @@
    _au.addQuery('u_api_key', _tok);
    _au.query();
    if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-   var matchId = _au.getValue('u_match') || '';
+   var matchId = _au.getValue('u_name') || '';
    ═══════════════════════════════════════════════════════════ */
 
 
@@ -75,7 +75,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var gr = new GlideRecord('u_love_config');
     if (matchId) gr.addQuery('u_match', matchId);
@@ -104,7 +104,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
     var gr = new GlideRecord('u_love_config');
@@ -131,7 +131,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var gr = new GlideRecord('u_love_category');
     if (matchId) gr.addQuery('u_match', matchId);
@@ -164,7 +164,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var month = request.queryParams.month;
     if (!month) {
@@ -209,7 +209,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
     var gr = new GlideRecord('u_love_entry');
@@ -298,7 +298,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var gr = new GlideRecord('u_love_reward');
     if (matchId) gr.addQuery('u_match', matchId);
@@ -329,7 +329,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var gr = new GlideRecord('u_love_punishment');
     if (matchId) gr.addQuery('u_match', matchId);
@@ -360,7 +360,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var gr = new GlideRecord('u_love_monthly');
     if (matchId) gr.addQuery('u_match', matchId);
@@ -395,7 +395,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
 
@@ -437,7 +437,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
     var gr = new GlideRecord('u_love_category');
@@ -518,7 +518,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
     var gr = new GlideRecord('u_love_reward');
@@ -599,7 +599,7 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({result:{error:'Unauthorized'}}); return; }
-    var matchId = _au.getValue('u_match') || '';
+    var matchId = _au.getValue('u_name') || '';
 
     var body = request.body.data;
     var gr = new GlideRecord('u_love_punishment');
@@ -740,7 +740,7 @@
     authGr.setValue('u_api_key',    apiKey);
     authGr.setValue('u_char_id',    charId);
     authGr.setValue('u_last_login', new GlideDateTime());
-    if (matchId) authGr.setValue('u_match', matchId);
+    if (matchId) authGr.setValue('u_name', matchId);
     authGr.insert();
 
     // Also create a default config row for this match (if not already)
@@ -815,7 +815,7 @@
     gr.setValue('u_last_login', new GlideDateTime());
     gr.update();
 
-    var matchId = gr.getValue('u_match') || '';
+    var matchId = gr.getValue('u_name') || '';
 
     // Fetch pair_code from u_love_match so char1 can reshare it if needed
     var pairCode = '';
