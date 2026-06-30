@@ -8,6 +8,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
+  const SN_API_USER = 'love_score_api';  // shared service account; user just enters the password
 
   /* ── State ── */
   let S = {
@@ -544,12 +545,12 @@ const App = (() => {
     const password = document.getElementById('sn-password').value;
     const charId   = document.querySelector('input[name="sn-char"]:checked')?.value || 'char1';
 
-    if (!username) { _loginErr('请输入账号'); return; }
-    if (!password) { _loginErr('请输入密码'); return; }
+    if (!username) { _loginErr('请输入你的名字'); return; }
+    if (!password) { _loginErr('请输入密码');     return; }
 
-    // Build Basic Auth with the individual SN user's own credentials (PFMT pattern)
+    // Shared service account — user enters display name + couple password
     S.snInstance = SN_INSTANCE;
-    S.authHeader = 'Basic ' + btoa(`${username}:${password}`);
+    S.authHeader = 'Basic ' + btoa(`${SN_API_USER}:${password}`);
     S.usingSN    = true;
 
     const btn = document.getElementById('sn-connect-btn');
@@ -557,25 +558,33 @@ const App = (() => {
     _loginErr('');
 
     try {
-      // Validate by loading config — if credentials are wrong SN returns 401 automatically
-      await Data.init();
+      // POST /auth/login: SN validates Basic Auth automatically; script looks up / creates u_love_auth
+      const result = await snFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, charId }),
+      });
 
-      S.activeChar = charId;
+      S.activeChar = result.charId  || charId;
+      S.matchId    = result.matchId || '';
+      const displayName = result.username || username;
 
       localStorage.setItem('sn_auth',     S.authHeader);
-      localStorage.setItem('sn_username', username);
+      localStorage.setItem('sn_username', displayName);
       localStorage.setItem('sn_char',     S.activeChar);
       localStorage.setItem('sn_match',    S.matchId);
 
+      await Data.init();
       await refresh();
       document.getElementById('setup-overlay').classList.add('hidden');
-      showToast('✅ 欢迎回来，' + username + '！');
+
+      const action = result.action === 'registered' ? '🎉 注册成功，欢迎 ' : '✅ 欢迎回来，';
+      showToast(action + displayName + '！');
     } catch (err) {
       S.usingSN    = false;
       S.authHeader = '';
-      const msg = err.message.includes('401') ? '账号或密码错误，请重试' : '连接失败: ' + err.message;
+      const msg = err.message.includes('401') ? '密码错误，请重试' : '连接失败: ' + err.message;
       _loginErr(msg);
-      if (btn) { btn.disabled = false; btn.textContent = '登录'; }
+      if (btn) { btn.disabled = false; btn.textContent = '登录 / 注册'; }
     }
   }
 
