@@ -6,7 +6,9 @@
 const App = (() => {
 
   /* ── Config ── */
-  const SN_API_PATH = '/api/x_887486_love_app/love_score';
+  const SN_API_PATH     = '/api/x_887486_love_app/love_score';
+  const SN_INSTANCE     = 'dev405150.service-now.com';
+  const SN_API_USER     = 'love_score_api';
 
   /* ── State ── */
   let S = {
@@ -536,26 +538,29 @@ const App = (() => {
 
   /* ── Public API ── */
   async function connect() {
-    const instance = document.getElementById('sn-instance').value.trim();
-    const user     = document.getElementById('sn-user').value.trim();
-    const pass     = document.getElementById('sn-pass').value;
-    if (!instance || !user || !pass) { showToast('请填写所有字段 ⚠️'); return; }
+    const pin = document.getElementById('sn-pin').value.trim();
+    if (!pin) { showToast('请输入 PIN 码 ⚠️'); return; }
 
-    S.snInstance  = instance;
-    S.authHeader  = 'Basic ' + btoa(`${user}:${pass}`);
+    S.snInstance  = SN_INSTANCE;
+    S.authHeader  = 'Basic ' + btoa(`${SN_API_USER}:${pin}`);
     S.usingSN     = true;
 
-    showToast('连接中…');
+    const btn = document.getElementById('sn-connect-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '连接中…'; }
+
     try {
       await Data.init();
-      localStorage.setItem('sn_instance', instance);
+      localStorage.setItem('sn_instance', SN_INSTANCE);
       localStorage.setItem('sn_auth', S.authHeader);
       document.getElementById('setup-overlay').classList.add('hidden');
       await refresh();
       showToast('✅ 已连接 ServiceNow！');
     } catch (err) {
-      showToast('❌ 连接失败: ' + err.message);
+      showToast('❌ PIN 错误或网络问题');
       S.usingSN = false;
+      S.authHeader = '';
+      if (btn) { btn.disabled = false; btn.textContent = '🔗 进入'; }
+      document.getElementById('sn-pin-err').textContent = 'PIN 不正确，请重试';
     }
   }
 
@@ -1188,7 +1193,7 @@ const App = (() => {
       }
     } else {
       S.usingSN    = false;
-      S.snInstance = 'localhost (Demo)';
+      S.snInstance = SN_INSTANCE;
       await Data.init();
       await refresh();
     }
