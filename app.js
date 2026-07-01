@@ -1224,24 +1224,24 @@ const App = (() => {
     const n2 = document.getElementById('love-name2');
     const dn = document.getElementById('love-days-num');
     const sd = document.getElementById('love-since-date');
+    const ly = document.getElementById('lp-years');
     const lm = document.getElementById('lp-months');
     const lw = document.getElementById('lp-weeks');
-    const ld = document.getElementById('lp-days2');
     if (n1) n1.textContent = S.charName1 || '--';
     if (n2) n2.textContent = S.charName2 || '--';
     if (S.startDate) {
       const start = new Date(S.startDate);
       const days  = Math.floor((Date.now() - start.getTime()) / 86400000);
       if (dn) dn.textContent = days >= 0 ? days : '--';
+      if (ly) ly.textContent = days >= 0 ? Math.floor(days / 365) : '--';
       if (lm) lm.textContent = days >= 0 ? Math.floor(days / 30) : '--';
       if (lw) lw.textContent = days >= 0 ? Math.floor(days / 7) : '--';
-      if (ld) ld.textContent = days >= 0 ? days : '--';
       if (sd) sd.textContent = S.startDate;
     } else {
       if (dn) dn.textContent = '--';
+      if (ly) ly.textContent = '--';
       if (lm) lm.textContent = '--';
       if (lw) lw.textContent = '--';
-      if (ld) ld.textContent = '--';
       if (sd) sd.textContent = '未设置（可在设置中添加）';
     }
     pg.classList.add('open');
