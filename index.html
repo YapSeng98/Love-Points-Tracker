@@ -1010,34 +1010,50 @@
     }
     .sp-content {
       display: flex; flex-direction: column; align-items: center;
-      gap: 2px; text-align: center; width: 100%; max-width: 340px;
+      gap: 0; text-align: center; width: 100%; max-width: 340px;
       position: relative; z-index: 2;
     }
     .sp-paw-logo {
-      font-size: 36px; line-height: 1;
+      font-size: 30px; line-height: 1; margin-bottom: 2px;
       animation: sp-bounce 2.4s ease-in-out infinite;
       filter: drop-shadow(0 3px 8px rgba(120,100,200,0.30));
     }
     @keyframes sp-bounce {
       0%,100% { transform: translateY(0) rotate(-8deg) scale(1); }
-      50%     { transform: translateY(-10px) rotate(8deg) scale(1.08); }
+      50%     { transform: translateY(-8px) rotate(8deg) scale(1.08); }
     }
     .sp-title {
-      font-size: 30px; font-weight: 900; margin: 2px 0 0;
+      font-size: 28px; font-weight: 900; margin: 0 0 2px;
       background: linear-gradient(130deg, #2E6ED5 0%, #8B6CF5 48%, #FF5FA0 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
       letter-spacing: 0.03em; line-height: 1.1;
-      filter: drop-shadow(0 2px 8px rgba(140,108,245,0.25));
     }
     .sp-tagline {
-      font-size: 13px; color: #9090C0; font-weight: 500; margin: 0;
+      font-size: 12px; color: #9090C0; font-weight: 500; margin: 0 0 10px;
       letter-spacing: 0.03em;
     }
 
-    /* ── Couple Scene ── */
+    /* ── 3D Frosted Glass Card ── */
+    .sp-couple-card {
+      width: 100%;
+      background: linear-gradient(170deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.16) 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1.5px solid rgba(255,255,255,0.58);
+      border-radius: 30px;
+      padding: 18px 16px 10px;
+      margin-bottom: 14px;
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.75),
+        inset 0 -1px 0 rgba(200,180,255,0.25),
+        0 14px 40px rgba(140,100,220,0.20),
+        0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* ── Couple Scene inside the card ── */
     .sp-couple-scene {
       display: flex; align-items: flex-end; justify-content: center;
-      gap: 10px; width: 100%; margin: 12px 0 20px;
+      gap: 8px; width: 100%;
     }
     .sp-couple-char {
       flex-shrink: 0;
@@ -1048,26 +1064,25 @@
       0%,100% { transform: translateY(0); }
       50%     { transform: translateY(-10px); }
     }
-    /* glow applied directly as drop-shadow on the SVG — no extra DOM elements */
     .sp-couple-char.c1 .char-svg {
-      display: block; width: 92px !important; height: 108px !important;
-      filter: drop-shadow(0 0 18px rgba(91,155,213,0.65))
-              drop-shadow(0 6px 10px rgba(0,0,0,0.12)) !important;
+      display: block; width: 84px !important; height: 98px !important;
+      filter: drop-shadow(0 0 16px rgba(91,155,213,0.7))
+              drop-shadow(0 5px 8px rgba(0,0,0,0.13)) !important;
     }
     .sp-couple-char.c2 .char-svg {
-      display: block; width: 92px !important; height: 108px !important;
-      filter: drop-shadow(0 0 18px rgba(255,90,150,0.65))
-              drop-shadow(0 6px 10px rgba(0,0,0,0.12)) !important;
+      display: block; width: 84px !important; height: 98px !important;
+      filter: drop-shadow(0 0 16px rgba(255,80,140,0.7))
+              drop-shadow(0 5px 8px rgba(0,0,0,0.13)) !important;
     }
-    /* ── Rising hearts between characters ── */
+    /* ── Rising hearts ── */
     .sp-hearts-col {
-      flex-shrink: 0; width: 42px; height: 108px;
+      flex-shrink: 0; width: 40px; height: 98px;
       position: relative; overflow: visible;
     }
     .sp-fheart {
       position: absolute; bottom: 4px; left: 50%;
       transform: translateX(-50%);
-      font-size: 15px; opacity: 0;
+      font-size: 14px; opacity: 0;
       animation: sp-heart-rise 2.8s ease-out infinite;
       animation-delay: var(--d, 0s);
     }
@@ -1075,38 +1090,52 @@
       0%   { transform: translateX(-50%) translateY(0) scale(0.5); opacity: 0; }
       15%  { opacity: 1; }
       80%  { opacity: 0.8; }
-      100% { transform: translateX(-50%) translateY(-120px) scale(1.15); opacity: 0; }
+      100% { transform: translateX(-50%) translateY(-90px) scale(1.15); opacity: 0; }
     }
-    /* ── Start button ── */
+
+    /* ── 3D Start Button ── */
     .sp-btn {
-      margin-top: 0; padding: 15px 20px; width: 100%;
+      padding: 16px 20px; width: 100%;
       position: relative; z-index: 3;
-      background: linear-gradient(135deg, #6B8EE8 0%, #A87EF5 50%, #F07898 100%);
+      background: linear-gradient(180deg, #96ADEF 0%, #6B8EE8 28%, #A87EF5 68%, #F07898 100%);
       color: white; border: none; border-radius: 50px;
       font-size: 15px; font-weight: 700; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 7px;
-      box-shadow: 0 8px 28px rgba(140,100,200,0.42);
-      transition: transform 0.15s, box-shadow 0.15s;
-      animation: btn-pulse 2.8s ease-in-out infinite;
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.40),
+        inset 0 -4px 0 rgba(0,0,0,0.18),
+        0 12px 32px rgba(140,100,200,0.55),
+        0 4px 8px rgba(0,0,0,0.14);
+      transition: transform 0.12s, box-shadow 0.12s;
       white-space: nowrap;
     }
-    .sp-btn:hover  { transform: translateY(-2px) scale(1.02); }
-    .sp-btn:active { transform: scale(0.96); }
-    @keyframes btn-pulse {
-      0%,100% { box-shadow: 0 8px 28px rgba(140,100,200,0.42); }
-      50%     { box-shadow: 0 12px 36px rgba(140,100,200,0.65); }
+    .sp-btn:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.40),
+        inset 0 -4px 0 rgba(0,0,0,0.18),
+        0 18px 40px rgba(140,100,200,0.70),
+        0 6px 12px rgba(0,0,0,0.18);
     }
-    .sp-btn-emoji { font-size: 16px; }
+    .sp-btn:active {
+      transform: translateY(2px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.30),
+        inset 0 -1px 0 rgba(0,0,0,0.12),
+        0 5px 14px rgba(140,100,200,0.40),
+        0 2px 4px rgba(0,0,0,0.10);
+    }
     .sp-hint {
       font-size: 10px; color: #A0A0C8; opacity: 0.80;
-      text-align: center; line-height: 1.5; margin: 0;
+      text-align: center; line-height: 1.5; margin: 6px 0 0;
     }
     @media (max-width: 380px) {
       .sp-couple-char.c1 .char-svg,
-      .sp-couple-char.c2 .char-svg { width: 76px !important; height: 90px !important; }
-      .sp-hearts-col { width: 34px; height: 90px; }
-      .sp-couple-scene { gap: 6px; margin-bottom: 16px; }
-      .sp-btn { font-size: 14px; padding: 13px 16px; }
+      .sp-couple-char.c2 .char-svg { width: 70px !important; height: 82px !important; }
+      .sp-hearts-col { width: 32px; height: 82px; }
+      .sp-couple-scene { gap: 6px; }
+      .sp-couple-card { padding: 14px 12px 8px; margin-bottom: 12px; }
+      .sp-btn { font-size: 14px; padding: 14px 16px; }
     }
   </style>
 </head>
@@ -1128,7 +1157,8 @@
     <div class="sp-title">恋爱积分簿</div>
     <p class="sp-tagline">记录每一份甜蜜与爱 🌸</p>
 
-    <!-- Couple scene: two free-floating characters + rising hearts -->
+    <!-- 3D frosted glass card with couple animation -->
+    <div class="sp-couple-card">
     <div class="sp-couple-scene">
 
       <!-- Boy (char1) -->
@@ -1237,6 +1267,7 @@
         </div>
       </div>
     </div>
+    </div><!-- end .sp-couple-card -->
 
     <button class="sp-btn" onclick="startApp()">
       💕 开始我们的故事
