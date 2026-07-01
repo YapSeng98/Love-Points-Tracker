@@ -23,6 +23,8 @@ const App = (() => {
     score: 0,               // active character's score (convenience alias)
     char1Score: 0,
     char2Score: 0,
+    char1NegPts: 0,
+    char2NegPts: 0,
     activeChar: 'char1',   // 'char1' | 'char2'
     entries: [],
     categories: [],
@@ -339,13 +341,17 @@ const App = (() => {
   }
 
   function calcCharScores(entries) {
-    let c1 = 0, c2 = 0;
+    let c1 = 0, c2 = 0, n1 = 0, n2 = 0;
     entries.forEach(e => {
       const pts = parseInt(e.pts) || 0;
-      if (!e.charId || e.charId === 'char1') c1 += pts;
-      else c2 += pts;
+      if (!e.charId || e.charId === 'char1') { c1 += pts; if (pts < 0) n1 += Math.abs(pts); }
+      else                                    { c2 += pts; if (pts < 0) n2 += Math.abs(pts); }
     });
-    return { char1: c1, char2: c2 };
+    return { char1: c1, char2: c2, neg1: n1, neg2: n2 };
+  }
+
+  function activeNegPts() {
+    return S.activeChar === 'char1' ? S.char1NegPts : S.char2NegPts;
   }
 
   function activeScore() {
@@ -356,7 +362,7 @@ const App = (() => {
     return charId === 'char1' ? (S.charName1 || 'CS') : (S.charName2 || 'YY');
   }
 
-  function progressInfo(score, mode) {
+  function progressInfo(score, mode, negPts) {
     if (mode === 'reward') {
       const target = S.rewardTarget;
       const pct    = Math.min(100, Math.max(0, Math.round((score / target) * 100)));
@@ -364,7 +370,8 @@ const App = (() => {
       return { pct, gap, reached: score >= target, label: `奖励目标 ${target} 分`, type: 'reward' };
     } else {
       const threshold = Math.abs(S.punishThreshold);
-      const neg = Math.max(0, -score);
+      // Use total negative pts accumulated (not net score) so bar fills even when positive entries offset punishments
+      const neg = (negPts != null && negPts > 0) ? negPts : Math.max(0, -score);
       const pct = Math.min(100, Math.round((neg / threshold) * 100));
       const gap = Math.max(0, threshold - neg);
       return { pct, gap, reached: score <= S.punishThreshold, label: `惩罚阈值 ${S.punishThreshold} 分`, type: 'punishment' };
@@ -391,7 +398,7 @@ const App = (() => {
   }
 
   function renderProgress(score) {
-    const info = progressInfo(score, S.mode);
+    const info = progressInfo(score, S.mode, activeNegPts());
     const fill = document.getElementById('progress-fill');
     fill.style.width = info.pct + '%';
     fill.className = 'progress-bar-fill ' + info.type;
@@ -629,14 +636,14 @@ const App = (() => {
 
     const entries = await Data.getEntries(S.month);
     S.entries = entries;
-    const { char1, char2 } = calcCharScores(entries);
-    S.char1Score = char1;
-    S.char2Score = char2;
+    const { char1, char2, neg1, neg2 } = calcCharScores(entries);
+    S.char1Score = char1; S.char2Score = char2;
+    S.char1NegPts = neg1; S.char2NegPts = neg2;
     S.score = activeScore();
 
     renderCharSelector();
     renderScore(S.score);
-    const info = progressInfo(S.score, S.mode);
+    const info = progressInfo(S.score, S.mode, activeNegPts());
     renderProgress(S.score);
     renderCharacterMood(info.pct);
     renderEntries(entries);
@@ -828,7 +835,7 @@ const App = (() => {
     renderCharSelector();
     renderScore(S.score);
     renderProgress(S.score);
-    renderCharacterMood(progressInfo(S.score, S.mode).pct);
+    renderCharacterMood(progressInfo(S.score, S.mode, activeNegPts()).pct);
   }
 
   async function toggleMode() {
@@ -837,7 +844,7 @@ const App = (() => {
     renderMode();
     S.score = activeScore();
     renderProgress(S.score);
-    renderCharacterMood(progressInfo(S.score, S.mode).pct);
+    renderCharacterMood(progressInfo(S.score, S.mode, activeNegPts()).pct);
     showToast(S.mode === 'reward' ? '🏆 切换为奖励模式' : '😈 切换为惩罚模式');
   }
 
@@ -961,8 +968,8 @@ const App = (() => {
   function openSettleModal() {
     const o1 = getOutcome(S.char1Score, S.mode);
     const o2 = getOutcome(S.char2Score, S.mode);
-    const i1 = progressInfo(S.char1Score, S.mode);
-    const i2 = progressInfo(S.char2Score, S.mode);
+    const i1 = progressInfo(S.char1Score, S.mode, S.char1NegPts);
+    const i2 = progressInfo(S.char2Score, S.mode, S.char2NegPts);
     const prev = document.getElementById('settle-preview');
 
     const fmtScore = s => (s > 0 ? '+' : '') + s;
@@ -1290,7 +1297,7 @@ const App = (() => {
   }
 
   function checkThreshold() {
-    const info = progressInfo(S.score, S.mode);
+    const info = progressInfo(S.score, S.mode, activeNegPts());
     if (info.reached) {
       if (S.mode === 'reward') {
         setTimeout(() => { spawnConfetti(); showToast('🎊 达到奖励线！快去结算！'); }, 300);
