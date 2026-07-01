@@ -397,6 +397,17 @@ const App = (() => {
     setTimeout(() => el.classList.remove('score-bump'), 400);
   }
 
+  function renderEntryCounts() {
+    const charId = S.activeChar;
+    const mine = S.entries.filter(e => !e.charId && charId === 'char1' || e.charId === charId);
+    const good = mine.filter(e => (parseInt(e.pts) || 0) > 0).length;
+    const bad  = mine.filter(e => (parseInt(e.pts) || 0) < 0).length;
+    const gEl = document.getElementById('stat-good');
+    const bEl = document.getElementById('stat-bad');
+    if (gEl) gEl.textContent = `✅ ${good} 次好行为`;
+    if (bEl) bEl.textContent = `😣 ${bad} 次扣分`;
+  }
+
   function renderProgress(score) {
     const info = progressInfo(score, S.mode, activeNegPts());
     const fill = document.getElementById('progress-fill');
@@ -645,6 +656,7 @@ const App = (() => {
     renderScore(S.score);
     const info = progressInfo(S.score, S.mode, activeNegPts());
     renderProgress(S.score);
+    renderEntryCounts();
     renderCharacterMood(info.pct);
     renderEntries(entries);
     renderCategories();
@@ -835,6 +847,7 @@ const App = (() => {
     renderCharSelector();
     renderScore(S.score);
     renderProgress(S.score);
+    renderEntryCounts();
     renderCharacterMood(progressInfo(S.score, S.mode, activeNegPts()).pct);
   }
 
