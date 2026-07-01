@@ -3,6 +3,13 @@
    ServiceNow backend (Scripted REST API) + localStorage fallback
    ============================================================= */
 
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
 const App = (() => {
 
   /* ── Config ── */

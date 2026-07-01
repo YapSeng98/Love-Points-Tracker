@@ -66,6 +66,12 @@
         if (partnerGr.next()) {
             partnerName = partnerGr.getValue('u_username') || '';
         }
+        // Set Couple Name on the match record as "char1Name_char2Name"
+        var updMatch = new GlideRecord('x_887486_love_app_u_love_match');
+        if (updMatch.get(matchId)) {
+            updMatch.setValue('u_couple_name', partnerName + '_' + username);
+            updMatch.update();
+        }
     }
 
     response.setBody({

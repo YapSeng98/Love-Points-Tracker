@@ -5,11 +5,12 @@
     _au.addQuery('u_api_key', _tok);
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({error:'Unauthorized'}); return; }
+    var matchId = _au.getValue('u_match') || '';
 
     var id   = request.pathParams.id;
     var body = request.body.data;
     var gr   = new GlideRecord('x_887486_love_app_u_love_punishment');
-    if (!gr.get(id)) {
+    if (!gr.get(id) || gr.getValue('u_match') !== matchId) {
         response.setStatus(404);
         response.setBody({ error: 'Not found' });
         return;

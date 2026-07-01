@@ -108,6 +108,15 @@
       transition: border-color 0.2s;
     }
     .field-group input:focus { border-color: var(--blue); }
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 44px; }
+    .pw-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 4px;
+      color: var(--sub); line-height: 1; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pw-eye:hover { color: var(--blue); }
     .btn-primary {
       width: 100%; padding: 14px;
       background: linear-gradient(135deg, var(--blue), #7BB8E8);
@@ -1298,8 +1307,11 @@
       </div>
       <div class="field-group">
         <label>密码</label>
-        <input id="sn-password" type="password" placeholder="••••••••" autocomplete="current-password"
-               onkeydown="if(event.key==='Enter') App.connect()">
+        <div class="pw-wrap">
+          <input id="sn-password" type="password" placeholder="••••••••" autocomplete="current-password"
+                 onkeydown="if(event.key==='Enter') App.connect()">
+          <button type="button" class="pw-eye" onclick="togglePw('sn-password',this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <div id="sn-login-err" style="font-size:12px;color:#FF6B6B;min-height:18px;margin-bottom:8px;text-align:center;"></div>
       <button id="sn-connect-btn" class="btn-primary" onclick="App.connect()">登录</button>
@@ -1328,8 +1340,11 @@
         </div>
         <div class="field-group">
           <label>密码</label>
-          <input id="reg-password" type="password" placeholder="设置密码" autocomplete="new-password"
-                 onkeydown="if(event.key==='Enter') App.register()">
+          <div class="pw-wrap">
+            <input id="reg-password" type="password" placeholder="设置密码" autocomplete="new-password"
+                   onkeydown="if(event.key==='Enter') App.register()">
+            <button type="button" class="pw-eye" onclick="togglePw('reg-password',this)" tabindex="-1">👁</button>
+          </div>
         </div>
         <!-- Pair code input — only shown when 她 is selected -->
         <div id="reg-pair-wrap" class="hidden">
