@@ -186,10 +186,24 @@ const App = (() => {
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
-        const decodeIcons = (arr) => arr.map(x => ({ ...x, icon: decodeFromSN(x.icon) }));
-        S.categories  = decodeIcons(await snFetch('/categories'));
-        S.rewards     = decodeIcons(await snFetch('/rewards'));
-        S.punishments = decodeIcons(await snFetch('/punishments'));
+        const safeStr = (v) => (v != null && v !== 'undefined') ? String(v) : '';
+        const normCat = (x) => ({
+          ...x,
+          icon:   decodeFromSN(safeStr(x.icon)),
+          name:   safeStr(x.name),
+          pts:    x.pts    != null ? parseInt(x.pts)   : 0,
+          active: x.active != null ? (x.active === true || x.active === '1' || x.active === 1) : true,
+        });
+        const normItem = (x) => ({
+          ...x,
+          icon:   decodeFromSN(safeStr(x.icon)),
+          name:   safeStr(x.name),
+          minPts: x.minPts != null ? parseInt(x.minPts) : 0,
+          desc:   safeStr(x.desc),
+        });
+        S.categories  = (await snFetch('/categories')).map(normCat);
+        S.rewards     = (await snFetch('/rewards')).map(normItem);
+        S.punishments = (await snFetch('/punishments')).map(normItem);
       } else {
         const d = LS.load();
         S.mode            = d.mode;
@@ -284,7 +298,7 @@ const App = (() => {
       if (S.usingSN) {
         const r = await snFetch(this._endpoint(type), { method:'POST', body: JSON.stringify(data) });
         // SN only returns { id, success } — rebuild full item for in-memory use
-        return { ...data, icon: decodeFromSN(data.icon), id: r.id };
+        return { ...data, icon: decodeFromSN(data.icon || '') || '', id: r.id };
       }
       const d = LS.load();
       const item = { ...data, id: type[0] + Date.now() };
@@ -439,8 +453,8 @@ const App = (() => {
     grid.innerHTML = cats.map(c => {
       const pos = c.pts >= 0;
       return `<div class="cat-card ${pos?'positive':'negative'}" onclick="App.quickEntry('${c.id}')">
-        <div class="cat-icon">${c.icon}</div>
-        <div class="cat-name">${c.name}</div>
+        <div class="cat-icon">${c.icon || '📌'}</div>
+        <div class="cat-name">${c.name || '分类'}</div>
         <div class="cat-pts ${pos?'positive':'negative'}">${pos?'+':''}${c.pts} 分</div>
       </div>`;
     }).join('');
@@ -459,7 +473,7 @@ const App = (() => {
       return `<div class="entry-item" id="entry-${e.id}">
         <div class="entry-icon">${e.icon || '📌'}</div>
         <div class="entry-info">
-          <div class="entry-cat">${e.catName || e.name || '自定义'}</div>
+          <div class="entry-cat">${(e.catName && e.catName !== 'undefined') ? e.catName : (e.name && e.name !== 'undefined' ? e.name : '自定义')}</div>
           <div class="entry-desc">${e.desc || ''}</div>
           <div class="entry-date">${e.date || ''}</div>
         </div>
@@ -1335,7 +1349,7 @@ const App = (() => {
       return `<div class="manage-row ${inactive ? 'manage-inactive' : ''}">
         <span class="manage-icon">${item.icon || '📌'}</span>
         <div class="manage-info">
-          <div class="manage-name">${item.name}</div>
+          <div class="manage-name">${item.name || '(未命名)'}</div>
           ${item.desc ? `<div class="manage-sub">${item.desc}</div>` : ''}
         </div>
         ${ptsHtml}
@@ -1408,7 +1422,7 @@ const App = (() => {
         // update in-memory state
         const arr = type === 'category' ? S.categories : type === 'reward' ? S.rewards : S.punishments;
         const idx = arr.findIndex(x => x.id === id);
-        if (idx >= 0) arr[idx] = { ...arr[idx], ...data, icon: decodeFromSN(data.icon) };
+        if (idx >= 0) arr[idx] = { ...arr[idx], ...data, icon: decodeFromSN(data.icon || '') || '' };
         showToast('✅ 已更新 → ' + (S.usingSN ? 'SN 已同步' : '本地已保存'));
       } else {
         const created = await Data.addItem(type, data);
