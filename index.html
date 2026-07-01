@@ -1010,8 +1010,8 @@
     }
     .sp-content {
       display: flex; flex-direction: column; align-items: center;
-      gap: 4px; text-align: center; width: 100%; max-width: 340px;
-      position: relative; z-index: 1;
+      gap: 2px; text-align: center; width: 100%; max-width: 340px;
+      position: relative; z-index: 2;
     }
     .sp-paw-logo {
       font-size: 36px; line-height: 1;
@@ -1034,16 +1034,18 @@
       letter-spacing: 0.03em;
     }
 
-    /* ── Couple Scene (no boxes) ── */
+    /* ── Couple Scene (no boxes, mobile-safe) ── */
     .sp-couple-scene {
-      display: flex; align-items: flex-end; justify-content: center;
-      gap: 10px; width: 100%; max-width: 320px; margin: 14px 0 8px;
-      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; width: 100%; max-width: 310px;
+      margin: 10px 0 18px;
+      /* clip bottom so rising hearts never reach the button */
+      clip-path: inset(-200px -20px 0 -20px);
     }
-    /* character containers — no box, just floating */
+    /* character containers — floating in open air, no border */
     .sp-couple-char {
       display: flex; flex-direction: column; align-items: center;
-      position: relative; flex-shrink: 0;
+      flex-shrink: 0; position: relative;
     }
     .sp-couple-char.c1 {
       animation: sp-char-float 3.2s ease-in-out infinite;
@@ -1052,57 +1054,60 @@
       animation: sp-char-float 3.2s ease-in-out infinite -1.6s;
     }
     @keyframes sp-char-float {
-      0%,100% { transform: translateY(0) rotate(-2deg); }
-      50%     { transform: translateY(-14px) rotate(2deg); }
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-12px); }
     }
-    /* soft aura glow behind each character */
+    /* soft aura glow — inset pseudo so it never breaks layout */
     .sp-char-aura {
-      position: absolute; border-radius: 50%; z-index: 0;
-      width: 120px; height: 120px; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
+      position: absolute; border-radius: 50%; z-index: 0; pointer-events: none;
+      width: 100px; height: 100px; top: 50%; left: 50%;
+      transform: translate(-50%, -48%);
       animation: aura-pulse 3s ease-in-out infinite;
-      pointer-events: none;
     }
     .sp-char-aura.c1-aura {
-      background: radial-gradient(circle, rgba(91,155,213,0.40) 0%, rgba(91,155,213,0) 68%);
+      background: radial-gradient(circle, rgba(91,155,213,0.42) 0%, transparent 68%);
     }
     .sp-char-aura.c2-aura {
-      background: radial-gradient(circle, rgba(255,120,160,0.40) 0%, rgba(255,120,160,0) 68%);
+      background: radial-gradient(circle, rgba(255,100,150,0.42) 0%, transparent 68%);
       animation-delay: -1.5s;
     }
     @keyframes aura-pulse {
-      0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 0.8; }
-      50%     { transform: translate(-50%,-50%) scale(1.25); opacity: 1; }
+      0%,100% { transform: translate(-50%,-48%) scale(1); opacity: 0.75; }
+      50%     { transform: translate(-50%,-48%) scale(1.22); opacity: 1; }
     }
     #sp-char-img-1, #sp-char-img-2 {
       position: relative; z-index: 1;
-      display: flex; align-items: flex-end; justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
+    /* character SVG size — smaller on mobile to stay above button */
     .sp-couple-char .char-svg {
-      display: block; width: 100px !important; height: 118px !important;
-      filter: drop-shadow(0 6px 14px rgba(0,0,0,0.14)) !important;
+      display: block; width: 88px !important; height: 104px !important;
+      filter: drop-shadow(0 5px 12px rgba(0,0,0,0.13)) !important;
     }
-    /* ── Hearts stream between characters ── */
+    /* ── Rising hearts between characters ── */
     .sp-hearts-col {
-      display: flex; flex-direction: column; align-items: center;
-      position: relative; height: 120px; width: 40px; flex-shrink: 0;
+      flex-shrink: 0; width: 44px;
+      position: relative; height: 104px;
+      /* overflow visible so hearts float up, clipped by parent clip-path */
       overflow: visible;
     }
     .sp-fheart {
-      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-      font-size: 17px; opacity: 0;
+      position: absolute; bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px; opacity: 0;
       animation: sp-heart-rise 2.6s ease-out infinite;
       animation-delay: var(--d, 0s);
     }
     @keyframes sp-heart-rise {
       0%   { transform: translateX(-50%) translateY(0) scale(0.5); opacity: 0; }
-      18%  { opacity: 1; }
-      80%  { opacity: 0.7; }
-      100% { transform: translateX(-50%) translateY(-110px) scale(1.15); opacity: 0; }
+      15%  { opacity: 1; }
+      85%  { opacity: 0.7; }
+      100% { transform: translateX(-50%) translateY(-130px) scale(1.1); opacity: 0; }
     }
     /* ── Start button ── */
     .sp-btn {
-      margin-top: 4px; padding: 15px 20px; width: 100%;
+      margin-top: 0; padding: 15px 20px; width: 100%;
+      position: relative; z-index: 3;
       background: linear-gradient(135deg, #6B8EE8 0%, #A87EF5 50%, #F07898 100%);
       color: white; border: none; border-radius: 50px;
       font-size: 15px; font-weight: 700; cursor: pointer;
@@ -1123,8 +1128,10 @@
       font-size: 10px; color: #A0A0C8; opacity: 0.80;
       text-align: center; line-height: 1.5; margin: 0;
     }
-    @media (max-width: 360px) {
-      .sp-couple-char .char-svg { width: 82px !important; height: 97px !important; }
+    @media (max-width: 380px) {
+      .sp-couple-char .char-svg { width: 74px !important; height: 87px !important; }
+      .sp-hearts-col { width: 36px; height: 87px; }
+      .sp-couple-scene { gap: 4px; margin-bottom: 14px; }
       .sp-btn { font-size: 14px; padding: 13px 16px; }
     }
   </style>
@@ -1154,7 +1161,7 @@
       <div class="sp-couple-char c1">
         <div class="sp-char-aura c1-aura"></div>
         <div id="sp-char-img-1">
-          <svg class="char-svg" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg" style="transform:rotate(5deg)">
+          <svg class="char-svg" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
             <!-- shadow -->
             <ellipse cx="55" cy="128" rx="22" ry="3.5" fill="rgba(91,155,213,0.18)"/>
             <!-- ears -->
@@ -1207,7 +1214,7 @@
       <div class="sp-couple-char c2">
         <div class="sp-char-aura c2-aura"></div>
         <div id="sp-char-img-2">
-          <svg class="char-svg" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg" style="transform:rotate(-5deg)">
+          <svg class="char-svg" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
             <!-- shadow -->
             <ellipse cx="55" cy="128" rx="22" ry="3.5" fill="rgba(255,143,160,0.18)"/>
             <!-- ears (with inner pink) -->
