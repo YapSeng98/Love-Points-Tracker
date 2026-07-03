@@ -344,7 +344,8 @@ const App = (() => {
   const ShopData = {
     async getItems() {
       if (!S.usingSN) return [];
-      return snFetch('/shop');
+      const items = await snFetch('/shop');
+      return items.map(i => ({ ...i, icon: decodeFromSN(i.icon || '') }));
     },
     async addItem(data) {
       return snFetch('/shop', { method: 'POST', body: JSON.stringify(data) });
@@ -360,14 +361,16 @@ const App = (() => {
     },
     async getBag() {
       if (!S.usingSN) return [];
-      return snFetch('/bag');
+      const items = await snFetch('/bag');
+      return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
     async useItem(id) {
       return snFetch(`/bag/use/${id}`, { method: 'POST', body: JSON.stringify({}) });
     },
     async getBagHistory() {
       if (!S.usingSN) return [];
-      return snFetch('/bag/history');
+      const items = await snFetch('/bag/history');
+      return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
   };
 

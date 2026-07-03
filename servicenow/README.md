@@ -194,6 +194,13 @@ For each resource: set the HTTP method + relative path, paste the matching `serv
    - **HTTP Methods**: GET, POST, PUT, DELETE
 3. Save
 
+> The dev405150 instance is currently configured with the specific Pages
+> origin (`https://yapseng98.github.io`), **not** `*` — so the deployed app
+> works, but opening `index.html` from localhost or `file://` cannot reach
+> SN (browser CORS block). Add another CORS rule for your local origin if
+> you need to test the frontend locally against the live backend, or drive
+> the browser with web security disabled (test-only).
+
 ---
 
 ## Step 5 — Test the API
