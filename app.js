@@ -372,6 +372,9 @@ const App = (() => {
       const items = await snFetch('/bag/history');
       return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
+    async claimReward(rewardId) {
+      return snFetch('/bag/claim', { method: 'POST', body: JSON.stringify({ rewardId }) });
+    },
   };
 
   /* ── Score calc helpers ── */
@@ -379,12 +382,18 @@ const App = (() => {
     return entries.reduce((sum, e) => sum + (parseInt(e.pts) || 0), 0);
   }
 
+  // Shop purchases are logged as negative entries so they reduce the spendable
+  // balance, but they are NOT bad behavior — they must never count toward the
+  // punishment threshold.
+  const isPurchaseEntry = (e) => e.catName === '🛒 商店兑换';
+
   function calcCharScores(entries) {
     let c1 = 0, c2 = 0, n1 = 0, n2 = 0;
     entries.forEach(e => {
       const pts = parseInt(e.pts) || 0;
-      if (!e.charId || e.charId === 'char1') { c1 += pts; if (pts < 0) n1 += Math.abs(pts); }
-      else                                    { c2 += pts; if (pts < 0) n2 += Math.abs(pts); }
+      const badPts = (pts < 0 && !isPurchaseEntry(e)) ? Math.abs(pts) : 0;
+      if (!e.charId || e.charId === 'char1') { c1 += pts; n1 += badPts; }
+      else                                    { c2 += pts; n2 += badPts; }
     });
     return { char1: c1, char2: c2, neg1: n1, neg2: n2 };
   }
@@ -395,6 +404,13 @@ const App = (() => {
 
   function activeScore() {
     return S.activeChar === 'char1' ? S.char1Score : S.char2Score;
+  }
+
+  // Score used for outcome lookup: reward mode judges by net score, punishment
+  // mode judges by accumulated bad-behavior points (shop purchases excluded)
+  function outcomeScoreFor(charId) {
+    if (S.mode === 'reward') return charId === 'char2' ? S.char2Score : S.char1Score;
+    return -(charId === 'char2' ? S.char2NegPts : S.char1NegPts);
   }
 
   function charDisplayName(charId) {
@@ -409,11 +425,13 @@ const App = (() => {
       return { pct, gap, reached: score >= target, label: `奖励目标 ${target} 分`, type: 'reward' };
     } else {
       const threshold = Math.abs(S.punishThreshold);
-      // Use total negative pts accumulated (not net score) so bar fills even when positive entries offset punishments
+      // Use total bad-behavior pts accumulated (not net score) so the bar fills
+      // even when positive entries offset punishments, and shop purchases
+      // (negative balance entries) never push anyone toward punishment
       const neg = (negPts != null && negPts > 0) ? negPts : Math.max(0, -score);
       const pct = Math.min(100, Math.round((neg / threshold) * 100));
       const gap = Math.max(0, threshold - neg);
-      return { pct, gap, reached: score <= S.punishThreshold, label: `惩罚阈值 ${S.punishThreshold} 分`, type: 'punishment' };
+      return { pct, gap, reached: neg >= threshold, label: `惩罚阈值 ${S.punishThreshold} 分`, type: 'punishment' };
     }
   }
 
@@ -464,7 +482,7 @@ const App = (() => {
         const outcome = getOutcome(score, 'reward');
         statusEl.innerHTML = `🎉 已达成奖励！ <span class="status-badge badge-reward">${outcome ? outcome.name : '奖励'}</span>`;
       } else {
-        const outcome = getOutcome(score, 'punishment');
+        const outcome = getOutcome(-activeNegPts(), 'punishment');
         statusEl.innerHTML = `⚠️ 达到惩罚阈值！ <span class="status-badge badge-danger">${outcome ? outcome.name : '惩罚'}</span>`;
       }
     } else {
@@ -1018,8 +1036,8 @@ const App = (() => {
   }
 
   function openSettleModal() {
-    const o1 = getOutcome(S.char1Score, S.mode);
-    const o2 = getOutcome(S.char2Score, S.mode);
+    const o1 = getOutcome(outcomeScoreFor('char1'), S.mode);
+    const o2 = getOutcome(outcomeScoreFor('char2'), S.mode);
     const i1 = progressInfo(S.char1Score, S.mode, S.char1NegPts);
     const i2 = progressInfo(S.char2Score, S.mode, S.char2NegPts);
     const prev = document.getElementById('settle-preview');
@@ -1055,8 +1073,8 @@ const App = (() => {
   }
 
   async function confirmSettle() {
-    const o1 = getOutcome(S.char1Score, S.mode);
-    const o2 = getOutcome(S.char2Score, S.mode);
+    const o1 = getOutcome(outcomeScoreFor('char1'), S.mode);
+    const o2 = getOutcome(outcomeScoreFor('char2'), S.mode);
 
     try {
       await Data.settleMonth(
@@ -1098,13 +1116,24 @@ const App = (() => {
     const content = document.getElementById('modal-tables-content');
     const title   = document.getElementById('modal-tables-title');
 
-    const outcome = getOutcome(S.score, S.mode);
+    const outcome = getOutcome(outcomeScoreFor(S.activeChar), S.mode);
 
     if (S.mode === 'reward') {
       title.textContent = '🏆 奖励表';
+      const myScore = activeScore();
       const sorted = [...S.rewards].sort((a,b) => a.minPts - b.minPts);
       content.innerHTML = `<div class="tier-table">${
-        sorted.map(r => `
+        sorted.map(r => {
+          // Claim → bag needs SN; button only when reached and not yet claimed
+          let claimHtml = '';
+          if (S.usingSN) {
+            if (r.claimed) {
+              claimHtml = `<div class="tier-claimed">✅ 已领取</div>`;
+            } else if (myScore >= r.minPts) {
+              claimHtml = `<button class="tier-claim-btn" onclick="App.claimReward('${r.id}')">🎁 领取</button>`;
+            }
+          }
+          return `
           <div class="tier-row ${outcome && outcome.id === r.id ? 'current-tier' : ''}">
             <div class="tier-icon">${r.icon}</div>
             <div class="tier-info">
@@ -1112,7 +1141,9 @@ const App = (() => {
               <div class="tier-desc">${r.desc}</div>
             </div>
             <div class="tier-pts-label tier-pts-reward">≥ ${r.minPts} 分</div>
-          </div>`).join('')
+            ${claimHtml}
+          </div>`;
+        }).join('')
       }</div>`;
     } else {
       title.textContent = '😈 惩罚表';
@@ -1130,6 +1161,24 @@ const App = (() => {
       }</div>`;
     }
     openModal('modal-tables');
+  }
+
+  async function claimReward(rewardId) {
+    const r = S.rewards.find(x => x.id === rewardId);
+    if (!r) return;
+    if (!(await showConfirm(`领取奖励「${r.icon} ${r.name}」？将放入你的背包 🎒`))) return;
+    try {
+      await ShopData.claimReward(rewardId);
+      spawnConfetti();
+      showToast(`🎉 已领取「${r.name}」，快去背包看看！`);
+      r.claimed = true;
+      await showTables();
+    } catch (err) {
+      const msg = err.message.includes('already_claimed')   ? '这个奖励已经领取过了'
+                : err.message.includes('score_not_reached') ? '积分还没达到这个奖励的门槛哦'
+                : '领取失败: ' + err.message;
+      showToast('⚠️ ' + msg);
+    }
   }
 
   async function showHistory() {
@@ -1926,6 +1975,7 @@ const App = (() => {
     quickEntry, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
+    claimReward,
     setCharImg, resetCharImg,
     openManage, openManageFromTable, openEditForm, saveEditForm,
     toggleCategoryActive, confirmDeleteItem,

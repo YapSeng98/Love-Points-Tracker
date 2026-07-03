@@ -13,12 +13,15 @@
     gr.query();
     var list = [];
     while (gr.next()) {
+        var claimedVal = gr.getValue('u_claimed');
         list.push({
-            id:     gr.getValue('sys_id'),
-            icon:   gr.getValue('u_emoji'),
-            name:   gr.getValue('u_name'),
-            minPts: parseInt(gr.getValue('u_points')),
-            desc:   gr.getValue('u_desc'),
+            id:          gr.getValue('sys_id'),
+            icon:        gr.getValue('u_emoji'),
+            name:        gr.getValue('u_name'),
+            minPts:      parseInt(gr.getValue('u_points')),
+            desc:        gr.getValue('u_desc'),
+            claimed:     claimedVal === '1' || claimedVal === 'true' || claimedVal === true,
+            claimedDate: gr.getValue('u_claimed_date') || '',
         });
     }
     response.setBody(list);

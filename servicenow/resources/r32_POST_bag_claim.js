@@ -24,8 +24,32 @@
 
     var itemName = rGr.getValue('u_name') || '';
     var itemIcon = rGr.getValue('u_emoji') || '';
+    var minPts   = parseInt(rGr.getValue('u_points')) || 0;
     var now      = new GlideDateTime();
     var month    = now.getLocalDate().toString().substring(0, 7);
+
+    // Verify the caller's current-month score actually reached the reward
+    // threshold (same sum as /shop/buy — unsettled entries, this char)
+    var scoreGr = new GlideRecord('x_887486_love_app_u_love_entry');
+    if (matchId) scoreGr.addQuery('u_match', matchId);
+    scoreGr.addQuery('u_month', month);
+    scoreGr.addNullQuery('u_monthly');
+    if (charId === 'char2') {
+        scoreGr.addQuery('u_char', 'char2');
+    } else {
+        var cond = scoreGr.addQuery('u_char', 'char1');
+        cond.addOrCondition('u_char', '');
+    }
+    scoreGr.query();
+    var currentScore = 0;
+    while (scoreGr.next()) {
+        currentScore += parseInt(scoreGr.getValue('u_points')) || 0;
+    }
+    if (currentScore < minPts) {
+        response.setStatus(400);
+        response.setBody({ error: 'score_not_reached', currentScore: currentScore, required: minPts });
+        return;
+    }
 
     // Mark reward as claimed
     rGr.setValue('u_claimed',      true);

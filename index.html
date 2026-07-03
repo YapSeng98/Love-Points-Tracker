@@ -831,6 +831,20 @@
     }
     .tier-pts-reward { background: linear-gradient(135deg, #FFD700, #FFA500); color: white; }
     .tier-pts-punish { background: linear-gradient(135deg, var(--red), #E53935); color: white; }
+    .tier-claim-btn {
+      flex-shrink: 0; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 700; white-space: nowrap;
+      padding: 7px 14px; border-radius: 20px; color: white;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+      box-shadow: 0 2px 8px rgba(67,160,71,0.35);
+      transition: transform 0.15s;
+    }
+    .tier-claim-btn:active { transform: scale(0.94); }
+    .tier-claimed {
+      flex-shrink: 0; font-size: 12px; font-weight: 700; white-space: nowrap;
+      padding: 5px 10px; border-radius: 20px;
+      color: var(--sub); background: #ECEFF3;
+    }
 
     /* Add entry modal */
     .modal-field { margin-bottom: 16px; }
