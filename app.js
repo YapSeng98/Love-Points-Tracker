@@ -43,6 +43,11 @@ const App = (() => {
     historyRecords: [],
     needsSetup: false,
     startDate: '',
+    shopItems: [],
+    bagItems: [],
+    bagHistory: [],
+    shopTab: 'shop',
+    shopEditId: null,
   };
 
   /* ── Helpers ── */
@@ -332,6 +337,37 @@ const App = (() => {
       else if (type === 'reward') d.rewards     = d.rewards.filter(x => x.id !== id);
       else                        d.punishments = d.punishments.filter(x => x.id !== id);
       LS.save(d);
+    },
+  };
+
+  /* ── Shop / Bag data layer ── */
+  const ShopData = {
+    async getItems() {
+      if (!S.usingSN) return [];
+      return snFetch('/shop');
+    },
+    async addItem(data) {
+      return snFetch('/shop', { method: 'POST', body: JSON.stringify(data) });
+    },
+    async updateItem(id, data) {
+      return snFetch(`/shop/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    },
+    async deleteItem(id) {
+      return snFetch(`/shop/${id}`, { method: 'DELETE' });
+    },
+    async buyItem(id) {
+      return snFetch(`/shop/buy/${id}`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    async getBag() {
+      if (!S.usingSN) return [];
+      return snFetch('/bag');
+    },
+    async useItem(id) {
+      return snFetch(`/bag/use/${id}`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    async getBagHistory() {
+      if (!S.usingSN) return [];
+      return snFetch('/bag/history');
     },
   };
 
@@ -1051,7 +1087,7 @@ const App = (() => {
     } else if (page === 'settings') {
       showSettings();
     } else if (page === 'shop') {
-      showToast('🛒 商店模块即将上线！');
+      await showShop();
     }
   }
 
@@ -1508,6 +1544,287 @@ const App = (() => {
     }
   }
 
+  /* ── Shop page ── */
+  let _pendingBuyId = null;
+
+  async function showShop() {
+    const pg = document.getElementById('shop-page');
+    if (!pg) return;
+    // Update score display for the logged-in char
+    const scoreEl = document.getElementById('shop-score-num');
+    if (scoreEl) {
+      const myScore = S.activeChar === 'char2' ? S.char2Score : S.char1Score;
+      scoreEl.textContent = myScore;
+    }
+    pg.classList.add('open');
+    // Always reload shop tab on open
+    S.shopTab = 'shop';
+    _shopTabUI('shop');
+    await renderShopContent();
+  }
+
+  function closeShop() {
+    document.getElementById('shop-page')?.classList.remove('open');
+    // Return home nav highlight
+    ['home','tables','history','shop','settings'].forEach(p =>
+      document.getElementById('nav-'+p)?.classList.remove('active'));
+    document.getElementById('nav-home')?.classList.add('active');
+  }
+
+  function shopTabSwitch(tab) {
+    S.shopTab = tab;
+    _shopTabUI(tab);
+    renderShopContent();
+  }
+
+  function _shopTabUI(tab) {
+    ['shop','bag','bag-history'].forEach(t => {
+      document.getElementById('shop-tab-'+t)?.classList.toggle('active', t === tab);
+      const c = document.getElementById('shop-content-'+t);
+      if (c) c.classList.toggle('hidden', t !== tab);
+    });
+  }
+
+  async function renderShopContent() {
+    const tab = S.shopTab;
+    if (tab === 'shop')        await _renderShopItems();
+    else if (tab === 'bag')    await _renderBagItems();
+    else                       await _renderBagHistory();
+  }
+
+  async function _renderShopItems() {
+    const el = document.getElementById('shop-content-shop');
+    if (!el) return;
+    if (!S.usingSN) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用商店功能</div></div>';
+      return;
+    }
+    el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
+    try {
+      S.shopItems = await ShopData.getItems();
+    } catch(e) {
+      el.innerHTML = `<div class="shop-empty"><div class="shop-empty-icon">😕</div><div class="shop-empty-text">加载失败: ${e.message}</div></div>`;
+      return;
+    }
+    const myScore = S.activeChar === 'char2' ? S.char2Score : S.char1Score;
+    const active  = S.shopItems.filter(i => i.active !== false);
+    if (!active.length) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🛍️</div><div class="shop-empty-text">暂无商品，点右上角"管理"添加</div></div>';
+      return;
+    }
+    el.innerHTML = `<div class="shop-items-grid">${active.map(item => `
+      <div class="shop-item-card${item.active === false ? ' inactive' : ''}">
+        <div class="shop-item-icon">${item.icon || '🎁'}</div>
+        <div class="shop-item-name">${item.name}</div>
+        <div class="shop-item-desc">${item.desc || ''}</div>
+        <div class="shop-item-cost">${item.ptsCost} 分</div>
+        <button class="shop-item-buy"
+          onclick="App.openBuySheet('${item.id}')"
+          ${myScore < item.ptsCost ? 'disabled' : ''}>
+          ${myScore >= item.ptsCost ? '兑换' : '积分不足'}
+        </button>
+      </div>`).join('')}</div>`;
+  }
+
+  async function _renderBagItems() {
+    const el = document.getElementById('shop-content-bag');
+    if (!el) return;
+    if (!S.usingSN) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用背包功能</div></div>';
+      return;
+    }
+    el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
+    try {
+      S.bagItems = await ShopData.getBag();
+    } catch(e) {
+      el.innerHTML = `<div class="shop-empty"><div class="shop-empty-icon">😕</div><div class="shop-empty-text">加载失败: ${e.message}</div></div>`;
+      return;
+    }
+    if (!S.bagItems.length) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🎒</div><div class="shop-empty-text">背包是空的，去商店兑换吧！</div></div>';
+      return;
+    }
+    el.innerHTML = S.bagItems.map(item => `
+      <div class="bag-item">
+        <div class="bag-item-icon">${item.itemIcon || '🎁'}</div>
+        <div class="bag-item-info">
+          <div class="bag-item-name">${item.itemName}</div>
+          <div class="bag-item-meta">${item.acquiredDate} · 花费 ${item.ptsSpent} 分</div>
+        </div>
+        <button class="bag-item-use" onclick="App.confirmUseItem('${item.id}', '${item.itemName}')">使用</button>
+      </div>`).join('');
+  }
+
+  async function _renderBagHistory() {
+    const el = document.getElementById('shop-content-bag-history');
+    if (!el) return;
+    if (!S.usingSN) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用此功能</div></div>';
+      return;
+    }
+    el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
+    try {
+      S.bagHistory = await ShopData.getBagHistory();
+    } catch(e) {
+      el.innerHTML = `<div class="shop-empty"><div class="shop-empty-icon">😕</div><div class="shop-empty-text">加载失败: ${e.message}</div></div>`;
+      return;
+    }
+    if (!S.bagHistory.length) {
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">📜</div><div class="shop-empty-text">还没有使用过任何道具</div></div>';
+      return;
+    }
+    el.innerHTML = S.bagHistory.map(item => `
+      <div class="bag-history-item">
+        <div class="bag-history-icon">${item.itemIcon || '🎁'}</div>
+        <div class="bag-history-info">
+          <div class="bag-history-name">${item.itemName}</div>
+          <div class="bag-history-meta">兑换: ${item.acquiredDate}  ·  使用: ${item.usedDate}</div>
+        </div>
+        <div class="bag-history-badge">✅ 已用</div>
+      </div>`).join('');
+  }
+
+  function openBuySheet(id) {
+    const item = S.shopItems.find(i => i.id === id);
+    if (!item) return;
+    _pendingBuyId = id;
+    document.getElementById('buy-sheet-icon').textContent = item.icon || '🎁';
+    document.getElementById('buy-sheet-name').textContent = item.name;
+    document.getElementById('buy-sheet-desc').textContent = item.desc || '';
+    document.getElementById('buy-sheet-cost').textContent = item.ptsCost;
+    document.getElementById('buy-sheet-overlay').classList.add('open');
+    document.getElementById('buy-confirm-sheet').classList.add('open');
+  }
+
+  function closeBuySheet() {
+    _pendingBuyId = null;
+    document.getElementById('buy-sheet-overlay').classList.remove('open');
+    document.getElementById('buy-confirm-sheet').classList.remove('open');
+  }
+
+  async function confirmBuy() {
+    if (!_pendingBuyId) return;
+    const btn = document.getElementById('buy-sheet-ok-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
+    try {
+      const result = await ShopData.buyItem(_pendingBuyId);
+      closeBuySheet();
+      showToast('🎁 兑换成功！');
+      // Update score display
+      if (result.newScore !== undefined) {
+        if (S.activeChar === 'char2') S.char2Score = result.newScore;
+        else S.char1Score = result.newScore;
+        S.score = activeScore();
+        const scoreEl = document.getElementById('shop-score-num');
+        if (scoreEl) scoreEl.textContent = result.newScore;
+      }
+      // Switch to bag tab to show the new item
+      shopTabSwitch('bag');
+    } catch(e) {
+      closeBuySheet();
+      const msg = e.message || '';
+      if (msg.includes('insufficient_points')) showToast('😅 积分不足，继续加油！');
+      else showToast('兑换失败: ' + msg);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '确认兑换 🎁'; }
+    }
+  }
+
+  async function confirmUseItem(id, name) {
+    if (!confirm(`确认使用「${name}」？\n使用后将移入历史记录`)) return;
+    try {
+      await ShopData.useItem(id);
+      showToast('✅ 已使用！');
+      await _renderBagItems();
+    } catch(e) {
+      showToast('操作失败: ' + e.message);
+    }
+  }
+
+  async function openShopManage() {
+    if (!S.usingSN) { showToast('请先连接 ServiceNow'); return; }
+    openModal('modal-shop-manage');
+    await _renderShopManageList();
+  }
+
+  async function _renderShopManageList() {
+    const el = document.getElementById('shop-manage-list');
+    if (!el) return;
+    el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    try {
+      S.shopItems = await ShopData.getItems();
+    } catch(e) {
+      el.innerHTML = `<div style="color:var(--sub);font-size:13px">加载失败: ${e.message}</div>`;
+      return;
+    }
+    if (!S.shopItems.length) {
+      el.innerHTML = '<div style="color:var(--sub);font-size:13px;text-align:center;padding:16px">暂无商品</div>';
+      return;
+    }
+    el.innerHTML = S.shopItems.map(item => `
+      <div class="shop-manage-item">
+        <div class="shop-manage-icon">${item.icon || '🎁'}</div>
+        <div class="shop-manage-info">
+          <div class="shop-manage-name">${item.name}${item.active === false ? ' (已下架)' : ''}</div>
+          <div class="shop-manage-pts">${item.ptsCost} 积分 · ${item.desc || '—'}</div>
+        </div>
+        <div class="shop-manage-actions">
+          <button class="shop-manage-edit" onclick="App.openShopItemForm('${item.id}')">编辑</button>
+          <button class="shop-manage-del"  onclick="App.deleteShopItem('${item.id}')">删除</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function openShopItemForm(id) {
+    S.shopEditId = id;
+    const form = document.getElementById('shop-item-form-title');
+    if (form) form.textContent = id ? '编辑商品' : '添加商品';
+    const item = id ? S.shopItems.find(i => i.id === id) : null;
+    document.getElementById('sif-icon').value = item?.icon || '';
+    document.getElementById('sif-name').value = item?.name || '';
+    document.getElementById('sif-desc').value = item?.desc || '';
+    document.getElementById('sif-pts').value  = item?.ptsCost || '';
+    openModal('modal-shop-item-form');
+  }
+
+  async function saveShopItem() {
+    const icon    = document.getElementById('sif-icon').value.trim() || '🎁';
+    const name    = document.getElementById('sif-name').value.trim();
+    const desc    = document.getElementById('sif-desc').value.trim();
+    const ptsCost = parseInt(document.getElementById('sif-pts').value) || 0;
+    if (!name)    { showToast('请填写商品名称 ⚠️'); return; }
+    if (ptsCost < 1) { showToast('积分价格必须大于 0 ⚠️'); return; }
+    const data = { icon: S.usingSN ? encodeForSN(icon) : icon, name, desc, ptsCost, active: true };
+    try {
+      if (S.shopEditId) {
+        await ShopData.updateItem(S.shopEditId, data);
+        showToast('✅ 商品已更新');
+      } else {
+        await ShopData.addItem(data);
+        showToast('✅ 商品已添加');
+      }
+      closeModal('modal-shop-item-form');
+      await _renderShopManageList();
+      // Refresh shop tab if visible
+      if (S.shopTab === 'shop') await _renderShopItems();
+    } catch(e) {
+      showToast('保存失败: ' + e.message);
+    }
+  }
+
+  async function deleteShopItem(id) {
+    const item = S.shopItems.find(i => i.id === id);
+    if (!confirm(`确认删除「${item?.name || '此商品'}」？`)) return;
+    try {
+      await ShopData.deleteItem(id);
+      showToast('🗑️ 已删除');
+      await _renderShopManageList();
+      if (S.shopTab === 'shop') await _renderShopItems();
+    } catch(e) {
+      showToast('删除失败: ' + e.message);
+    }
+  }
+
   /* ── Boot ── */
   async function boot() {
     const savedKey = localStorage.getItem('sn_api_key');
@@ -1566,6 +1883,10 @@ const App = (() => {
     toggleCategoryActive, confirmDeleteItem,
     openModal, closeModal,
     showLovePage, closeLovePage,
+    showShop, closeShop, shopTabSwitch,
+    openBuySheet, closeBuySheet, confirmBuy,
+    confirmUseItem,
+    openShopManage, openShopItemForm, saveShopItem, deleteShopItem,
   };
 })();
 
