@@ -1603,7 +1603,12 @@ const App = (() => {
     try {
       S.shopItems = await ShopData.getItems();
     } catch(e) {
-      el.innerHTML = `<div class="shop-empty"><div class="shop-empty-icon">😕</div><div class="shop-empty-text">加载失败: ${e.message}</div></div>`;
+      const isNetErr = e.message.includes('fetch') || e.message.includes('network');
+      el.innerHTML = `<div class="shop-empty">
+        <div class="shop-empty-icon">${isNetErr ? '🔧' : '😕'}</div>
+        <div class="shop-empty-text">${isNetErr ? '商品功能尚未在 SN 配置\n请先添加 u_love_shop 表和 API 资源' : '加载失败: ' + e.message}</div>
+        <div style="margin-top:12px"><button class="btn-primary" style="font-size:13px;padding:10px 20px" onclick="App.openShopManage()">⚙️ 管理商品</button></div>
+      </div>`;
       return;
     }
     const myScore = S.activeChar === 'char2' ? S.char2Score : S.char1Score;
@@ -1741,8 +1746,18 @@ const App = (() => {
     }
   }
 
+  function _shopManageSetView(view) {
+    document.getElementById('shop-manage-view-list').style.display = view === 'list' ? '' : 'none';
+    document.getElementById('shop-manage-view-form').style.display = view === 'form' ? '' : 'none';
+  }
+
+  function shopManageBack() {
+    _shopManageSetView('list');
+  }
+
   async function openShopManage() {
     if (!S.usingSN) { showToast('请先连接 ServiceNow'); return; }
+    _shopManageSetView('list');
     openModal('modal-shop-manage');
     await _renderShopManageList();
   }
@@ -1754,19 +1769,29 @@ const App = (() => {
     try {
       S.shopItems = await ShopData.getItems();
     } catch(e) {
-      el.innerHTML = `<div style="color:var(--sub);font-size:13px">加载失败: ${e.message}</div>`;
+      const isNetErr = e.message.includes('fetch') || e.message.includes('network');
+      el.innerHTML = `
+        <div style="text-align:center;padding:20px 0;color:var(--sub)">
+          <div style="font-size:32px;margin-bottom:8px">${isNetErr ? '🔌' : '⚠️'}</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">
+            ${isNetErr ? 'SN 商品表尚未创建' : '加载失败'}
+          </div>
+          <div style="font-size:11px">
+            ${isNetErr ? '请先在 ServiceNow Studio 创建 u_love_shop 表和相关资源' : e.message}
+          </div>
+        </div>`;
       return;
     }
     if (!S.shopItems.length) {
-      el.innerHTML = '<div style="color:var(--sub);font-size:13px;text-align:center;padding:16px">暂无商品</div>';
+      el.innerHTML = '<div style="color:var(--sub);font-size:13px;text-align:center;padding:20px 0">暂无商品，点上方按钮添加</div>';
       return;
     }
     el.innerHTML = S.shopItems.map(item => `
       <div class="shop-manage-item">
         <div class="shop-manage-icon">${item.icon || '🎁'}</div>
         <div class="shop-manage-info">
-          <div class="shop-manage-name">${item.name}${item.active === false ? ' (已下架)' : ''}</div>
-          <div class="shop-manage-pts">${item.ptsCost} 积分 · ${item.desc || '—'}</div>
+          <div class="shop-manage-name">${item.name}${item.active === false ? ' <span style="opacity:0.5;font-size:11px">(已下架)</span>' : ''}</div>
+          <div class="shop-manage-pts">${item.ptsCost} 积分${item.desc ? ' · ' + item.desc : ''}</div>
         </div>
         <div class="shop-manage-actions">
           <button class="shop-manage-edit" onclick="App.openShopItemForm('${item.id}')">编辑</button>
@@ -1777,14 +1802,14 @@ const App = (() => {
 
   function openShopItemForm(id) {
     S.shopEditId = id;
-    const form = document.getElementById('shop-item-form-title');
-    if (form) form.textContent = id ? '编辑商品' : '添加商品';
+    const titleEl = document.getElementById('shop-item-form-title');
+    if (titleEl) titleEl.textContent = id ? '编辑商品' : '添加商品';
     const item = id ? S.shopItems.find(i => i.id === id) : null;
-    document.getElementById('sif-icon').value = item?.icon || '';
+    document.getElementById('sif-icon').value = item ? (decodeFromSN(item.icon) || '') : '';
     document.getElementById('sif-name').value = item?.name || '';
     document.getElementById('sif-desc').value = item?.desc || '';
     document.getElementById('sif-pts').value  = item?.ptsCost || '';
-    openModal('modal-shop-item-form');
+    _shopManageSetView('form');
   }
 
   async function saveShopItem() {
@@ -1792,9 +1817,11 @@ const App = (() => {
     const name    = document.getElementById('sif-name').value.trim();
     const desc    = document.getElementById('sif-desc').value.trim();
     const ptsCost = parseInt(document.getElementById('sif-pts').value) || 0;
-    if (!name)    { showToast('请填写商品名称 ⚠️'); return; }
-    if (ptsCost < 1) { showToast('积分价格必须大于 0 ⚠️'); return; }
-    const data = { icon: S.usingSN ? encodeForSN(icon) : icon, name, desc, ptsCost, active: true };
+    if (!name)       { showToast('请填写商品名称 ⚠️'); return; }
+    if (ptsCost < 1) { showToast('积分价格至少 1 分 ⚠️'); return; }
+    const saveBtn = document.getElementById('sif-save-btn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中…'; }
+    const data = { icon: encodeForSN(icon), name, desc, ptsCost, active: true };
     try {
       if (S.shopEditId) {
         await ShopData.updateItem(S.shopEditId, data);
@@ -1803,12 +1830,14 @@ const App = (() => {
         await ShopData.addItem(data);
         showToast('✅ 商品已添加');
       }
-      closeModal('modal-shop-item-form');
+      _shopManageSetView('list');
       await _renderShopManageList();
-      // Refresh shop tab if visible
       if (S.shopTab === 'shop') await _renderShopItems();
     } catch(e) {
-      showToast('保存失败: ' + e.message);
+      const isNetErr = e.message.includes('fetch') || e.message.includes('network');
+      showToast(isNetErr ? '⚠️ 请先在 SN 创建商品表' : '保存失败: ' + e.message);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存 ✅'; }
     }
   }
 
@@ -1886,7 +1915,7 @@ const App = (() => {
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
     confirmUseItem,
-    openShopManage, openShopItemForm, saveShopItem, deleteShopItem,
+    openShopManage, openShopItemForm, shopManageBack, saveShopItem, deleteShopItem,
   };
 })();
 

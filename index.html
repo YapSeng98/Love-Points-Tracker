@@ -2048,44 +2048,49 @@
   </div>
 </div>
 
-<!-- Shop manage modal -->
-<div class="modal-overlay" id="modal-shop-manage">
+<!-- Shop manage modal (single modal, two internal views) -->
+<div class="modal-overlay" id="modal-shop-manage" style="z-index:95">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">⚙️ 管理商品</div>
-    <button class="btn-primary" style="width:100%;margin-bottom:12px" onclick="App.openShopItemForm(null)">＋ 添加商品</button>
-    <div id="shop-manage-list" class="shop-manage-list">
-      <div class="loading"><div class="spinner"></div></div>
-    </div>
-  </div>
-</div>
 
-<!-- Shop item edit/add modal -->
-<div class="modal-overlay" id="modal-shop-item-form">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="shop-item-form-title">添加商品</div>
-    <div class="shop-edit-form">
-      <div>
-        <label>图标 (emoji)</label>
-        <input id="sif-icon" type="text" maxlength="4" placeholder="🎁">
+    <!-- View: list -->
+    <div id="shop-manage-view-list">
+      <div style="display:flex;align-items:center;margin-bottom:16px">
+        <div class="modal-title" style="margin-bottom:0;flex:1">⚙️ 管理商品</div>
+        <button class="modal-close" onclick="App.closeModal('modal-shop-manage')">✕</button>
       </div>
-      <div>
-        <label>商品名称</label>
-        <input id="sif-name" type="text" placeholder="例：约会一次">
-      </div>
-      <div>
-        <label>描述</label>
-        <input id="sif-desc" type="text" placeholder="简短说明（可选）">
-      </div>
-      <div>
-        <label>积分价格</label>
-        <input id="sif-pts" type="number" min="1" placeholder="100">
-      </div>
+      <button class="btn-primary" style="width:100%;margin-bottom:12px" onclick="App.openShopItemForm(null)">＋ 添加商品</button>
+      <div id="shop-manage-list" class="shop-manage-list"></div>
     </div>
-    <div class="modal-actions" style="margin-top:16px">
-      <button class="btn-secondary" onclick="App.closeModal('modal-shop-item-form')">取消</button>
-      <button class="btn-primary" onclick="App.saveShopItem()" style="flex:1">保存 ✅</button>
+
+    <!-- View: add/edit form (hidden by default) -->
+    <div id="shop-manage-view-form" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button class="shop-back-btn" style="color:var(--blue);font-size:20px" onclick="App.shopManageBack()">‹</button>
+        <div class="modal-title" id="shop-item-form-title" style="margin-bottom:0;flex:1">添加商品</div>
+      </div>
+      <div class="shop-edit-form">
+        <div>
+          <label>图标 (emoji)</label>
+          <input id="sif-icon" type="text" maxlength="4" placeholder="🎁">
+        </div>
+        <div>
+          <label>商品名称 *</label>
+          <input id="sif-name" type="text" placeholder="例：约会一次">
+        </div>
+        <div>
+          <label>描述（可选）</label>
+          <input id="sif-desc" type="text" placeholder="简短说明">
+        </div>
+        <div>
+          <label>积分价格 *</label>
+          <input id="sif-pts" type="number" min="1" placeholder="100">
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn-secondary" onclick="App.shopManageBack()">取消</button>
+        <button class="btn-primary" onclick="App.saveShopItem()" style="flex:1" id="sif-save-btn">保存 ✅</button>
+      </div>
     </div>
   </div>
 </div>
