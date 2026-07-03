@@ -1039,7 +1039,7 @@ const App = (() => {
   }
 
   async function nav(page) {
-    ['home','tables','history','settings'].forEach(p => {
+    ['home','tables','history','shop','settings'].forEach(p => {
       document.getElementById('nav-'+p)?.classList.remove('active');
     });
     document.getElementById('nav-'+page)?.classList.add('active');
@@ -1050,6 +1050,8 @@ const App = (() => {
       await showHistory();
     } else if (page === 'settings') {
       showSettings();
+    } else if (page === 'shop') {
+      showToast('🛒 商店模块即将上线！');
     }
   }
 
