@@ -19,7 +19,7 @@
             name:    gr.getValue('u_name')    || '',
             desc:    gr.getValue('u_desc')    || '',
             ptsCost: parseInt(gr.getValue('u_pts_cost')) || 0,
-            active:  gr.getValue('u_active') === '1' || gr.getValue('u_active') === true,
+            active:  gr.getValue('u_active') === '1' || gr.getValue('u_active') === 'true' || gr.getValue('u_active') === true,
         });
     }
     response.setBody(items);

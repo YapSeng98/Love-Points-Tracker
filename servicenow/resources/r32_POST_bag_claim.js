@@ -18,7 +18,7 @@
     if (!rGr.get(rewardId) || rGr.getValue('u_match') !== matchId) {
         response.setStatus(404); response.setBody({ error: 'Reward not found' }); return;
     }
-    if (rGr.getValue('u_claimed') === '1' || rGr.getValue('u_claimed') === true) {
+    if (rGr.getValue('u_claimed') === '1' || rGr.getValue('u_claimed') === 'true' || rGr.getValue('u_claimed') === true) {
         response.setStatus(400); response.setBody({ error: 'already_claimed' }); return;
     }
 

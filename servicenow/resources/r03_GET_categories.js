@@ -18,7 +18,7 @@
             icon:   gr.getValue('u_emoji'),
             name:   gr.getValue('u_name'),
             pts:    parseInt(gr.getValue('u_points')),
-            active: gr.getValue('u_active') === '1' || gr.getValue('u_active') === true,
+            active: gr.getValue('u_active') === '1' || gr.getValue('u_active') === 'true' || gr.getValue('u_active') === true,
         });
     }
     response.setBody(cats);
