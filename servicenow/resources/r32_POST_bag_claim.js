@@ -23,7 +23,7 @@
     }
 
     var itemName = rGr.getValue('u_name') || '';
-    var itemIcon = rGr.getValue('u_icon') || '';
+    var itemIcon = rGr.getValue('u_emoji') || '';
     var now      = new GlideDateTime();
     var month    = now.getLocalDate().toString().substring(0, 7);
 

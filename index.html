@@ -2095,6 +2095,21 @@
   </div>
 </div>
 
+<!-- Custom confirm dialog (replaces native confirm() for a consistent, themed look) -->
+<div class="modal-overlay" id="modal-confirm" style="z-index:210">
+  <div class="modal-sheet" style="max-height:none">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;padding:4px 4px 20px">
+      <div style="font-size:40px;margin-bottom:10px">🤔</div>
+      <div id="confirm-message" style="font-size:15px;font-weight:600;color:var(--dark);line-height:1.6;white-space:pre-line"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.resolveConfirm(false)">取消</button>
+      <button class="btn-danger" id="confirm-ok-btn" onclick="App.resolveConfirm(true)">确认</button>
+    </div>
+  </div>
+</div>
+
 <!-- Monthly settle FAB (floats above nav) -->
 <button class="settle-fab" onclick="App.openSettleModal()">🎯 月末结算</button>
 

@@ -13,6 +13,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 - **Reward & Punishment mode** — Set a monthly target; reach it for rewards, miss it for consequences
 - **5 CRUD resources** — Categories, Entries, Rewards, Punishments, Config — all manageable in-app
 - **Monthly settlement** — Settle the month, archive results to history, start fresh
+- **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
 - **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
 - **Animated start screen** — Floating Pochacco couple with rising hearts
 - **Background music** — Toggleable ambient piano track
@@ -26,9 +27,9 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | Layer | Technology |
 |---|---|
 | Frontend | Vanilla JS · HTML · CSS (no frameworks) |
-| Backend | ServiceNow Scripted REST API (23 resources) |
+| Backend | ServiceNow Scripted REST API (32 resources) |
 | Auth | Custom `u_love_auth` table · Bearer API key tokens |
-| Storage | ServiceNow tables (6 tables, scoped app) |
+| Storage | ServiceNow tables (10 tables, scoped app) |
 | Hosting | Static file — open `index.html` directly in browser |
 
 ---
@@ -92,6 +93,15 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | R21 | POST | `/auth/register` | Register a new user / pair with partner |
 | R22 | POST | `/auth/login` | Login, returns apiKey + partnerName |
 | R23 | PUT | `/auth/charimg` | Upload profile picture (base64) |
+| R24 | GET | `/shop` | List shop items |
+| R25 | POST | `/shop` | Create a shop item |
+| R26 | PUT | `/shop/:id` | Edit a shop item |
+| R27 | DELETE | `/shop/:id` | Delete a shop item |
+| R28 | POST | `/shop/buy/:id` | Redeem points for a shop item |
+| R29 | GET | `/bag` | List owned (unused) items |
+| R30 | POST | `/bag/use/:id` | Mark an owned item as used |
+| R31 | GET | `/bag/history` | List used items |
+| R32 | POST | `/bag/claim` | Claim a milestone reward into the bag |
 
 ---
 
@@ -107,6 +117,10 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | u_love_reward | `x_887486_love_app_u_love_reward` | Reward catalog |
 | u_love_punishment | `x_887486_love_app_u_love_punishment` | Punishment catalog |
 | u_love_monthly | `x_887486_love_app_u_love_monthly` | Settled month records |
+| u_love_shop | `x_887486_love_app_u_love_shop` | Point-redeemable shop items |
+| u_love_bag | `x_887486_love_app_u_love_bag` | Items owned per person (bought or claimed) |
+
+> Full field-level schema (types, defaults, exact field names like `u_emoji`/`u_points`/`u_desc`) lives in [`servicenow/README.md`](servicenow/README.md).
 
 ---
 
@@ -136,7 +150,9 @@ ServiceNow dev405150.service-now.com
         ├── u_love_entry       — Score log entries
         ├── u_love_reward      — Rewards catalog
         ├── u_love_punishment  — Punishments catalog
-        └── u_love_monthly     — Monthly settlement archive
+        ├── u_love_monthly     — Monthly settlement archive
+        ├── u_love_shop        — Point-redeemable shop items
+        └── u_love_bag         — Items owned per person
 ```
 
 ---

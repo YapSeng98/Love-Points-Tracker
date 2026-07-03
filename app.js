@@ -1004,7 +1004,7 @@ const App = (() => {
   }
 
   async function deleteEntry(id) {
-    if (!confirm('确认删除这条记录？')) return;
+    if (!(await showConfirm('确认删除这条记录？'))) return;
     try {
       await Data.deleteEntry(id, S.month);
       showToast('已删除 🗑️');
@@ -1309,6 +1309,21 @@ const App = (() => {
     document.getElementById(id).classList.remove('open');
   }
 
+  /* ── Custom confirm dialog (replaces native confirm()) ── */
+  let _confirmResolve = null;
+  function showConfirm(message, danger = true) {
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-ok-btn').className = danger ? 'btn-danger' : 'btn-primary';
+    const el = document.getElementById('modal-confirm');
+    el.classList.add('open');
+    el.onclick = e => { if (e.target === el) resolveConfirm(false); };
+    return new Promise(resolve => { _confirmResolve = resolve; });
+  }
+  function resolveConfirm(result) {
+    closeModal('modal-confirm');
+    if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+  }
+
   /* ── Animations ── */
   function spawnParticles(positive) {
     const icons = positive
@@ -1530,7 +1545,7 @@ const App = (() => {
     const arr  = type === 'category' ? S.categories : type === 'reward' ? S.rewards : S.punishments;
     const item = arr.find(x => x.id === id);
     if (!item) return;
-    if (!confirm(`确认删除「${item.name}」？\n${S.usingSN ? '将从 ServiceNow 删除' : '将从本地删除'}`)) return;
+    if (!(await showConfirm(`确认删除「${item.name}」？\n${S.usingSN ? '将从 ServiceNow 删除' : '将从本地删除'}`))) return;
     try {
       await Data.deleteItem(type, id);
       if (type === 'category')    S.categories  = S.categories.filter(x => x.id !== id);
@@ -1736,7 +1751,7 @@ const App = (() => {
   }
 
   async function confirmUseItem(id, name) {
-    if (!confirm(`确认使用「${name}」？\n使用后将移入历史记录`)) return;
+    if (!(await showConfirm(`确认使用「${name}」？\n使用后将移入历史记录`, false))) return;
     try {
       await ShopData.useItem(id);
       showToast('✅ 已使用！');
@@ -1843,7 +1858,7 @@ const App = (() => {
 
   async function deleteShopItem(id) {
     const item = S.shopItems.find(i => i.id === id);
-    if (!confirm(`确认删除「${item?.name || '此商品'}」？`)) return;
+    if (!(await showConfirm(`确认删除「${item?.name || '此商品'}」？`))) return;
     try {
       await ShopData.deleteItem(id);
       showToast('🗑️ 已删除');
@@ -1897,6 +1912,7 @@ const App = (() => {
   /* Close modals on overlay click (already set in openModal) */
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      if (document.getElementById('modal-confirm')?.classList.contains('open')) resolveConfirm(false);
       document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
     }
   });
@@ -1910,7 +1926,7 @@ const App = (() => {
     setCharImg, resetCharImg,
     openManage, openManageFromTable, openEditForm, saveEditForm,
     toggleCategoryActive, confirmDeleteItem,
-    openModal, closeModal,
+    openModal, closeModal, resolveConfirm,
     showLovePage, closeLovePage,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,

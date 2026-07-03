@@ -1,12 +1,16 @@
 /*
   ============================================================
-  恋爱积分簿 — ServiceNow One-Time Setup Script
-  Run this in: System Definition → Scripts → Background
-  Instance: dev405150.service-now.com
+  恋爱积分簿 — ServiceNow One-Time Setup Script  [LEGACY / v1]
   ============================================================
-  This script creates all required tables and populates
-  default data (categories, rewards, punishments, config).
-  Run ONCE then delete — you can modify data in Studio afterwards.
+  DEPRECATED: written before the auth/pairing system existed.
+  It uses old field names (u_icon, u_pts, u_min_pts, u_description)
+  that no longer match the live schema (u_emoji, u_points, u_desc),
+  and it seeds *global* unscoped rows that match-scoped resources
+  will never return. Do not run this against the current schema.
+
+  Kept only as historical reference. For current setup, see
+  servicenow/README.md — Step 1 (tables) and Step 2 (seeding via
+  the in-app ⚙️ 管理 screens after your first couple registers).
   ============================================================
 */
 
