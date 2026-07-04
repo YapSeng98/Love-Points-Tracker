@@ -115,9 +115,9 @@ HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "200" ] && pass "PUT /categories/{id} (陪伴时光 10→12) → $HTTP" || fail "PUT /categories/{id} → $HTTP"
 
 section "SETUP 5: Rewards (2) + Punishments (2)"
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/rewards" "${AUTH1[@]}" -d '{"icon":"R1","name":"小零食一份","minPts":50,"desc":"低档奖励"}')
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/rewards" "${AUTH1[@]}" -d '{"icon":"R1","name":"小零食一份","minPts":30,"desc":"低档奖励"}')
 BODY=$(echo "$RES" | head -1); REWARD_LOW=$(extract "$BODY" id)
-[ -n "$REWARD_LOW" ] && pass "POST /rewards (小零食, minPts=50) → id=${REWARD_LOW}" || fail "POST /rewards (low)"
+[ -n "$REWARD_LOW" ] && pass "POST /rewards (小零食, minPts=30) → id=${REWARD_LOW}" || fail "POST /rewards (low)"
 
 RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/rewards" "${AUTH1[@]}" -d '{"icon":"R2","name":"约会一次","minPts":80,"desc":"高档奖励"}')
 BODY=$(echo "$RES" | head -1); REWARD_HIGH=$(extract "$BODY" id)

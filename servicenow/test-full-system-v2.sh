@@ -221,6 +221,12 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/monthly/settle" "${AUTH1[@]}"
 HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "200" ] && pass "settle M1 (no outcomes)" || fail "settle M1 → $HTTP"
 
+# Partner double-settle guard: settling the same month again must not create
+# a duplicate history row
+RES=$(curl -s -X POST "${BASE}/monthly/settle" "${AUTH1[@]}" \
+  -d "{\"month\":\"${M1}\",\"char1Pts\":0,\"char2Pts\":0,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
+echo "$RES" | grep -q '"alreadySettled":true' && pass "double-settle M1 → alreadySettled (no duplicate row)" || fail "double-settle guard missing: $RES"
+
 section "8. MONTH 2 (${M2}, reward) — char1 hits 100 exactly (boundary)"
 E=$(mk_entry AUTH1 char1 "$CAT_TIME" "陪伴时光" "$I_COUPLE" 40 "$M2" "${M2}-05" "周末旅行陪伴")
 E=$(mk_entry AUTH1 char1 "$CAT_GIFT" "惊喜礼物" "$I_GIFT" 35 "$M2" "${M2}-12" "生日惊喜")
@@ -329,11 +335,24 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/use/${BAG_BOBA}" "${AUTH1
 HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "400" ] && pass "re-use same item → 400 already_used" || fail "re-use guard → $HTTP"
 
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" -d "{\"rewardId\":\"${RWD_SNACK}\"}")
-HTTP=$(echo "$RES" | tail -1)
-[ "$HTTP" = "201" ] && pass "claim milestone 🍦 小零食 → bag (backend-only feature, no UI + no score check — known gap)" || fail "claim → $HTTP"
+# char1 is at 35分 here: claim a reachable milestone (≥20), then probe the
+# server-side score check with an unreached one (≥100)
+I_LETTER='\\x1F48C'  # 💌
+RWD_LETTER=$(mk_item /rewards "{\"icon\":\"${I_LETTER}\",\"name\":\"情书一封\",\"minPts\":20,\"desc\":\"手写一封情书\"}" "💌 情书 ≥20")
 
-RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" -d "{\"rewardId\":\"${RWD_SNACK}\"}")
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" -d "{\"rewardId\":\"${RWD_LETTER}\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "201" ] && pass "claim milestone 💌 情书 (35分 ≥ 20) → bag" || fail "claim → $HTTP"
+
+RES=$(curl -s "${BASE}/rewards" "${AUTH1[@]}")
+echo "$RES" | grep -q '"claimed":true' && pass "GET /rewards → claimed:true reflected for 情书" || fail "claimed flag not reflected: $RES"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" -d "{\"rewardId\":\"${RWD_MOVIE}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+[ "$HTTP" = "400" ] && echo "$BODY" | grep -q 'score_not_reached' && \
+  pass "claim unreached 🎬 (35分 < 100) → 400 score_not_reached (server-side check)" || fail "score check → $HTTP: $BODY"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" -d "{\"rewardId\":\"${RWD_LETTER}\"}")
 HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "400" ] && pass "double-claim → 400 already_claimed" || fail "double-claim guard → $HTTP"
 
@@ -440,6 +459,6 @@ echo ""
 echo "  What you'll see in the app:"
 echo "   - 4 settled months in History (incl. reward win + punishment)"
 echo "   - Current month live: char1=35分, char2=12分"
-echo "   - 6 categories / 3 rewards / 3 punishments / 4 shop items, all with emoji"
+echo "   - 6 categories / 4 rewards (💌 情书一封 已领取) / 3 punishments / 4 shop items, all with emoji"
 echo "   - char1's bag: 2 active purchases + 1 claimed reward; 1 used item in bag history"
 echo ""
