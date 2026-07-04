@@ -179,6 +179,15 @@ const App = (() => {
   };
 
   /* ── Data layer (adapts SN or LS) ── */
+  const _safeStr = (v) => (v != null && v !== 'undefined') ? String(v) : '';
+  const _normTier = (x) => ({
+    ...x,
+    icon:   decodeFromSN(_safeStr(x.icon)),
+    name:   _safeStr(x.name),
+    minPts: x.minPts != null ? parseInt(x.minPts) : 0,
+    desc:   _safeStr(x.desc),
+  });
+
   const Data = {
     async init() {
       if (S.usingSN) {
@@ -200,24 +209,16 @@ const App = (() => {
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
-        const safeStr = (v) => (v != null && v !== 'undefined') ? String(v) : '';
         const normCat = (x) => ({
           ...x,
-          icon:   decodeFromSN(safeStr(x.icon)),
-          name:   safeStr(x.name),
+          icon:   decodeFromSN(_safeStr(x.icon)),
+          name:   _safeStr(x.name),
           pts:    x.pts    != null ? parseInt(x.pts)   : 0,
           active: x.active != null ? (x.active === true || x.active === '1' || x.active === 1) : true,
         });
-        const normItem = (x) => ({
-          ...x,
-          icon:   decodeFromSN(safeStr(x.icon)),
-          name:   safeStr(x.name),
-          minPts: x.minPts != null ? parseInt(x.minPts) : 0,
-          desc:   safeStr(x.desc),
-        });
         S.categories  = (await snFetch('/categories')).map(normCat);
-        S.rewards     = (await snFetch('/rewards')).map(normItem);
-        S.punishments = (await snFetch('/punishments')).map(normItem);
+        S.rewards     = (await snFetch('/rewards')).map(_normTier);
+        S.punishments = (await snFetch('/punishments')).map(_normTier);
       } else {
         const d = LS.load();
         S.mode            = d.mode;
@@ -278,6 +279,14 @@ const App = (() => {
     async getHistory() {
       if (S.usingSN) return snFetch('/history');
       return LS.load().history || [];
+    },
+
+    // Refetch rewards/punishments so claim states stay fresh (partner may
+    // have claimed or settled from their own device)
+    async reloadTiers() {
+      if (!S.usingSN) return;
+      S.rewards     = (await snFetch('/rewards')).map(_normTier);
+      S.punishments = (await snFetch('/punishments')).map(_normTier);
     },
 
     async settleMonth(month, char1Pts, char2Pts, mode, result1, result2) {
@@ -1036,8 +1045,10 @@ const App = (() => {
   }
 
   function openSettleModal() {
-    const o1 = getOutcome(outcomeScoreFor('char1'), S.mode);
-    const o2 = getOutcome(outcomeScoreFor('char2'), S.mode);
+    const s1 = outcomeScoreFor('char1');
+    const s2 = outcomeScoreFor('char2');
+    const o1 = getOutcome(s1, S.mode);
+    const o2 = getOutcome(s2, S.mode);
     const i1 = progressInfo(S.char1Score, S.mode, S.char1NegPts);
     const i2 = progressInfo(S.char2Score, S.mode, S.char2NegPts);
     const prev = document.getElementById('settle-preview');
@@ -1064,8 +1075,8 @@ const App = (() => {
       <div class="sp-icon">${anyReward ? '🎊' : anyPunish ? '😱' : '📊'}</div>
       <div class="sp-title">${monthLabel(S.month)} 结算</div>
       <div class="settle-char-row">
-        ${charCard('char1', S.char1Score, i1, o1)}
-        ${charCard('char2', S.char2Score, i2, o2)}
+        ${charCard('char1', s1, i1, o1)}
+        ${charCard('char2', s2, i2, o2)}
       </div>
       <div style="font-size:12px;color:var(--sub);margin-top:4px">结算后积分清零，开始新月份</div>
     `;
@@ -1073,22 +1084,29 @@ const App = (() => {
   }
 
   async function confirmSettle() {
-    const o1 = getOutcome(outcomeScoreFor('char1'), S.mode);
-    const o2 = getOutcome(outcomeScoreFor('char2'), S.mode);
+    // Punishment mode records bad-behavior points (shop purchases excluded);
+    // reward mode records the net score
+    const s1 = outcomeScoreFor('char1');
+    const s2 = outcomeScoreFor('char2');
+    const o1 = getOutcome(s1, S.mode);
+    const o2 = getOutcome(s2, S.mode);
 
     try {
-      await Data.settleMonth(
-        S.month, S.char1Score, S.char2Score, S.mode,
+      const res = await Data.settleMonth(
+        S.month, s1, s2, S.mode,
         o1 ? o1.name : '无结果',
         o2 ? o2.name : '无结果'
       );
       closeModal('modal-settle');
 
-      if (S.mode === 'reward' && (o1 || o2))        { spawnConfetti(); showToast('🎊 恭喜！奖励达成！'); }
+      if (res && res.alreadySettled) {
+        showToast('✅ 本月已由对方结算，同步中…');
+      } else if (S.mode === 'reward' && (o1 || o2))    { spawnConfetti(); showToast('🎊 恭喜！奖励达成！'); }
       else if (S.mode === 'punishment' && (o1 || o2)) { spawnFlash();   showToast('😱 惩罚触发！'); }
       else                                            { showToast('✅ 已结算，新月份开始！'); }
 
       S.month = monthKey();
+      try { await Data.reloadTiers(); } catch {}
       await refresh();
     } catch (err) {
       showToast('结算失败: ' + err.message);
@@ -1109,6 +1127,9 @@ const App = (() => {
       showSettings();
     } else if (page === 'shop') {
       await showShop();
+    } else if (page === 'home') {
+      // Pull latest — the partner may have logged entries or settled the month
+      await refresh();
     }
   }
 
@@ -1116,6 +1137,8 @@ const App = (() => {
     const content = document.getElementById('modal-tables-content');
     const title   = document.getElementById('modal-tables-title');
 
+    // Always show current claim states — partner may have claimed or settled
+    try { await Data.reloadTiers(); } catch {}
     const outcome = getOutcome(outcomeScoreFor(S.activeChar), S.mode);
 
     if (S.mode === 'reward') {
@@ -1960,6 +1983,14 @@ const App = (() => {
   }
 
   document.addEventListener('DOMContentLoaded', boot);
+
+  // Coming back to the app (tab switch, phone unlock): sync with SN so a
+  // settle or new entries from the partner's device show up without a manual reload
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && S.usingSN && S.apiKey) {
+      refresh().catch(() => {});
+    }
+  });
 
   /* Close modals on overlay click (already set in openModal) */
   document.addEventListener('keydown', e => {

@@ -9,6 +9,18 @@
 
     var body = request.body.data;
 
+    // Guard: if this couple already settled this month (e.g. the partner
+    // clicked 月结 first), don't create a duplicate history row or wipe
+    // anything again — just report it back.
+    var existing = new GlideRecord('x_887486_love_app_u_love_monthly');
+    existing.addQuery('u_month', body.month || '');
+    if (matchId) existing.addQuery('u_match', matchId);
+    existing.query();
+    if (existing.next()) {
+        response.setBody({ success: true, alreadySettled: true, monthId: existing.getUniqueValue() });
+        return;
+    }
+
     var gr = new GlideRecord('x_887486_love_app_u_love_monthly');
     gr.initialize();
     gr.setValue('u_month',      body.month              || '');
@@ -29,6 +41,17 @@
     while (entryGr.next()) {
         entryGr.setValue('u_monthly', monthSysId);
         entryGr.update();
+    }
+
+    // New month starts fresh: milestone rewards become claimable again
+    var rGr = new GlideRecord('x_887486_love_app_u_love_reward');
+    if (matchId) rGr.addQuery('u_match', matchId);
+    rGr.addQuery('u_claimed', true);
+    rGr.query();
+    while (rGr.next()) {
+        rGr.setValue('u_claimed', false);
+        rGr.setValue('u_claimed_date', '');
+        rGr.update();
     }
 
     response.setBody({ success: true, monthId: monthSysId });
