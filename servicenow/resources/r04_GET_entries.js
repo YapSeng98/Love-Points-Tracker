@@ -19,6 +19,9 @@
     if (matchId) gr.addQuery('u_match', matchId);
     gr.addNullQuery('u_monthly');
     gr.orderByDesc('u_date');
+    // u_date has no time part — same-day entries tie, so break the tie by
+    // actual creation time (newest first)
+    gr.orderByDesc('sys_created_on');
     gr.query();
 
     var entries = [];
