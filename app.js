@@ -466,12 +466,16 @@ const App = (() => {
   function renderEntryCounts() {
     const charId = S.activeChar;
     const mine = S.entries.filter(e => !e.charId && charId === 'char1' || e.charId === charId);
+    // Shop purchases are spending, not bad behavior — count them separately
     const good = mine.filter(e => (parseInt(e.pts) || 0) > 0).length;
-    const bad  = mine.filter(e => (parseInt(e.pts) || 0) < 0).length;
+    const bad  = mine.filter(e => (parseInt(e.pts) || 0) < 0 && !isPurchaseEntry(e)).length;
+    const buys = mine.filter(e => (parseInt(e.pts) || 0) < 0 && isPurchaseEntry(e)).length;
     const gEl = document.getElementById('stat-good');
     const bEl = document.getElementById('stat-bad');
+    const sEl = document.getElementById('stat-shop');
     if (gEl) gEl.textContent = `✅ ${good} 次好行为`;
     if (bEl) bEl.textContent = `😣 ${bad} 次扣分`;
+    if (sEl) { sEl.textContent = `🛒 ${buys} 次兑换`; sEl.style.display = buys ? '' : 'none'; }
   }
 
   function renderProgress(score) {
@@ -480,7 +484,10 @@ const App = (() => {
     fill.style.width = info.pct + '%';
     fill.className = 'progress-bar-fill ' + info.type;
     document.getElementById('progress-pct').textContent = info.pct + '%';
-    document.getElementById('progress-left-label').textContent = score + ' 分';
+    // Punishment bar tracks bad-behavior points only; the net 积分 balance is
+    // a separate number (big score display) — don't mix them on the bar
+    document.getElementById('progress-left-label').textContent =
+      info.type === 'punishment' ? `已扣 ${activeNegPts()} 分` : score + ' 分';
     document.getElementById('progress-right-label').textContent = info.label;
 
     const statusEl = document.getElementById('status-text');
@@ -498,10 +505,11 @@ const App = (() => {
       if (info.type === 'reward') {
         statusEl.innerHTML = `再加 <span id="status-gap">${info.gap}</span> 分 → 下一个奖励 🏆`;
       } else {
-        if (score >= 0) {
-          statusEl.innerHTML = `😊 安全！表现很棒，继续保持 <span class="status-badge badge-safe">+${score}</span>`;
+        const neg = activeNegPts();
+        if (neg > 0) {
+          statusEl.innerHTML = `⚠️ 已扣 ${neg} 分，再扣 <span id="status-gap">${info.gap}</span> 分将触发惩罚`;
         } else {
-          statusEl.innerHTML = `⚠️ 再扣 <span id="status-gap">${info.gap}</span> 分将触发惩罚`;
+          statusEl.innerHTML = `😊 安全！本月没有扣分，继续保持 <span class="status-badge badge-safe">积分 ${score >= 0 ? '+' + score : score}</span>`;
         }
       }
     }
