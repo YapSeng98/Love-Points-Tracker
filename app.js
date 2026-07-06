@@ -1053,6 +1053,12 @@ const App = (() => {
   }
 
   function openSettleModal() {
+    // Nothing logged this month → settling would just create an empty record.
+    // Give clear feedback instead of opening a modal that appears to do nothing.
+    if (!S.entries.length) {
+      showToast('📭 本月还没有任何记分，先记录一下再结算吧！');
+      return;
+    }
     const s1 = outcomeScoreFor('char1');
     const s2 = outcomeScoreFor('char2');
     const o1 = getOutcome(s1, S.mode);
