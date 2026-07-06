@@ -15,6 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
+  const APP_VERSION = 'v2026.07.07-2';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -1962,6 +1963,9 @@ const App = (() => {
 
   /* ── Boot ── */
   async function boot() {
+    console.log('%c恋爱积分簿 ' + APP_VERSION, 'color:#5B9BD5;font-weight:bold');
+    const vTag = document.getElementById('app-version-tag');
+    if (vTag) vTag.textContent = '版本 ' + APP_VERSION;
     const savedKey = localStorage.getItem('sn_api_key');
 
     if (savedKey) {
