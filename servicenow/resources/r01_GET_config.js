@@ -32,14 +32,18 @@
     if (matchId) gr.addQuery('u_match', matchId);
     gr.query();
     if (gr.next()) {
+        // Editable display names live on the config row; fall back to the
+        // login username only when a custom name hasn't been set yet
+        var cn1 = gr.getValue('u_char1_name');
+        var cn2 = gr.getValue('u_char2_name');
         response.setBody({
             configured:      true,
             mode:            gr.getValue('u_mode') || 'reward',
             rewardTarget:    parseInt(gr.getValue('u_reward_target'))    || 100,
             punishThreshold: parseInt(gr.getValue('u_punish_threshold')) || -80,
             startDate:       gr.getValue('u_start_date') || '',
-            char1Name:       char1Name,
-            char2Name:       char2Name,
+            char1Name:       cn1 || char1Name,
+            char2Name:       cn2 || char2Name,
             charImg1:        charImg1,
             charImg2:        charImg2,
         });

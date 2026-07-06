@@ -1253,10 +1253,12 @@ const App = (() => {
     else         S.charImg2 = data;
     if (S.usingSN) {
       try {
-        await snFetch('/auth/charimg', { method: 'PUT', body: JSON.stringify({ charImg: data }) });
+        // charId targets the slot being edited, so either partner can set both
+        await snFetch('/auth/charimg', { method: 'PUT', body: JSON.stringify({ charImg: data, charId: n === 1 ? 'char1' : 'char2' }) });
         showToast('📷 图片已同步到 SN！');
       } catch (err) {
-        showToast('图片同步失败: ' + err.message.slice(0, 60));
+        const msg = err.message.includes('partner_not_found') ? '对方还没注册，暂时无法设置 TA 的头像' : '图片同步失败: ' + err.message.slice(0, 60);
+        showToast(msg);
       }
     } else {
       await Data.saveConfig({ charImg1: S.charImg1, charImg2: S.charImg2 });
@@ -1270,7 +1272,7 @@ const App = (() => {
     if (n === 1) S.charImg1 = '';
     else         S.charImg2 = '';
     if (S.usingSN) {
-      try { await snFetch('/auth/charimg', { method: 'PUT', body: JSON.stringify({ charImg: '' }) }); }
+      try { await snFetch('/auth/charimg', { method: 'PUT', body: JSON.stringify({ charImg: '', charId: n === 1 ? 'char1' : 'char2' }) }); }
       catch { /* best effort */ }
     } else {
       await Data.saveConfig({ charImg1: S.charImg1, charImg2: S.charImg2 });
