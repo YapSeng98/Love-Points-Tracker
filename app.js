@@ -1998,7 +1998,14 @@ const App = (() => {
     if (sn2) sn2.textContent = S.charName2 || '线条小狗·她';
   }
 
-  document.addEventListener('DOMContentLoaded', boot);
+  // Run boot even if the DOM is already parsed — app.js is loaded via a
+  // cache-busting async <script>, so DOMContentLoaded may have already fired
+  // by the time this runs (which would otherwise leave the app un-booted).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 
   // Coming back to the app (tab switch, phone unlock): sync with SN so a
   // settle or new entries from the partner's device show up without a manual reload
@@ -2068,11 +2075,16 @@ const Music = (() => {
   let audio   = null;
   let playing = false;
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function _initAudio() {
     audio = document.getElementById('bg-audio');
-    audio.volume = 0.35;
+    if (audio) audio.volume = 0.35;
     if (localStorage.getItem('music_on') === 'true') _play();
-  });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initAudio);
+  } else {
+    _initAudio();
+  }
 
   function _play() {
     if (!audio) return;
