@@ -434,15 +434,48 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/auth/register" "${PUB_HEADERS
 HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "400" ] && pass "empty username/password → 400" || fail "empty credentials → $HTTP"
 
-section "19. AVATAR"
-RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d '{"charImg":"data:image/jpeg;base64,V2AVATARDATA"}')
+section "19. AVATAR — own + partner cross-edit"
+# valid 1x1 PNG data URIs (real avatars are always data: URIs from the image
+# compressor — using a fake string would 404 as an <img src>)
+IMG1='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d "{\"charImg\":\"${IMG1}\",\"charId\":\"char1\"}")
 HTTP=$(echo "$RES" | tail -1)
-[ "$HTTP" = "200" ] && pass "PUT /auth/charimg (char1)" || fail "avatar → $HTTP"
+[ "$HTTP" = "200" ] && pass "PUT /auth/charimg char1 sets own → 200" || fail "avatar own → $HTTP"
+
+# char1 sets char2's avatar (partner cross-edit)
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d "{\"charImg\":\"${IMG1}\",\"charId\":\"char2\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "char1 sets char2's avatar (charId=char2) → 200" || fail "partner avatar edit → $HTTP"
+
 RES=$(curl -s "${BASE}/config" "${AUTH2[@]}")
-echo "$RES" | grep -q 'V2AVATARDATA' && pass "char2's GET /config sees char1's avatar (shared via config)" || fail "avatar not visible to partner"
-RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d '{"charImg":""}')
+IMGCOUNT=$(echo "$RES" | grep -o 'data:image/png' | wc -l | tr -d ' ')
+[ "$IMGCOUNT" = "2" ] && pass "char2's GET /config → both avatars set (own slot set by partner)" || fail "avatar slots wrong: got ${IMGCOUNT}"
+
+# reset both back to default so the review account shows clean SVG characters
+curl -s -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d '{"charImg":"","charId":"char1"}' > /dev/null
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/auth/charimg" "${AUTH1[@]}" -d '{"charImg":"","charId":"char2"}')
 HTTP=$(echo "$RES" | tail -1)
-[ "$HTTP" = "200" ] && pass "avatar reset to empty (delete flow)" || fail "avatar reset → $HTTP"
+[ "$HTTP" = "200" ] && pass "reset both avatars via partner (delete flow) → 200" || fail "avatar reset → $HTTP"
+
+section "20. DISPLAY NAMES — editable, persisted, partner-visible, couple-name sync"
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"charName1":"小狗他","charName2":"小狗她"}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "PUT /config char1 sets both display names → 200" || fail "name save → $HTTP"
+
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"char1Name":"小狗他"' && echo "$RES" | grep -q '"char2Name":"小狗她"' && \
+  pass "GET /config → custom names persisted (not login usernames)" || fail "names not persisted: $RES"
+
+RES=$(curl -s "${BASE}/config" "${AUTH2[@]}")
+echo "$RES" | grep -q '"char1Name":"小狗他"' && echo "$RES" | grep -q '"char2Name":"小狗她"' && \
+  pass "char2's GET /config → sees the same custom names" || fail "names not shared: $RES"
+
+# char2 edits a name back — either partner can change either name
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/config" "${AUTH2[@]}" -d '{"charName1":"阿白"}')
+HTTP=$(echo "$RES" | tail -1)
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"char1Name":"阿白"' && echo "$RES" | grep -q '"char2Name":"小狗她"' && \
+  pass "char2 edits char1's name (阿白); char2 name unchanged — partial update safe" || fail "cross-name edit failed: $RES"
 
 # ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
