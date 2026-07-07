@@ -445,17 +445,21 @@
       display: grid; grid-template-columns: 1fr 1fr;
       gap: 10px; padding: 0 16px;
     }
-    .cat-group + .cat-group { margin-top: 18px; }
-    .cat-group-title {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 14px; font-weight: 800; letter-spacing: 0.02em;
-      padding: 0 18px; margin-bottom: 9px;
+    /* Quick-entry reward/punish tabs */
+    .cat-tabs {
+      display: flex; gap: 8px; padding: 0 16px; margin-bottom: 12px;
     }
-    .cat-group-title.reward { color: var(--blue); }
-    .cat-group-title.punish { color: var(--red); }
-    .cat-group-title .cgt-count {
-      font-size: 11px; font-weight: 700; opacity: 0.6;
+    .cat-tab {
+      flex: 1; padding: 9px 4px; border: 1.5px solid var(--card-border);
+      background: var(--card); border-radius: 14px;
+      font-size: 13.5px; font-weight: 800; color: var(--sub);
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
+    .cat-tab .cgt-count { font-size: 11px; font-weight: 700; opacity: 0.65; }
+    .cat-tab.reward.active { color: var(--blue); border-color: var(--blue); background: #F0F7FF; }
+    .cat-tab.punish.active { color: var(--red);  border-color: var(--red);  background: #FFF4F4; }
     .cat-card {
       background: var(--card);
       border: 1.5px solid var(--card-border);

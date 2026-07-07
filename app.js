@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.08-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.08-2';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -48,6 +48,7 @@ const App = (() => {
     bagItems: [],
     bagHistory: [],
     shopTab: 'shop',
+    catTab: 'reward',   // quick-entry tab: 'reward' (加分) | 'punish' (扣分)
     shopEditId: null,
   };
 
@@ -560,19 +561,27 @@ const App = (() => {
       </div>`;
     };
 
-    // Split reward (加分) from punishment (扣分) so it's easy to pick the right side
+    // Split reward (加分) from punishment (扣分), shown one tab at a time
     const rewards  = cats.filter(c => c.pts >= 0);
     const punishes = cats.filter(c => c.pts <  0);
+    const active   = S.catTab === 'punish' ? punishes : rewards;
 
-    const group = (title, cls, list) => list.length ? `
-      <div class="cat-group">
-        <div class="cat-group-title ${cls}">${title} <span class="cgt-count">${list.length}</span></div>
-        <div class="categories-grid">${list.map(card).join('')}</div>
-      </div>` : '';
+    const tabs = `
+      <div class="cat-tabs">
+        <div class="cat-tab reward ${S.catTab==='reward'?'active':''}" onclick="App.switchCatTab('reward')">💙 加分 <span class="cgt-count">${rewards.length}</span></div>
+        <div class="cat-tab punish ${S.catTab==='punish'?'active':''}" onclick="App.switchCatTab('punish')">💔 扣分 <span class="cgt-count">${punishes.length}</span></div>
+      </div>`;
 
-    grid.innerHTML =
-      group('💙 加分行为', 'reward', rewards) +
-      group('💔 扣分行为', 'punish', punishes);
+    const body = active.length
+      ? `<div class="categories-grid">${active.map(card).join('')}</div>`
+      : `<div class="empty-state">${S.catTab==='punish'?'还没有扣分项目':'还没有加分项目'}</div>`;
+
+    grid.innerHTML = tabs + body;
+  }
+
+  function switchCatTab(tab) {
+    S.catTab = tab;
+    renderCategories();
   }
 
   function renderEntries(entries) {
@@ -2045,7 +2054,7 @@ const App = (() => {
   return {
     connect, register, switchTab, onRegCharChange, demoMode,
     toggleMode, selectChar,
-    quickEntry, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
+    quickEntry, switchCatTab, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
     claimReward,
