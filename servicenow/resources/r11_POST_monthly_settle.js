@@ -9,15 +9,17 @@
 
     var body = request.body.data;
 
-    // Guard: if this couple already settled this month (e.g. the partner
-    // clicked 月结 first), don't create a duplicate history row or wipe
-    // anything again — just report it back.
-    var existing = new GlideRecord('x_887486_love_app_u_love_monthly');
-    existing.addQuery('u_month', body.month || '');
-    if (matchId) existing.addQuery('u_match', matchId);
-    existing.query();
-    if (existing.next()) {
-        response.setBody({ success: true, alreadySettled: true, monthId: existing.getUniqueValue() });
+    // Guard on whether there's anything to settle, NOT on "has this calendar
+    // month been settled before". This lets a couple settle multiple rounds in
+    // the same month, while still stopping a partner's duplicate click (once
+    // the entries are archived there's nothing left, so the 2nd click no-ops).
+    var pending = new GlideRecord('x_887486_love_app_u_love_entry');
+    pending.addQuery('u_month', body.month || '');
+    if (matchId) pending.addQuery('u_match', matchId);
+    pending.addNullQuery('u_monthly');
+    pending.query();
+    if (!pending.hasNext()) {
+        response.setBody({ success: true, alreadySettled: true });
         return;
     }
 
@@ -33,17 +35,13 @@
     if (matchId) gr.setValue('u_match', matchId);
     var monthSysId = gr.insert();
 
-    var entryGr = new GlideRecord('x_887486_love_app_u_love_entry');
-    entryGr.addQuery('u_month', body.month);
-    if (matchId) entryGr.addQuery('u_match', matchId);
-    entryGr.addNullQuery('u_monthly');
-    entryGr.query();
-    while (entryGr.next()) {
-        entryGr.setValue('u_monthly', monthSysId);
-        entryGr.update();
+    // Archive exactly the entries we counted as pending
+    while (pending.next()) {
+        pending.setValue('u_monthly', monthSysId);
+        pending.update();
     }
 
-    // New month starts fresh: milestone rewards become claimable again
+    // New round starts fresh: milestone rewards become claimable again
     var rGr = new GlideRecord('x_887486_love_app_u_love_reward');
     if (matchId) rGr.addQuery('u_match', matchId);
     rGr.addQuery('u_claimed', true);
