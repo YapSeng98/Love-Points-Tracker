@@ -445,6 +445,17 @@
       display: grid; grid-template-columns: 1fr 1fr;
       gap: 10px; padding: 0 16px;
     }
+    .cat-group + .cat-group { margin-top: 18px; }
+    .cat-group-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 14px; font-weight: 800; letter-spacing: 0.02em;
+      padding: 0 18px; margin-bottom: 9px;
+    }
+    .cat-group-title.reward { color: var(--blue); }
+    .cat-group-title.punish { color: var(--red); }
+    .cat-group-title .cgt-count {
+      font-size: 11px; font-weight: 700; opacity: 0.6;
+    }
     .cat-card {
       background: var(--card);
       border: 1.5px solid var(--card-border);
@@ -1933,8 +1944,8 @@
   <!-- Categories (quick entry) -->
   <div class="section-title">✏️ 快速记分 <button class="manage-btn" onclick="App.openManage('category')">⚙️ 管理</button></div>
   <div class="active-for-row">正在为 <span class="active-char-chip char1" id="active-for-chip">加载中</span> 记分</div>
-  <div class="categories-grid" id="categories-grid">
-    <div class="loading"><div class="spinner"></div> 加载中…</div>
+  <div id="categories-grid">
+    <div class="categories-grid"><div class="loading"><div class="spinner"></div> 加载中…</div></div>
   </div>
   <button class="add-custom-btn" onclick="App.openAddModal()">＋ 自定义记录</button>
 

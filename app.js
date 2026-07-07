@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.07-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.08-1';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -550,14 +550,29 @@ const App = (() => {
     const grid = document.getElementById('categories-grid');
     const cats = S.categories.filter(c => c.active !== false);
     if (!cats.length) { grid.innerHTML = '<div class="empty-state">暂无分类</div>'; return; }
-    grid.innerHTML = cats.map(c => {
+
+    const card = (c) => {
       const pos = c.pts >= 0;
       return `<div class="cat-card ${pos?'positive':'negative'}" onclick="App.quickEntry('${c.id}')">
         <div class="cat-icon">${c.icon || '📌'}</div>
         <div class="cat-name">${c.name || '分类'}</div>
         <div class="cat-pts ${pos?'positive':'negative'}">${pos?'+':''}${c.pts} 分</div>
       </div>`;
-    }).join('');
+    };
+
+    // Split reward (加分) from punishment (扣分) so it's easy to pick the right side
+    const rewards  = cats.filter(c => c.pts >= 0);
+    const punishes = cats.filter(c => c.pts <  0);
+
+    const group = (title, cls, list) => list.length ? `
+      <div class="cat-group">
+        <div class="cat-group-title ${cls}">${title} <span class="cgt-count">${list.length}</span></div>
+        <div class="categories-grid">${list.map(card).join('')}</div>
+      </div>` : '';
+
+    grid.innerHTML =
+      group('💙 加分行为', 'reward', rewards) +
+      group('💔 扣分行为', 'punish', punishes);
   }
 
   function renderEntries(entries) {
