@@ -221,11 +221,22 @@ RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/monthly/settle" "${AUTH1[@]}"
 HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "200" ] && pass "settle M1 (no outcomes)" || fail "settle M1 → $HTTP"
 
-# Partner double-settle guard: settling the same month again must not create
-# a duplicate history row
+# Partner double-settle guard: settling the same month again (nothing pending)
+# must not create a duplicate history row
 RES=$(curl -s -X POST "${BASE}/monthly/settle" "${AUTH1[@]}" \
   -d "{\"month\":\"${M1}\",\"char1Pts\":0,\"char2Pts\":0,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
-echo "$RES" | grep -q '"alreadySettled":true' && pass "double-settle M1 → alreadySettled (no duplicate row)" || fail "double-settle guard missing: $RES"
+echo "$RES" | grep -q '"alreadySettled":true' && pass "double-settle M1 (nothing pending) → alreadySettled, no dup row" || fail "double-settle guard missing: $RES"
+
+# Multi-round: log NEW entries in an already-settled month and settle again —
+# must archive them (regression guard for the "settle does nothing after first
+# settle in the same month" bug)
+E=$(mk_entry AUTH1 char1 "$CAT_TIME" "陪伴时光" "$I_COUPLE" 12 "$M1" "${M1}-28" "第二轮")
+BEFORE=$(curl -s "${BASE}/entries?month=${M1}" "${AUTH1[@]}" | grep -o '"id"' | wc -l | tr -d ' ')
+RES=$(curl -s -X POST "${BASE}/monthly/settle" "${AUTH1[@]}" \
+  -d "{\"month\":\"${M1}\",\"char1Pts\":12,\"char2Pts\":0,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
+AFTER=$(curl -s "${BASE}/entries?month=${M1}" "${AUTH1[@]}" | grep -o '"id"' | wc -l | tr -d ' ')
+echo "$RES" | grep -q '"monthId"' && [ "$BEFORE" = "1" ] && [ "$AFTER" = "0" ] && \
+  pass "multi-round settle M1 → new round entries archived (${BEFORE}→${AFTER})" || fail "multi-round settle failed: before=${BEFORE} after=${AFTER} resp=${RES}"
 
 section "8. MONTH 2 (${M2}, reward) — char1 hits 100 exactly (boundary)"
 E=$(mk_entry AUTH1 char1 "$CAT_TIME" "陪伴时光" "$I_COUPLE" 40 "$M2" "${M2}-05" "周末旅行陪伴")
@@ -268,11 +279,12 @@ HTTP=$(echo "$RES" | tail -1)
 RES=$(curl -s "${BASE}/entries?month=${M4}" "${AUTH1[@]}")
 [ "$(id_count "$RES")" = "0" ] && pass "M4 entries archived after settle" || fail "M4 entries still active"
 
-section "11. HISTORY — 4 months, desc order, correct values"
+section "11. HISTORY — desc order, correct values"
 RES=$(curl -s "${BASE}/history" "${AUTH1[@]}")
 SEQ=$(echo "$RES" | grep -o '"month":"[^"]*"' | cut -d'"' -f4 | tr '\n' ' ')
-EXPECTED="${M4} ${M3} ${M2} ${M1} "
-[ "$SEQ" = "$EXPECTED" ] && pass "GET /history → 4 months in desc order: ${SEQ}" || fail "history order wrong: got '${SEQ}' expected '${EXPECTED}'"
+# M1 appears twice (multi-round settle test settled it a 2nd time); order stays desc
+EXPECTED="${M4} ${M3} ${M2} ${M1} ${M1} "
+[ "$SEQ" = "$EXPECTED" ] && pass "GET /history → desc order incl. multi-round M1: ${SEQ}" || fail "history order wrong: got '${SEQ}' expected '${EXPECTED}'"
 echo "$RES" | grep -q '"char1Pts":100' && pass "history M2 shows char1Pts=100" || fail "history M2 values wrong"
 echo "$RES" | grep -q '"char2Pts":-80' && pass "history M3 shows char2Pts=-80" || fail "history M3 values wrong"
 echo "$RES" | grep -q '按摩七天' && pass "history M3 shows punishment outcome 按摩七天" || fail "history outcome missing"
