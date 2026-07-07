@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.08-3';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.08-4';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -561,9 +561,11 @@ const App = (() => {
       </div>`;
     };
 
-    // Split reward (加分) from punishment (扣分), shown one tab at a time
-    const rewards  = cats.filter(c => c.pts >= 0);
-    const punishes = cats.filter(c => c.pts <  0);
+    // Split reward (加分) from punishment (扣分), shown one tab at a time.
+    // Sort each by point magnitude ascending — small at top, big at bottom.
+    const byMag = (a, b) => Math.abs(a.pts) - Math.abs(b.pts);
+    const rewards  = cats.filter(c => c.pts >= 0).sort(byMag);
+    const punishes = cats.filter(c => c.pts <  0).sort(byMag);
     const active   = S.catTab === 'punish' ? punishes : rewards;
 
     const tabs = `
