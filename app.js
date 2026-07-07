@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.08-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.08-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -568,8 +568,8 @@ const App = (() => {
 
     const tabs = `
       <div class="cat-tabs">
-        <div class="cat-tab reward ${S.catTab==='reward'?'active':''}" onclick="App.switchCatTab('reward')">💙 加分 <span class="cgt-count">${rewards.length}</span></div>
-        <div class="cat-tab punish ${S.catTab==='punish'?'active':''}" onclick="App.switchCatTab('punish')">💔 扣分 <span class="cgt-count">${punishes.length}</span></div>
+        <div class="cat-tab reward ${S.catTab==='reward'?'active':''}" onclick="App.switchCatTab('reward')">💙 加分</div>
+        <div class="cat-tab punish ${S.catTab==='punish'?'active':''}" onclick="App.switchCatTab('punish')">💔 扣分</div>
       </div>`;
 
     const body = active.length
