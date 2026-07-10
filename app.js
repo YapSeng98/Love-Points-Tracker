@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.08-4';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.10-1';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -74,6 +74,9 @@ const App = (() => {
     });
   }
   const monthKey = (d = now()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  // Local calendar date (YYYY-MM-DD). NOT toISOString() — that returns UTC,
+  // which is a day behind for UTC+8 users in the early morning.
+  const todayStr = (d = now()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const monthLabel = (k) => { const [y,m] = k.split('-'); return `${y} 年 ${parseInt(m)} 月`; };
 
   function _snUnwrap(json) {
@@ -977,7 +980,7 @@ const App = (() => {
       desc: '',
       charId: S.activeChar,
       month: S.month,
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
     };
 
     try {
@@ -994,7 +997,7 @@ const App = (() => {
     document.getElementById('add-entry-id').value = '';
     document.getElementById('modal-add-title').textContent = '✏️ 自定义记分';
     document.getElementById('modal-add-btn').textContent = '记录 ✨';
-    document.getElementById('add-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('add-date').value = todayStr();
     document.getElementById('add-desc').value = '';
     const sel = document.getElementById('add-cat-select');
     sel.innerHTML = S.categories.filter(c=>c.active!==false).map(c =>
@@ -1014,7 +1017,7 @@ const App = (() => {
     document.getElementById('add-entry-id').value = id;
     document.getElementById('modal-add-title').textContent = '📝 编辑记录';
     document.getElementById('modal-add-btn').textContent = '保存 ✅';
-    document.getElementById('add-date').value = entry.date || new Date().toISOString().split('T')[0];
+    document.getElementById('add-date').value = entry.date || todayStr();
     document.getElementById('add-pts').value = entry.pts || 0;
     document.getElementById('add-desc').value = entry.desc || '';
     const sel = document.getElementById('add-cat-select');
@@ -1033,7 +1036,7 @@ const App = (() => {
     const catId  = document.getElementById('add-cat-select').value;
     const pts    = parseInt(document.getElementById('add-pts').value) || 0;
     const desc   = document.getElementById('add-desc').value.trim();
-    const date   = document.getElementById('add-date').value || new Date().toISOString().split('T')[0];
+    const date   = document.getElementById('add-date').value || todayStr();
     const cat    = S.categories.find(c => c.id === catId) || {};
 
     try {
