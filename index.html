@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>🐾 恋爱积分簿</title>
   <style>
     :root {
@@ -77,7 +77,7 @@
     }
 
     /* ── Layout ── */
-    #app { position: relative; z-index: 1; max-width: 430px; margin: 0 auto; padding: 0 0 152px 0; }
+    #app { position: relative; z-index: 1; max-width: 430px; margin: 0 auto; padding: 0 0 calc(152px + env(safe-area-inset-bottom)) 0; }
 
     /* ── Setup / Auth overlay ── */
     #setup-overlay {
@@ -545,7 +545,7 @@
 
     /* ── Bottom nav ── */
     .bottom-nav {
-      position: fixed; bottom: 14px; left: 50%;
+      position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%;
       transform: translateX(-50%);
       width: calc(100% - 24px); max-width: 406px;
       background: rgba(255,255,255,0.92);
@@ -583,7 +583,7 @@
 
     /* ── Settle FAB ── */
     .settle-fab {
-      position: fixed; bottom: 80px; left: 50%;
+      position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%;
       transform: translateX(-50%);
       z-index: 51;
       background: linear-gradient(135deg, #FFE234 0%, #FFB800 45%, #FF9500 100%);
@@ -888,6 +888,22 @@
     .checkin-btn:disabled { background: #E4E9F0; color: var(--sub); box-shadow: none; cursor: default; }
     .checkin-btn:active:not(:disabled) { transform: scale(0.97); }
 
+    /* Narrow phones (iPhone SE, small Android) — tighten so nothing overflows */
+    @media (max-width: 360px) {
+      .modal-sheet { padding-left: 14px; padding-right: 14px; }
+      .checkin-stats { gap: 6px; }
+      .checkin-stat { padding: 10px 4px 8px; border-radius: 13px; }
+      .checkin-stat-num { font-size: 19px; }
+      .checkin-stat-label { font-size: 9.5px; }
+      .cal-weekdays, .cal-grid { gap: 4px; }
+      .cal-cell { font-size: 12px; border-radius: 10px; }
+      .checkin-rule { font-size: 11px; }
+      /* entry cards: reduce gaps/padding so edit+delete icons don't overflow */
+      .entry-item { padding: 10px 12px; gap: 8px; }
+      .entry-edit, .entry-delete { padding: 2px; }
+      .entry-icon { font-size: 20px; }
+    }
+
     .modal-overlay {
       position: fixed; inset: 0; z-index: 80;
       background: rgba(30,40,60,0.45);
@@ -899,8 +915,9 @@
     .modal-sheet {
       width: 100%; max-width: 430px;
       background: white; border-radius: 24px 24px 0 0;
-      padding: 20px 20px 40px;
-      max-height: 88vh; overflow-y: auto;
+      padding: 20px 20px calc(28px + env(safe-area-inset-bottom));
+      max-height: 88vh; max-height: 88dvh; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
     }
     .modal-overlay.open .modal-sheet { transform: translateY(0); }
