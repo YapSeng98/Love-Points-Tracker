@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.10-4';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.10-5';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -771,12 +771,15 @@ const App = (() => {
   const CHECKIN_CAT = '📅 每日签到';
   const checkinPtsFor = (d = now()) => (d.getDay() === 0 ? 5 : 2);   // Sunday +5, else +2
 
-  // The active character's check-in entries this month
-  function checkinEntries() {
-    return S.entries.filter(e => e.catName === CHECKIN_CAT && (e.charId || 'char1') === S.activeChar);
+  // Check-in entries/dates for a given character (defaults to active)
+  function checkinEntries(charId = S.activeChar) {
+    return S.entries.filter(e => e.catName === CHECKIN_CAT && (e.charId || 'char1') === charId);
+  }
+  function checkinDatesFor(charId) {
+    return new Set(checkinEntries(charId).map(e => e.date));
   }
   function checkinDates() {
-    return new Set(checkinEntries().map(e => e.date));
+    return checkinDatesFor(S.activeChar);
   }
   // Consecutive check-in days ending today (or yesterday if not yet checked today)
   function checkinStreak() {
@@ -793,15 +796,19 @@ const App = (() => {
     const sub   = document.getElementById('checkin-banner-sub');
     const badge = document.getElementById('checkin-banner-badge');
     if (!badge) return;
-    const done = checkinDates().has(todayStr());
-    const pts  = checkinPtsFor();
-    if (done) {
+    const today   = todayStr();
+    const meDone  = checkinDatesFor(S.activeChar).has(today);
+    const partner = S.activeChar === 'char1' ? 'char2' : 'char1';
+    const paDone  = checkinDatesFor(partner).has(today);
+    const paName  = charDisplayName(partner);
+    const pts     = checkinPtsFor();
+    if (meDone) {
       badge.textContent = '已签到 ✓'; badge.classList.add('done');
-      if (sub) sub.textContent = `今天已签到 · 共 ${checkinDates().size} 天`;
     } else {
       badge.textContent = `签到 +${pts}`; badge.classList.remove('done');
-      if (sub) sub.textContent = now().getDay() === 0 ? '周日签到加倍 🎉' : '今天还没签到，点我领分';
     }
+    // Show today's status for both partners
+    if (sub) sub.innerHTML = `今天 · 你 ${meDone ? '已签 ✓' : '未签'} · ${paName} ${paDone ? '已签 ✓' : '未签'}`;
   }
 
   function openCheckin() {
@@ -814,12 +821,24 @@ const App = (() => {
   function renderCheckinCalendar() {
     const cal = document.getElementById('checkin-calendar');
     if (!cal) return;
-    const checked = checkinDates();
+    const c1 = checkinDatesFor('char1');
+    const c2 = checkinDatesFor('char2');
+    const checked = checkinDates();            // active char (for stats/button)
     const today   = todayStr();
     const nowD    = now();
     const year = nowD.getFullYear(), month = nowD.getMonth();
     const firstWeekday = new Date(year, month, 1).getDay();      // 0=Sun
     const daysInMonth  = new Date(year, month + 1, 0).getDate();
+
+    // Today status line for both partners
+    const todayEl = document.getElementById('checkin-today');
+    if (todayEl) {
+      const w = (charId) => {
+        const on = (charId === 'char1' ? c1 : c2).has(today);
+        return `<span class="who ${charId==='char1'?'c1':'c2'} ${on?'':'miss'}"><span class="dot"></span>${charDisplayName(charId)} ${on?'已签到 ✓':'未签到'}</span>`;
+      };
+      todayEl.innerHTML = w('char1') + w('char2');
+    }
 
     const wk = ['日','一','二','三','四','五','六'];
     let html = '<div class="cal-weekdays">' +
@@ -829,12 +848,16 @@ const App = (() => {
     for (let d = 1; d <= daysInMonth; d++) {
       const ds  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const dow = new Date(year, month, d).getDay();
+      const on1 = c1.has(ds), on2 = c2.has(ds);
       const cls = ['cal-cell'];
       if (dow === 0) cls.push('sun');
-      if (checked.has(ds)) cls.push('checked');
+      if (on1 || on2) cls.push('any');
       if (ds === today) cls.push('today');
       if (ds > today) cls.push('future');
-      html += `<div class="${cls.join(' ')}">${d}</div>`;
+      html += `<div class="${cls.join(' ')}">
+        <span class="cal-daynum">${d}</span>
+        <span class="cal-dots"><i class="cal-dot c1 ${on1?'on':''}"></i><i class="cal-dot c2 ${on2?'on':''}"></i></span>
+      </div>`;
     }
     html += '</div>';
     cal.innerHTML = html;

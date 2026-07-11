@@ -852,30 +852,37 @@
     .cal-weekday.sun { color: #FF9F43; }
     .cal-cell {
       aspect-ratio: 1; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13.5px; font-weight: 800; color: var(--dark);
-      background: #F4F7FB; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      font-size: 13px; font-weight: 800; color: var(--dark);
+      background: #F4F7FB; position: relative;
       transition: transform 0.15s;
     }
     .cal-cell.blank { background: transparent; }
+    .cal-cell.any { background: #EAF6EE; }             /* at least one partner checked in */
     .cal-cell.sun { color: #FF9F43; background: #FFF6EC; }
-    /* checked days: minty gradient + cute paw stamp */
-    .cal-cell.checked {
-      color: #fff; background: linear-gradient(140deg, #8FD9A8, #4CAF87);
-      box-shadow: 0 3px 9px rgba(76,175,135,0.32);
-    }
-    /* Sunday bonus days pop in gold */
-    .cal-cell.checked.sun {
-      background: linear-gradient(140deg, #FFD470, #FF9F43);
-      box-shadow: 0 3px 9px rgba(255,159,67,0.4);
-    }
-    .cal-cell.checked::after {
-      content: '🐾'; position: absolute; bottom: 0px; right: 2px; font-size: 9px; opacity: 0.9;
-    }
+    .cal-cell.sun.any { background: #FFF0DA; }
     .cal-cell.today { box-shadow: 0 0 0 3px var(--gold); animation: calPulse 1.6s ease-in-out infinite; }
-    .cal-cell.today.checked { box-shadow: 0 0 0 3px var(--gold), 0 3px 9px rgba(76,175,135,0.32); animation: none; }
     @keyframes calPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(255,200,0,0.9); } 50% { box-shadow: 0 0 0 3px rgba(255,200,0,0.35); } }
-    .cal-cell.future { opacity: 0.35; }
+    .cal-cell.future { opacity: 0.4; }
+    .cal-daynum { line-height: 1; }
+    /* per-partner check-in dots */
+    .cal-dots { display: flex; gap: 4px; height: 7px; align-items: center; }
+    .cal-dot { width: 6.5px; height: 6.5px; border-radius: 50%; background: #DCE2EB; }
+    .cal-dot.c1.on { background: var(--blue); box-shadow: 0 0 0 1px rgba(91,155,213,0.25); }
+    .cal-dot.c2.on { background: #E8609A; box-shadow: 0 0 0 1px rgba(232,96,154,0.25); }
+    /* today's per-partner status line */
+    .checkin-today {
+      display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;
+      font-size: 13px; font-weight: 700; margin-bottom: 14px;
+    }
+    .checkin-today .who { display: inline-flex; align-items: center; gap: 5px; }
+    .checkin-today .who .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .checkin-today .who.c1 { color: var(--blue); }
+    .checkin-today .who.c2 { color: #E8609A; }
+    .checkin-today .who.c1 .dot { background: var(--blue); }
+    .checkin-today .who.c2 .dot { background: #E8609A; }
+    .checkin-today .who.miss { color: var(--sub); }
+    .checkin-today .who.miss .dot { background: #DCE2EB; }
 
     .checkin-btn {
       width: 100%; border: none; border-radius: 16px; cursor: pointer;
@@ -2351,6 +2358,7 @@
       <div class="modal-title" style="margin-bottom:0;flex:1">📅 每日签到 <span id="checkin-for" style="font-size:13px;color:var(--sub);font-weight:600"></span></div>
     </div>
     <div class="checkin-rule">平日 <b>+2 分</b> · 周日 <span class="sun-b">+5 分</span> 🎉</div>
+    <div class="checkin-today" id="checkin-today"></div>
     <div class="checkin-stats" id="checkin-stats"></div>
     <div id="checkin-calendar"></div>
     <button class="checkin-btn" id="checkin-btn" onclick="App.doCheckin()">今天签到</button>
