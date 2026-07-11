@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.10-5';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.10-6';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -872,36 +872,58 @@ const App = (() => {
         <div class="checkin-stat"><div class="checkin-stat-num pts">+${totalPts}</div><div class="checkin-stat-label">累计积分</div></div>`;
     }
 
+    const isSun = now().getDay() === 0;
+    const pts   = checkinPtsFor();
+
     const btn = document.getElementById('checkin-btn');
     if (btn) {
-      const isSun = now().getDay() === 0;
       btn.classList.toggle('sunday', isSun && !checked.has(today));
       if (checked.has(today)) { btn.disabled = true; btn.textContent = '今天已签到 ✓ 明天再来~'; }
-      else { btn.disabled = false; btn.textContent = isSun ? `🎉 周日签到 +${checkinPtsFor()} 分` : `今天签到 +${checkinPtsFor()} 分`; }
+      else { btn.disabled = false; btn.textContent = isSun ? `🎉 周日签到 +${pts} 分` : `今天签到 +${pts} 分`; }
+    }
+
+    // Partner "help check in" button — only when partner hasn't checked in today
+    const partner   = S.activeChar === 'char1' ? 'char2' : 'char1';
+    const paChecked = (partner === 'char1' ? c1 : c2).has(today);
+    const pbtn = document.getElementById('checkin-btn-partner');
+    if (pbtn) {
+      if (paChecked) { pbtn.style.display = 'none'; }
+      else {
+        pbtn.style.display = '';
+        pbtn.disabled = false;
+        pbtn.textContent = `💝 帮 ${charDisplayName(partner)} 签到 +${pts}`;
+      }
     }
   }
 
-  async function doCheckin() {
-    if (checkinDates().has(todayStr())) { showToast('今天已经签到啦 ✅'); return; }
+  async function doCheckin(charId = S.activeChar) {
+    if (checkinDatesFor(charId).has(todayStr())) { showToast('今天已经签到啦 ✅'); return; }
     const isSun = now().getDay() === 0;
     const pts   = checkinPtsFor();
-    const btn = document.getElementById('checkin-btn');
+    const forPartner = charId !== S.activeChar;
+    const btnId = forPartner ? 'checkin-btn-partner' : 'checkin-btn';
+    const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.textContent = '签到中…'; }
     try {
       await Data.addEntry({
         id: 'e' + Date.now(),
         catId: '', catName: CHECKIN_CAT, icon: '📅', pts,
         desc: isSun ? '周日签到 🎉' : '每日签到',
-        charId: S.activeChar, month: S.month, date: todayStr(),
+        charId, month: S.month, date: todayStr(),
       });
       spawnParticles(true);
-      showToast(`📅 签到成功！+${pts} 分${isSun ? ' 🎉 周日加倍' : ''}`);
+      const who = forPartner ? `帮 ${charDisplayName(charId)} ` : '';
+      showToast(`📅 ${who}签到成功！+${pts} 分${isSun ? ' 🎉 周日加倍' : ''}`);
       await refresh();
       renderCheckinCalendar();
     } catch (err) {
       showToast('签到失败: ' + err.message);
       renderCheckinCalendar();
     }
+  }
+  // Check in on behalf of the partner (the non-active character)
+  function doCheckinPartner() {
+    doCheckin(S.activeChar === 'char1' ? 'char2' : 'char1');
   }
 
   /* ── Public API ── */
@@ -2197,7 +2219,7 @@ const App = (() => {
   return {
     connect, register, switchTab, onRegCharChange, demoMode,
     toggleMode, selectChar,
-    quickEntry, switchCatTab, openCheckin, doCheckin, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
+    quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
     claimReward,

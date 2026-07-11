@@ -892,6 +892,7 @@
       transition: transform 0.15s;
     }
     .checkin-btn.sunday { background: linear-gradient(135deg, #FFC24B, #FF8A2B); box-shadow: 0 5px 16px rgba(255,138,43,0.42); }
+    .checkin-btn.partner { background: linear-gradient(135deg, #F48FB1, #EC5C8D); box-shadow: 0 5px 16px rgba(236,92,141,0.35); margin-top: 10px; }
     .checkin-btn:disabled { background: #E4E9F0; color: var(--sub); box-shadow: none; cursor: default; }
     .checkin-btn:active:not(:disabled) { transform: scale(0.97); }
 
@@ -2362,6 +2363,7 @@
     <div class="checkin-stats" id="checkin-stats"></div>
     <div id="checkin-calendar"></div>
     <button class="checkin-btn" id="checkin-btn" onclick="App.doCheckin()">今天签到</button>
+    <button class="checkin-btn partner" id="checkin-btn-partner" style="display:none" onclick="App.doCheckinPartner()"></button>
     <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="App.closeModal('modal-checkin')">关闭</button>
   </div>
 </div>
