@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.10-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.10-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -771,13 +771,22 @@ const App = (() => {
   const CHECKIN_CAT = '📅 每日签到';
   const checkinPtsFor = (d = now()) => (d.getDay() === 0 ? 5 : 2);   // Sunday +5, else +2
 
-  // Dates the active character has already checked in this month
+  // The active character's check-in entries this month
+  function checkinEntries() {
+    return S.entries.filter(e => e.catName === CHECKIN_CAT && (e.charId || 'char1') === S.activeChar);
+  }
   function checkinDates() {
-    return new Set(
-      S.entries
-        .filter(e => e.catName === CHECKIN_CAT && (e.charId || 'char1') === S.activeChar)
-        .map(e => e.date)
-    );
+    return new Set(checkinEntries().map(e => e.date));
+  }
+  // Consecutive check-in days ending today (or yesterday if not yet checked today)
+  function checkinStreak() {
+    const set = checkinDates();
+    const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    const d = now();
+    if (!set.has(fmt(d))) d.setDate(d.getDate() - 1);   // grace: streak can end yesterday
+    let streak = 0;
+    while (set.has(fmt(d))) { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
   }
 
   function renderCheckinBanner() {
@@ -830,13 +839,22 @@ const App = (() => {
     html += '</div>';
     cal.innerHTML = html;
 
-    const cntEl = document.getElementById('checkin-count');
-    if (cntEl) cntEl.textContent = `本月已签到 ${checked.size} 天 🌟`;
+    // Stat cards: streak · this-month days · points earned
+    const statsEl = document.getElementById('checkin-stats');
+    if (statsEl) {
+      const totalPts = checkinEntries().reduce((s, e) => s + (parseInt(e.pts) || 0), 0);
+      statsEl.innerHTML = `
+        <div class="checkin-stat"><div class="checkin-stat-num streak">🔥 ${checkinStreak()}</div><div class="checkin-stat-label">连续签到</div></div>
+        <div class="checkin-stat"><div class="checkin-stat-num days">${checked.size}</div><div class="checkin-stat-label">本月天数</div></div>
+        <div class="checkin-stat"><div class="checkin-stat-num pts">+${totalPts}</div><div class="checkin-stat-label">累计积分</div></div>`;
+    }
 
     const btn = document.getElementById('checkin-btn');
     if (btn) {
-      if (checked.has(today)) { btn.disabled = true; btn.textContent = '今天已签到 ✓'; }
-      else { btn.disabled = false; btn.textContent = `今天签到 +${checkinPtsFor()} 分`; }
+      const isSun = now().getDay() === 0;
+      btn.classList.toggle('sunday', isSun && !checked.has(today));
+      if (checked.has(today)) { btn.disabled = true; btn.textContent = '今天已签到 ✓ 明天再来~'; }
+      else { btn.disabled = false; btn.textContent = isSun ? `🎉 周日签到 +${checkinPtsFor()} 分` : `今天签到 +${checkinPtsFor()} 分`; }
     }
   }
 

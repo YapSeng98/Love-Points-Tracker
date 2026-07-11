@@ -827,34 +827,65 @@
     /* Check-in calendar */
     .checkin-rule { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 14px; }
     .checkin-rule b { color: var(--blue); }
+    .checkin-rule .sun-b { color: #FF9F43; }
+
+    /* stat cards row */
+    .checkin-stats { display: flex; gap: 8px; margin-bottom: 16px; }
+    .checkin-stat {
+      flex: 1; border-radius: 16px; padding: 12px 6px 10px; text-align: center;
+      background: linear-gradient(165deg, #FFFFFF, #F2F7FD);
+      border: 1.5px solid var(--card-border);
+    }
+    .checkin-stat-num { font-size: 22px; font-weight: 900; line-height: 1; }
+    .checkin-stat-num.streak { color: #FF7A45; }
+    .checkin-stat-num.days   { color: var(--blue); }
+    .checkin-stat-num.pts    { color: #E8609A; }
+    .checkin-stat-label { font-size: 10.5px; color: var(--sub); font-weight: 700; margin-top: 5px; }
+
     .cal-weekdays, .cal-grid {
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
     }
-    .cal-weekdays { margin-bottom: 6px; }
+    .cal-weekdays { margin-bottom: 7px; }
     .cal-weekday {
-      text-align: center; font-size: 11px; font-weight: 700; color: var(--sub); padding: 2px 0;
+      text-align: center; font-size: 11px; font-weight: 800; color: var(--sub); padding: 2px 0;
     }
-    .cal-weekday.sun { color: var(--red); }
+    .cal-weekday.sun { color: #FF9F43; }
     .cal-cell {
-      aspect-ratio: 1; border-radius: 10px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; color: var(--dark);
-      background: #F5F7FA; position: relative;
+      aspect-ratio: 1; border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13.5px; font-weight: 800; color: var(--dark);
+      background: #F4F7FB; position: relative; overflow: hidden;
+      transition: transform 0.15s;
     }
     .cal-cell.blank { background: transparent; }
-    .cal-cell.sun { color: var(--red); }
-    .cal-cell.checked { background: linear-gradient(135deg, #7FC98A, #4CAF50); color: white; }
-    .cal-cell.checked::after { content: '✓'; position: absolute; bottom: 1px; font-size: 9px; }
-    .cal-cell.today { box-shadow: 0 0 0 2.5px var(--gold); }
-    .cal-cell.future { opacity: 0.35; }
-    .checkin-count { text-align: center; font-size: 13px; color: var(--dark); font-weight: 700; margin: 14px 0 4px; }
-    .checkin-btn {
-      width: 100%; border: none; border-radius: 14px; cursor: pointer;
-      padding: 14px; font-size: 15px; font-weight: 800; color: white;
-      background: linear-gradient(135deg, #66BB6A, #43A047);
-      box-shadow: 0 4px 14px rgba(67,160,71,0.35); margin-top: 8px;
+    .cal-cell.sun { color: #FF9F43; background: #FFF6EC; }
+    /* checked days: minty gradient + cute paw stamp */
+    .cal-cell.checked {
+      color: #fff; background: linear-gradient(140deg, #8FD9A8, #4CAF87);
+      box-shadow: 0 3px 9px rgba(76,175,135,0.32);
     }
-    .checkin-btn:disabled { background: #D8DEE6; color: var(--sub); box-shadow: none; cursor: default; }
+    /* Sunday bonus days pop in gold */
+    .cal-cell.checked.sun {
+      background: linear-gradient(140deg, #FFD470, #FF9F43);
+      box-shadow: 0 3px 9px rgba(255,159,67,0.4);
+    }
+    .cal-cell.checked::after {
+      content: '🐾'; position: absolute; bottom: 0px; right: 2px; font-size: 9px; opacity: 0.9;
+    }
+    .cal-cell.today { box-shadow: 0 0 0 3px var(--gold); animation: calPulse 1.6s ease-in-out infinite; }
+    .cal-cell.today.checked { box-shadow: 0 0 0 3px var(--gold), 0 3px 9px rgba(76,175,135,0.32); animation: none; }
+    @keyframes calPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(255,200,0,0.9); } 50% { box-shadow: 0 0 0 3px rgba(255,200,0,0.35); } }
+    .cal-cell.future { opacity: 0.35; }
+
+    .checkin-btn {
+      width: 100%; border: none; border-radius: 16px; cursor: pointer;
+      padding: 15px; font-size: 15px; font-weight: 800; color: white;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+      box-shadow: 0 5px 16px rgba(67,160,71,0.38); margin-top: 16px;
+      transition: transform 0.15s;
+    }
+    .checkin-btn.sunday { background: linear-gradient(135deg, #FFC24B, #FF8A2B); box-shadow: 0 5px 16px rgba(255,138,43,0.42); }
+    .checkin-btn:disabled { background: #E4E9F0; color: var(--sub); box-shadow: none; cursor: default; }
     .checkin-btn:active:not(:disabled) { transform: scale(0.97); }
 
     .modal-overlay {
@@ -2302,9 +2333,9 @@
     <div style="display:flex;align-items:center;margin-bottom:14px">
       <div class="modal-title" style="margin-bottom:0;flex:1">📅 每日签到 <span id="checkin-for" style="font-size:13px;color:var(--sub);font-weight:600"></span></div>
     </div>
-    <div class="checkin-rule">每天登录签到领积分 · 平日 <b>+2 分</b> · 周日 <b>+5 分</b> 🎉</div>
+    <div class="checkin-rule">平日 <b>+2 分</b> · 周日 <span class="sun-b">+5 分</span> 🎉</div>
+    <div class="checkin-stats" id="checkin-stats"></div>
     <div id="checkin-calendar"></div>
-    <div class="checkin-count" id="checkin-count"></div>
     <button class="checkin-btn" id="checkin-btn" onclick="App.doCheckin()">今天签到</button>
     <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="App.closeModal('modal-checkin')">关闭</button>
   </div>
