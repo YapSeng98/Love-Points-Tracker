@@ -872,10 +872,14 @@
     .cal-dot.c2.on { background: #E8609A; box-shadow: 0 0 0 1px rgba(232,96,154,0.25); }
     /* today's per-partner status line */
     .checkin-today {
-      display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;
+      display: flex; justify-content: center; align-items: center;
+      gap: 8px 18px; flex-wrap: wrap;
       font-size: 13px; font-weight: 700; margin-bottom: 14px;
     }
-    .checkin-today .who { display: inline-flex; align-items: center; gap: 5px; }
+    .checkin-today .who {
+      display: inline-flex; align-items: center; gap: 5px;
+      white-space: nowrap; flex-shrink: 0;
+    }
     .checkin-today .who .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
     .checkin-today .who.c1 { color: var(--blue); }
     .checkin-today .who.c2 { color: #E8609A; }
