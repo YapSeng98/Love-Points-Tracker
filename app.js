@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.10-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.10-2';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── State ── */
   let S = {
@@ -764,6 +764,103 @@ const App = (() => {
     renderCharacterMood(info.pct);
     renderEntries(entries);
     renderCategories();
+    renderCheckinBanner();
+  }
+
+  /* ── Daily check-in (签到) ── */
+  const CHECKIN_CAT = '📅 每日签到';
+  const checkinPtsFor = (d = now()) => (d.getDay() === 0 ? 5 : 2);   // Sunday +5, else +2
+
+  // Dates the active character has already checked in this month
+  function checkinDates() {
+    return new Set(
+      S.entries
+        .filter(e => e.catName === CHECKIN_CAT && (e.charId || 'char1') === S.activeChar)
+        .map(e => e.date)
+    );
+  }
+
+  function renderCheckinBanner() {
+    const sub   = document.getElementById('checkin-banner-sub');
+    const badge = document.getElementById('checkin-banner-badge');
+    if (!badge) return;
+    const done = checkinDates().has(todayStr());
+    const pts  = checkinPtsFor();
+    if (done) {
+      badge.textContent = '已签到 ✓'; badge.classList.add('done');
+      if (sub) sub.textContent = `今天已签到 · 共 ${checkinDates().size} 天`;
+    } else {
+      badge.textContent = `签到 +${pts}`; badge.classList.remove('done');
+      if (sub) sub.textContent = now().getDay() === 0 ? '周日签到加倍 🎉' : '今天还没签到，点我领分';
+    }
+  }
+
+  function openCheckin() {
+    const forEl = document.getElementById('checkin-for');
+    if (forEl) forEl.textContent = '· ' + charDisplayName(S.activeChar);
+    renderCheckinCalendar();
+    openModal('modal-checkin');
+  }
+
+  function renderCheckinCalendar() {
+    const cal = document.getElementById('checkin-calendar');
+    if (!cal) return;
+    const checked = checkinDates();
+    const today   = todayStr();
+    const nowD    = now();
+    const year = nowD.getFullYear(), month = nowD.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();      // 0=Sun
+    const daysInMonth  = new Date(year, month + 1, 0).getDate();
+
+    const wk = ['日','一','二','三','四','五','六'];
+    let html = '<div class="cal-weekdays">' +
+      wk.map((w,i) => `<div class="cal-weekday ${i===0?'sun':''}">${w}</div>`).join('') + '</div>';
+    html += '<div class="cal-grid">';
+    for (let i = 0; i < firstWeekday; i++) html += '<div class="cal-cell blank"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(year, month, d).getDay();
+      const cls = ['cal-cell'];
+      if (dow === 0) cls.push('sun');
+      if (checked.has(ds)) cls.push('checked');
+      if (ds === today) cls.push('today');
+      if (ds > today) cls.push('future');
+      html += `<div class="${cls.join(' ')}">${d}</div>`;
+    }
+    html += '</div>';
+    cal.innerHTML = html;
+
+    const cntEl = document.getElementById('checkin-count');
+    if (cntEl) cntEl.textContent = `本月已签到 ${checked.size} 天 🌟`;
+
+    const btn = document.getElementById('checkin-btn');
+    if (btn) {
+      if (checked.has(today)) { btn.disabled = true; btn.textContent = '今天已签到 ✓'; }
+      else { btn.disabled = false; btn.textContent = `今天签到 +${checkinPtsFor()} 分`; }
+    }
+  }
+
+  async function doCheckin() {
+    if (checkinDates().has(todayStr())) { showToast('今天已经签到啦 ✅'); return; }
+    const isSun = now().getDay() === 0;
+    const pts   = checkinPtsFor();
+    const btn = document.getElementById('checkin-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '签到中…'; }
+    try {
+      await Data.addEntry({
+        id: 'e' + Date.now(),
+        catId: '', catName: CHECKIN_CAT, icon: '📅', pts,
+        desc: isSun ? '周日签到 🎉' : '每日签到',
+        charId: S.activeChar, month: S.month, date: todayStr(),
+      });
+      spawnParticles(true);
+      showToast(`📅 签到成功！+${pts} 分${isSun ? ' 🎉 周日加倍' : ''}`);
+      await refresh();
+      renderCheckinCalendar();
+    } catch (err) {
+      showToast('签到失败: ' + err.message);
+      renderCheckinCalendar();
+    }
   }
 
   /* ── Public API ── */
@@ -2059,7 +2156,7 @@ const App = (() => {
   return {
     connect, register, switchTab, onRegCharChange, demoMode,
     toggleMode, selectChar,
-    quickEntry, switchCatTab, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
+    quickEntry, switchCatTab, openCheckin, doCheckin, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
     claimReward,

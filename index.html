@@ -805,6 +805,58 @@
     .together-banner-sub   { font-size: 12px; color: #a06080; font-weight: 600; }
     .together-banner-arrow { font-size: 16px; color: #c05090; opacity: 0.7; }
 
+    /* Daily check-in banner */
+    .checkin-banner {
+      background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14));
+      border: 1.5px solid rgba(91,155,213,0.28);
+      border-radius: 16px; padding: 11px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 0 0 14px; cursor: pointer; transition: transform 0.15s;
+    }
+    .checkin-banner:active { transform: scale(0.97); }
+    .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
+    .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }
+    .checkin-banner-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .checkin-banner-badge {
+      font-size: 13px; font-weight: 800; color: white; white-space: nowrap;
+      background: linear-gradient(135deg, #5B9BD5, #3D7BB8);
+      padding: 7px 14px; border-radius: 20px;
+    }
+    .checkin-banner-badge.done { background: #E4E9F0; color: var(--sub); }
+
+    /* Check-in calendar */
+    .checkin-rule { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 14px; }
+    .checkin-rule b { color: var(--blue); }
+    .cal-weekdays, .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+    }
+    .cal-weekdays { margin-bottom: 6px; }
+    .cal-weekday {
+      text-align: center; font-size: 11px; font-weight: 700; color: var(--sub); padding: 2px 0;
+    }
+    .cal-weekday.sun { color: var(--red); }
+    .cal-cell {
+      aspect-ratio: 1; border-radius: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: var(--dark);
+      background: #F5F7FA; position: relative;
+    }
+    .cal-cell.blank { background: transparent; }
+    .cal-cell.sun { color: var(--red); }
+    .cal-cell.checked { background: linear-gradient(135deg, #7FC98A, #4CAF50); color: white; }
+    .cal-cell.checked::after { content: '✓'; position: absolute; bottom: 1px; font-size: 9px; }
+    .cal-cell.today { box-shadow: 0 0 0 2.5px var(--gold); }
+    .cal-cell.future { opacity: 0.35; }
+    .checkin-count { text-align: center; font-size: 13px; color: var(--dark); font-weight: 700; margin: 14px 0 4px; }
+    .checkin-btn {
+      width: 100%; border: none; border-radius: 14px; cursor: pointer;
+      padding: 14px; font-size: 15px; font-weight: 800; color: white;
+      background: linear-gradient(135deg, #66BB6A, #43A047);
+      box-shadow: 0 4px 14px rgba(67,160,71,0.35); margin-top: 8px;
+    }
+    .checkin-btn:disabled { background: #D8DEE6; color: var(--sub); box-shadow: none; cursor: default; }
+    .checkin-btn:active:not(:disabled) { transform: scale(0.97); }
+
     .modal-overlay {
       position: fixed; inset: 0; z-index: 80;
       background: rgba(30,40,60,0.45);
@@ -1911,6 +1963,18 @@
     <div class="together-banner-arrow">›</div>
   </div>
 
+  <!-- Daily check-in banner -->
+  <div class="checkin-banner" id="checkin-banner" onclick="App.openCheckin()">
+    <div class="checkin-banner-left">
+      <span style="font-size:22px">📅</span>
+      <div>
+        <div class="checkin-banner-title">每日签到</div>
+        <div class="checkin-banner-sub" id="checkin-banner-sub">每天登录领积分</div>
+      </div>
+    </div>
+    <div class="checkin-banner-badge" id="checkin-banner-badge">签到</div>
+  </div>
+
   <!-- Score card -->
   <div class="score-card">
     <div class="score-card-header">
@@ -2228,6 +2292,21 @@
     <div class="modal-handle"></div>
     <div class="modal-title">📅 历史记录</div>
     <div id="history-content"></div>
+  </div>
+</div>
+
+<!-- Daily check-in modal -->
+<div class="modal-overlay" id="modal-checkin">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;margin-bottom:14px">
+      <div class="modal-title" style="margin-bottom:0;flex:1">📅 每日签到 <span id="checkin-for" style="font-size:13px;color:var(--sub);font-weight:600"></span></div>
+    </div>
+    <div class="checkin-rule">每天登录签到领积分 · 平日 <b>+2 分</b> · 周日 <b>+5 分</b> 🎉</div>
+    <div id="checkin-calendar"></div>
+    <div class="checkin-count" id="checkin-count"></div>
+    <button class="checkin-btn" id="checkin-btn" onclick="App.doCheckin()">今天签到</button>
+    <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="App.closeModal('modal-checkin')">关闭</button>
   </div>
 </div>
 
