@@ -15,7 +15,19 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.12-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.12-2';  // bump on each deploy — shown in ⚙️设置 + console
+
+  // Self-heal stale caches: app.js is always fetched fresh, but index.html can
+  // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
+  // freshness marker is missing, force ONE reload with a cache-busting query.
+  (function ensureFreshHtml() {
+    try {
+      if (!document.querySelector('meta[name="app-html-v"]') && !sessionStorage.getItem('html_reloaded')) {
+        sessionStorage.setItem('html_reloaded', '1');
+        location.replace(location.pathname + '?fresh=' + Date.now());
+      }
+    } catch (e) { /* never block boot */ }
+  })();
 
   // The check-in UI's CSS ships WITH app.js (injected at runtime). app.js is
   // always cache-busted fresh, but index.html (and its inline CSS) can stay
