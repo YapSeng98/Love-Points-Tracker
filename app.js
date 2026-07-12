@@ -15,7 +15,76 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.10-7';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.12-1';  // bump on each deploy — shown in ⚙️设置 + console
+
+  // The check-in UI's CSS ships WITH app.js (injected at runtime). app.js is
+  // always cache-busted fresh, but index.html (and its inline CSS) can stay
+  // cached on phones — shipping component CSS here keeps new JS + old HTML
+  // from mismatching (labels/dots rendering "flying").
+  (function injectCheckinCSS() {
+    if (document.getElementById('checkin-css')) return;
+    const st = document.createElement('style');
+    st.id = 'checkin-css';
+    st.textContent = `
+    .checkin-banner { background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14)); border: 1.5px solid rgba(91,155,213,0.28); border-radius: 16px; padding: 11px 18px; display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; cursor: pointer; transition: transform 0.15s; }
+    .checkin-banner:active { transform: scale(0.97); }
+    .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
+    .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }
+    .checkin-banner-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .checkin-banner-badge { font-size: 13px; font-weight: 800; color: white; white-space: nowrap; background: linear-gradient(135deg, #5B9BD5, #3D7BB8); padding: 7px 14px; border-radius: 20px; }
+    .checkin-banner-badge.done { background: #E4E9F0; color: var(--sub); }
+    .checkin-rule { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 14px; }
+    .checkin-rule b { color: var(--blue); }
+    .checkin-rule .sun-b { color: #FF9F43; }
+    .checkin-stats { display: flex; gap: 8px; margin-bottom: 16px; }
+    .checkin-stat { flex: 1; border-radius: 16px; padding: 12px 6px 10px; text-align: center; background: linear-gradient(165deg, #FFFFFF, #F2F7FD); border: 1.5px solid var(--card-border); }
+    .checkin-stat-num { font-size: 22px; font-weight: 900; line-height: 1; }
+    .checkin-stat-num.streak { color: #FF7A45; }
+    .checkin-stat-num.days   { color: var(--blue); }
+    .checkin-stat-num.pts    { color: #E8609A; }
+    .checkin-stat-label { font-size: 10.5px; color: var(--sub); font-weight: 700; margin-top: 5px; }
+    .cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-weekdays { margin-bottom: 7px; }
+    .cal-weekday { text-align: center; font-size: 11px; font-weight: 800; color: var(--sub); padding: 2px 0; }
+    .cal-weekday.sun { color: #FF9F43; }
+    .cal-cell { aspect-ratio: 1; border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; font-weight: 800; color: var(--dark); background: #F4F7FB; position: relative; transition: transform 0.15s; overflow: hidden; }
+    .cal-cell.blank { background: transparent; }
+    .cal-cell.any { background: #EAF6EE; }
+    .cal-cell.sun { color: #FF9F43; background: #FFF6EC; }
+    .cal-cell.sun.any { background: #FFF0DA; }
+    .cal-cell.today { box-shadow: 0 0 0 3px var(--gold); animation: calPulse 1.6s ease-in-out infinite; }
+    @keyframes calPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(255,200,0,0.9); } 50% { box-shadow: 0 0 0 3px rgba(255,200,0,0.35); } }
+    .cal-cell.future { opacity: 0.4; }
+    .cal-daynum { line-height: 1; }
+    .cal-dots { display: flex; gap: 4px; height: 7px; align-items: center; }
+    .cal-dot { width: 6.5px; height: 6.5px; border-radius: 50%; background: #DCE2EB; flex-shrink: 0; }
+    .cal-dot.c1.on { background: var(--blue); box-shadow: 0 0 0 1px rgba(91,155,213,0.25); }
+    .cal-dot.c2.on { background: #E8609A; box-shadow: 0 0 0 1px rgba(232,96,154,0.25); }
+    .checkin-today { display: flex; justify-content: center; align-items: center; gap: 8px 18px; flex-wrap: wrap; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+    .checkin-today .who { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
+    .checkin-today .who .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .checkin-today .who.c1 { color: var(--blue); }
+    .checkin-today .who.c2 { color: #E8609A; }
+    .checkin-today .who.c1 .dot { background: var(--blue); }
+    .checkin-today .who.c2 .dot { background: #E8609A; }
+    .checkin-today .who.miss { color: var(--sub); }
+    .checkin-today .who.miss .dot { background: #DCE2EB; }
+    .checkin-btn { width: 100%; border: none; border-radius: 16px; cursor: pointer; padding: 15px; font-size: 15px; font-weight: 800; color: white; background: linear-gradient(135deg, #66BB6A, #43A047); box-shadow: 0 5px 16px rgba(67,160,71,0.38); margin-top: 16px; transition: transform 0.15s; }
+    .checkin-btn.sunday { background: linear-gradient(135deg, #FFC24B, #FF8A2B); box-shadow: 0 5px 16px rgba(255,138,43,0.42); }
+    .checkin-btn.partner { background: linear-gradient(135deg, #F48FB1, #EC5C8D); box-shadow: 0 5px 16px rgba(236,92,141,0.35); margin-top: 10px; }
+    .checkin-btn:disabled { background: #E4E9F0; color: var(--sub); box-shadow: none; cursor: default; }
+    .checkin-btn:active:not(:disabled) { transform: scale(0.97); }
+    @media (max-width: 360px) {
+      .checkin-stats { gap: 6px; }
+      .checkin-stat { padding: 10px 4px 8px; border-radius: 13px; }
+      .checkin-stat-num { font-size: 19px; }
+      .checkin-stat-label { font-size: 9.5px; }
+      .cal-weekdays, .cal-grid { gap: 4px; }
+      .cal-cell { font-size: 12px; border-radius: 10px; }
+      .checkin-rule { font-size: 11px; }
+    }`;
+    document.head.appendChild(st);
+  })();
 
   /* ── State ── */
   let S = {
