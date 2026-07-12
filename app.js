@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.12-3';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.12-4';  // bump on each deploy — shown in ⚙️设置 + console
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -926,6 +926,13 @@ const App = (() => {
       todayEl.innerHTML = w('char1', '#5B9BD5') + w('char2', '#E8609A');
     }
 
+    // Cell inner layout + dots use inline styles only (classes still provide
+    // the background tints / today ring, which are safe) — so the dots are
+    // pixel-fixed under each date number regardless of any cached CSS.
+    const CELL_LAYOUT = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;';
+    const dot = (on, color) =>
+      `<i style="display:inline-block;width:6.5px;height:6.5px;border-radius:50%;flex-shrink:0;background:${on ? color : '#DCE2EB'}"></i>`;
+
     const wk = ['日','一','二','三','四','五','六'];
     let html = '<div class="cal-weekdays">' +
       wk.map((w,i) => `<div class="cal-weekday ${i===0?'sun':''}">${w}</div>`).join('') + '</div>';
@@ -940,9 +947,9 @@ const App = (() => {
       if (on1 || on2) cls.push('any');
       if (ds === today) cls.push('today');
       if (ds > today) cls.push('future');
-      html += `<div class="${cls.join(' ')}">
-        <span class="cal-daynum">${d}</span>
-        <span class="cal-dots"><i class="cal-dot c1 ${on1?'on':''}"></i><i class="cal-dot c2 ${on2?'on':''}"></i></span>
+      html += `<div class="${cls.join(' ')}" style="${CELL_LAYOUT}">
+        <span style="line-height:1">${d}</span>
+        <span style="display:flex;gap:4px;align-items:center;justify-content:center;height:7px">${dot(on1,'#5B9BD5')}${dot(on2,'#E8609A')}</span>
       </div>`;
     }
     html += '</div>';
