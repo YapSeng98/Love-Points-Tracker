@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.12-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.12-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -911,14 +911,19 @@ const App = (() => {
     const firstWeekday = new Date(year, month, 1).getDay();      // 0=Sun
     const daysInMonth  = new Date(year, month + 1, 0).getDate();
 
-    // Today status line for both partners
+    // Today status line for both partners.
+    // Built entirely with inline styles (plain centered text) so it renders
+    // identically no matter what CSS a cached index.html carries — it cannot
+    // overlap, wrap mid-text, or shift position.
     const todayEl = document.getElementById('checkin-today');
     if (todayEl) {
-      const w = (charId) => {
+      todayEl.setAttribute('style',
+        'display:block;text-align:center;font-size:13px;font-weight:700;line-height:1.9;margin:0 0 14px;');
+      const w = (charId, color) => {
         const on = (charId === 'char1' ? c1 : c2).has(today);
-        return `<span class="who ${charId==='char1'?'c1':'c2'} ${on?'':'miss'}"><span class="dot"></span>${charDisplayName(charId)} ${on?'已签到 ✓':'未签到'}</span>`;
+        return `<span style="white-space:nowrap;display:inline-block;margin:0 8px;color:${on ? color : '#8A94A6'}">${charId==='char1'?'💙':'🩷'} ${charDisplayName(charId)} ${on?'已签到 ✓':'未签到'}</span>`;
       };
-      todayEl.innerHTML = w('char1') + w('char2');
+      todayEl.innerHTML = w('char1', '#5B9BD5') + w('char2', '#E8609A');
     }
 
     const wk = ['日','一','二','三','四','五','六'];
