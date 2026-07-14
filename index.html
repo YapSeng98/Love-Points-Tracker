@@ -509,20 +509,33 @@
     .add-custom-btn:active { background: var(--sky); }
 
     /* ── Recent entries ── */
-    .entries-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
-    .entry-item {
+    .entries-list { padding: 0 16px; display: flex; flex-direction: column; gap: 18px; }
+    .entry-day-group { display: flex; flex-direction: column; gap: 6px; }
+    .entry-day-header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 0 4px;
+    }
+    .entry-day-label { font-size: 13px; font-weight: 700; color: var(--sub); }
+    .entry-day-total { font-size: 13px; font-weight: 700; }
+    .entry-day-total.positive { color: var(--blue); }
+    .entry-day-total.negative { color: var(--red); }
+    .entry-day-items {
       background: var(--card);
       border: 1.5px solid var(--card-border);
       border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .entry-item {
       padding: 12px 16px;
       display: flex; align-items: center; gap: 12px;
-      box-shadow: var(--shadow-sm);
+      border-bottom: 1px solid var(--card-border);
     }
+    .entry-day-items .entry-item:last-child { border-bottom: none; }
     .entry-icon { font-size: 22px; flex-shrink: 0; }
     .entry-info { flex: 1; min-width: 0; }
     .entry-cat { font-size: 14px; font-weight: 600; color: var(--dark); }
     .entry-desc { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .entry-date { font-size: 11px; color: var(--sub); }
     .entry-pts {
       font-size: 16px; font-weight: 800; flex-shrink: 0;
     }
@@ -1672,6 +1685,172 @@
       transition: border-color 0.15s;
     }
     .shop-edit-form input:focus { border-color: var(--blue); }
+
+    /* ── Letter banner on home (情书) ── */
+    .letter-banner {
+      background: linear-gradient(135deg, rgba(255,143,160,0.14), rgba(201,177,255,0.14));
+      border: 1.5px solid rgba(255,143,160,0.28);
+      border-radius: 16px; padding: 11px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 0 0 14px; cursor: pointer; transition: transform 0.15s;
+    }
+    .letter-banner:active { transform: scale(0.97); }
+    .letter-banner-left { display: flex; align-items: center; gap: 9px; }
+    .letter-banner-title { font-size: 15px; font-weight: 800; color: #D9607A; line-height: 1.1; }
+    .letter-banner-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .letter-banner-arrow { font-size: 16px; color: #D9607A; opacity: 0.7; }
+
+    /* ── Letter page (情书, full-screen slide-in) ── */
+    .letter-page {
+      position: fixed; inset: 0; z-index: 90;
+      background: linear-gradient(160deg, #FFE2F0 0%, #FFD6E8 25%, #E8DFFF 60%, #DCEBFF 100%);
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .letter-page.open { transform: translateX(0); }
+    .letter-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 52px 16px 10px;
+      background: rgba(255,255,255,0.60);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(217,96,122,0.14);
+      flex-shrink: 0;
+    }
+    .letter-back-btn {
+      background: none; border: none; font-size: 22px; color: #D9607A;
+      padding: 4px 8px; cursor: pointer; font-weight: 700;
+      border-radius: 10px; transition: background 0.15s;
+    }
+    .letter-back-btn:active { background: rgba(217,96,122,0.12); }
+    .letter-title { font-size: 17px; font-weight: 800; color: var(--dark); letter-spacing: 0.5px; }
+    .letter-compose-btn {
+      background: rgba(217,96,122,0.12); border: 1px solid rgba(217,96,122,0.28);
+      border-radius: 20px; padding: 5px 12px; font-size: 12px;
+      font-weight: 700; color: #D9607A; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .letter-compose-btn:active { background: rgba(217,96,122,0.22); }
+
+    /* Letter list (inbox-style cards, not chat bubbles) */
+    .letter-list {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 16px 14px 24px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .letter-card {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card);
+      border: 1.5px solid var(--card-border);
+      border-radius: 16px; padding: 12px 14px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer; transition: transform 0.15s;
+    }
+    .letter-card:active { transform: scale(0.98); }
+    .letter-card.sealed {
+      background: linear-gradient(160deg, #FFFFFF 0%, #FFF1F6 100%);
+      border: 1.5px dashed rgba(217,96,122,0.35);
+    }
+    .letter-card-icon { font-size: 26px; flex-shrink: 0; }
+    .letter-card-info { flex: 1; min-width: 0; }
+    .letter-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .letter-card-sender { font-size: 13px; font-weight: 800; color: var(--dark); }
+    .letter-card-time { font-size: 11px; color: var(--sub); flex-shrink: 0; }
+    .letter-card-preview {
+      font-size: 12.5px; color: var(--sub); margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .letter-card-preview.sealed { color: #D9607A; font-style: italic; }
+    .letter-card-delete {
+      font-size: 14px; cursor: pointer; opacity: 0.3;
+      padding: 4px; flex-shrink: 0; transition: opacity 0.2s;
+    }
+    .letter-card-delete:active { opacity: 0.8; }
+
+    /* Letter reader overlay — the envelope-opening reveal moment */
+    .letter-reader-overlay {
+      position: fixed; inset: 0; z-index: 150;
+      background: rgba(60,20,40,0.55);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .letter-reader-overlay.open { opacity: 1; pointer-events: auto; }
+    .letter-reader-stage {
+      display: flex; align-items: center; justify-content: center;
+      perspective: 700px; width: 100%; padding: 0 24px;
+    }
+    .letter-reader-close {
+      position: absolute; top: 52px; left: 16px;
+      background: rgba(255,255,255,0.16); border: 1.5px solid rgba(255,255,255,0.3);
+      color: white; font-size: 14px; font-weight: 600;
+      padding: 9px 18px; border-radius: 50px; cursor: pointer;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      transition: transform 0.15s;
+    }
+    .letter-reader-close:active { transform: scale(0.95); }
+
+    .envelope-big {
+      width: 220px; height: 150px; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .envelope-big::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(160deg, #FFFFFF 0%, #FFEEF4 100%);
+      border-radius: 10px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.28);
+      border: 1.5px solid rgba(217,96,122,0.25);
+    }
+    .envelope-big::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(160deg, #FFFFFF 0%, #FFEEF4 100%);
+      clip-path: polygon(0 100%, 50% 42%, 100% 100%);
+      border-radius: 0 0 10px 10px;
+      opacity: 0.9;
+    }
+    .envelope-big-flap {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #FFB8D0 0%, #FF8FA8 100%);
+      clip-path: polygon(0 0, 50% 62%, 100% 0);
+      border-radius: 10px 10px 0 0;
+      transform-origin: top center;
+      transition: transform 0.65s cubic-bezier(0.4,0,0.2,1);
+      z-index: 2;
+    }
+    .envelope-big.unsealed .envelope-big-flap { transform: rotateX(180deg); }
+    .envelope-big-seal {
+      font-size: 44px; z-index: 1;
+      filter: drop-shadow(0 4px 10px rgba(217,96,122,0.35));
+    }
+
+    .letter-paper {
+      width: min(86vw, 340px);
+      max-height: 62vh;
+      background: linear-gradient(170deg, #FFFDF8 0%, #FFF6EF 100%);
+      border-radius: 16px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.3);
+      padding: 22px 20px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(16px) scale(0.96);
+      transition: opacity 0.4s, transform 0.4s;
+      overflow-y: auto;
+    }
+    .letter-paper.show { opacity: 1; transform: translateY(0) scale(1); }
+    .letter-paper-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 12px; font-weight: 700; color: #D9607A;
+      border-bottom: 1px dashed rgba(217,96,122,0.28);
+      padding-bottom: 10px; flex-shrink: 0;
+    }
+    .letter-paper-text {
+      font-size: 15px; line-height: 1.75; color: var(--dark);
+      white-space: pre-wrap; word-break: break-word;
+    }
   </style>
 </head>
 <body>
@@ -2026,6 +2205,18 @@
     <div class="together-banner-arrow">›</div>
   </div>
 
+  <!-- Letter banner (情书, private between the couple only) -->
+  <div class="letter-banner" id="letter-banner" onclick="App.showLetters()">
+    <div class="letter-banner-left">
+      <span style="font-size:20px">💌</span>
+      <div>
+        <div class="letter-banner-title">情书</div>
+        <div class="letter-banner-sub">写一封信给对方</div>
+      </div>
+    </div>
+    <div class="letter-banner-arrow">›</div>
+  </div>
+
   <!-- Daily check-in banner -->
   <div class="checkin-banner" id="checkin-banner" onclick="App.openCheckin()">
     <div class="checkin-banner-left">
@@ -2186,6 +2377,52 @@
   <div class="shop-content hidden" id="shop-content-bag-history">
     <div class="loading"><div class="spinner"></div> 加载历史…</div>
   </div>
+</div>
+
+<!-- Letter page (情书, full-screen slide-in) -->
+<div class="letter-page" id="letter-page">
+  <div class="letter-header">
+    <button class="letter-back-btn" onclick="App.closeLetters()">‹ 返回</button>
+    <div class="letter-title">💌 情书</div>
+    <button class="letter-compose-btn" onclick="App.openComposeLetter()">✏️ 写信</button>
+  </div>
+  <div class="letter-list" id="letter-list">
+    <div class="loading"><div class="spinner"></div> 加载中…</div>
+  </div>
+</div>
+
+<!-- Compose letter modal -->
+<div class="modal-overlay" id="modal-letter-compose" style="z-index:95">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ 写一封信</div>
+    <div class="modal-field">
+      <label>信的内容</label>
+      <textarea id="letter-compose-text" placeholder="想对 TA 说的话…" style="height:160px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-letter-compose')">取消</button>
+      <button class="btn-primary" onclick="App.sendLetter()" style="flex:1">封好，送出 💌</button>
+    </div>
+  </div>
+</div>
+
+<!-- Letter reader overlay (envelope-opening reveal) -->
+<div class="letter-reader-overlay" id="letter-reader-overlay">
+  <div class="letter-reader-stage">
+    <div class="envelope-big" id="envelope-big">
+      <div class="envelope-big-flap"></div>
+      <div class="envelope-big-seal">💌</div>
+    </div>
+    <div class="letter-paper" id="letter-paper">
+      <div class="letter-paper-meta">
+        <span id="letter-paper-sender"></span>
+        <span id="letter-paper-time"></span>
+      </div>
+      <div class="letter-paper-text" id="letter-paper-text"></div>
+    </div>
+  </div>
+  <button class="letter-reader-close" onclick="App.closeLetterReader()">‹ 收起</button>
 </div>
 
 <!-- Buy confirm sheet (bottom sheet) -->

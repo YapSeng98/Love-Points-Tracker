@@ -14,6 +14,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 - **5 CRUD resources** — Categories, Entries, Rewards, Punishments, Config — all manageable in-app
 - **Monthly settlement** — Settle the month, archive results to history, start fresh
 - **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
+- **Letters (情书)** — Write a private letter to your partner; they see it as a sealed envelope until they tap to open it (unseal animation), then it's marked read
 - **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
 - **Animated start screen** — Floating Pochacco couple with rising hearts
 - **Background music** — Toggleable ambient piano track
@@ -27,9 +28,9 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | Layer | Technology |
 |---|---|
 | Frontend | Vanilla JS · HTML · CSS (no frameworks) |
-| Backend | ServiceNow Scripted REST API (32 resources) |
+| Backend | ServiceNow Scripted REST API (36 resources) |
 | Auth | Custom `u_love_auth` table · Bearer API key tokens |
-| Storage | ServiceNow tables (10 tables, scoped app) |
+| Storage | ServiceNow tables (11 tables, scoped app) |
 | Hosting | Static file — open `index.html` directly in browser |
 
 ---
@@ -55,7 +56,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 ├── app.js              # All app logic (state, API calls, render functions)
 ├── *.mp3               # Background music tracks
 └── servicenow/
-    ├── resources/      # 23 Scripted REST API scripts (deployed to SN)
+    ├── resources/      # 36 Scripted REST API scripts (deployed to SN)
     ├── scripted-rest-api.js
     ├── background-setup.js
     └── README.md       # ServiceNow setup guide
@@ -102,6 +103,10 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | R30 | POST | `/bag/use/:id` | Mark an owned item as used |
 | R31 | GET | `/bag/history` | List used items |
 | R32 | POST | `/bag/claim` | Claim a milestone reward into the bag |
+| R33 | GET | `/letters` | List letters (oldest first, capped at 500) |
+| R34 | POST | `/letters` | Write & send a letter |
+| R35 | PUT | `/letters/:id` | Mark a letter as opened |
+| R36 | DELETE | `/letters/:id` | Delete a letter |
 
 ---
 
@@ -119,6 +124,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | u_love_monthly | `x_887486_love_app_u_love_monthly` | Settled month records |
 | u_love_shop | `x_887486_love_app_u_love_shop` | Point-redeemable shop items |
 | u_love_bag | `x_887486_love_app_u_love_bag` | Items owned per person (bought or claimed) |
+| u_love_letter | `x_887486_love_app_u_love_letter` | Private letters (情书) between the couple |
 
 > Full field-level schema (types, defaults, exact field names like `u_emoji`/`u_points`/`u_desc`) lives in [`servicenow/README.md`](servicenow/README.md).
 
@@ -152,7 +158,8 @@ ServiceNow dev405150.service-now.com
         ├── u_love_punishment  — Punishments catalog
         ├── u_love_monthly     — Monthly settlement archive
         ├── u_love_shop        — Point-redeemable shop items
-        └── u_love_bag         — Items owned per person
+        ├── u_love_bag         — Items owned per person
+        └── u_love_letter      — Private letters (情书) per couple
 ```
 
 ---

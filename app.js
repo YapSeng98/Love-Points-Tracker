@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.12-4';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.14-1';  // bump on each deploy — shown in ⚙️设置 + console
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -131,6 +131,8 @@ const App = (() => {
     shopTab: 'shop',
     catTab: 'reward',   // quick-entry tab: 'reward' (加分) | 'punish' (扣分)
     shopEditId: null,
+    letters: [],
+    letterReaderId: null,   // id of the letter currently open in the reader overlay
   };
 
   /* ── Helpers ── */
@@ -228,6 +230,7 @@ const App = (() => {
         punishThreshold: -80,
         entries: {},      // { 'YYYY-MM': [...] }
         history: [],
+        letters: [],      // 情书: [{ id, charId, text, date, opened }]
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -266,6 +269,7 @@ const App = (() => {
 
   /* ── Data layer (adapts SN or LS) ── */
   const _safeStr = (v) => (v != null && v !== 'undefined') ? String(v) : '';
+  const _escHtml = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const _normTier = (x) => ({
     ...x,
     icon:   decodeFromSN(_safeStr(x.icon)),
@@ -365,6 +369,46 @@ const App = (() => {
     async getHistory() {
       if (S.usingSN) return snFetch('/history');
       return LS.load().history || [];
+    },
+
+    /* ── 情书 (private love letters between the couple only) ── */
+    async getLetters() {
+      let list;
+      if (S.usingSN) {
+        list = (await snFetch('/letters')).map(l => ({ ...l, text: decodeFromSN(l.text) }));
+      } else {
+        list = LS.load().letters || [];
+      }
+      return list.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    },
+
+    async addLetter(letter) {
+      if (S.usingSN) {
+        const encoded = { ...letter, text: encodeForSN(letter.text) };
+        return snFetch('/letters', { method:'POST', body: JSON.stringify(encoded) });
+      }
+      const d = LS.load();
+      d.letters = d.letters || [];
+      const l = { ...letter, id: 'ltr'+Date.now() };
+      d.letters.push(l);
+      if (d.letters.length > 500) d.letters = d.letters.slice(-500);
+      LS.save(d);
+      return l;
+    },
+
+    async markLetterOpened(id) {
+      if (S.usingSN) return snFetch(`/letters/${id}`, { method:'PUT', body: JSON.stringify({ opened: true }) });
+      const d = LS.load();
+      const l = (d.letters || []).find(x => x.id === id);
+      if (l) l.opened = true;
+      LS.save(d);
+    },
+
+    async deleteLetter(id) {
+      if (S.usingSN) return snFetch(`/letters/${id}`, { method:'DELETE' });
+      const d = LS.load();
+      d.letters = (d.letters || []).filter(l => l.id !== id);
+      LS.save(d);
     },
 
     // Refetch rewards/punishments so claim states stay fresh (partner may
@@ -670,27 +714,60 @@ const App = (() => {
     renderCategories();
   }
 
+  const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+  function formatDayHeader(dateStr) {
+    if (!dateStr) return '未知日期';
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d)) return dateStr;
+    const md = `${d.getMonth()+1}月${d.getDate()}日`;
+    const wd = WEEKDAYS[d.getDay()];
+    if (dateStr === todayStr()) return `今天 · ${md} ${wd}`;
+    if (dateStr === todayStr(new Date(now().getTime() - 86400000))) return `昨天 · ${md} ${wd}`;
+    return `${md} ${wd}`;
+  }
+
   function renderEntries(entries) {
     const list = document.getElementById('entries-list');
     if (!entries.length) {
       list.innerHTML = `<div class="empty-state"><div class="es-icon">📝</div>本月还没有记录<br>点上方角色选择记分对象</div>`;
       return;
     }
-    list.innerHTML = entries.map(e => {
-      const pos    = e.pts >= 0;
-      const charId = e.charId || 'char1';
-      const name   = charDisplayName(charId);
-      return `<div class="entry-item" id="entry-${e.id}">
-        <div class="entry-icon">${e.icon || '📌'}</div>
-        <div class="entry-info">
-          <div class="entry-cat">${(e.catName && e.catName !== 'undefined') ? e.catName : (e.name && e.name !== 'undefined' ? e.name : '自定义')}</div>
-          <div class="entry-desc">${e.desc || ''}</div>
-          <div class="entry-date">${e.date || ''}</div>
+
+    // Group consecutive-by-date entries into day buckets, preserving existing order.
+    const groups = [];
+    const byDate = new Map();
+    entries.forEach(e => {
+      const key = e.date || '';
+      let g = byDate.get(key);
+      if (!g) { g = { date: key, items: [], total: 0 }; byDate.set(key, g); groups.push(g); }
+      g.items.push(e);
+      g.total += (e.pts || 0);
+    });
+
+    list.innerHTML = groups.map(g => {
+      const dayPos = g.total >= 0;
+      const itemsHtml = g.items.map(e => {
+        const pos    = e.pts >= 0;
+        const charId = e.charId || 'char1';
+        const name   = charDisplayName(charId);
+        return `<div class="entry-item" id="entry-${e.id}">
+          <div class="entry-icon">${e.icon || '📌'}</div>
+          <div class="entry-info">
+            <div class="entry-cat">${(e.catName && e.catName !== 'undefined') ? e.catName : (e.name && e.name !== 'undefined' ? e.name : '自定义')}</div>
+            <div class="entry-desc">${e.desc || ''}</div>
+          </div>
+          <span class="entry-char-badge ${charId}">${name}</span>
+          <div class="entry-pts ${pos?'positive':'negative'}">${pos?'+':''}${e.pts}</div>
+          <div class="entry-edit" onclick="App.openEditEntryModal('${e.id}')">✏️</div>
+          <div class="entry-delete" onclick="App.deleteEntry('${e.id}')">🗑️</div>
+        </div>`;
+      }).join('');
+      return `<div class="entry-day-group">
+        <div class="entry-day-header">
+          <span class="entry-day-label">${formatDayHeader(g.date)}</span>
+          <span class="entry-day-total ${dayPos?'positive':'negative'}">${dayPos?'+':''}${g.total}</span>
         </div>
-        <span class="entry-char-badge ${charId}">${name}</span>
-        <div class="entry-pts ${pos?'positive':'negative'}">${pos?'+':''}${e.pts}</div>
-        <div class="entry-edit" onclick="App.openEditEntryModal('${e.id}')">✏️</div>
-        <div class="entry-delete" onclick="App.deleteEntry('${e.id}')">🗑️</div>
+        <div class="entry-day-items">${itemsHtml}</div>
       </div>`;
     }).join('');
   }
@@ -1663,6 +1740,146 @@ const App = (() => {
     document.getElementById('love-page')?.classList.remove('open');
   }
 
+  /* ── 情书 page (private letters between the couple only) ── */
+  async function showLetters() {
+    const pg = document.getElementById('letter-page');
+    if (!pg) return;
+    pg.classList.add('open');
+    await loadLetters();
+  }
+
+  function closeLetters() {
+    document.getElementById('letter-page')?.classList.remove('open');
+  }
+
+  async function loadLetters() {
+    try {
+      S.letters = await Data.getLetters();
+    } catch (err) {
+      showToast('情书加载失败: ' + err.message);
+    }
+    renderLetters();
+  }
+
+  function _letterTimeLabel(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const dateStr = todayStr(d);
+    if (dateStr === todayStr()) return `今天 ${hm}`;
+    if (dateStr === todayStr(new Date(now().getTime() - 86400000))) return `昨天 ${hm}`;
+    return `${d.getMonth()+1}月${d.getDate()}日 ${hm}`;
+  }
+
+  function renderLetters() {
+    const list = document.getElementById('letter-list');
+    if (!list) return;
+    const letters = S.letters || [];
+    if (!letters.length) {
+      list.innerHTML = `<div class="empty-state"><div class="es-icon">💌</div>还没有情书<br>写第一封给对方吧</div>`;
+      return;
+    }
+    list.innerHTML = letters.map(l => {
+      const mine    = (l.charId || 'char1') === S.activeChar;
+      const sealed  = !mine && !l.opened;
+      const sender  = charDisplayName(l.charId || 'char1');
+      const text    = l.text || '';
+      const preview = sealed
+        ? '一封悄悄话，点击拆开 💌'
+        : _escHtml(text.length > 40 ? text.slice(0, 40) + '…' : text);
+      const delBtn = mine ? `<div class="letter-card-delete" onclick="event.stopPropagation();App.deleteLetter('${l.id}')">🗑</div>` : '';
+      return `<div class="letter-card ${mine ? 'mine' : 'theirs'} ${sealed ? 'sealed' : ''}" onclick="App.openLetterReader('${l.id}')">
+        <div class="letter-card-icon">${sealed ? '💌' : '📖'}</div>
+        <div class="letter-card-info">
+          <div class="letter-card-top">
+            <span class="letter-card-sender">${sender}</span>
+            <span class="letter-card-time">${_letterTimeLabel(l.date)}</span>
+          </div>
+          <div class="letter-card-preview ${sealed ? 'sealed' : ''}">${preview}</div>
+        </div>
+        ${delBtn}
+      </div>`;
+    }).join('');
+  }
+
+  function openComposeLetter() {
+    document.getElementById('letter-compose-text').value = '';
+    openModal('modal-letter-compose');
+  }
+
+  async function sendLetter() {
+    const ta = document.getElementById('letter-compose-text');
+    const text = (ta?.value || '').trim();
+    if (!text) return;
+    try {
+      await Data.addLetter({ charId: S.activeChar, text, date: new Date().toISOString(), opened: false });
+      closeModal('modal-letter-compose');
+      showToast('💌 信已封好送出');
+      await loadLetters();
+    } catch (err) {
+      showToast('发送失败: ' + err.message);
+    }
+  }
+
+  async function openLetterReader(id) {
+    const letter = (S.letters || []).find(l => l.id === id);
+    if (!letter) return;
+    S.letterReaderId = id;
+
+    const mine   = (letter.charId || 'char1') === S.activeChar;
+    const sealed = !mine && !letter.opened;
+
+    document.getElementById('letter-paper-sender').textContent = charDisplayName(letter.charId || 'char1');
+    document.getElementById('letter-paper-time').textContent   = _letterTimeLabel(letter.date);
+    document.getElementById('letter-paper-text').textContent   = letter.text || '';
+
+    const overlay  = document.getElementById('letter-reader-overlay');
+    const envelope = document.getElementById('envelope-big');
+    const paper    = document.getElementById('letter-paper');
+    if (!overlay || !envelope || !paper) return;
+
+    overlay.classList.add('open');
+    envelope.classList.remove('unsealed');
+    paper.classList.remove('show');
+
+    if (sealed) {
+      envelope.style.display = 'flex';
+      paper.style.display = 'none';
+      setTimeout(() => {
+        envelope.classList.add('unsealed');
+        setTimeout(async () => {
+          envelope.style.display = 'none';
+          paper.style.display = 'flex';
+          requestAnimationFrame(() => paper.classList.add('show'));
+          letter.opened = true;
+          renderLetters();
+          try { await Data.markLetterOpened(id); } catch (e) { /* best-effort */ }
+        }, 650);
+      }, 300);
+    } else {
+      envelope.style.display = 'none';
+      paper.style.display = 'flex';
+      requestAnimationFrame(() => paper.classList.add('show'));
+    }
+  }
+
+  function closeLetterReader() {
+    document.getElementById('letter-reader-overlay')?.classList.remove('open');
+    S.letterReaderId = null;
+  }
+
+  async function deleteLetter(id) {
+    if (!(await showConfirm('删除这封情书？'))) return;
+    try {
+      await Data.deleteLetter(id);
+      if (S.letterReaderId === id) closeLetterReader();
+      await loadLetters();
+      showToast('🗑️ 已删除');
+    } catch (err) {
+      showToast('删除失败: ' + err.message);
+    }
+  }
+
   function logout() {
     localStorage.removeItem('sn_api_key');
     localStorage.removeItem('sn_username');
@@ -2321,6 +2538,8 @@ const App = (() => {
     toggleCategoryActive, confirmDeleteItem,
     openModal, closeModal, resolveConfirm,
     showLovePage, closeLovePage,
+    showLetters, closeLetters, openComposeLetter, sendLetter,
+    openLetterReader, closeLetterReader, deleteLetter,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
     confirmUseItem,
