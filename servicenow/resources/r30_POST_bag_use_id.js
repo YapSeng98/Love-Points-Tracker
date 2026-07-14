@@ -17,9 +17,13 @@
     if (gr.getValue('u_status') !== 'active') {
         response.setStatus(400); response.setBody({ error: 'already_used' }); return;
     }
-    var now = new GlideDateTime();
+    // Prefer the client's local date — the SN instance timezone can be a day
+    // behind the user's, so server-computed "today" is unreliable.
+    var body  = request.body && request.body.data;
+    var today = (body && /^\d{4}-\d{2}-\d{2}$/.test(body.date || '')) ? body.date
+              : new GlideDateTime().getLocalDate().toString();
     gr.setValue('u_status',    'used');
-    gr.setValue('u_used_date', now.getLocalDate().toString());
+    gr.setValue('u_used_date', today);
     gr.update();
     response.setBody({ success: true });
 })(request, response);

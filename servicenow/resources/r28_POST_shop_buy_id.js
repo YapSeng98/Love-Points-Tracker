@@ -18,9 +18,14 @@
     var itemName = shopGr.getValue('u_name') || '';
     var itemIcon = shopGr.getValue('u_icon') || '';
 
-    // Current month string e.g. "2026-07"
-    var now   = new GlideDateTime();
-    var month = now.getLocalDate().toString().substring(0, 7);
+    // Prefer the client's local date/month — the SN instance timezone can be
+    // a day behind the user's, so server-computed "today" is unreliable.
+    var body    = request.body && request.body.data;
+    var isoDate = /^\d{4}-\d{2}-\d{2}$/;
+    var today   = (body && isoDate.test(body.date || '')) ? body.date
+                : new GlideDateTime().getLocalDate().toString();
+    var month   = (body && /^\d{4}-\d{2}$/.test(body.month || '')) ? body.month
+                : today.substring(0, 7);
 
     // Sum unsettled entries for this character this month
     var scoreGr = new GlideRecord('x_887486_love_app_u_love_entry');
@@ -56,7 +61,7 @@
     entryGr.setValue('u_points',        -ptsCost);
     entryGr.setValue('u_note',          '兑换：' + itemName);
     entryGr.setValue('u_month',         month);
-    entryGr.setValue('u_date',          now.getLocalDate().toString());
+    entryGr.setValue('u_date',          today);
     if (matchId) entryGr.setValue('u_match', matchId);
     entryGr.insert();
 
@@ -70,7 +75,7 @@
     bagGr.setValue('u_source_type',   'purchase');
     bagGr.setValue('u_shop_item',     id);
     bagGr.setValue('u_month',         month);
-    bagGr.setValue('u_acquired_date', now.getLocalDate().toString());
+    bagGr.setValue('u_acquired_date', today);
     bagGr.setValue('u_status',        'active');
     if (matchId) bagGr.setValue('u_match', matchId);
     var bagId = bagGr.insert();

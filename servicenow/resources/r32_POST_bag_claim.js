@@ -25,8 +25,12 @@
     var itemName = rGr.getValue('u_name') || '';
     var itemIcon = rGr.getValue('u_emoji') || '';
     var minPts   = parseInt(rGr.getValue('u_points')) || 0;
-    var now      = new GlideDateTime();
-    var month    = now.getLocalDate().toString().substring(0, 7);
+    // Prefer the client's local date/month — the SN instance timezone can be
+    // a day behind the user's, so server-computed "today" is unreliable.
+    var today    = (body && /^\d{4}-\d{2}-\d{2}$/.test(body.date || '')) ? body.date
+                 : new GlideDateTime().getLocalDate().toString();
+    var month    = (body && /^\d{4}-\d{2}$/.test(body.month || '')) ? body.month
+                 : today.substring(0, 7);
 
     // Verify the caller's current-month score actually reached the reward
     // threshold (same sum as /shop/buy — unsettled entries, this char)
@@ -53,7 +57,7 @@
 
     // Mark reward as claimed
     rGr.setValue('u_claimed',      true);
-    rGr.setValue('u_claimed_date', now.getLocalDate().toString());
+    rGr.setValue('u_claimed_date', today);
     rGr.update();
 
     // Add to bag
@@ -66,7 +70,7 @@
     bagGr.setValue('u_source_type',   'reward');
     bagGr.setValue('u_shop_item',     '');
     bagGr.setValue('u_month',         month);
-    bagGr.setValue('u_acquired_date', now.getLocalDate().toString());
+    bagGr.setValue('u_acquired_date', today);
     bagGr.setValue('u_status',        'active');
     if (matchId) bagGr.setValue('u_match', matchId);
     var bagId = bagGr.insert();

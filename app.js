@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.14-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.14-2';  // bump on each deploy — shown in ⚙️设置 + console
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -496,7 +496,9 @@ const App = (() => {
       return snFetch(`/shop/${id}`, { method: 'DELETE' });
     },
     async buyItem(id) {
-      return snFetch(`/shop/buy/${id}`, { method: 'POST', body: JSON.stringify({}) });
+      // Send the client's local date/month — the SN instance runs in a
+      // different timezone, so server-computed "today" can be a day behind.
+      return snFetch(`/shop/buy/${id}`, { method: 'POST', body: JSON.stringify({ date: todayStr(), month: monthKey() }) });
     },
     async getBag() {
       if (!S.usingSN) return [];
@@ -504,7 +506,7 @@ const App = (() => {
       return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
     async useItem(id) {
-      return snFetch(`/bag/use/${id}`, { method: 'POST', body: JSON.stringify({}) });
+      return snFetch(`/bag/use/${id}`, { method: 'POST', body: JSON.stringify({ date: todayStr() }) });
     },
     async getBagHistory() {
       if (!S.usingSN) return [];
@@ -512,7 +514,7 @@ const App = (() => {
       return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
     async claimReward(rewardId) {
-      return snFetch('/bag/claim', { method: 'POST', body: JSON.stringify({ rewardId }) });
+      return snFetch('/bag/claim', { method: 'POST', body: JSON.stringify({ rewardId, date: todayStr(), month: monthKey() }) });
     },
   };
 
