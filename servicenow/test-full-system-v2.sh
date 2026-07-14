@@ -14,6 +14,8 @@
 #  - Multiple shop purchases in one month + partial bag usage
 #  - History ordering (desc by month)
 #  - Cross-couple isolation + auth failure modes
+#  - Letters (情书): compose, seal/unseal, cross-partner visibility,
+#    emoji + ISO-date round-trip, delete, cross-couple isolation
 #
 # Leaves the current month UNSETTLED and fully seeded with real
 # emoji data so the account is ready for manual review in the app.
@@ -490,6 +492,64 @@ echo "$RES" | grep -q '"char1Name":"阿白"' && echo "$RES" | grep -q '"char2Nam
   pass "char2 edits char1's name (阿白); char2 name unchanged — partial update safe" || fail "cross-name edit failed: $RES"
 
 # ════════════════════════════════════════════════════════════
+section "21. LETTERS (情书) — compose, seal/unseal, cross-partner visibility"
+# ════════════════════════════════════════════════════════════
+I_LETTER_HEART='\\x1F495'  # 💕, encoded exactly as app.js encodeForSN() does
+NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/letters" "${AUTH1[@]}" \
+  -d "{\"charId\":\"char1\",\"text\":\"亲爱的 ${I_LETTER_HEART} 今天也很想你\",\"date\":\"${NOW_ISO}\",\"opened\":false}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+LETTER1_ID=$(extract "$BODY" id)
+([ "$HTTP" = "201" ] || [ "$HTTP" = "200" ]) && [ -n "$LETTER1_ID" ] && \
+  pass "POST /letters (char1 writes) → $HTTP | id=${LETTER1_ID}" || fail "POST /letters → $HTTP"; info "$BODY"
+
+RES=$(curl -s "${BASE}/letters" "${AUTH2[@]}")
+echo "$RES" | grep -q "\"id\":\"${LETTER1_ID}\"" && echo "$RES" | grep -q '"opened":false' && \
+  pass "GET /letters (char2 view) → letter visible, opened:false (still sealed)" || fail "char2 letter view wrong: $RES"
+echo "$RES" | grep -q 'x1F495' && \
+  pass "GET /letters → encoded emoji survives round-trip byte-exact" || fail "encoded emoji corrupted: $RES"
+echo "$RES" | grep -q "\"date\":\"${NOW_ISO}\"" && \
+  pass "GET /letters → ISO date string round-trips exactly (u_date is String, no SN tz shift)" || fail "date field mutated: $RES"
+
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/letters/${LETTER1_ID}" "${AUTH2[@]}" -d '{"opened":true}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "PUT /letters/{id} (char2 unseals it) → $HTTP" || fail "PUT /letters/{id} → $HTTP"
+
+RES=$(curl -s "${BASE}/letters" "${AUTH1[@]}")
+echo "$RES" | grep -q '"opened":true' && \
+  pass "GET /letters (char1 view) → opened:true now visible to both" || fail "opened flag not synced: $RES"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/letters" "${AUTH2[@]}" \
+  -d "{\"charId\":\"char2\",\"text\":\"我也是，晚安\",\"date\":\"${NOW_ISO}\",\"opened\":false}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+LETTER2_ID=$(extract "$BODY" id)
+([ "$HTTP" = "201" ] || [ "$HTTP" = "200" ]) && [ -n "$LETTER2_ID" ] && \
+  pass "POST /letters (char2 replies) → $HTTP | id=${LETTER2_ID}" || fail "POST /letters (char2) → $HTTP"
+
+RES=$(curl -s "${BASE}/letters" "${AUTH1[@]}")
+[ "$(id_count "$RES")" = "2" ] && \
+  pass "GET /letters → both letters present (2 total, shared feed)" || fail "letter count wrong: $(id_count "$RES")"
+
+RES=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE}/letters/${LETTER1_ID}" "${AUTH1[@]}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "DELETE /letters/{id} (char1 deletes own letter) → $HTTP" || fail "DELETE /letters/{id} → $HTTP"
+
+RES=$(curl -s "${BASE}/letters" "${AUTH2[@]}")
+[ "$(id_count "$RES")" = "1" ] && \
+  pass "GET /letters → deleted letter gone, 1 remaining" || fail "letter not deleted: $(id_count "$RES")"
+
+# Cross-couple isolation, using the foreign couple (AUTHD) from section 17
+RES=$(curl -s "${BASE}/letters" "${AUTHD[@]}")
+[ "$(id_count "$RES")" = "0" ] && pass "unpaired/foreign user sees 0 letters (no leak)" || fail "letter leak: $RES"
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/letters/${LETTER2_ID}" "${AUTHD[@]}" -d '{"opened":true}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "404" ] && pass "foreign couple PUT on our letter → 404" || fail "cross-couple PUT letter → $HTTP"
+RES=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE}/letters/${LETTER2_ID}" "${AUTHD[@]}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "404" ] && pass "foreign couple DELETE on our letter → 404" || fail "cross-couple DELETE letter → $HTTP"
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""
@@ -506,4 +566,5 @@ echo "   - 4 settled months in History (incl. reward win + punishment)"
 echo "   - Current month live: char1=35分, char2=12分"
 echo "   - 6 categories / 4 rewards (💌 情书一封 已领取) / 3 punishments / 4 shop items, all with emoji"
 echo "   - char1's bag: 2 active purchases + 1 claimed reward; 1 used item in bag history"
+echo "   - 1 letter left in 情书 (char2's reply, already read)"
 echo ""
