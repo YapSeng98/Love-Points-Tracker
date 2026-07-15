@@ -4,6 +4,8 @@ A Pochacco-themed couples score-tracking web app. Each partner logs daily acts o
 
 Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no build step — open `index.html` and go.
 
+📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** — how to register, pair, score, check in, write letters, shop, and settle each month.
+
 ---
 
 ## Features
