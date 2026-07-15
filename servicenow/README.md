@@ -197,6 +197,14 @@ For each resource: set the HTTP method + relative path, paste the matching `serv
 | 35 | PUT | `/letters/{id}` | r35_PUT_letters_id.js |
 | 36 | DELETE | `/letters/{id}` | r36_DELETE_letters_id.js |
 
+> **Dates are client-authoritative.** The instance timezone is behind the
+> users' (UTC+8), so server-side `getLocalDate()` is "yesterday" for most of
+> their day. Resources that stamp dates (05 entries, 28 buy, 30 use,
+> 32 claim, 34 letters) take `date`/`month` from the request body and only
+> fall back to the server clock if absent. Keep this pattern for any new
+> resource, and always deploy script changes here by re-pasting the matching
+> `resources/rNN_*.js` file into the SN resource.
+
 ---
 
 ## Step 4 — Enable CORS
@@ -232,6 +240,14 @@ bash servicenow/test-api.sh --login <username> <password>
 ```
 
 If something fails, the script's summary lists the common causes (missing field, resource not created, "Requires Authentication" still on, etc).
+
+Other test suites (all register fresh throwaway couples, safe to re-run):
+
+| Script | Covers |
+|---|---|
+| `test-api-extended.sh` | rewards/punishments CRUD, settle, avatar, full shop → buy → bag → use/claim flow |
+| `test-full-system-v2.sh` | everything end-to-end incl. emoji round-trip, multi-month settle, isolation, auth failure modes, letters (85 checks); leaves a seeded review account live |
+| `test-dates.sh` | timezone regression: buys/uses/claims with the local date in the body, asserts every stored date matches. If the four date assertions fail, r28/r30/r32 in SN are outdated — re-paste them from `resources/` |
 
 ---
 

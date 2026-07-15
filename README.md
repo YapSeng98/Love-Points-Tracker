@@ -169,4 +169,5 @@ ServiceNow dev405150.service-now.com
 - **Icon encoding** — Emoji stored in SN as `\xCODEPOINT` (e.g. `\x1F495` for 💕) via `encodeForSN()` / `decodeFromSN()` in `app.js` to work around Rhino JS surrogate pair limitations
 - **SN response unwrapping** — SN wraps `setBody()` in `{"result": ...}`. `_snUnwrap()` handles single and double wrapping
 - **Null field handling** — SN Rhino may omit null JSON properties; `safeStr()` + `normCat()` / `normItem()` normalise all inbound data
+- **Dates are client-authoritative** — The SN instance runs in a timezone behind the users (UTC+8), so server-computed `getLocalDate()` is "yesterday" for most of their day. The app always sends its local `date`/`month` in the request body (entries, shop buy, bag use, milestone claim, letters), and the scripts only fall back to the server date if the client omits it. Never add a new resource that stamps dates server-side
 - **macOS curl** — Test scripts use `sed '$d'` (not `head -n -1`) for macOS BSD compatibility
