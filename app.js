@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.14-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.16-1';  // bump on each deploy — shown in ⚙️设置 + console
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -1353,7 +1353,15 @@ const App = (() => {
     document.getElementById('add-pts').value = entry.pts || 0;
     document.getElementById('add-desc').value = entry.desc || '';
     const sel = document.getElementById('add-cat-select');
-    sel.innerHTML = S.categories.filter(c=>c.active!==false).map(c =>
+    const activeCats = S.categories.filter(c=>c.active!==false);
+    // System entries (商店兑换, 每日签到) and entries whose category was later
+    // deleted have no matching option — without a placeholder the browser
+    // auto-selects the first category and saving would silently rewrite the
+    // entry's name/icon.
+    const inList = activeCats.some(c => c.id === entry.catId);
+    const keepOpt = inList ? '' :
+      `<option value="__original__" data-pts="${entry.pts || 0}" selected>${entry.icon || '📌'} ${(entry.catName && entry.catName !== 'undefined') ? entry.catName : '自定义'}（原分类）</option>`;
+    sel.innerHTML = keepOpt + activeCats.map(c =>
       `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${c.icon} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');
     sel.onchange = () => {
@@ -1374,9 +1382,13 @@ const App = (() => {
     try {
       if (editId) {
         const existing = S.entries.find(e => e.id === editId);
+        // "__original__" = system/deleted category kept as-is: only update
+        // the editable fields, never rewrite the entry's identity.
+        const keep = catId === '__original__';
         await Data.updateEntry(editId, S.month, {
-          catId, catName: cat.name || existing?.catName || '自定义',
-          icon: cat.icon || existing?.icon || '📌',
+          catId:   keep ? (existing?.catId || '') : catId,
+          catName: keep ? (existing?.catName || '自定义') : (cat.name || existing?.catName || '自定义'),
+          icon:    keep ? (existing?.icon || '📌')       : (cat.icon || existing?.icon || '📌'),
           pts, desc, date,
         });
         closeModal('modal-add');
