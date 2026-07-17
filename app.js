@@ -15,7 +15,29 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.16-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.16-2';  // bump on each deploy — shown in ⚙️设置 + console
+
+  /* ── Theme (light / dark / follow device) ──
+     Device-local preference in localStorage — deliberately NOT synced to SN,
+     each partner picks their own. index.html stamps the theme pre-paint;
+     these keep it in sync afterwards (incl. live OS changes in auto mode). */
+  const THEME_KEY = 'theme_mode';   // 'auto' | 'light' | 'dark'
+  const themeMode = () => localStorage.getItem(THEME_KEY) || 'auto';
+  function applyTheme() {
+    const mode = themeMode();
+    const dark = mode === 'dark' ||
+      (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  }
+  applyTheme();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (themeMode() === 'auto') applyTheme();
+  });
+  function setTheme(mode) {
+    localStorage.setItem(THEME_KEY, mode);
+    applyTheme();
+    showToast(mode === 'auto' ? '🌗 跟随系统主题' : mode === 'dark' ? '🌙 深色主题' : '☀️ 浅色主题');
+  }
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
@@ -94,7 +116,16 @@ const App = (() => {
       .cal-weekdays, .cal-grid { gap: 4px; }
       .cal-cell { font-size: 12px; border-radius: 10px; }
       .checkin-rule { font-size: 11px; }
-    }`;
+    }
+    html[data-theme="dark"] .checkin-stat { background: linear-gradient(165deg, #1E2A3D, #223047); }
+    html[data-theme="dark"] .cal-cell { background: #1E2A3D; color: var(--dark); }
+    html[data-theme="dark"] .cal-cell.blank { background: transparent; }
+    html[data-theme="dark"] .cal-cell.any { background: rgba(107,203,119,0.14); }
+    html[data-theme="dark"] .cal-cell.sun { background: rgba(255,159,67,0.12); }
+    html[data-theme="dark"] .cal-cell.sun.any { background: rgba(255,159,67,0.2); }
+    html[data-theme="dark"] .cal-dot { background: #3A4763; }
+    html[data-theme="dark"] .checkin-btn:disabled { background: #2A3448; }
+    html[data-theme="dark"] .checkin-banner-badge.done { background: #2A3448; }`;
     document.head.appendChild(st);
   })();
 
@@ -1010,7 +1041,7 @@ const App = (() => {
     // pixel-fixed under each date number regardless of any cached CSS.
     const CELL_LAYOUT = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;';
     const dot = (on, color) =>
-      `<i style="display:inline-block;width:6.5px;height:6.5px;border-radius:50%;flex-shrink:0;background:${on ? color : '#DCE2EB'}"></i>`;
+      `<i style="display:inline-block;width:6.5px;height:6.5px;border-radius:50%;flex-shrink:0;background:${on ? color : 'var(--cal-dot-off, #DCE2EB)'}"></i>`;
 
     const wk = ['日','一','二','三','四','五','六'];
     let html = '<div class="cal-weekdays">' +
@@ -1684,6 +1715,8 @@ const App = (() => {
   }
 
   function showSettings() {
+    const themeSel = document.getElementById('cfg-theme');
+    if (themeSel) themeSel.value = themeMode();
     document.getElementById('cfg-reward-target').value    = S.rewardTarget;
     document.getElementById('cfg-punish-threshold').value = S.punishThreshold;
     document.getElementById('cfg-name1').value = S.charName1 || 'Pochacco';
@@ -2546,6 +2579,7 @@ const App = (() => {
     quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
+    setTheme,
     claimReward,
     setCharImg, resetCharImg,
     openManage, openManageFromTable, openEditForm, saveEditForm,

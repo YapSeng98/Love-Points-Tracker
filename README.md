@@ -18,6 +18,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 - **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
 - **Letters (情书)** — Write a private letter to your partner; they see it as a sealed envelope until they tap to open it (unseal animation), then it's marked read
 - **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
+- **Light / dark theme** — 浅色, 深色, or follow the device setting; per-device preference in Settings
 - **Animated start screen** — Floating Pochacco couple with rising hearts
 - **Background music** — Toggleable ambient piano track
 - **Password show/hide** — Eye icon toggle on login and register
