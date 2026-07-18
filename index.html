@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.07.16">
+  <meta name="app-html-v" content="2026.07.19">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp the theme before first paint (no flash). Mode: 'auto' | 'light' | 'dark'.
@@ -1951,6 +1951,80 @@
     html[data-theme="dark"] .buy-confirm-sheet { background: #16202F; }
     html[data-theme="dark"] .buy-sheet-handle { background: #33405A; }
     html[data-theme="dark"] .buy-sheet-cancel { border-color: rgba(255,255,255,0.14); }
+
+    /* ── Ambient sky: sun by day, moon & stars by night ── */
+    .sky-bg {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    /* Day: soft sun with slowly turning rays, gently breathing */
+    .sun {
+      position: absolute; top: 30px; right: 26px; width: 84px; height: 84px;
+      opacity: 0.8;
+    }
+    .sun::before {
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      background: repeating-conic-gradient(rgba(255,205,80,0.4) 0deg 7deg, transparent 7deg 30deg);
+      -webkit-mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 63%);
+      mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 63%);
+      animation: sun-spin 40s linear infinite;
+    }
+    .sun-core {
+      position: absolute; inset: 16px; border-radius: 50%;
+      background: radial-gradient(circle, #FFF3B0 0%, #FFD75E 52%, rgba(255,196,66,0) 74%);
+      animation: sun-breathe 6s ease-in-out infinite;
+    }
+    @keyframes sun-spin { to { transform: rotate(360deg); } }
+    @keyframes sun-breathe {
+      0%, 100% { transform: scale(1);    opacity: 0.85; }
+      50%      { transform: scale(1.1);  opacity: 1; }
+    }
+    /* Night: glowing crescent moon (inset-shadow crescent) */
+    .moon {
+      position: absolute; top: 86px; right: 30px; width: 52px; height: 52px;
+      border-radius: 50%;
+      box-shadow: inset -11px 7px 0 0 #EDE6CF, 0 0 22px rgba(237,230,207,0.25);
+      transform: rotate(12deg);
+      animation: moon-glow 6s ease-in-out infinite;
+    }
+    @keyframes moon-glow {
+      0%, 100% { box-shadow: inset -11px 7px 0 0 #EDE6CF, 0 0 16px rgba(237,230,207,0.2); }
+      50%      { box-shadow: inset -11px 7px 0 0 #F7F1DE, 0 0 30px rgba(237,230,207,0.42); }
+    }
+    /* Night: twinkling stars (position/size/delay via inline custom props) */
+    .star {
+      position: absolute; left: var(--x); top: var(--y);
+      width: var(--s, 2.5px); height: var(--s, 2.5px); border-radius: 50%;
+      background: #DDE6F5; opacity: 0.2;
+      box-shadow: 0 0 6px rgba(200,220,255,0.9);
+      animation: twinkle 3.6s ease-in-out infinite;
+      animation-delay: var(--d, 0s);
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.16; transform: scale(0.8); }
+      50%      { opacity: 0.95; transform: scale(1.2); }
+    }
+    /* Night: a shooting star streaks by every ~11s */
+    .shooting-star {
+      position: absolute; top: 14%; left: -10%;
+      width: 110px; height: 2px; border-radius: 2px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0));
+      transform: rotate(14deg); opacity: 0;
+      animation: shoot 11s ease-in 5s infinite;
+    }
+    @keyframes shoot {
+      0%, 90%  { opacity: 0; transform: translate3d(0,0,0) rotate(14deg); }
+      91%      { opacity: 0.9; }
+      97%, 100%{ opacity: 0; transform: translate3d(115vw, 42vh, 0) rotate(14deg); }
+    }
+    /* Theme switching: sun+clouds by day, moon+stars by night */
+    html[data-theme="dark"] .clouds-bg,
+    html[data-theme="dark"] .sun { display: none; }
+    html[data-theme="light"] .moon,
+    html[data-theme="light"] .star,
+    html[data-theme="light"] .shooting-star { display: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .sun::before, .sun-core, .moon, .star, .shooting-star { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -2094,6 +2168,31 @@
   <div class="cloud c3"></div>
   <div class="cloud c4"></div>
   <div class="cloud c5"></div>
+</div>
+
+<!-- Ambient sky layer: sun in light theme, moon + stars in dark theme -->
+<div class="sky-bg" aria-hidden="true">
+  <div class="sun"><span class="sun-core"></span></div>
+  <div class="moon"></div>
+  <span class="star" style="--x:8%;  --y:6%;  --s:2.5px; --d:0s"></span>
+  <span class="star" style="--x:22%; --y:14%; --s:2px;   --d:1.1s"></span>
+  <span class="star" style="--x:35%; --y:5%;  --s:3px;   --d:2.3s"></span>
+  <span class="star" style="--x:52%; --y:11%; --s:2px;   --d:0.6s"></span>
+  <span class="star" style="--x:64%; --y:4%;  --s:2.5px; --d:1.8s"></span>
+  <span class="star" style="--x:87%; --y:16%; --s:2px;   --d:2.9s"></span>
+  <span class="star" style="--x:14%; --y:26%; --s:2px;   --d:3.4s"></span>
+  <span class="star" style="--x:44%; --y:22%; --s:3.5px; --d:1.4s"></span>
+  <span class="star" style="--x:73%; --y:27%; --s:2px;   --d:0.3s"></span>
+  <span class="star" style="--x:92%; --y:34%; --s:2.5px; --d:2.1s"></span>
+  <span class="star" style="--x:6%;  --y:44%; --s:2px;   --d:1.6s"></span>
+  <span class="star" style="--x:28%; --y:52%; --s:2.5px; --d:2.6s"></span>
+  <span class="star" style="--x:58%; --y:47%; --s:2px;   --d:0.9s"></span>
+  <span class="star" style="--x:81%; --y:58%; --s:3px;   --d:3.1s"></span>
+  <span class="star" style="--x:12%; --y:68%; --s:2px;   --d:0.2s"></span>
+  <span class="star" style="--x:38%; --y:76%; --s:2.5px; --d:1.9s"></span>
+  <span class="star" style="--x:68%; --y:72%; --s:2px;   --d:2.8s"></span>
+  <span class="star" style="--x:90%; --y:82%; --s:2.5px; --d:1.2s"></span>
+  <div class="shooting-star"></div>
 </div>
 <div class="float-deco" style="top:10%;right:7%;animation-delay:0s">⭐</div>
 <div class="float-deco" style="top:22%;left:5%;animation-delay:1.8s">🐾</div>

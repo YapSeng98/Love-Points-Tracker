@@ -7,6 +7,37 @@
     if (!_au.next()) { response.setStatus(401); response.setBody({error:'Unauthorized'}); return; }
     var matchId = _au.getValue('u_match') || '';
 
+    // ── One-time backfill (legacy shared claims → per-character claims) ──
+    // Rewards claimed before the per-char upgrade only have the legacy
+    // u_claimed flag. Reconstruct who actually claimed from the bag rows
+    // (u_source_type=reward, matched by item name), set that character's
+    // flag, then clear the legacy flag so this block never runs again.
+    // Safe because settle clears u_claimed, so a legacy-flagged reward can
+    // only have been claimed in the current round.
+    var legacy = new GlideRecord('x_887486_love_app_u_love_reward');
+    if (matchId) legacy.addQuery('u_match', matchId);
+    legacy.addQuery('u_claimed', true);
+    legacy.query();
+    while (legacy.next()) {
+        var bagGr = new GlideRecord('x_887486_love_app_u_love_bag');
+        if (matchId) bagGr.addQuery('u_match', matchId);
+        bagGr.addQuery('u_source_type', 'reward');
+        bagGr.addQuery('u_item_name', legacy.getValue('u_name'));
+        bagGr.query();
+        while (bagGr.next()) {
+            if (bagGr.getValue('u_char') === 'char2') {
+                legacy.setValue('u_claimed_2', true);
+                if (!legacy.getValue('u_claimed_date_2')) legacy.setValue('u_claimed_date_2', bagGr.getValue('u_acquired_date') || '');
+            } else {
+                legacy.setValue('u_claimed_1', true);
+                if (!legacy.getValue('u_claimed_date_1')) legacy.setValue('u_claimed_date_1', bagGr.getValue('u_acquired_date') || '');
+            }
+        }
+        legacy.setValue('u_claimed', false);
+        legacy.setValue('u_claimed_date', '');
+        legacy.update();
+    }
+
     var gr = new GlideRecord('x_887486_love_app_u_love_reward');
     if (matchId) gr.addQuery('u_match', matchId);
     gr.orderBy('u_points');
