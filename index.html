@@ -2030,6 +2030,142 @@
       .sky-bg .star, .sky-bg .shooting-star { animation: none; }
     }
 
+    /* ── 回忆相册 on the love page ── */
+    .lp-memories {
+      width: 100%; max-width: 310px;
+      background: rgba(255,255,255,0.10);
+      border: 1.5px solid rgba(255,255,255,0.20);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 22px; padding: 14px 16px 16px;
+      margin-bottom: 14px; position: relative; z-index: 1;
+    }
+    .lp-mem-title {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: rgba(255,255,255,0.52); margin-bottom: 10px;
+    }
+    .lp-mem-strip {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .lp-mem-thumb {
+      position: relative; flex-shrink: 0;
+      width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
+      border: 1.5px solid rgba(255,255,255,0.35);
+    }
+    .lp-mem-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lp-mem-del {
+      position: absolute; top: 2px; right: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: rgba(0,0,0,0.55); color: white; font-size: 10px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .lp-mem-add {
+      flex-shrink: 0; width: 56px; height: 56px; border-radius: 12px;
+      border: 1.5px dashed rgba(255,255,255,0.45);
+      color: rgba(255,255,255,0.8); font-size: 22px;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .lp-mem-play {
+      width: 100%; margin-top: 10px; padding: 11px;
+      border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg, #FF9CB2, #EC5C8D);
+      color: white; font-size: 14px; font-weight: 800;
+      box-shadow: 0 4px 14px rgba(236,92,141,0.4);
+      transition: transform 0.15s;
+    }
+    .lp-mem-play:active { transform: scale(0.97); }
+    .memory-preview {
+      width: 100%; max-height: 200px; object-fit: contain;
+      border-radius: 14px; margin-bottom: 14px; background: rgba(0,0,0,0.06);
+    }
+
+    /* ── 回忆放映 slideshow (Ken Burns) ── */
+    .memory-show {
+      position: fixed; inset: 0; z-index: 170; background: #000;
+      display: none;
+    }
+    .memory-show.open { display: block; }
+    .mem-layer {
+      position: absolute; inset: 0; overflow: hidden;
+      opacity: 0; transition: opacity 1.3s ease;
+    }
+    .mem-layer.show { opacity: 1; }
+    .mem-layer img { width: 100%; height: 100%; object-fit: cover; }
+    /* Two alternating zoom/pan directions; duration outlasts SHOW_INTERVAL
+       so motion never stops before the crossfade */
+    .mem-layer.kb-a img { animation: kb-a 8s ease-in-out forwards; }
+    .mem-layer.kb-b img { animation: kb-b 8s ease-in-out forwards; }
+    @keyframes kb-a {
+      from { transform: scale(1.06) translate(0.5%, 0.5%); }
+      to   { transform: scale(1.24) translate(-2.2%, -1.8%); }
+    }
+    @keyframes kb-b {
+      from { transform: scale(1.24) translate(1.8%, 1.4%); }
+      to   { transform: scale(1.06) translate(-0.5%, -0.5%); }
+    }
+    .mem-vignette {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,0.42) 100%),
+                  linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 26%),
+                  linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 18%);
+    }
+    .mem-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .mem-p {
+      position: absolute; bottom: -40px; left: var(--x, 50%);
+      font-size: 16px; opacity: 0;
+      animation: lp-rise 9s ease-out infinite;
+      animation-delay: var(--d, 0s);
+    }
+    .mem-close {
+      position: absolute; top: calc(18px + env(safe-area-inset-top)); left: 16px; z-index: 5;
+      background: rgba(255,255,255,0.14); border: 1.5px solid rgba(255,255,255,0.28);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 50px; padding: 9px 18px;
+      font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.92); cursor: pointer;
+    }
+    .mem-tap-zone {
+      position: absolute; top: 15%; bottom: 22%; width: 34%; z-index: 3;
+    }
+    .mem-tap-zone.left  { left: 0; }
+    .mem-tap-zone.right { right: 0; }
+    .mem-caption {
+      position: absolute; left: 24px; right: 24px;
+      bottom: calc(86px + env(safe-area-inset-bottom));
+      z-index: 4; text-align: center; color: white;
+      opacity: 0; transform: translateY(10px);
+    }
+    .mem-caption.show {
+      opacity: 1; transform: translateY(0);
+      transition: opacity 1s ease 0.5s, transform 1s ease 0.5s;
+    }
+    .mem-cap-date {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(255,255,255,0.72); margin-bottom: 6px;
+    }
+    .mem-cap-text {
+      font-size: 19px; font-weight: 700; line-height: 1.5;
+      text-shadow: 0 2px 14px rgba(0,0,0,0.55);
+    }
+    .mem-controls {
+      position: absolute; left: 0; right: 0;
+      bottom: calc(26px + env(safe-area-inset-bottom));
+      z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .mem-dots { display: flex; gap: 6px; max-width: 70vw; flex-wrap: wrap; justify-content: center; }
+    .mem-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.32); transition: background 0.3s, transform 0.3s;
+    }
+    .mem-dot.on { background: white; transform: scale(1.3); }
+    .mem-play-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.14); color: white; font-size: 16px; cursor: pointer;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .mem-layer.kb-a img, .mem-layer.kb-b img, .mem-p { animation: none; }
+    }
+
     /* ── Wide screens (iPad / laptop) ──
        The app is a phone-width column; full-screen pages (shop, letters)
        otherwise stretch edge-to-edge. Bars keep their full-bleed background
@@ -2571,9 +2707,59 @@
     </div>
   </div>
 
+  <!-- Memory album (回忆相册) -->
+  <div class="lp-memories">
+    <div class="lp-mem-title">🎞 回忆相册</div>
+    <div class="lp-mem-strip" id="lp-mem-strip"><!-- thumbs injected by JS --></div>
+    <button class="lp-mem-play" id="lp-mem-play" onclick="App.playMemories()" style="display:none">▶️ 播放回忆</button>
+  </div>
+
   <button class="love-goto-score" onclick="App.closeLovePage()">
     📊 前往积分追踪
   </button>
+</div>
+
+<!-- Memory photo caption/date modal -->
+<div class="modal-overlay" id="modal-memory" style="z-index:120">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📷 收藏这张回忆</div>
+    <img id="memory-preview" class="memory-preview" alt=""/>
+    <div class="modal-field">
+      <label>说明 (可选)</label>
+      <input id="memory-caption" type="text" placeholder="这天发生了什么…" maxlength="60"/>
+    </div>
+    <div class="modal-field">
+      <label>日期</label>
+      <input id="memory-date" type="date"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-memory')">取消</button>
+      <button class="btn-primary" onclick="App.saveMemoryPhoto()" style="flex:1">收藏 📷</button>
+    </div>
+  </div>
+</div>
+
+<!-- Memory slideshow (回忆放映, Ken Burns full-screen player) -->
+<div class="memory-show" id="memory-show">
+  <div class="mem-layer" id="mem-layer-a"><img alt=""/></div>
+  <div class="mem-layer" id="mem-layer-b"><img alt=""/></div>
+  <div class="mem-vignette"></div>
+  <div class="mem-particles">
+    <span class="mem-p" style="--x:12%;--d:0s">💕</span>
+    <span class="mem-p" style="--x:30%;--d:2.4s">✨</span>
+    <span class="mem-p" style="--x:52%;--d:4.8s">💗</span>
+    <span class="mem-p" style="--x:70%;--d:1.5s">🌸</span>
+    <span class="mem-p" style="--x:86%;--d:3.6s">✨</span>
+  </div>
+  <button class="mem-close" onclick="App.closeMemories()">‹ 收起</button>
+  <div class="mem-tap-zone left"  onclick="App.memoryPrev()"></div>
+  <div class="mem-tap-zone right" onclick="App.memoryNext()"></div>
+  <div class="mem-caption" id="mem-caption"></div>
+  <div class="mem-controls">
+    <div class="mem-dots" id="mem-dots"></div>
+    <button class="mem-play-btn" id="mem-play-btn" onclick="App.toggleMemoryPlay()">⏸</button>
+  </div>
 </div>
 
 <!-- Shop page (full-screen, slides from right) -->

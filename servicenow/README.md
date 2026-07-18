@@ -15,11 +15,11 @@ This app does **not** use ServiceNow admin/native accounts. It has its own login
 - Every request after login sends `Authorization: Bearer <apiKey>`. Each resource looks up the caller's `u_love_auth` row by `u_api_key` to get `u_match` and `u_char_id` — that's how the app knows who's asking and which couple's data to touch.
 - **Every data table below is scoped by a `u_match` field.** PUT/DELETE resources double-check `u_match` matches the caller before mutating (cross-couple protection, see README.md "ISO-06").
 
-All 36 resources have **Requires Authentication: FALSE** at the SN platform level — auth is handled manually inside each script via the Bearer token, not SN's built-in auth.
+All 39 resources have **Requires Authentication: FALSE** at the SN platform level — auth is handled manually inside each script via the Bearer token, not SN's built-in auth.
 
 ---
 
-## Step 1 — Create Tables (11 total)
+## Step 1 — Create Tables (12 total)
 
 Go to **System Definition → Tables → New** for each. Unless noted, add a `u_match` field (String(32) or Reference → `u_love_match`) for couple-scoping.
 
@@ -142,6 +142,16 @@ Go to **System Definition → Tables → New** for each. Unless noted, add a `u_
 | u_date | String(60) | **plain String, not Date/Time** — stores the ISO-8601 timestamp verbatim so no SN timezone conversion can shift it |
 | u_opened | True/False | default `false` — flips to `true` once the recipient unseals it in the reader view |
 
+### Memories module
+
+**`u_love_photo`** — 回忆相册, couple photos for the Ken Burns slideshow
+| Field | Type | Notes |
+|---|---|---|
+| u_char | String(20) | uploader: `char1` / `char2` |
+| u_image | **String, max_length 200000** | base64 JPEG data URI — the app compresses to ~900px q0.55 before upload; a shorter field silently truncates and breaks the image |
+| u_caption | String(200) | |
+| u_date | String(60) | memory date `YYYY-MM-DD`, client-authoritative |
+
 ---
 
 ## Step 2 — Seed starting data
@@ -156,7 +166,7 @@ There's no couple to scope data to until someone registers, so seeding happens *
 
 ---
 
-## Step 3 — Create Scripted REST API (36 resources)
+## Step 3 — Create Scripted REST API (39 resources)
 
 **Name**: Love Score API · **API ID**: `love_score` · **Base API path**: `/api/x_887486_love_app/love_score`
 
@@ -200,6 +210,9 @@ For each resource: set the HTTP method + relative path, paste the matching `serv
 | 34 | POST | `/letters` | r34_POST_letters.js |
 | 35 | PUT | `/letters/{id}` | r35_PUT_letters_id.js |
 | 36 | DELETE | `/letters/{id}` | r36_DELETE_letters_id.js |
+| 37 | GET | `/photos` | r37_GET_photos.js |
+| 38 | POST | `/photos` | r38_POST_photos.js |
+| 39 | DELETE | `/photos/{id}` | r39_DELETE_photos_id.js |
 
 > **Dates are client-authoritative.** The instance timezone is behind the
 > users' (UTC+8), so server-side `getLocalDate()` is "yesterday" for most of
@@ -285,7 +298,7 @@ Browser (index.html + app.js)
         │  HTTPS · Authorization: Bearer <apiKey>
         ▼
 ServiceNow dev405150.service-now.com
-  └── Scripted REST API  /api/x_887486_love_app/love_score/*  (36 resources)
+  └── Scripted REST API  /api/x_887486_love_app/love_score/*  (39 resources)
         ├── u_love_auth        — accounts, password + api_key + profile picture
         ├── u_love_match       — couple pairing + pair code
         ├── u_love_config      — mode / thresholds / start date, per couple
@@ -296,7 +309,8 @@ ServiceNow dev405150.service-now.com
         ├── u_love_monthly     — settled month archive, per couple
         ├── u_love_shop        — point-redeemable shop items, per couple
         ├── u_love_bag         — owned items (bought or claimed), per person
-        └── u_love_letter      — 情书 private letters, per couple
+        ├── u_love_letter      — 情书 private letters, per couple
+        └── u_love_photo       — 回忆相册 memory photos, per couple
 ```
 
 ---

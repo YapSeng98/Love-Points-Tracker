@@ -17,6 +17,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 - **Monthly settlement** — Settle the month, archive results to history, start fresh
 - **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
 - **Letters (情书)** — Write a private letter to your partner; they see it as a sealed envelope until they tap to open it (unseal animation), then it's marked read
+- **Memories (回忆相册)** — Upload couple photos with captions and dates, then play them as a full-screen Ken Burns slideshow (slow zoom/pan, crossfades, floating hearts)
 - **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
 - **Light / dark theme** — 浅色, 深色, or follow the device setting; per-device preference in Settings
 - **Animated start screen** — Floating Pochacco couple with rising hearts
@@ -31,9 +32,9 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | Layer | Technology |
 |---|---|
 | Frontend | Vanilla JS · HTML · CSS (no frameworks) |
-| Backend | ServiceNow Scripted REST API (36 resources) |
+| Backend | ServiceNow Scripted REST API (39 resources) |
 | Auth | Custom `u_love_auth` table · Bearer API key tokens |
-| Storage | ServiceNow tables (11 tables, scoped app) |
+| Storage | ServiceNow tables (12 tables, scoped app) |
 | Hosting | Static file — open `index.html` directly in browser |
 
 ---
@@ -59,7 +60,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 ├── app.js              # All app logic (state, API calls, render functions)
 ├── *.mp3               # Background music tracks
 └── servicenow/
-    ├── resources/      # 36 Scripted REST API scripts (deployed to SN)
+    ├── resources/      # 39 Scripted REST API scripts (deployed to SN)
     ├── scripted-rest-api.js
     ├── background-setup.js
     └── README.md       # ServiceNow setup guide
@@ -110,6 +111,9 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | R34 | POST | `/letters` | Write & send a letter |
 | R35 | PUT | `/letters/:id` | Mark a letter as opened |
 | R36 | DELETE | `/letters/:id` | Delete a letter |
+| R37 | GET | `/photos` | List memory photos (oldest first, max 100) |
+| R38 | POST | `/photos` | Upload a memory photo (compressed base64) |
+| R39 | DELETE | `/photos/:id` | Delete a memory photo |
 
 ---
 
@@ -128,6 +132,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | u_love_shop | `x_887486_love_app_u_love_shop` | Point-redeemable shop items |
 | u_love_bag | `x_887486_love_app_u_love_bag` | Items owned per person (bought or claimed) |
 | u_love_letter | `x_887486_love_app_u_love_letter` | Private letters (情书) between the couple |
+| u_love_photo | `x_887486_love_app_u_love_photo` | Memory photos (回忆相册) for the slideshow |
 
 > Full field-level schema (types, defaults, exact field names like `u_emoji`/`u_points`/`u_desc`) lives in [`servicenow/README.md`](servicenow/README.md).
 
@@ -162,7 +167,8 @@ ServiceNow dev405150.service-now.com
         ├── u_love_monthly     — Monthly settlement archive
         ├── u_love_shop        — Point-redeemable shop items
         ├── u_love_bag         — Items owned per person
-        └── u_love_letter      — Private letters (情书) per couple
+        ├── u_love_letter      — Private letters (情书) per couple
+        └── u_love_photo       — Memory photos (回忆相册) per couple
 ```
 
 ---

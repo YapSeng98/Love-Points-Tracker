@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.19-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.19-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -164,6 +164,7 @@ const App = (() => {
     shopEditId: null,
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
+    photos: [],
   };
 
   /* ── Helpers ── */
@@ -262,6 +263,7 @@ const App = (() => {
         entries: {},      // { 'YYYY-MM': [...] }
         history: [],
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
+        photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -439,6 +441,38 @@ const App = (() => {
       if (S.usingSN) return snFetch(`/letters/${id}`, { method:'DELETE' });
       const d = LS.load();
       d.letters = (d.letters || []).filter(l => l.id !== id);
+      LS.save(d);
+    },
+
+    /* ── 回忆相册 (memory photos, couple-private) ── */
+    async getPhotos() {
+      let list;
+      if (S.usingSN) {
+        list = (await snFetch('/photos')).map(p => ({ ...p, caption: decodeFromSN(p.caption) }));
+      } else {
+        list = LS.load().photos || [];
+      }
+      return list.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    },
+
+    async addPhoto(photo) {
+      if (S.usingSN) {
+        const encoded = { ...photo, caption: encodeForSN(photo.caption || '') };
+        return snFetch('/photos', { method:'POST', body: JSON.stringify(encoded) });
+      }
+      const d = LS.load();
+      d.photos = d.photos || [];
+      const p = { ...photo, id: 'ph'+Date.now() };
+      d.photos.push(p);
+      if (d.photos.length > 30) d.photos = d.photos.slice(-30);  // localStorage quota guard
+      LS.save(d);
+      return p;
+    },
+
+    async deletePhoto(id) {
+      if (S.usingSN) return snFetch(`/photos/${id}`, { method:'DELETE' });
+      const d = LS.load();
+      d.photos = (d.photos || []).filter(p => p.id !== id);
       LS.save(d);
     },
 
@@ -1786,6 +1820,7 @@ const App = (() => {
       if (sd) sd.textContent = '未设置（可在设置中添加）';
     }
     pg.classList.add('open');
+    loadMemories();   // async fill of the 回忆相册 strip
   }
 
   function closeLovePage() {
@@ -1930,6 +1965,152 @@ const App = (() => {
     } catch (err) {
       showToast('删除失败: ' + err.message);
     }
+  }
+
+  /* ── 回忆相册 + Ken Burns 放映 (memory photos & slideshow) ── */
+  let _pendingPhotoData = '';   // compressed image awaiting caption/date
+  const _show = { idx: 0, timer: null, playing: false, layerFlip: false };
+  const SHOW_INTERVAL = 6000;   // ms per photo — keep in sync with the kb-* CSS animations
+
+  async function loadMemories() {
+    try {
+      S.photos = await Data.getPhotos();
+    } catch (err) {
+      S.photos = [];
+    }
+    renderMemoryStrip();
+  }
+
+  function renderMemoryStrip() {
+    const strip = document.getElementById('lp-mem-strip');
+    if (!strip) return;
+    const thumbs = (S.photos || []).map(p =>
+      `<div class="lp-mem-thumb">
+        <img src="${p.image}" alt=""/>
+        <span class="lp-mem-del" onclick="event.stopPropagation();App.deleteMemoryPhoto('${p.id}')">✕</span>
+      </div>`
+    ).join('');
+    strip.innerHTML = thumbs +
+      `<label class="lp-mem-add">＋
+        <input type="file" accept="image/*" style="display:none" onchange="App.pickMemoryPhoto(this)"/>
+      </label>`;
+    const play = document.getElementById('lp-mem-play');
+    if (play) play.style.display = (S.photos || []).length ? '' : 'none';
+  }
+
+  async function pickMemoryPhoto(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+    showToast('正在处理图片…');
+    // ~900px / q0.55 keeps the base64 under SN's u_image field limit (200k chars)
+    const data = await compressImage(file, 900, 0.55);
+    if (!data) { showToast('图片读取失败'); return; }
+    if (data.length > 190000) { showToast('⚠️ 图片太大，请换一张试试'); return; }
+    _pendingPhotoData = data;
+    document.getElementById('memory-caption').value = '';
+    document.getElementById('memory-date').value = todayStr();
+    document.getElementById('memory-preview').src = data;
+    openModal('modal-memory');
+  }
+
+  async function saveMemoryPhoto() {
+    if (!_pendingPhotoData) return;
+    const caption = document.getElementById('memory-caption').value.trim();
+    const date    = document.getElementById('memory-date').value || todayStr();
+    try {
+      await Data.addPhoto({ charId: S.activeChar, image: _pendingPhotoData, caption, date });
+      _pendingPhotoData = '';
+      closeModal('modal-memory');
+      showToast('📷 回忆已收藏！');
+      await loadMemories();
+    } catch (err) {
+      showToast('保存失败: ' + err.message.slice(0, 80));
+    }
+  }
+
+  async function deleteMemoryPhoto(id) {
+    if (!(await showConfirm('删除这张回忆照片？'))) return;
+    try {
+      await Data.deletePhoto(id);
+      await loadMemories();
+      showToast('🗑️ 已删除');
+    } catch (err) {
+      showToast('删除失败: ' + err.message);
+    }
+  }
+
+  /* Slideshow engine: two stacked layers crossfade; the incoming layer gets
+     an alternating Ken Burns zoom/pan animation. */
+  function playMemories() {
+    if (!(S.photos || []).length) { showToast('还没有回忆照片，先添加一张吧 📷'); return; }
+    _show.idx = 0;
+    _show.playing = true;
+    document.getElementById('memory-show')?.classList.add('open');
+    _showPhoto(0, true);
+    _scheduleNext();
+    _updatePlayBtn();
+  }
+
+  function _scheduleNext() {
+    clearTimeout(_show.timer);
+    _show.timer = setTimeout(() => { if (_show.playing) _advance(1); }, SHOW_INTERVAL);
+  }
+
+  function _advance(dir) {
+    const n = S.photos.length;
+    _show.idx = (_show.idx + dir + n) % n;
+    _showPhoto(_show.idx, false);
+    if (_show.playing) _scheduleNext();
+  }
+
+  function _showPhoto(i, first) {
+    const p = S.photos[i];
+    if (!p) return;
+    const incoming = document.getElementById(_show.layerFlip ? 'mem-layer-a' : 'mem-layer-b');
+    const outgoing = document.getElementById(_show.layerFlip ? 'mem-layer-b' : 'mem-layer-a');
+    _show.layerFlip = !_show.layerFlip;
+    if (!incoming || !outgoing) return;
+
+    incoming.querySelector('img').src = p.image;
+    incoming.classList.remove('kb-a', 'kb-b');
+    void incoming.offsetWidth;                       // restart the CSS animation
+    incoming.classList.add(i % 2 === 0 ? 'kb-a' : 'kb-b');
+    incoming.classList.add('show');
+    outgoing.classList.remove('show');
+
+    const cap = document.getElementById('mem-caption');
+    if (cap) {
+      const d = p.date ? p.date.replaceAll('-', ' · ') : '';
+      cap.innerHTML = `<div class="mem-cap-date">${d}</div>` +
+                      (p.caption ? `<div class="mem-cap-text">${_escHtml(p.caption)}</div>` : '');
+      cap.classList.remove('show');
+      void cap.offsetWidth;
+      cap.classList.add('show');
+    }
+    const dots = document.getElementById('mem-dots');
+    if (dots) dots.innerHTML = S.photos.map((_, k) =>
+      `<span class="mem-dot ${k === i ? 'on' : ''}"></span>`).join('');
+  }
+
+  function memoryPrev() { _advance(-1); }
+  function memoryNext() { _advance(1); }
+
+  function toggleMemoryPlay() {
+    _show.playing = !_show.playing;
+    if (_show.playing) _scheduleNext(); else clearTimeout(_show.timer);
+    _updatePlayBtn();
+  }
+
+  function _updatePlayBtn() {
+    const b = document.getElementById('mem-play-btn');
+    if (b) b.textContent = _show.playing ? '⏸' : '▶';
+  }
+
+  function closeMemories() {
+    _show.playing = false;
+    clearTimeout(_show.timer);
+    document.getElementById('memory-show')?.classList.remove('open');
   }
 
   function logout() {
@@ -2593,6 +2774,8 @@ const App = (() => {
     showLovePage, closeLovePage,
     showLetters, closeLetters, openComposeLetter, sendLetter,
     openLetterReader, closeLetterReader, deleteLetter,
+    pickMemoryPhoto, saveMemoryPhoto, deleteMemoryPhoto,
+    playMemories, closeMemories, memoryPrev, memoryNext, toggleMemoryPlay,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
     confirmUseItem,

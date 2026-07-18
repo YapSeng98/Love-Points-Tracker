@@ -582,6 +582,36 @@ RES=$(curl -s "${BASE}/bag" "${AUTH2[@]}")
   pass "char2's bag now holds exactly her claimed reward (bags stay per-person)" || fail "char2 bag wrong: $RES"
 
 # ════════════════════════════════════════════════════════════
+section "23. MEMORY PHOTOS (回忆相册) — upload, shared view, delete, isolation"
+# ════════════════════════════════════════════════════════════
+TINY_IMG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/photos" "${AUTH1[@]}" \
+  -d "{\"charId\":\"char1\",\"image\":\"${TINY_IMG}\",\"caption\":\"第一次旅行\",\"date\":\"${TODAY}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+PHOTO_ID=$(extract "$BODY" id)
+[ "$HTTP" = "201" ] && [ -n "$PHOTO_ID" ] && pass "POST /photos (char1 uploads) → $HTTP" || fail "POST /photos → $HTTP: $BODY"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/photos" "${AUTH1[@]}" -d '{"caption":"no image"}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "400" ] && pass "POST /photos without image → 400" || fail "imageless photo → $HTTP"
+
+RES=$(curl -s "${BASE}/photos" "${AUTH2[@]}")
+echo "$RES" | grep -q "\"id\":\"${PHOTO_ID}\"" && echo "$RES" | grep -q '"caption":"第一次旅行"' && \
+  pass "GET /photos (char2 view) → partner sees the shared photo + caption" || fail "photo not shared: $RES"
+
+RES=$(curl -s "${BASE}/photos" "${AUTHD[@]}")
+[ "$(id_count "$RES")" = "0" ] && pass "foreign couple sees 0 photos (no leak)" || fail "photo leak: $RES"
+RES=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE}/photos/${PHOTO_ID}" "${AUTHD[@]}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "404" ] && pass "foreign couple DELETE on our photo → 404" || fail "cross-couple photo DELETE → $HTTP"
+
+RES=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE}/photos/${PHOTO_ID}" "${AUTH2[@]}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "DELETE /photos/{id} (partner can delete) → $HTTP" || fail "DELETE photo → $HTTP"
+RES=$(curl -s "${BASE}/photos" "${AUTH1[@]}")
+[ "$(id_count "$RES")" = "0" ] && pass "GET /photos → photo gone for both" || fail "photo not deleted: $RES"
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""
