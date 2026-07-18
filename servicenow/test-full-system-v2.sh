@@ -550,6 +550,38 @@ HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "404" ] && pass "foreign couple DELETE on our letter → 404" || fail "cross-couple DELETE letter → $HTTP"
 
 # ════════════════════════════════════════════════════════════
+section "22. PER-PERSON CLAIMS — each partner claims the same reward once"
+# ════════════════════════════════════════════════════════════
+# char1 claimed 💌 情书 (minPts 20) back in section 15. char2 is at 12 pts,
+# so first prove the threshold still guards char2, then cross it and claim.
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH2[@]}" \
+  -d "{\"rewardId\":\"${RWD_LETTER}\",\"charId\":\"char2\",\"date\":\"${TODAY}\",\"month\":\"${M5}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+[ "$HTTP" = "400" ] && echo "$BODY" | grep -q 'score_not_reached' && \
+  pass "char2 at 12 < 20 → 400 score_not_reached (threshold is per claimant)" || fail "char2 low-score claim → $HTTP: $BODY"
+
+E5=$(mk_entry AUTH2 char2 "" "甜蜜消息" "$I_GIFT" 10 "$M5" "$TODAY" "cross the threshold")
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH2[@]}" \
+  -d "{\"rewardId\":\"${RWD_LETTER}\",\"charId\":\"char2\",\"date\":\"${TODAY}\",\"month\":\"${M5}\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "201" ] && pass "char2 (now 22 ≥ 20) claims the SAME reward char1 already claimed → 201" || fail "char2 claim → $HTTP"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH2[@]}" \
+  -d "{\"rewardId\":\"${RWD_LETTER}\",\"charId\":\"char2\",\"date\":\"${TODAY}\",\"month\":\"${M5}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+[ "$HTTP" = "400" ] && echo "$BODY" | grep -q 'already_claimed' && \
+  pass "char2 double-claim → 400 already_claimed (per-char guard)" || fail "char2 double-claim → $HTTP"
+
+RES=$(curl -s "${BASE}/rewards" "${AUTH1[@]}")
+LETTER_ROW=$(echo "$RES" | grep -o "{[^}]*${RWD_LETTER}[^}]*}")
+echo "$LETTER_ROW" | grep -q '"claimed1":true' && echo "$LETTER_ROW" | grep -q '"claimed2":true' && \
+  pass "GET /rewards → claimed1:true AND claimed2:true on the shared reward" || fail "per-char flags wrong: $LETTER_ROW"
+
+RES=$(curl -s "${BASE}/bag" "${AUTH2[@]}")
+[ "$(id_count "$RES")" = "1" ] && echo "$RES" | grep -q '"sourceType":"reward"' && \
+  pass "char2's bag now holds exactly her claimed reward (bags stay per-person)" || fail "char2 bag wrong: $RES"
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""

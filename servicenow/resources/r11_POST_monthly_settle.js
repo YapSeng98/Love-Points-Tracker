@@ -41,14 +41,18 @@
         pending.update();
     }
 
-    // New round starts fresh: milestone rewards become claimable again
+    // New round starts fresh: milestone rewards become claimable again for
+    // both characters (per-char flags + the legacy shared flag)
     var rGr = new GlideRecord('x_887486_love_app_u_love_reward');
     if (matchId) rGr.addQuery('u_match', matchId);
-    rGr.addQuery('u_claimed', true);
     rGr.query();
     while (rGr.next()) {
-        rGr.setValue('u_claimed', false);
-        rGr.setValue('u_claimed_date', '');
+        rGr.setValue('u_claimed',        false);
+        rGr.setValue('u_claimed_date',   '');
+        rGr.setValue('u_claimed_1',      false);
+        rGr.setValue('u_claimed_date_1', '');
+        rGr.setValue('u_claimed_2',      false);
+        rGr.setValue('u_claimed_date_2', '');
         rGr.update();
     }
 

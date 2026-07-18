@@ -81,8 +81,12 @@ Go to **System Definition → Tables → New** for each. Unless noted, add a `u_
 | u_emoji | String(10) | |
 | u_points | Integer | minimum score threshold |
 | u_desc | String(500) | |
-| u_claimed | True/False | default `false` — used by the milestone "claim" flow (POST /bag/claim) |
-| u_claimed_date | Date | |
+| u_claimed_1 | True/False | default `false` — char1's claim (POST /bag/claim); claims are per character so each partner claims every reward once per round |
+| u_claimed_2 | True/False | default `false` — char2's claim |
+| u_claimed_date_1 | String(60) | client-authoritative local date |
+| u_claimed_date_2 | String(60) | |
+| u_claimed | True/False | legacy shared flag — no longer written by claims; GET /rewards still reports `claimed` = either for cached frontends |
+| u_claimed_date | Date | legacy |
 
 **`u_love_punishment`**
 | Field | Type | Notes |

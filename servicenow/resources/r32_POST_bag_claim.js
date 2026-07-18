@@ -1,6 +1,10 @@
 // RESOURCE 32: POST /bag/claim  |  Method: POST  |  Path: /bag/claim  |  Requires Authentication: FALSE
-// Claims a milestone reward from u_love_reward table, adds it to the bag
-// Body: { rewardId: "<sys_id of u_love_reward record>" }
+// Claims a milestone reward from u_love_reward table, adds it to the bag.
+// Claims are PER CHARACTER (u_claimed_1 / u_claimed_2) — each partner can
+// claim every reward once per round.
+// Body: { rewardId, charId?, date?, month? } — charId defaults to the caller's
+// own character (the app sends the active character, same acting-for-partner
+// convention as entries/check-in).
 (function process(request, response) {
     var _tok = (request.getHeader('Authorization')||'').replace('Bearer ','').trim();
     var _au = new GlideRecord('x_887486_love_app_u_love_auth');
@@ -8,17 +12,21 @@
     _au.query();
     if (!_au.next()) { response.setStatus(401); response.setBody({error:'Unauthorized'}); return; }
     var matchId = _au.getValue('u_match') || '';
-    var charId  = _au.getValue('u_char_id') || 'char1';
 
     var body     = request.body.data;
     var rewardId = body && body.rewardId;
     if (!rewardId) { response.setStatus(400); response.setBody({ error: 'rewardId required' }); return; }
+    var charId = (body && (body.charId === 'char1' || body.charId === 'char2'))
+               ? body.charId : (_au.getValue('u_char_id') || 'char1');
+    var claimedField = charId === 'char2' ? 'u_claimed_2'      : 'u_claimed_1';
+    var dateField    = charId === 'char2' ? 'u_claimed_date_2' : 'u_claimed_date_1';
 
     var rGr = new GlideRecord('x_887486_love_app_u_love_reward');
     if (!rGr.get(rewardId) || rGr.getValue('u_match') !== matchId) {
         response.setStatus(404); response.setBody({ error: 'Reward not found' }); return;
     }
-    if (rGr.getValue('u_claimed') === '1' || rGr.getValue('u_claimed') === 'true' || rGr.getValue('u_claimed') === true) {
+    var claimedVal = rGr.getValue(claimedField);
+    if (claimedVal === '1' || claimedVal === 'true' || claimedVal === true) {
         response.setStatus(400); response.setBody({ error: 'already_claimed' }); return;
     }
 
@@ -55,9 +63,9 @@
         return;
     }
 
-    // Mark reward as claimed
-    rGr.setValue('u_claimed',      true);
-    rGr.setValue('u_claimed_date', today);
+    // Mark reward as claimed for THIS character only
+    rGr.setValue(claimedField, true);
+    rGr.setValue(dateField,    today);
     rGr.update();
 
     // Add to bag

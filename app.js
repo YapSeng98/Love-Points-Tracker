@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.16-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.16-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -545,7 +545,8 @@ const App = (() => {
       return items.map(i => ({ ...i, itemIcon: decodeFromSN(i.itemIcon || '') }));
     },
     async claimReward(rewardId) {
-      return snFetch('/bag/claim', { method: 'POST', body: JSON.stringify({ rewardId, date: todayStr(), month: monthKey() }) });
+      // charId: claims are per character — claim for whoever is active
+      return snFetch('/bag/claim', { method: 'POST', body: JSON.stringify({ rewardId, charId: S.activeChar, date: todayStr(), month: monthKey() }) });
     },
   };
 
@@ -1566,10 +1567,13 @@ const App = (() => {
       const sorted = [...S.rewards].sort((a,b) => a.minPts - b.minPts);
       content.innerHTML = `<div class="tier-table">${
         sorted.map(r => {
-          // Claim → bag needs SN; button only when reached and not yet claimed
+          // Claim → bag needs SN; button only when reached and not yet claimed.
+          // Claims are per character: the table reflects the ACTIVE character's
+          // own claim state, so each partner can claim every reward once.
           let claimHtml = '';
           if (S.usingSN) {
-            if (r.claimed) {
+            const myClaimed = S.activeChar === 'char2' ? r.claimed2 : r.claimed1;
+            if (myClaimed) {
               claimHtml = `<div class="tier-claimed">✅ 已领取</div>`;
             } else if (myScore >= r.minPts) {
               claimHtml = `<button class="tier-claim-btn" onclick="App.claimReward('${r.id}')">🎁 领取</button>`;
@@ -1608,12 +1612,13 @@ const App = (() => {
   async function claimReward(rewardId) {
     const r = S.rewards.find(x => x.id === rewardId);
     if (!r) return;
-    if (!(await showConfirm(`领取奖励「${r.icon} ${r.name}」？将放入你的背包 🎒`))) return;
+    const who = charDisplayName(S.activeChar);
+    if (!(await showConfirm(`以「${who}」的身份领取奖励「${r.icon} ${r.name}」？将放入 TA 的背包 🎒`))) return;
     try {
       await ShopData.claimReward(rewardId);
       spawnConfetti();
-      showToast(`🎉 已领取「${r.name}」，快去背包看看！`);
-      r.claimed = true;
+      showToast(`🎉 ${who} 已领取「${r.name}」，快去背包看看！`);
+      if (S.activeChar === 'char2') r.claimed2 = true; else r.claimed1 = true;
       await showTables();
     } catch (err) {
       const msg = err.message.includes('already_claimed')   ? '这个奖励已经领取过了'
