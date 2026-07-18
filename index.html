@@ -2090,18 +2090,32 @@
       opacity: 0; transition: opacity 1.3s ease;
     }
     .mem-layer.show { opacity: 1; }
-    .mem-layer img { width: 100%; height: 100%; object-fit: cover; }
-    /* Two alternating zoom/pan directions; duration outlasts SHOW_INTERVAL
-       so motion never stops before the crossfade */
-    .mem-layer.kb-a img { animation: kb-a 8s ease-in-out forwards; }
-    .mem-layer.kb-b img { animation: kb-b 8s ease-in-out forwards; }
+    /* Blurred copy of the same photo fills the screen behind… */
+    .mem-layer .mem-bg {
+      position: absolute; top: -8%; left: -8%; width: 116%; height: 116%;
+      object-fit: cover;
+      filter: blur(30px) brightness(0.55) saturate(1.15);
+    }
+    /* …while the photo itself is shown WHOLE: landscape spans full width,
+       portrait spans full height — never cropped. */
+    .mem-layer .mem-fg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    /* Two alternating zoom/pan directions on the photo (gentle, so edges
+       stay visible); duration outlasts SHOW_INTERVAL so motion never stops
+       before the crossfade */
+    .mem-layer.kb-a .mem-fg { animation: kb-a 8s ease-in-out forwards; }
+    .mem-layer.kb-b .mem-fg { animation: kb-b 8s ease-in-out forwards; }
+    /* Both start at scale 1 (whole photo visible the moment it appears),
+       then drift in opposite directions while gently zooming in */
     @keyframes kb-a {
-      from { transform: scale(1.06) translate(0.5%, 0.5%); }
-      to   { transform: scale(1.24) translate(-2.2%, -1.8%); }
+      from { transform: scale(1.0)  translate(0, 0); }
+      to   { transform: scale(1.08) translate(-1%, -0.8%); }
     }
     @keyframes kb-b {
-      from { transform: scale(1.24) translate(1.8%, 1.4%); }
-      to   { transform: scale(1.06) translate(-0.5%, -0.5%); }
+      from { transform: scale(1.0)  translate(0, 0); }
+      to   { transform: scale(1.08) translate(1%, 0.8%); }
     }
     .mem-vignette {
       position: absolute; inset: 0; pointer-events: none;
@@ -2163,7 +2177,7 @@
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
     @media (prefers-reduced-motion: reduce) {
-      .mem-layer.kb-a img, .mem-layer.kb-b img, .mem-p { animation: none; }
+      .mem-layer.kb-a .mem-fg, .mem-layer.kb-b .mem-fg, .mem-p { animation: none; }
     }
 
     /* ── Wide screens (iPad / laptop) ──
@@ -2742,8 +2756,8 @@
 
 <!-- Memory slideshow (回忆放映, Ken Burns full-screen player) -->
 <div class="memory-show" id="memory-show">
-  <div class="mem-layer" id="mem-layer-a"><img alt=""/></div>
-  <div class="mem-layer" id="mem-layer-b"><img alt=""/></div>
+  <div class="mem-layer" id="mem-layer-a"><img class="mem-bg" alt=""/><img class="mem-fg" alt=""/></div>
+  <div class="mem-layer" id="mem-layer-b"><img class="mem-bg" alt=""/><img class="mem-fg" alt=""/></div>
   <div class="mem-vignette"></div>
   <div class="mem-particles">
     <span class="mem-p" style="--x:12%;--d:0s">💕</span>

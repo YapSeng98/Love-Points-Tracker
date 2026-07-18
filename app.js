@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.19-3';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.19-4';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2072,7 +2072,8 @@ const App = (() => {
     _show.layerFlip = !_show.layerFlip;
     if (!incoming || !outgoing) return;
 
-    incoming.querySelector('img').src = p.image;
+    incoming.querySelector('.mem-fg').src = p.image;
+    incoming.querySelector('.mem-bg').src = p.image;
     incoming.classList.remove('kb-a', 'kb-b');
     void incoming.offsetWidth;                       // restart the CSS animation
     incoming.classList.add(i % 2 === 0 ? 'kb-a' : 'kb-b');
