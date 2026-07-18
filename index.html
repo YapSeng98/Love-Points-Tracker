@@ -1952,23 +1952,26 @@
     html[data-theme="dark"] .buy-sheet-handle { background: #33405A; }
     html[data-theme="dark"] .buy-sheet-cancel { border-color: rgba(255,255,255,0.14); }
 
-    /* ── Ambient sky: sun by day, moon & stars by night ── */
+    /* ── Ambient sky: sun by day, moon & stars by night ──
+       Every selector is scoped under .sky-bg: bare `.sun`/`.star` would
+       collide with the check-in calendar's `.cal-cell.sun` / weekday classes
+       (it did — Sunday cells grew rays and left the grid). */
     .sky-bg {
       position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
     }
     /* Day: soft sun with slowly turning rays, gently breathing */
-    .sun {
+    .sky-bg .sun {
       position: absolute; top: 30px; right: 26px; width: 84px; height: 84px;
       opacity: 0.8;
     }
-    .sun::before {
+    .sky-bg .sun::before {
       content: ''; position: absolute; inset: 0; border-radius: 50%;
       background: repeating-conic-gradient(rgba(255,205,80,0.4) 0deg 7deg, transparent 7deg 30deg);
       -webkit-mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 63%);
       mask: radial-gradient(circle, transparent 42%, #000 44%, #000 60%, transparent 63%);
       animation: sun-spin 40s linear infinite;
     }
-    .sun-core {
+    .sky-bg .sun-core {
       position: absolute; inset: 16px; border-radius: 50%;
       background: radial-gradient(circle, #FFF3B0 0%, #FFD75E 52%, rgba(255,196,66,0) 74%);
       animation: sun-breathe 6s ease-in-out infinite;
@@ -1979,7 +1982,7 @@
       50%      { transform: scale(1.1);  opacity: 1; }
     }
     /* Night: glowing crescent moon (inset-shadow crescent) */
-    .moon {
+    .sky-bg .moon {
       position: absolute; top: 86px; right: 30px; width: 52px; height: 52px;
       border-radius: 50%;
       box-shadow: inset -11px 7px 0 0 #EDE6CF, 0 0 22px rgba(237,230,207,0.25);
@@ -1991,7 +1994,7 @@
       50%      { box-shadow: inset -11px 7px 0 0 #F7F1DE, 0 0 30px rgba(237,230,207,0.42); }
     }
     /* Night: twinkling stars (position/size/delay via inline custom props) */
-    .star {
+    .sky-bg .star {
       position: absolute; left: var(--x); top: var(--y);
       width: var(--s, 2.5px); height: var(--s, 2.5px); border-radius: 50%;
       background: #DDE6F5; opacity: 0.2;
@@ -2004,7 +2007,7 @@
       50%      { opacity: 0.95; transform: scale(1.2); }
     }
     /* Night: a shooting star streaks by every ~11s */
-    .shooting-star {
+    .sky-bg .shooting-star {
       position: absolute; top: 14%; left: -10%;
       width: 110px; height: 2px; border-radius: 2px;
       background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0));
@@ -2018,12 +2021,35 @@
     }
     /* Theme switching: sun+clouds by day, moon+stars by night */
     html[data-theme="dark"] .clouds-bg,
-    html[data-theme="dark"] .sun { display: none; }
-    html[data-theme="light"] .moon,
-    html[data-theme="light"] .star,
-    html[data-theme="light"] .shooting-star { display: none; }
+    html[data-theme="dark"] .sky-bg .sun { display: none; }
+    html[data-theme="light"] .sky-bg .moon,
+    html[data-theme="light"] .sky-bg .star,
+    html[data-theme="light"] .sky-bg .shooting-star { display: none; }
     @media (prefers-reduced-motion: reduce) {
-      .sun::before, .sun-core, .moon, .star, .shooting-star { animation: none; }
+      .sky-bg .sun::before, .sky-bg .sun-core, .sky-bg .moon,
+      .sky-bg .star, .sky-bg .shooting-star { animation: none; }
+    }
+
+    /* ── Wide screens (iPad / laptop) ──
+       The app is a phone-width column; full-screen pages (shop, letters)
+       otherwise stretch edge-to-edge. Bars keep their full-bleed background
+       but center their content; scrolling lists get a centered max width. */
+    @media (min-width: 700px) {
+      .shop-header, .letter-header {
+        padding-left:  max(16px, calc((100% - 560px) / 2));
+        padding-right: max(16px, calc((100% - 560px) / 2));
+      }
+      .shop-score-banner {
+        padding-left:  max(20px, calc((100% - 560px) / 2));
+        padding-right: max(20px, calc((100% - 560px) / 2));
+      }
+      .shop-tabs {
+        padding-left:  max(14px, calc((100% - 560px) / 2));
+        padding-right: max(14px, calc((100% - 560px) / 2));
+      }
+      .shop-content, .letter-list {
+        width: 100%; max-width: 592px; margin: 0 auto;
+      }
     }
   </style>
 </head>
