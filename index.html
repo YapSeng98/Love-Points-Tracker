@@ -1109,6 +1109,7 @@
       font-size: 14px; font-weight: 600; z-index: 200;
       animation: toast-show 2.5s forwards;
       white-space: nowrap;
+      pointer-events: none;   /* never swallow taps meant for buttons underneath */
     }
     @keyframes toast-show {
       0%   { opacity:0; transform:translateX(-50%) translateY(10px); }
