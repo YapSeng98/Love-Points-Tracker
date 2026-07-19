@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.19-5';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.19-6';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1425,8 +1425,12 @@ const App = (() => {
     // auto-selects the first category and saving would silently rewrite the
     // entry's name/icon.
     const inList = activeCats.some(c => c.id === entry.catId);
+    // System catNames (每日签到/商店兑换) already embed their emoji — don't
+    // prepend the icon again or the option shows it twice.
+    const keepName = (entry.catName && entry.catName !== 'undefined') ? entry.catName : '自定义';
+    const keepIcon = entry.icon && !keepName.includes(entry.icon) ? entry.icon + ' ' : (entry.icon ? '' : '📌 ');
     const keepOpt = inList ? '' :
-      `<option value="__original__" data-pts="${entry.pts || 0}" selected>${entry.icon || '📌'} ${(entry.catName && entry.catName !== 'undefined') ? entry.catName : '自定义'}（原分类）</option>`;
+      `<option value="__original__" data-pts="${entry.pts || 0}" selected>${keepIcon}${keepName}（原分类）</option>`;
     sel.innerHTML = keepOpt + activeCats.map(c =>
       `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${c.icon} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');

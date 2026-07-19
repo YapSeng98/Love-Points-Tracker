@@ -1016,6 +1016,18 @@
       border-color: var(--blue);
     }
     .modal-field textarea { resize: none; height: 80px; }
+    /* iOS Safari only (-webkit-touch-callout is iOS-specific): native date
+       inputs carry an intrinsic width and overflow their box — flatten them
+       so they respect width:100% like every other field. Desktop browsers
+       keep their calendar-picker chrome. */
+    @supports (-webkit-touch-callout: none) {
+      input[type="date"] {
+        -webkit-appearance: none; appearance: none;
+        min-width: 0; width: 100%;
+        min-height: 46px;
+      }
+      input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+    }
     .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
     .btn-secondary {
       flex: 1; padding: 14px;
