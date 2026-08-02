@@ -40,11 +40,14 @@
     var month    = (body && /^\d{4}-\d{2}$/.test(body.month || '')) ? body.month
                  : today.substring(0, 7);
 
-    // Verify the caller's current-month score actually reached the reward
-    // threshold (same sum as /shop/buy — unsettled entries, this char)
+    // Verify the caller's score actually reached the reward threshold, summed
+    // over ALL unsettled entries — not just "this month" (must match GET
+    // /entries r04 and /shop/buy r28: an entry left over from a missed
+    // 月末结算 still counts, exactly like the score the app displays, so this
+    // can't reject a claim the UI shows as reachable the moment the calendar
+    // rolls to a new month).
     var scoreGr = new GlideRecord('x_887486_love_app_u_love_entry');
     if (matchId) scoreGr.addQuery('u_match', matchId);
-    scoreGr.addQuery('u_month', month);
     scoreGr.addNullQuery('u_monthly');
     if (charId === 'char2') {
         scoreGr.addQuery('u_char', 'char2');

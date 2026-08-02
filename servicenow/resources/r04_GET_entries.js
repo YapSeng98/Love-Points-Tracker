@@ -1,5 +1,15 @@
 // RESOURCE 4: GET /entries  |  Method: GET  |  Path: /entries  |  Requires Authentication: FALSE
-// Query param: month (YYYY-MM, defaults to current month)
+//
+// Returns every UNSETTLED entry for the couple — NOT filtered by calendar
+// month. Entries are only ever removed from this list by an actual
+// /monthly/settle call (which stamps u_monthly), never by the calendar
+// rolling over. Filtering by "this month" here used to silently hide any
+// entry logged before a missed 月末结算 — it stayed in the table, unsettled,
+// but became unreachable through the app the moment the month changed,
+// which looked like the entries (and the points they represented) had just
+// vanished. The frontend groups the returned entries by their own u_month
+// when settling, so old months still land as their own separate history
+// record instead of getting silently dropped or lumped into "today".
 (function process(request, response) {
     var _tok = (request.getHeader('Authorization')||'').replace('Bearer ','').trim();
     var _au = new GlideRecord('x_887486_love_app_u_love_auth');
@@ -8,14 +18,7 @@
     if (!_au.next()) { response.setStatus(401); response.setBody({error:'Unauthorized'}); return; }
     var matchId = _au.getValue('u_match') || '';
 
-    var month = request.queryParams.month;
-    if (!month) {
-        var d = new GlideDateTime();
-        month = d.getLocalDate().substring(0, 7);
-    }
-
     var gr = new GlideRecord('x_887486_love_app_u_love_entry');
-    gr.addQuery('u_month', month);
     if (matchId) gr.addQuery('u_match', matchId);
     gr.addNullQuery('u_monthly');
     gr.orderByDesc('u_date');

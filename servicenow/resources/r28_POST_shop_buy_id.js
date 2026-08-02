@@ -27,10 +27,15 @@
     var month   = (body && /^\d{4}-\d{2}$/.test(body.month || '')) ? body.month
                 : today.substring(0, 7);
 
-    // Sum unsettled entries for this character this month
+    // Sum ALL unsettled entries for this character — not just "this month".
+    // Must match GET /entries (r04): if a 月末结算 gets missed, entries from
+    // an older month stay unsettled and still count, exactly like the score
+    // the app displays. Filtering to the exact current month here would let
+    // a purchase fail as "insufficient points" (or a claim as
+    // "score_not_reached") even though the UI shows plenty, the moment the
+    // calendar rolls to a new month with an unsettled balance still pending.
     var scoreGr = new GlideRecord('x_887486_love_app_u_love_entry');
     if (matchId) scoreGr.addQuery('u_match', matchId);
-    scoreGr.addQuery('u_month', month);
     scoreGr.addNullQuery('u_monthly');
     if (charId === 'char2') {
         scoreGr.addQuery('u_char', 'char2');

@@ -1078,6 +1078,19 @@
     .settle-preview .sp-result.reward { background: linear-gradient(135deg, #FFF8E0, #FFF3CC); border: 2px solid var(--gold); color: #8B6914; }
     .settle-preview .sp-result.punishment { background: linear-gradient(135deg, #FFF0F0, #FFE0E0); border: 2px solid var(--red); color: #CC2222; }
     .settle-preview .sp-result.none { background: #F7F9FC; border: 2px solid #E2E8F0; color: var(--sub); }
+    /* Multiple unsettled months (e.g. a missed 月末结算) each get their own
+       block + totals, so nothing gets silently lumped together or lost */
+    .settle-multi-note {
+      font-size: 12.5px; font-weight: 700; color: #B8860B;
+      background: #FFF8E0; border: 1.5px solid var(--gold);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      margin-bottom: 4px;
+    }
+    .settle-month-block { padding: 8px 0; }
+    .settle-month-sep {
+      height: 1px; background: var(--card-border);
+      margin: 4px 24px;
+    }
 
     /* Particles */
     .particle {
@@ -1945,6 +1958,7 @@
     html[data-theme="dark"] .history-badge.punishment { background: rgba(255,107,107,0.16); color: #FF9B9B; }
     html[data-theme="dark"] .history-badge.settled { background: rgba(107,203,119,0.16); color: #7DD98A; }
     html[data-theme="dark"] .settle-preview .sp-result.none { background: #1E2A3D; border-color: #33405A; }
+    html[data-theme="dark"] .settle-multi-note { background: rgba(240,180,41,0.14); color: #E8C06A; }
     html[data-theme="dark"] .settle-char-card.char2 { background: rgba(255,143,160,0.14); border-color: rgba(255,143,160,0.3); }
     html[data-theme="dark"] .manage-pts-neg { background: rgba(255,107,107,0.16); }
     html[data-theme="dark"] .manage-pts-thr { background: rgba(240,180,41,0.16); color: #E8C06A; }

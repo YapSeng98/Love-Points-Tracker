@@ -222,6 +222,26 @@ For each resource: set the HTTP method + relative path, paste the matching `serv
 > resource, and always deploy script changes here by re-pasting the matching
 > `resources/rNN_*.js` file into the SN resource.
 
+> **Entries are scoped by "unsettled", never by calendar month.** `u_month`
+> is a snapshot label only — GET /entries (04) returns every entry with
+> `u_monthly` empty, full stop, and the score-sum queries in /shop/buy (28)
+> and /bag/claim (32) do the same. Never re-add a `u_month` equality filter
+> to any of these three: it previously hid — and silently zeroed the score
+> for — any entry left over from a missed 月末结算 the instant the calendar
+> rolled to a new month, since the app always requested "this month" only.
+> Settling is still per-month (POST /monthly/settle, 11, filters pending
+> entries by `body.month`) — the frontend now groups whatever /entries
+> returns by each entry's own `u_month` and calls settle once per group, so
+> a missed month becomes its own history row instead of getting lost or
+> merged into the current one.
+>
+> **Deploy 04/28/32 together with any app.js update that touches entries.**
+> The app calls GET /entries with `?month=` for backward compatibility (so
+> it won't crash against an un-updated 04, which errors without that param),
+> but an un-updated 28/32 will still wrongly reject a purchase/claim that
+> spans a missed month. Re-paste all three from `resources/` at the same
+> time you deploy this fix.
+
 ---
 
 ## Step 4 — Enable CORS

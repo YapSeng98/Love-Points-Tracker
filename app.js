@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.19-6';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.07.19-7';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -357,13 +357,23 @@ const App = (() => {
       }
     },
 
-    async getEntries(month) {
+    // Returns every UNSETTLED entry regardless of calendar month — settling
+    // (not the calendar rolling over) is what removes an entry from this
+    // list. See r04_GET_entries.js for why: filtering by "this month" used
+    // to silently hide any entry left over from a missed 月末结算 the moment
+    // the month changed, even though it was still sitting there unsettled.
+    async getEntries() {
       if (S.usingSN) {
-        const entries = await snFetch(`/entries?month=${month}`);
+        // Still send ?month= even though the fixed r04 ignores it — purely
+        // so the app doesn't hard-crash against an instance that hasn't had
+        // r04 re-pasted yet (the OLD script's no-param fallback throws:
+        // GlideDate has no .substring()). Harmless once r04 is updated.
+        const entries = await snFetch(`/entries?month=${monthKey()}`);
         return entries.map(e => ({ ...e, icon: decodeFromSN(e.icon) }));
       }
       const d = LS.load();
-      return (d.entries[month] || []).sort((a,b) => new Date(b.date)-new Date(a.date));
+      const all = Object.keys(d.entries || {}).flatMap(m => d.entries[m] || []);
+      return all.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
     async addEntry(entry) {
@@ -379,22 +389,30 @@ const App = (() => {
       return e;
     },
 
-    async deleteEntry(id, month) {
+    // No `month` param: an entry can now legitimately be shown (and edited or
+    // deleted) from a month other than S.month once a 月末结算 gets missed, so
+    // the caller's "current month" is not reliable as a bucket key — look the
+    // id up across every bucket instead.
+    async deleteEntry(id) {
       if (S.usingSN) return snFetch(`/entries/${id}`, { method:'DELETE' });
       const d = LS.load();
-      if (d.entries[month]) d.entries[month] = d.entries[month].filter(e => e.id !== id);
+      Object.keys(d.entries || {}).forEach(m => {
+        d.entries[m] = (d.entries[m] || []).filter(e => e.id !== id);
+      });
       LS.save(d);
     },
 
-    async updateEntry(id, month, data) {
+    async updateEntry(id, data) {
       if (S.usingSN) {
         const encoded = data.icon ? { ...data, icon: encodeForSN(data.icon) } : data;
         return snFetch(`/entries/${id}`, { method:'PUT', body: JSON.stringify(encoded) });
       }
       const d = LS.load();
-      if (d.entries[month]) {
-        const idx = d.entries[month].findIndex(e => e.id === id);
-        if (idx >= 0) d.entries[month][idx] = { ...d.entries[month][idx], ...data };
+      for (const m of Object.keys(d.entries || {})) {
+        const idx = (d.entries[m] || []).findIndex(e => e.id === id);
+        if (idx < 0) continue;
+        d.entries[m][idx] = { ...d.entries[m][idx], ...data };
+        break;
       }
       LS.save(d);
     },
@@ -975,7 +993,7 @@ const App = (() => {
     renderCharacters();
     renderTogetherBanner();
 
-    const entries = await Data.getEntries(S.month);
+    const entries = await Data.getEntries();
     S.entries = entries;
     const { char1, char2, neg1, neg2 } = calcCharScores(entries);
     S.char1Score = char1; S.char2Score = char2;
@@ -1455,7 +1473,7 @@ const App = (() => {
         // "__original__" = system/deleted category kept as-is: only update
         // the editable fields, never rewrite the entry's identity.
         const keep = catId === '__original__';
-        await Data.updateEntry(editId, S.month, {
+        await Data.updateEntry(editId, {
           catId:   keep ? (existing?.catId || '') : catId,
           catName: keep ? (existing?.catName || '自定义') : (cat.name || existing?.catName || '自定义'),
           icon:    keep ? (existing?.icon || '📌')       : (cat.icon || existing?.icon || '📌'),
@@ -1488,7 +1506,7 @@ const App = (() => {
   async function deleteEntry(id) {
     if (!(await showConfirm('确认删除这条记录？'))) return;
     try {
-      await Data.deleteEntry(id, S.month);
+      await Data.deleteEntry(id);
       showToast('已删除 🗑️');
       await refresh();
     } catch (err) {
@@ -1496,21 +1514,46 @@ const App = (() => {
     }
   }
 
+  // Group entries by the calendar month they were actually logged in. Needed
+  // because GET /entries returns every UNSETTLED entry regardless of month
+  // (see Data.getEntries) — if a 月末结算 gets missed, older months' entries
+  // stay visible instead of silently disappearing, and each one still needs
+  // its own accurate history record rather than being lumped together.
+  function _groupEntriesByMonth(entries) {
+    const map = new Map();
+    entries.forEach(e => {
+      const m = e.month || (e.date ? e.date.slice(0, 7) : S.month);
+      if (!map.has(m)) map.set(m, []);
+      map.get(m).push(e);
+    });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));  // oldest first
+  }
+
+  // Same score/outcome logic as outcomeScoreFor()/getOutcome(), scoped to an
+  // arbitrary entries subset instead of the couple's all-time S.char*Score.
+  function _monthOutcomes(entries) {
+    const { char1, char2, neg1, neg2 } = calcCharScores(entries);
+    const s1 = S.mode === 'reward' ? char1 : -neg1;
+    const s2 = S.mode === 'reward' ? char2 : -neg2;
+    return {
+      s1, s2,
+      o1: getOutcome(s1, S.mode), o2: getOutcome(s2, S.mode),
+      i1: progressInfo(char1, S.mode, neg1), i2: progressInfo(char2, S.mode, neg2),
+    };
+  }
+
+  let _pendingSettleGroups = [];   // [[month, entries], ...] snapshotted when the modal opens
+
   function openSettleModal() {
-    // Nothing logged this month → settling would just create an empty record.
+    // Nothing logged → settling would just create an empty record.
     // Give clear feedback instead of opening a modal that appears to do nothing.
     if (!S.entries.length) {
-      showToast('📭 本月还没有任何记分，先记录一下再结算吧！');
+      showToast('📭 还没有任何记分，先记录一下再结算吧！');
       return;
     }
-    const s1 = outcomeScoreFor('char1');
-    const s2 = outcomeScoreFor('char2');
-    const o1 = getOutcome(s1, S.mode);
-    const o2 = getOutcome(s2, S.mode);
-    const i1 = progressInfo(S.char1Score, S.mode, S.char1NegPts);
-    const i2 = progressInfo(S.char2Score, S.mode, S.char2NegPts);
+    _pendingSettleGroups = _groupEntriesByMonth(S.entries);
+    const multi = _pendingSettleGroups.length > 1;
     const prev = document.getElementById('settle-preview');
-
     const fmtScore = s => (s > 0 ? '+' : '') + s;
 
     const charCard = (charId, score, info, outcome) => {
@@ -1526,43 +1569,54 @@ const App = (() => {
       </div>`;
     };
 
-    const anyReward = S.mode === 'reward' && (o1 || o2);
-    const anyPunish = S.mode === 'punishment' && (o1 || o2);
+    const blocks = _pendingSettleGroups.map(([month, monthEntries]) => {
+      const r = _monthOutcomes(monthEntries);
+      const anyReward = S.mode === 'reward' && (r.o1 || r.o2);
+      const anyPunish = S.mode === 'punishment' && (r.o1 || r.o2);
+      return `<div class="settle-month-block">
+        <div class="sp-icon">${anyReward ? '🎊' : anyPunish ? '😱' : '📊'}</div>
+        <div class="sp-title">${monthLabel(month)} 结算</div>
+        <div class="settle-char-row">
+          ${charCard('char1', r.s1, r.i1, r.o1)}
+          ${charCard('char2', r.s2, r.i2, r.o2)}
+        </div>
+      </div>`;
+    }).join('<div class="settle-month-sep"></div>');
 
-    prev.innerHTML = `
-      <div class="sp-icon">${anyReward ? '🎊' : anyPunish ? '😱' : '📊'}</div>
-      <div class="sp-title">${monthLabel(S.month)} 结算</div>
-      <div class="settle-char-row">
-        ${charCard('char1', s1, i1, o1)}
-        ${charCard('char2', s2, i2, o2)}
-      </div>
-      <div style="font-size:12px;color:var(--sub);margin-top:4px">结算后积分清零，开始新月份</div>
-    `;
+    const note = multi
+      ? `<div class="settle-multi-note">⚠️ 有 ${_pendingSettleGroups.length} 个月尚未结算，将分别存入历史记录</div>`
+      : '';
+
+    prev.innerHTML = note + blocks +
+      `<div style="font-size:12px;color:var(--sub);margin-top:4px">结算后积分清零，开始新的一轮</div>`;
     openModal('modal-settle');
   }
 
   async function confirmSettle() {
-    // Punishment mode records bad-behavior points (shop purchases excluded);
-    // reward mode records the net score
-    const s1 = outcomeScoreFor('char1');
-    const s2 = outcomeScoreFor('char2');
-    const o1 = getOutcome(s1, S.mode);
-    const o2 = getOutcome(s2, S.mode);
-
+    if (!_pendingSettleGroups.length) { closeModal('modal-settle'); return; }
     try {
-      const res = await Data.settleMonth(
-        S.month, s1, s2, S.mode,
-        o1 ? o1.name : '无结果',
-        o2 ? o2.name : '无结果'
-      );
+      let res, r;
+      // Settle oldest → newest so history stays in the order it happened.
+      for (const [month, monthEntries] of _pendingSettleGroups) {
+        r = _monthOutcomes(monthEntries);
+        res = await Data.settleMonth(
+          month, r.s1, r.s2, S.mode,
+          r.o1 ? r.o1.name : '无结果',
+          r.o2 ? r.o2.name : '无结果'
+        );
+      }
       closeModal('modal-settle');
 
+      const multi = _pendingSettleGroups.length > 1;
       if (res && res.alreadySettled) {
-        showToast('✅ 本月已由对方结算，同步中…');
-      } else if (S.mode === 'reward' && (o1 || o2))    { spawnConfetti(); showToast('🎊 恭喜！奖励达成！'); }
-      else if (S.mode === 'punishment' && (o1 || o2)) { spawnFlash();   showToast('😱 惩罚触发！'); }
-      else                                            { showToast('✅ 已结算，新月份开始！'); }
+        showToast('✅ 已由对方结算，同步中…');
+      } else if (multi) {
+        showToast(`✅ 已补齐结算 ${_pendingSettleGroups.length} 个月份！`);
+      } else if (S.mode === 'reward' && (r.o1 || r.o2))    { spawnConfetti(); showToast('🎊 恭喜！奖励达成！'); }
+      else if (S.mode === 'punishment' && (r.o1 || r.o2)) { spawnFlash();   showToast('😱 惩罚触发！'); }
+      else                                                { showToast('✅ 已结算，新的一轮开始！'); }
 
+      _pendingSettleGroups = [];
       S.month = monthKey();
       try { await Data.reloadTiers(); } catch {}
       await refresh();

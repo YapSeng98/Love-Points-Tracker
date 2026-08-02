@@ -66,6 +66,8 @@ M3=$(date -v-2m +%Y-%m)
 M4=$(date -v-1m +%Y-%m)
 M5=$(date +%Y-%m)
 TODAY=$(date +%Y-%m-%d)
+MP1=$(date -v-8m +%Y-%m)   # stand-in "missed month" for section 24
+MP2=$(date -v-7m +%Y-%m)   # stand-in "next month" for section 24
 
 # Emoji icons, encoded exactly as app.js encodeForSN() does:
 # code points > 0xFFFF become \xHEX (JSON-escaped here as \\x), BMP stay raw.
@@ -610,6 +612,57 @@ HTTP=$(echo "$RES" | tail -1)
 [ "$HTTP" = "200" ] && pass "DELETE /photos/{id} (partner can delete) → $HTTP" || fail "DELETE photo → $HTTP"
 RES=$(curl -s "${BASE}/photos" "${AUTH1[@]}")
 [ "$(id_count "$RES")" = "0" ] && pass "GET /photos → photo gone for both" || fail "photo not deleted: $RES"
+
+# ════════════════════════════════════════════════════════════
+section "24. MISSED SETTLE ACROSS MONTHS — entries stay visible, settle splits per month"
+# ════════════════════════════════════════════════════════════
+# Reproduces the real bug: log a month's worth of entries, DON'T settle
+# (simulating a missed 月末结算), then log more entries as if the calendar
+# rolled to a new month. GET /entries must show both months (r04 no longer
+# hard-filters by calendar month) — the old bug hid MP1 entirely the moment
+# MP2 entries existed, which looked exactly like "the entries just vanished".
+E=$(mk_entry AUTH1 char1 "$CAT_TIME" "陪伴时光" "$I_COUPLE" 60 "$MP1" "${MP1}-20" "missed-month entry")
+E=$(mk_entry AUTH2 char2 "$CAT_COOK" "亲自煮饭" "$I_COOK" 15 "$MP2" "${MP2}-02" "new-month entry")
+
+RES=$(curl -s "${BASE}/entries" "${AUTH1[@]}")
+echo "$RES" | grep -q "missed-month entry" && echo "$RES" | grep -q "new-month entry" && \
+  pass "GET /entries → old unsettled month's entry is STILL visible alongside the new month's (no data loss)" || \
+  fail "old month's entry disappeared: $RES"
+
+# The displayed/claimable balance must be the COMBINED total (60+15=75), not
+# just whichever calendar month is "current" — this is exactly what let a
+# claim/purchase the UI shows as reachable fail as "not enough points" (r28/r32).
+RWD_COMBO=$(mk_item /rewards "{\"icon\":\"🎯\",\"name\":\"跨月测试奖励\",\"minPts\":70,\"desc\":\"combined-months threshold\"}" "🎯 跨月奖励 ≥70")
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/bag/claim" "${AUTH1[@]}" \
+  -d "{\"rewardId\":\"${RWD_COMBO}\",\"charId\":\"char1\",\"date\":\"${TODAY}\",\"month\":\"${MP2}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+[ "$HTTP" = "201" ] && pass "claim reachable only by combining both months' points (60 alone < 70, needs the old month too) → 201" || \
+  fail "combined-month claim wrongly rejected → $HTTP: $BODY"
+
+# Settling MP1 specifically must archive ONLY MP1's entries into their own
+# history row — MP2's entry (and char1's combo-reward claim, which is on
+# char1 not char2) must survive untouched.
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/monthly/settle" "${AUTH1[@]}" \
+  -d "{\"month\":\"${MP1}\",\"char1Pts\":60,\"char2Pts\":0,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "settle ${MP1} alone → $HTTP (own history row, doesn't touch ${MP2})" || fail "settle MP1 → $HTTP"
+
+RES=$(curl -s "${BASE}/entries" "${AUTH1[@]}")
+echo "$RES" | grep -qv "missed-month entry" && echo "$RES" | grep -q "new-month entry" && \
+  pass "GET /entries → ${MP1}'s entry archived away, ${MP2}'s entry still pending" || \
+  fail "post-settle entry set wrong: $RES"
+
+RES=$(curl -s "${BASE}/history" "${AUTH1[@]}")
+echo "$RES" | grep -q "\"month\":\"${MP1}\"" && pass "GET /history → ${MP1} recorded as its own settlement" || fail "MP1 missing from history: $RES"
+
+# Settle MP2 too, so this couple's data is fully wound down before the demo
+# review account fields (section end) print.
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/monthly/settle" "${AUTH2[@]}" \
+  -d "{\"month\":\"${MP2}\",\"char1Pts\":0,\"char2Pts\":15,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "settle ${MP2} too → $HTTP (second, separate history row)" || fail "settle MP2 → $HTTP"
+RES=$(curl -s "${BASE}/history" "${AUTH1[@]}")
+echo "$RES" | grep -q "\"month\":\"${MP2}\"" && pass "GET /history → both missed months now recorded as separate rows" || fail "MP2 missing from history: $RES"
 
 # ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
