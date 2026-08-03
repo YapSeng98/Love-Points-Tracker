@@ -828,6 +828,56 @@ M_B=$(curl -s "${BASE}/config" "${AUTH2[@]}" | grep -o '"mode":"[a-z]*"')
 curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"mode":"reward"}' > /dev/null
 
 # ════════════════════════════════════════════════════════════
+section "27. YEAR-SCOPED ENTRIES (年度回顾 must see settled months)"
+# ════════════════════════════════════════════════════════════
+# 年度回顾 counts check-ins for a whole year, but settling stamps u_monthly and
+# hides entries from the default /entries call — which made a year report only
+# the current month. ?year=YYYY must return settled entries too.
+YR_NOW=$(date +%Y)
+YR_PREV=$((YR_NOW - 1))
+YM_ARCH="${YR_NOW}-02"
+
+E=$(mk_entry AUTH1 char1 "" "📅 每日签到" "$I_CLOCK" 2 "$YM_ARCH" "${YM_ARCH}-11" "yearscope-archived")
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/monthly/settle" "${AUTH1[@]}" \
+  -d "{\"month\":\"${YM_ARCH}\",\"char1Pts\":2,\"char2Pts\":0,\"mode\":\"reward\",\"result1\":\"\",\"result2\":\"\"}")
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "settled a month so its entry becomes archived" || fail "settle for year test → $HTTP"
+
+E=$(mk_entry AUTH1 char1 "" "📅 每日签到" "$I_CLOCK" 2 "$M5" "$TODAY" "yearscope-live")
+
+# Default call: archived entry must be gone, live one present
+RES=$(curl -s "${BASE}/entries" "${AUTH1[@]}")
+echo "$RES" | grep -q "yearscope-live" && ! echo "$RES" | grep -q "yearscope-archived" && \
+  pass "GET /entries (no param) still returns ONLY unsettled — unchanged behaviour" || \
+  fail "default /entries changed: $(echo "$RES" | cut -c1-200)"
+
+# Year call: BOTH must come back — this is the actual bug fix
+RES=$(curl -s "${BASE}/entries?year=${YR_NOW}" "${AUTH1[@]}")
+echo "$RES" | grep -q "yearscope-archived" && \
+  pass "GET /entries?year=${YR_NOW} INCLUDES the settled month's entry" || \
+  fail "year scope missed the archived entry — r04 not re-pasted?"
+echo "$RES" | grep -q "yearscope-live" && \
+  pass "…and still includes the live month's entry" || fail "year scope dropped live entries"
+
+# Counting: a whole-year check-in tally must exceed the current month's alone
+ALL_CI=$(echo "$RES" | grep -o '每日签到' | wc -l | tr -d ' ')
+LIVE_CI=$(curl -s "${BASE}/entries" "${AUTH1[@]}" | grep -o '每日签到' | wc -l | tr -d ' ')
+[ "$ALL_CI" -gt "$LIVE_CI" ] && \
+  pass "year check-in count (${ALL_CI}) > live-only count (${LIVE_CI}) — the reported bug" || \
+  fail "year count not larger: year=${ALL_CI} live=${LIVE_CI}"
+
+# Other years must not leak in
+RES=$(curl -s "${BASE}/entries?year=${YR_PREV}" "${AUTH1[@]}")
+echo "$RES" | grep -qv "yearscope-live" && \
+  pass "?year=${YR_PREV} excludes this year's entries (year filter is real)" || \
+  fail "year filter leaked across years"
+
+# Still couple-scoped
+RES=$(curl -s "${BASE}/entries?year=${YR_NOW}" "${AUTHD[@]}")
+[ "$(id_count "$RES")" = "0" ] && pass "?year is still couple-scoped (foreign couple sees none)" || \
+  fail "year scope leaked across couples: $RES"
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""
