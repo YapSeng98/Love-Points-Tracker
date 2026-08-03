@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.03-16';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-18';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2012,7 +2012,7 @@ const App = (() => {
   // high-water mark to drop (see the pet notes in CLAUDE.md).
   async function resetPet() {
     if (!S.petSpecies) { openPetAdopt(); return; }
-    if (!(await showConfirm(`确定让「${petName()}」重新开始吗？\n等级和经验会清零，可以重新选一只从 0 养起。`))) return;
+    if (!(await showConfirm(`确定让「${petName()}」重新开始吗？\n等级、经验和小窝币都会清零，可以重新选一只从 0 养起。\n（已买的家具会保留）`))) return;
     try {
       await _loadStatsSources();
       const base = petExpDerived();
@@ -2578,21 +2578,25 @@ const App = (() => {
     const monthOf = (e) => e.month || (e.date || '').slice(0, 7);
     const monthsWithEntries = new Set(entries.map(monthOf));
 
-    // Points/best-month come from raw entries where we have them. For a settled
-    // month with no entries returned (backend not yet updated, or entries since
-    // deleted) fall back to that month's archived totals — so the numbers stay
-    // right either way instead of double-counting or dropping a month.
+    // Points use the SAME net basis as the shared goal and the home-page score.
+    // They used to count only positive entries here, which made 年度回顾 report
+    // a bigger number than 共同目标 for what looks like the same thing (977 vs
+    // 792) — confusing, and there is no good reason for two definitions.
+    // A settled month is authoritative from its archived total; an unsettled
+    // month is summed from its entries, penalties and shop spending included.
+    const settledMonths = new Set(hist.map(r => r.month));
     const monthTotals = {};
-    entries.forEach(e => {
-      const p = parseInt(e.pts) || 0;
-      if (p <= 0) return;
-      const m = monthOf(e);
-      monthTotals[m] = (monthTotals[m] || 0) + p;
-    });
     hist.forEach(r => {
-      if (monthsWithEntries.has(r.month)) return;   // already counted above
-      monthTotals[r.month] = (monthTotals[r.month] || 0) +
-        Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0);
+      monthTotals[r.month] = Math.max(0, parseInt(r.char1Pts) || 0)
+                           + Math.max(0, parseInt(r.char2Pts) || 0);
+    });
+    entries.forEach(e => {
+      const m = monthOf(e);
+      if (settledMonths.has(m)) return;             // already counted above
+      monthTotals[m] = (monthTotals[m] || 0) + (parseInt(e.pts) || 0);
+    });
+    Object.keys(monthTotals).forEach(m => {         // a month never goes negative
+      if (monthTotals[m] < 0) monthTotals[m] = 0;
     });
 
     let bestMonth = '', bestPts = 0, totalPts = 0;
@@ -2610,9 +2614,14 @@ const App = (() => {
     let topCat = '', topCatN = 0;
     Object.entries(catCount).forEach(([n, c]) => { if (c > topCatN) { topCat = n; topCatN = c; } });
 
+    let settledPts = 0, livePts = 0;
+    Object.entries(monthTotals).forEach(([m, p]) => {
+      if (settledMonths.has(m)) settledPts += p; else livePts += p;
+    });
+
     return {
       year: yr,
-      totalPts,
+      totalPts, settledPts, livePts,
       bestMonth, bestPts,
       topCat, topCatN,
       checkins: entries.filter(e => e.catName === CHECKIN_CAT).length,
@@ -2642,7 +2651,8 @@ const App = (() => {
     document.getElementById('yr-body').innerHTML = `
       <div class="yr-hero">
         <div class="yr-hero-num">${r.totalPts}</div>
-        <div class="yr-hero-lab">今年一起赚到的爱心积分</div>
+        <div class="yr-hero-lab">今年一起累积的爱心积分</div>
+        <div class="yr-hero-note">已结算 ${r.settledPts} + 本轮 ${r.livePts}（已扣除扣分和商店消费）</div>
       </div>
       <div class="yr-grid">
         ${stat('📅', r.checkins, '次签到')}
@@ -2986,8 +2996,12 @@ const App = (() => {
   // (base + stored) so the balance can't dip on a punishment settle, a deleted
   // photo, or re-adopting the pet.
   function nestCoinsEarned() {
-    const highWater = (S.petBase || 0) + (S.petExpStored || 0);
-    return Math.floor(Math.max(petExpDerived(), highWater) / 2);
+    // Derive from the PET's EXP, not the couple's raw lifetime score. Basing
+    // it on the raw score meant a couple with months of history adopted an egg
+    // at 0 EXP but instantly held 691 coins — coins must start from zero for
+    // the same reason the pet does. petExp() already carries the stored
+    // high-water mark, so this stays monotonic between adoptions.
+    return Math.floor(petExp() / 2);
   }
   function nestCoinsSpent() {
     return (S.decorOwned || []).reduce((s, r) => s + (parseInt(r.ptsSpent) || 0), 0);
