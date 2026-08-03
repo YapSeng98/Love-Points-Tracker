@@ -34,13 +34,13 @@ const App = (() => {
   })();
 
   const MAINTENANCE = {
-    on: true,
+    on: false,
     title: '系统升级中 🛠️',
     message: '我们正在给小窝加新东西<br>暂时先不能登录哦 💕',
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.03-15';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-16';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
