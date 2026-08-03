@@ -54,7 +54,8 @@
             petName:         gr.getValue('u_pet_name')     || '',
             petSpecies:      gr.getValue('u_pet_species')  || '',
             petEquipped:     gr.getValue('u_pet_equipped') || '',
-            petExp:          parseInt(gr.getValue('u_pet_exp')) || 0,
+            petExp:          parseInt(gr.getValue('u_pet_exp'))  || 0,
+            petBase:         parseInt(gr.getValue('u_pet_base')) || 0,
         });
     } else {
         response.setBody({ configured: false, startDate: '', char1Name: char1Name, char2Name: char2Name, charImg1: charImg1, charImg2: charImg2 });

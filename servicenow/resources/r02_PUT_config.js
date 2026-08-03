@@ -30,11 +30,19 @@
     if (body.petName         !== undefined) gr.setValue('u_pet_name',         body.petName);
     if (body.petSpecies      !== undefined) gr.setValue('u_pet_species',      body.petSpecies);
     if (body.petEquipped     !== undefined) gr.setValue('u_pet_equipped',     body.petEquipped);
-    // High-water mark only — a pet must never shrink, so refuse any write
-    // that would lower it (e.g. a stale client, or a deleted photo/letter).
+    // Activity score snapshotted at adoption, so the pet starts at 0 EXP
+    // instead of inheriting everything the couple did before it existed.
+    // Written once by the adoption flow; a re-adopt legitimately resets it.
+    if (body.petBase !== undefined) gr.setValue('u_pet_base', parseInt(body.petBase) || 0);
+    // High-water mark — a pet must never shrink, so refuse any write that
+    // would lower it (a stale client, or a deleted photo/letter). Adoption
+    // passes 0 alongside a new petBase, which is the one legitimate reset.
     if (body.petExp !== undefined) {
         var _newExp = parseInt(body.petExp) || 0;
-        if (_newExp > (parseInt(gr.getValue('u_pet_exp')) || 0)) gr.setValue('u_pet_exp', _newExp);
+        var _isAdoption = body.petBase !== undefined;
+        if (_isAdoption || _newExp > (parseInt(gr.getValue('u_pet_exp')) || 0)) {
+            gr.setValue('u_pet_exp', _newExp);
+        }
     }
     if (isNew) { gr.insert(); } else { gr.update(); }
 

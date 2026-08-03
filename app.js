@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-3';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-4';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -163,7 +163,7 @@ const App = (() => {
     catTab: 'reward',   // quick-entry tab: 'reward' (加分) | 'punish' (扣分)
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
-    petName: '', petSpecies: '', petExpStored: 0, petPick: '',
+    petName: '', petSpecies: '', petExpStored: 0, petBase: 0, petPick: '',
     achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
@@ -268,7 +268,7 @@ const App = (() => {
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
-        petName: '', petSpecies: '', petExp: 0,        // 恋爱小窝
+        petName: '', petSpecies: '', petExp: 0, petBase: 0,   // 恋爱小窝
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -342,6 +342,7 @@ const App = (() => {
         S.petName      = cfg.petName    || '';
         S.petSpecies   = cfg.petSpecies || '';
         S.petExpStored = parseInt(cfg.petExp) || 0;
+        S.petBase      = parseInt(cfg.petBase) || 0;
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
@@ -374,6 +375,7 @@ const App = (() => {
         S.petName         = d.petName    || '';
         S.petSpecies      = d.petSpecies || '';
         S.petExpStored    = parseInt(d.petExp) || 0;
+        S.petBase         = parseInt(d.petBase) || 0;
       }
     },
 
@@ -2542,16 +2544,9 @@ const App = (() => {
     { lv:5, name:'圆满期', min:6000, scale:1.12 },
   ];
 
-  // A pet must NEVER shrink, so EXP is a high-water mark.
-  //
-  // The derived part already survives a normal 月末结算: settling moves points
-  // out of /entries and into a history row, and both are counted, so the total
-  // is identical before and after. Two cases could still make it dip, which is
-  // why the stored floor exists:
-  //   1. Punishment-mode months archive a NEGATIVE total (bad-behaviour points),
-  //      so that month's positive earnings aren't recoverable from history.
-  //   2. Deleting an old letter/photo would otherwise claw back its EXP.
-  // The stored value only ever moves up, so neither can ever un-grow the pet.
+  // Raw lifetime activity score for the couple. This counts everything they
+  // have EVER done, so it is only meaningful to the pet as a difference
+  // against the snapshot taken when the pet was adopted (see petExp).
   function petExpDerived() {
     const hist    = S.historyRecords || [];
     const letters = (S.letters || []).length;
@@ -2559,14 +2554,30 @@ const App = (() => {
     return lifetimeCombinedPoints() + letters * 30 + photos * 20 + hist.length * 100;
   }
 
+  // The pet always starts at 0 and grows only from what you do AFTER adopting
+  // it — otherwise a couple with months of history would adopt an egg that
+  // instantly hatched to max level, skipping the whole point of raising it.
+  // petBase is the raw score snapshotted at adoption; EXP is the growth since.
+  //
+  // A pet must also NEVER shrink, hence the stored high-water floor. Two things
+  // could otherwise pull the raw score down:
+  //   1. Punishment-mode months archive a NEGATIVE total, so that month's
+  //      positive earnings aren't recoverable from history.
+  //   2. Deleting an old letter/photo would claw back its EXP.
+  // The stored value only ever moves up, so neither can un-grow the pet.
+  function petExpSinceAdoption() {
+    return Math.max(0, petExpDerived() - (S.petBase || 0));
+  }
+
   function petExp() {
-    return Math.max(petExpDerived(), S.petExpStored || 0);
+    return Math.max(petExpSinceAdoption(), S.petExpStored || 0);
   }
 
   // Persist a new high-water mark in the background; never blocks the UI and
   // a failed write just means we recompute the same number next time.
   function _syncPetExp() {
-    const d = petExpDerived();
+    if (!S.petSpecies) return;              // nothing adopted yet
+    const d = petExpSinceAdoption();
     if (d > (S.petExpStored || 0)) {
       S.petExpStored = d;
       Data.saveConfig({ petExp: d }).catch(() => {});
@@ -2833,9 +2844,13 @@ const App = (() => {
     const name = document.getElementById('pet-name-input').value.trim();
     if (!key)  { showToast('先选一个小家伙吧 🥚'); return; }
     if (!name) { showToast('给它取个名字吧'); return; }
-    S.petSpecies = key; S.petName = name;
+    // Everything earned before this moment belongs to the couple's past, not
+    // to the pet — snapshot it so the pet genuinely hatches at 0 EXP.
+    await _loadStatsSources();
+    const base = petExpDerived();
+    S.petSpecies = key; S.petName = name; S.petBase = base; S.petExpStored = 0;
     try {
-      await Data.saveConfig({ petSpecies: key, petName: name });
+      await Data.saveConfig({ petSpecies: key, petName: name, petBase: base, petExp: 0 });
       closeModal('modal-pet-adopt');
       spawnConfetti();
       showToast(`🎉 ${name} 加入了你们的小窝！`);
@@ -3619,6 +3634,7 @@ const App = (() => {
     openGoalModal, saveGoal, clearGoal,
     openPetAdopt, pickPetSpecies, confirmAdopt,
     _petSvgTest: (st, sp) => petSvg(st, PET_SPECIES[sp]),   // art-review helper
+    _petRawTest: () => petExpDerived(),                     // test helper
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
