@@ -24,6 +24,18 @@
     if (body.goalName        !== undefined) gr.setValue('u_goal_name',        body.goalName);
     if (body.goalIcon        !== undefined) gr.setValue('u_goal_icon',        body.goalIcon);
     if (body.goalTarget      !== undefined) gr.setValue('u_goal_target',      parseInt(body.goalTarget) || 0);
+    // 恋爱小窝 (pet) — level/mood are derived from activity, so only the
+    // couple's own choices live here. u_pet_equipped is a JSON blob so new
+    // furniture slots never need another SN field.
+    if (body.petName         !== undefined) gr.setValue('u_pet_name',         body.petName);
+    if (body.petSpecies      !== undefined) gr.setValue('u_pet_species',      body.petSpecies);
+    if (body.petEquipped     !== undefined) gr.setValue('u_pet_equipped',     body.petEquipped);
+    // High-water mark only — a pet must never shrink, so refuse any write
+    // that would lower it (e.g. a stale client, or a deleted photo/letter).
+    if (body.petExp !== undefined) {
+        var _newExp = parseInt(body.petExp) || 0;
+        if (_newExp > (parseInt(gr.getValue('u_pet_exp')) || 0)) gr.setValue('u_pet_exp', _newExp);
+    }
     if (isNew) { gr.insert(); } else { gr.update(); }
 
     // Keep the couple name on the match record in sync with the display names

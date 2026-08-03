@@ -1973,6 +1973,20 @@
     html[data-theme="dark"] .settle-preview .sp-result.none { background: #1E2A3D; border-color: #33405A; }
     html[data-theme="dark"] .settle-multi-note { background: rgba(240,180,41,0.14); color: #E8C06A; }
     html[data-theme="dark"] .settle-current-opt { background: #1E2A3D; }
+    html[data-theme="dark"] .pet-page { background: linear-gradient(180deg, #1B1730 0%, #2A1C2E 100%); }
+    /* Keep the time-of-day variation, but pitch the whole room darker so it
+       doesn't glow against a dark UI */
+    html[data-theme="dark"] .pet-room,
+    html[data-theme="dark"] .pet-room.sky-day  { background: linear-gradient(180deg, #3B3260 0%, #362C58 58%, #2E2547 58.2%, #271F3D 100%); }
+    html[data-theme="dark"] .pet-room.sky-dusk { background: linear-gradient(180deg, #4E2F4A 0%, #472940 58%, #3A2436 58.2%, #2F1D2C 100%); }
+    html[data-theme="dark"] .pet-room.sky-night{ background: linear-gradient(180deg, #1B1838 0%, #221C42 58%, #2A2150 58.2%, #241C42 100%); }
+    html[data-theme="dark"] .pet-room::after { background: linear-gradient(180deg, rgba(90,70,120,0.35), rgba(60,45,85,0.5)); }
+    html[data-theme="dark"] .pet-rug { background: rgba(255,255,255,0.08); }
+    html[data-theme="dark"] .pet-mood-chip { background: rgba(255,255,255,0.09); }
+    html[data-theme="dark"] .pet-speech-bubble { background: rgba(38,32,58,0.95); color: #E7DFF6; }
+    html[data-theme="dark"] .pet-speech-bubble::after { border-top-color: rgba(38,32,58,0.95); }
+    html[data-theme="dark"] .pet-pick { background: #1E2A3D; }
+    html[data-theme="dark"] .pet-exp-track, html[data-theme="dark"] .pet-contrib-bar { background: rgba(255,255,255,0.12); }
     html[data-theme="dark"] .ach-card { background: #1E2A3D; }
     html[data-theme="dark"] .ach-card.on {
       background: linear-gradient(160deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10));
@@ -2227,6 +2241,218 @@
     @media (prefers-reduced-motion: reduce) {
       .mem-layer.kb-a .mem-fg, .mem-layer.kb-b .mem-fg, .mem-p { animation: none; }
     }
+
+    /* ══════════════ 恋爱小窝 · 宠物 ══════════════ */
+    #pet-banner:empty { display: none; }
+    .pet-adopt, .pet-banner-box {
+      border-radius: 16px; padding: 11px 14px; margin: 0 0 14px;
+      cursor: pointer; transition: transform 0.15s;
+      display: flex; align-items: center; gap: 11px;
+    }
+    .pet-adopt:active, .pet-banner-box:active { transform: scale(0.98); }
+    .pet-adopt {
+      background: linear-gradient(135deg, rgba(201,177,255,0.16), rgba(255,179,198,0.16));
+      border: 1.5px dashed rgba(160,120,220,0.5);
+    }
+    .pet-adopt-ico { font-size: 22px; }
+    .pet-adopt-title { font-size: 14.5px; font-weight: 800; color: #8A5FD0; }
+    .pet-adopt-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+
+    .pet-banner-box {
+      background: linear-gradient(135deg, rgba(201,177,255,0.16), rgba(168,216,245,0.16));
+      border: 1.5px solid rgba(160,120,220,0.32);
+    }
+    .pet-banner-box.sad { background: linear-gradient(135deg, rgba(140,150,170,0.16), rgba(120,130,150,0.12)); }
+    .pet-banner-avatar { width: 44px; height: 52px; flex-shrink: 0; }
+    .pet-banner-avatar .pet-svg { width: 100%; height: 100%; display: block; }
+    .pet-banner-info { flex: 1; min-width: 0; }
+    .pet-banner-top { display: flex; align-items: center; gap: 6px; }
+    .pet-banner-name { font-size: 14px; font-weight: 800; color: var(--dark); }
+    .pet-banner-lv {
+      font-size: 10.5px; font-weight: 700; color: #8A5FD0;
+      background: rgba(160,120,220,0.16); padding: 2px 7px; border-radius: 8px;
+    }
+    .pet-banner-mood { margin-left: auto; font-size: 15px; }
+    .pet-exp-track {
+      height: 6px; border-radius: 4px; background: rgba(0,0,0,0.09);
+      overflow: hidden; margin: 6px 0 4px;
+    }
+    .pet-exp-track.big { height: 10px; border-radius: 6px; margin: 0 0 8px; }
+    .pet-exp-fill {
+      height: 100%; border-radius: 6px;
+      background: linear-gradient(90deg, #C9B1FF, #FF9CB2);
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .pet-banner-say {
+      font-size: 11.5px; color: var(--sub); font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pet-banner-arrow { font-size: 16px; color: #8A5FD0; opacity: 0.7; }
+
+    /* Pet page */
+    .pet-page {
+      position: fixed; inset: 0; z-index: 125;
+      background: linear-gradient(180deg, #F3ECFF 0%, #FFE9F2 100%);
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .pet-page.open { transform: translateX(0); }
+    .pet-topbar {
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+      padding: calc(46px + env(safe-area-inset-top)) 16px 10px;
+    }
+    .pet-back {
+      background: none; border: none; font-size: 20px; color: #8A5FD0;
+      font-weight: 700; cursor: pointer; padding: 4px 6px;
+    }
+    .pet-title-wrap { flex: 1; text-align: center; cursor: pointer; }
+    .pet-page-name { font-size: 17px; font-weight: 800; color: var(--dark); }
+    .pet-page-lv { font-size: 11.5px; color: #8A5FD0; font-weight: 700; margin-top: 1px; }
+    .pet-mood-chip {
+      font-size: 11px; font-weight: 700; color: var(--sub); white-space: nowrap;
+      background: rgba(255,255,255,0.6); border-radius: 20px; padding: 5px 10px;
+    }
+
+    /* The room: a simple 2.5D box — back wall + floor with perspective */
+    .pet-room {
+      position: relative; flex: 1; min-height: 0; margin: 0 14px;
+      border-radius: 22px 22px 18px 18px; overflow: hidden;
+      background: linear-gradient(180deg, #EADDFB 0%, #E4D3F6 58%, #D9C4EE 58.2%, #CDB4E6 100%);
+      box-shadow: inset 0 10px 30px rgba(120,80,180,0.14);
+      transition: background 0.8s ease;
+    }
+    /* Floor plane sits in the bottom 42%. A ::after paints ABOVE its siblings,
+       so it must be explicitly pushed behind them and made click-through —
+       otherwise it tints the pet's legs and swallows taps meant for the pet. */
+    .pet-room::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+      background: linear-gradient(180deg, rgba(180,140,100,0.28), rgba(150,110,75,0.42));
+      border-top: 2px solid rgba(120,85,55,0.28);
+      z-index: 0; pointer-events: none;
+    }
+    .pet-room.sky-day   { background: linear-gradient(180deg, #EFE3FF 0%, #E6D6F8 58%, #D9C4EE 58.2%, #CDB4E6 100%); }
+    .pet-room.sky-dusk  { background: linear-gradient(180deg, #FFE0D0 0%, #F7CBC4 58%, #D9B4C4 58.2%, #C99FB4 100%); }
+    .pet-room.sky-night { background: linear-gradient(180deg, #2A2450 0%, #372C5E 58%, #43356B 58.2%, #3A2C5C 100%); }
+
+    .pet-window {
+      position: absolute; top: 12%; right: 10%; z-index: 1; width: 74px; height: 62px;
+      border-radius: 10px; border: 4px solid rgba(255,255,255,0.75);
+      background: linear-gradient(180deg, #BFE4FF, #EAF6FF);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1); overflow: hidden;
+      transition: background 0.8s ease;
+    }
+    .pet-window::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(rgba(255,255,255,0.7) 0 0) 50% 0/3px 100% no-repeat,
+                  linear-gradient(rgba(255,255,255,0.7) 0 0) 0 50%/100% 3px no-repeat;
+    }
+    .pet-window-orb {
+      position: absolute; top: 10px; left: 12px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: radial-gradient(circle, #FFF3B0, #FFD75E);
+      box-shadow: 0 0 16px rgba(255,215,94,0.9);
+      transition: all 0.8s ease;
+    }
+    .sky-dusk .pet-window { background: linear-gradient(180deg, #FFC48A, #FFE0C0); }
+    .sky-dusk .pet-window-orb { background: radial-gradient(circle, #FFD9A0, #FF9A4E); box-shadow: 0 0 18px rgba(255,154,78,0.9); top: 26px; }
+    .sky-night .pet-window { background: linear-gradient(180deg, #1B2450, #2E3B72); }
+    .sky-night .pet-window-orb {
+      background: radial-gradient(circle at 62% 38%, transparent 46%, #EDE6CF 47%);
+      box-shadow: 0 0 16px rgba(237,230,207,0.5); top: 9px;
+    }
+    .pet-picture { position: absolute; top: 13%; left: 11%; font-size: 30px; opacity: 0.9; z-index: 1; }
+    .pet-plant   { position: absolute; bottom: 12%; left: 8%;  font-size: 34px; z-index: 1; }
+    .pet-sofa    { position: absolute; bottom: 13%; right: 7%; font-size: 40px; z-index: 1; }
+    .pet-rug {
+      position: absolute; bottom: 7%; left: 50%; transform: translateX(-50%); z-index: 1;
+      width: 62%; height: 12%; border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+    }
+
+    .pet-stage {
+      position: absolute; bottom: 14%; left: 50%; z-index: 3;
+      width: 132px; height: 154px;
+      transform: translateX(-50%) scale(var(--pet-scale, 1));
+      transform-origin: bottom center;
+      cursor: pointer;
+      transition: transform 0.9s cubic-bezier(0.34,1.4,0.64,1);
+      animation: pet-breathe 3.4s ease-in-out infinite;
+    }
+    .pet-stage .pet-svg { width: 100%; height: 100%; display: block;
+      filter: drop-shadow(0 6px 12px rgba(80,50,120,0.22)); }
+    @keyframes pet-breathe {
+      0%, 100% { translate: 0 0; }
+      50%      { translate: 0 -5px; }
+    }
+    .pet-stage.poke { animation: pet-poke 0.5s ease; }
+    @keyframes pet-poke {
+      0%   { translate: 0 0;     rotate: 0deg; }
+      25%  { translate: 0 -14px; rotate: -6deg; }
+      55%  { translate: 0 0;     rotate: 5deg; }
+      100% { translate: 0 0;     rotate: 0deg; }
+    }
+    .pet-heart {
+      position: absolute; bottom: 34%; font-size: 18px; z-index: 5;
+      pointer-events: none; animation: pet-heart-up 1.4s ease-out forwards;
+    }
+    @keyframes pet-heart-up {
+      0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+      20%  { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-90px) scale(1.15); }
+    }
+    .pet-speech-bubble {
+      position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 4;
+      max-width: 74%; text-align: center;
+      background: rgba(255,255,255,0.94); color: #4A3A6B;
+      font-size: 12.5px; font-weight: 700; line-height: 1.45;
+      padding: 9px 14px; border-radius: 16px;
+      box-shadow: 0 4px 14px rgba(80,50,120,0.18);
+    }
+    .pet-speech-bubble::after {
+      content: ''; position: absolute; bottom: -7px; left: 50%; margin-left: -7px;
+      border: 7px solid transparent; border-top-color: rgba(255,255,255,0.94); border-bottom: 0;
+    }
+
+    .pet-panel {
+      flex-shrink: 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+    }
+    .pet-exp-txt { font-size: 11.5px; color: var(--sub); font-weight: 600; margin-bottom: 12px; }
+    .pet-contrib-head { font-size: 11px; color: var(--sub); font-weight: 700; margin-bottom: 5px; }
+    .pet-contrib-bar {
+      display: flex; height: 8px; border-radius: 5px; overflow: hidden;
+      background: rgba(0,0,0,0.08);
+    }
+    .pcb-1 { background: var(--blue); }
+    .pcb-2 { background: #FF8FA0; }
+    .pet-contrib-legend {
+      display: flex; justify-content: space-between; margin-top: 5px;
+      font-size: 11px; color: var(--sub); font-weight: 600;
+    }
+    .pet-contrib-legend .dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px;
+    }
+    .pet-contrib-legend .dot.c1 { background: var(--blue); }
+    .pet-contrib-legend .dot.c2 { background: #FF8FA0; }
+    .pet-hint {
+      font-size: 11px; color: var(--sub); text-align: center;
+      margin-top: 12px; line-height: 1.5; opacity: 0.85;
+    }
+
+    /* Species picker */
+    .pet-species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pet-pick {
+      border: 2px solid var(--card-border); border-radius: 16px;
+      padding: 10px 6px 12px; text-align: center; cursor: pointer;
+      background: #F7F9FC; transition: border-color 0.2s, transform 0.15s;
+    }
+    .pet-pick:active { transform: scale(0.97); }
+    .pet-pick.on { border-color: #A87CE0; background: rgba(168,124,224,0.12); }
+    .pet-pick-art { width: 62px; height: 74px; margin: 0 auto 4px; }
+    .pet-pick-art .pet-svg { width: 100%; height: 100%; display: block; }
+    .pet-pick-name { font-size: 13px; font-weight: 800; color: var(--dark); }
+    .pet-pick-tone { font-size: 10.5px; color: var(--sub); margin-top: 2px; }
 
     /* ── 共同目标 card on home ── */
     #goal-card:empty { display: none; }
@@ -2780,6 +3006,9 @@
     <div class="together-banner-arrow">›</div>
   </div>
 
+  <!-- Pet (恋爱小窝) — filled by App.renderPetBanner() -->
+  <div id="pet-banner"></div>
+
   <!-- Shared goal (共同目标) — filled by App.renderSharedGoal() -->
   <div id="goal-card"></div>
 
@@ -2940,6 +3169,70 @@
   <button class="love-goto-score" onclick="App.closeLovePage()">
     📊 前往积分追踪
   </button>
+</div>
+
+<!-- Pet home 小窝 (full-screen) -->
+<div class="pet-page" id="pet-page">
+  <div class="pet-topbar">
+    <button class="pet-back" onclick="App.closePetHome()">‹ 返回</button>
+    <div class="pet-title-wrap" onclick="App.openPetRename()">
+      <div class="pet-page-name" id="pet-page-name">小家伙</div>
+      <div class="pet-page-lv" id="pet-page-lv">Lv.1</div>
+    </div>
+    <div class="pet-mood-chip" id="pet-mood-chip"></div>
+  </div>
+
+  <div class="pet-room" id="pet-room">
+    <div class="pet-window"><span class="pet-window-orb"></span></div>
+    <div class="pet-picture">🖼</div>
+    <div class="pet-plant">🌱</div>
+    <div class="pet-sofa">🛋️</div>
+    <div class="pet-rug"></div>
+    <div class="pet-speech-bubble" id="pet-speech">…</div>
+    <div class="pet-stage" id="pet-stage" onclick="App.pokePet()"></div>
+  </div>
+
+  <div class="pet-panel">
+    <div id="pet-exp-bar"></div>
+    <div id="pet-contrib"></div>
+    <div class="pet-hint">💡 签到、记分、写情书、加回忆都会让它长大 · 点它试试</div>
+  </div>
+</div>
+
+<!-- Pet adoption modal -->
+<div class="modal-overlay" id="modal-pet-adopt" style="z-index:120">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🥚 领养小家伙</div>
+    <p style="font-size:12.5px;color:var(--sub);line-height:1.6;margin:-10px 0 14px">
+      它会跟着你们的积分一起长大，月末结算<b>不会</b>让它变小 💕
+    </p>
+    <div class="pet-species-grid" id="pet-species-grid"></div>
+    <div class="modal-field" style="margin-top:14px">
+      <label>给它取个名字</label>
+      <input id="pet-name-input" type="text" placeholder="例如：豆豆" maxlength="12"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-pet-adopt')">再想想</button>
+      <button class="btn-primary" onclick="App.confirmAdopt()" style="flex:1">就是它了 🎉</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pet rename modal -->
+<div class="modal-overlay" id="modal-pet-rename" style="z-index:140">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ 给它改个名字</div>
+    <div class="modal-field">
+      <label>名字</label>
+      <input id="pet-rename-input" type="text" maxlength="12"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-pet-rename')">取消</button>
+      <button class="btn-primary" onclick="App.renamePet()" style="flex:1">保存 ✅</button>
+    </div>
+  </div>
 </div>
 
 <!-- Shared goal modal -->

@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-2';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-3';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -163,6 +163,7 @@ const App = (() => {
     catTab: 'reward',   // quick-entry tab: 'reward' (加分) | 'punish' (扣分)
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
+    petName: '', petSpecies: '', petExpStored: 0, petPick: '',
     achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
@@ -267,6 +268,7 @@ const App = (() => {
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
+        petName: '', petSpecies: '', petExp: 0,        // 恋爱小窝
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -337,6 +339,9 @@ const App = (() => {
         S.goalName   = cfg.goalName   || '';
         S.goalIcon   = cfg.goalIcon   || '🎯';
         S.goalTarget = parseInt(cfg.goalTarget) || 0;
+        S.petName      = cfg.petName    || '';
+        S.petSpecies   = cfg.petSpecies || '';
+        S.petExpStored = parseInt(cfg.petExp) || 0;
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
@@ -366,6 +371,9 @@ const App = (() => {
         S.goalName        = d.goalName  || '';
         S.goalIcon        = d.goalIcon  || '🎯';
         S.goalTarget      = parseInt(d.goalTarget) || 0;
+        S.petName         = d.petName    || '';
+        S.petSpecies      = d.petSpecies || '';
+        S.petExpStored    = parseInt(d.petExp) || 0;
       }
     },
 
@@ -1023,8 +1031,13 @@ const App = (() => {
     renderCheckinBanner();
     // Needs settled history for the lifetime total — fetch in the background
     // so the home page never blocks on it.
-    Data.getHistory().then(h => { S.historyRecords = h || []; renderSharedGoal(); })
-                     .catch(() => renderSharedGoal());
+    // Needs settled history + letters/photos for the lifetime totals the goal
+    // card and the pet both read — fetch in the background so home never waits.
+    _loadStatsSources().then(() => {
+      renderSharedGoal();
+      renderPetBanner();
+      _syncPetExp();
+    }).catch(() => { renderSharedGoal(); renderPetBanner(); });
   }
 
   /* ── Daily check-in (签到) ── */
@@ -2499,6 +2512,447 @@ const App = (() => {
     setTimeout(restore, 500);
   }
 
+  /* ══════════════ 恋爱小窝 · 宠物养成 (Phase 1) ══════════════
+     Level and mood are DERIVED from the couple's real activity, never stored
+     — same approach as the badges, so they can't drift out of sync and there
+     is nothing to migrate. Only the couple's own choices (name, species,
+     future furniture) persist, and those ride along on the existing
+     u_love_config row so this feature needs no new SN table. */
+
+  const PET_SPECIES = {
+    dog:   { key:'dog',   label:'小狗', emoji:'🐶', tone:'pet',
+             body:'#FFFFFF', shade:'#DCDCDC', accent:'#5B9BD5', ear:'floppy' },
+    cat:   { key:'cat',   label:'小猫', emoji:'🐱', tone:'pet',
+             body:'#FFE2C4', shade:'#EFC7A2', accent:'#FF9A62', ear:'pointy' },
+    bunny: { key:'bunny', label:'小兔', emoji:'🐰', tone:'pet',
+             body:'#FFF2F6', shade:'#F2D6E1', accent:'#FF8FA0', ear:'long' },
+    baby:  { key:'baby',  label:'宝宝', emoji:'👶', tone:'baby',
+             body:'#FFE7D3', shade:'#F2CDB2', accent:'#C9B1FF', ear:'none' },
+  };
+
+  // EXP is expressed in the couple's own currency — points they've banked
+  // together plus a bonus for the "slow" acts (letters, photos, settling).
+  // Using banked POINTS (not entry counts) keeps it stable across settlement,
+  // when entries are archived out of /entries into month totals.
+  const PET_STAGES = [
+    { lv:1, name:'蛋蛋期', min:0,    scale:0.74 },
+    { lv:2, name:'幼崽期', min:300,  scale:0.82 },
+    { lv:3, name:'成长期', min:1000, scale:0.92 },
+    { lv:4, name:'活泼期', min:2500, scale:1.02 },
+    { lv:5, name:'圆满期', min:6000, scale:1.12 },
+  ];
+
+  // A pet must NEVER shrink, so EXP is a high-water mark.
+  //
+  // The derived part already survives a normal 月末结算: settling moves points
+  // out of /entries and into a history row, and both are counted, so the total
+  // is identical before and after. Two cases could still make it dip, which is
+  // why the stored floor exists:
+  //   1. Punishment-mode months archive a NEGATIVE total (bad-behaviour points),
+  //      so that month's positive earnings aren't recoverable from history.
+  //   2. Deleting an old letter/photo would otherwise claw back its EXP.
+  // The stored value only ever moves up, so neither can ever un-grow the pet.
+  function petExpDerived() {
+    const hist    = S.historyRecords || [];
+    const letters = (S.letters || []).length;
+    const photos  = (S.photos  || []).length;
+    return lifetimeCombinedPoints() + letters * 30 + photos * 20 + hist.length * 100;
+  }
+
+  function petExp() {
+    return Math.max(petExpDerived(), S.petExpStored || 0);
+  }
+
+  // Persist a new high-water mark in the background; never blocks the UI and
+  // a failed write just means we recompute the same number next time.
+  function _syncPetExp() {
+    const d = petExpDerived();
+    if (d > (S.petExpStored || 0)) {
+      S.petExpStored = d;
+      Data.saveConfig({ petExp: d }).catch(() => {});
+    }
+  }
+
+  function petStageInfo() {
+    const exp = petExp();
+    let idx = 0;
+    for (let i = 0; i < PET_STAGES.length; i++) if (exp >= PET_STAGES[i].min) idx = i;
+    const cur  = PET_STAGES[idx];
+    const next = PET_STAGES[idx + 1] || null;
+    // Grow smoothly inside a stage, then pop to the next artwork at the
+    // boundary — "a little bigger every day" without needing new art per day.
+    const spanFrom = cur.min;
+    const spanTo   = next ? next.min : cur.min + 1;
+    const prog     = next ? Math.min(1, (exp - spanFrom) / (spanTo - spanFrom)) : 1;
+    const scale    = next ? cur.scale + (next.scale - cur.scale) * prog : cur.scale;
+    return {
+      exp, idx, stage: cur, next,
+      pct: next ? Math.round(prog * 100) : 100,
+      toNext: next ? Math.max(0, next.min - exp) : 0,
+      scale,
+    };
+  }
+
+  // Mood reflects the last few days only, so it naturally decays when you go
+  // quiet and recovers the moment you come back — no stored counter, no
+  // nightly job, and it can never get stuck.
+  function petMood() {
+    const since = new Date(now().getTime() - 3 * 86400000);
+    const sinceStr = todayStr(since);
+    const recent = (S.entries || []).filter(e => (e.date || '') >= sinceStr);
+    const recentLetters = (S.letters || []).filter(l => (l.date || '').slice(0,10) >= sinceStr).length;
+    const recentPhotos  = (S.photos  || []).filter(p => (p.date  || '') >= sinceStr).length;
+
+    let m = 30;   // baseline so a brand-new pet isn't born sad
+    recent.forEach(e => {
+      const pts = parseInt(e.pts) || 0;
+      if (e.catName === CHECKIN_CAT)      m += 12;
+      else if (isPurchaseEntry(e))        m += 0;
+      else if (pts > 0)                   m += 6;
+      else                                m -= 10;
+    });
+    m += recentLetters * 18 + recentPhotos * 12;
+    return Math.max(0, Math.min(100, Math.round(m)));
+  }
+
+  function petMoodFace(m) {
+    if (m >= 80) return { emoji:'🤩', label:'超开心', cls:'happy' };
+    if (m >= 50) return { emoji:'🙂', label:'开心',   cls:'good'  };
+    if (m >= 20) return { emoji:'😐', label:'一般',   cls:'meh'   };
+    return           { emoji:'🥺', label:'想你们了', cls:'sad'   };
+  }
+
+  const petSpecies = () => PET_SPECIES[S.petSpecies] || PET_SPECIES.dog;
+  const petName    = () => S.petName || petSpecies().label;
+
+  function petSpeech() {
+    const sp = petSpecies();
+    const who = sp.tone === 'baby' ? '爸爸妈妈' : '主人';
+    const st = petStageInfo();
+    const m  = petMood();
+    const pool = [];
+    if (m >= 80) pool.push(`今天也好幸福呀～`, `${who}最好了！`, `我最喜欢你们两个 💕`);
+    else if (m >= 50) pool.push(`今天过得怎么样？`, `${who}回来啦～`, `陪我玩一会儿好不好`);
+    else if (m >= 20) pool.push(`有点无聊…`, `${who}最近好忙哦`, `想要抱抱`);
+    else pool.push(`好久没人陪我了…`, `${who}去哪了呀 🥺`, `我一个人有点孤单`);
+    if (st.next && st.pct >= 80) pool.push(`我感觉…我快要长大了！`);
+    if (st.idx === 0) pool.push(`（蛋壳里传来动静…）`);
+    if (checkinDatesFor('char1').has(todayStr()) && checkinDatesFor('char2').has(todayStr()))
+      pool.push(`今天你们都来看我了，好开心！`);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /* ── Pet artwork ──
+     One parametric SVG per species. Soft radial shading, real paws and tails,
+     and — importantly — ears drawn OUTSIDE the head silhouette: an earlier
+     version tucked them behind the head ellipse, which made every species
+     render as the same featureless snowman. */
+  let _svgUid = 0;
+
+  function petSvg(stageIdx, sp = petSpecies()) {
+    const uid = 'pg' + (++_svgUid);
+    const grad = `
+      <defs>
+        <radialGradient id="${uid}" cx="34%" cy="26%" r="82%">
+          <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.96"/>
+          <stop offset="52%"  stop-color="${sp.body}"/>
+          <stop offset="100%" stop-color="${sp.shade}"/>
+        </radialGradient>
+      </defs>`;
+    const FILL = `url(#${uid})`;
+    const LINE = sp.shade;
+
+    if (stageIdx === 0) {   // 🥚 egg — species reads only through its colour
+      return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
+        <ellipse cx="60" cy="139" rx="27" ry="5.5" fill="rgba(0,0,0,0.14)"/>
+        <path d="M 60 50 C 88 50 96 92 96 104 C 96 124 80 136 60 136
+                 C 40 136 24 124 24 104 C 24 92 32 50 60 50 Z"
+              fill="${FILL}" stroke="${LINE}" stroke-width="1.8"/>
+        <ellipse cx="47" cy="82"  rx="8"  ry="10" fill="${sp.accent}" opacity="0.26"/>
+        <ellipse cx="74" cy="104" rx="6.5" ry="8" fill="${sp.accent}" opacity="0.22"/>
+        <ellipse cx="63" cy="68"  rx="4.5" ry="6" fill="${sp.accent}" opacity="0.2"/>
+        <path d="M 42 96 L 52 90 L 48 102 L 60 96 L 56 108 L 68 102"
+              stroke="${LINE}" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      </svg>`;
+    }
+
+    // Head shrinks relative to the body as it matures — that proportion shift
+    // is what actually reads as "growing up", more than raw size does.
+    const headR = [0, 31, 29, 27, 26][stageIdx];
+    const bodyW = [0, 25, 31, 35, 38][stageIdx];
+    const bodyH = [0, 24, 29, 33, 35][stageIdx];
+    const headY = [0, 56, 54, 52, 50][stageIdx];
+    const bodyY = [0, 102, 100, 98, 97][stageIdx];
+    const headTop = headY - headR * 0.92;
+
+    // Tails sit behind the body and give each species a distinct silhouette
+    const tail = {
+      floppy: `<path d="M ${60+bodyW*0.82} ${bodyY+4} q 20 -4 16 -22 q -1 -6 -6 -5 q -4 1 -3 6 q 2 12 -12 15 z"
+                     fill="${FILL}" stroke="${LINE}" stroke-width="1.5" stroke-linejoin="round"/>`,
+      pointy: `<path d="M ${60+bodyW*0.8} ${bodyY+6} q 26 2 26 -22 q 0 -8 -7 -8 q -6 0 -5 7 q 1 14 -15 15 z"
+                     fill="${FILL}" stroke="${LINE}" stroke-width="1.5" stroke-linejoin="round"/>`,
+      long:   `<circle cx="${60+bodyW*0.92}" cy="${bodyY+6}" r="9" fill="${FILL}" stroke="${LINE}" stroke-width="1.5"/>`,
+      none:   '',
+    }[sp.ear] || '';
+
+    // Ears are positioned to clear the head outline so the species is legible
+    const ears = {
+      floppy: `<ellipse cx="${60-headR*1.02}" cy="${headY+7}" rx="10.5" ry="19"
+                        fill="${FILL}" stroke="${LINE}" stroke-width="1.6"
+                        transform="rotate(-16 ${60-headR*1.02} ${headY+7})"/>
+               <ellipse cx="${60+headR*1.02}" cy="${headY+7}" rx="10.5" ry="19"
+                        fill="${FILL}" stroke="${LINE}" stroke-width="1.6"
+                        transform="rotate(16 ${60+headR*1.02} ${headY+7})"/>`,
+      pointy: `<path d="M ${60-headR*0.74} ${headTop+9} L ${60-headR*0.96} ${headTop-19} L ${60-headR*0.16} ${headTop+2} Z"
+                     fill="${FILL}" stroke="${LINE}" stroke-width="1.6" stroke-linejoin="round"/>
+               <path d="M ${60-headR*0.7} ${headTop+6} L ${60-headR*0.84} ${headTop-11} L ${60-headR*0.3} ${headTop+1} Z"
+                     fill="${sp.accent}" opacity="0.4"/>
+               <path d="M ${60+headR*0.74} ${headTop+9} L ${60+headR*0.96} ${headTop-19} L ${60+headR*0.16} ${headTop+2} Z"
+                     fill="${FILL}" stroke="${LINE}" stroke-width="1.6" stroke-linejoin="round"/>
+               <path d="M ${60+headR*0.7} ${headTop+6} L ${60+headR*0.84} ${headTop-11} L ${60+headR*0.3} ${headTop+1} Z"
+                     fill="${sp.accent}" opacity="0.4"/>`,
+      long:   `<ellipse cx="${60-13}" cy="${headTop-16}" rx="7.5" ry="24" fill="${FILL}" stroke="${LINE}" stroke-width="1.6"
+                        transform="rotate(-10 ${60-13} ${headTop-16})"/>
+               <ellipse cx="${60-13}" cy="${headTop-16}" rx="3.4" ry="16" fill="${sp.accent}" opacity="0.35"
+                        transform="rotate(-10 ${60-13} ${headTop-16})"/>
+               <ellipse cx="${60+13}" cy="${headTop-16}" rx="7.5" ry="24" fill="${FILL}" stroke="${LINE}" stroke-width="1.6"
+                        transform="rotate(10 ${60+13} ${headTop-16})"/>
+               <ellipse cx="${60+13}" cy="${headTop-16}" rx="3.4" ry="16" fill="${sp.accent}" opacity="0.35"
+                        transform="rotate(10 ${60+13} ${headTop-16})"/>`,
+      none:   `<path d="M ${60-4} ${headTop+3} q 3 -13 11 -8 q 6 4 1 9"
+                     stroke="${sp.accent}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`,
+    }[sp.ear] || '';
+
+    const eyeY  = headY + 3;
+    const eyeDX = headR * 0.4;
+    const eyeR  = stageIdx <= 2 ? 5.6 : 5;
+
+    const shellHat = stageIdx === 1
+      ? `<path d="M ${60-21} ${headTop+7} q 21 -17 42 0 l -7 6 l -8 -6 l -7 7 l -8 -6 z"
+               fill="#FFFDF6" stroke="${LINE}" stroke-width="1.5" stroke-linejoin="round"/>` : '';
+    // Final stage floats a halo instead of a crown: a crown occupies exactly
+    // the pointy/long ear zone and hid them entirely.
+    const halo = stageIdx === 4
+      ? `<ellipse cx="60" cy="${headTop-26}" rx="20" ry="5.6" fill="none" stroke="#FFD24A" stroke-width="4.2"/>
+         <ellipse cx="60" cy="${headTop-26}" rx="20" ry="5.6" fill="none" stroke="#FFF3B0" stroke-width="1.4"/>` : '';
+    const scarf = stageIdx >= 2
+      ? `<path d="M ${60-14} ${headY+headR*0.78} q 14 9 28 0 l 3 7 q -17 10 -34 0 z"
+               fill="${sp.accent}"/>
+         <path d="M ${60+9} ${headY+headR*0.86+4} l 9 12 l -8 2 l -5 -11 z" fill="${sp.accent}"/>` : '';
+
+    const nose = sp.ear === 'none'
+      ? `<ellipse cx="60" cy="${eyeY+10}" rx="3" ry="2.2" fill="${sp.shade}"/>`
+      : `<path d="M ${60-5} ${eyeY+8} q 5 6 10 0 q -5 4 -10 0 z" fill="#2A2A2A"/>
+         <ellipse cx="60" cy="${eyeY+8}" rx="4.6" ry="3.2" fill="#2A2A2A"/>`;
+    const whiskers = sp.ear === 'pointy'
+      ? `<g stroke="${LINE}" stroke-width="1.3" stroke-linecap="round" opacity="0.8">
+           <path d="M ${60-13} ${eyeY+9} L ${60-30} ${eyeY+6}"/>
+           <path d="M ${60-13} ${eyeY+12} L ${60-30} ${eyeY+14}"/>
+           <path d="M ${60+13} ${eyeY+9} L ${60+30} ${eyeY+6}"/>
+           <path d="M ${60+13} ${eyeY+12} L ${60+30} ${eyeY+14}"/>
+         </g>` : '';
+
+    return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
+      <ellipse cx="60" cy="139" rx="${bodyW*0.86}" ry="5.5" fill="rgba(0,0,0,0.14)"/>
+      ${tail}
+      <ellipse cx="${60-bodyW*0.52}" cy="134" rx="9.5" ry="6" fill="${FILL}" stroke="${LINE}" stroke-width="1.5"/>
+      <ellipse cx="${60+bodyW*0.52}" cy="134" rx="9.5" ry="6" fill="${FILL}" stroke="${LINE}" stroke-width="1.5"/>
+      <ellipse class="pet-body" cx="60" cy="${bodyY}" rx="${bodyW}" ry="${bodyH}" fill="${FILL}" stroke="${LINE}" stroke-width="1.8"/>
+      <ellipse cx="60" cy="${bodyY+bodyH*0.24}" rx="${bodyW*0.56}" ry="${bodyH*0.5}" fill="#FFFFFF" opacity="0.4"/>
+      <ellipse cx="${60-bodyW*0.86}" cy="${bodyY+bodyH*0.3}" rx="7.5" ry="10" fill="${FILL}" stroke="${LINE}" stroke-width="1.5"
+               transform="rotate(-12 ${60-bodyW*0.86} ${bodyY+bodyH*0.3})"/>
+      <ellipse cx="${60+bodyW*0.86}" cy="${bodyY+bodyH*0.3}" rx="7.5" ry="10" fill="${FILL}" stroke="${LINE}" stroke-width="1.5"
+               transform="rotate(12 ${60+bodyW*0.86} ${bodyY+bodyH*0.3})"/>
+      ${ears}
+      <ellipse class="pet-head" cx="60" cy="${headY}" rx="${headR}" ry="${headR*0.92}" fill="${FILL}" stroke="${LINE}" stroke-width="1.8"/>
+      ${scarf}${shellHat}${halo}
+      <ellipse cx="${60-eyeDX}" cy="${eyeY}" rx="${eyeR}" ry="${eyeR*1.06}" fill="#2A2A2A"/>
+      <ellipse cx="${60+eyeDX}" cy="${eyeY}" rx="${eyeR}" ry="${eyeR*1.06}" fill="#2A2A2A"/>
+      <circle cx="${60-eyeDX+2}" cy="${eyeY-2}" r="1.9" fill="#fff" opacity="0.95"/>
+      <circle cx="${60+eyeDX+2}" cy="${eyeY-2}" r="1.9" fill="#fff" opacity="0.95"/>
+      <ellipse cx="${60-headR*0.68}" cy="${eyeY+9}" rx="6.2" ry="3.8" fill="${sp.accent}" opacity="0.34"/>
+      <ellipse cx="${60+headR*0.68}" cy="${eyeY+9}" rx="6.2" ry="3.8" fill="${sp.accent}" opacity="0.34"/>
+      ${whiskers}${nose}
+      <path d="M ${60-7} ${eyeY+13} q 7 7 14 0" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  /* ── Home banner ── */
+  function renderPetBanner() {
+    const el = document.getElementById('pet-banner');
+    if (!el) return;
+    if (!S.petSpecies) {
+      el.innerHTML = `<div class="pet-adopt" onclick="App.openPetAdopt()">
+        <span class="pet-adopt-ico">🥚</span>
+        <div>
+          <div class="pet-adopt-title">领养你们的小家伙</div>
+          <div class="pet-adopt-sub">一起养大它，看着它慢慢长大 →</div>
+        </div>
+      </div>`;
+      return;
+    }
+    const st = petStageInfo();
+    const mood = petMood();
+    const face = petMoodFace(mood);
+    el.innerHTML = `<div class="pet-banner-box ${face.cls}" onclick="App.showPetHome()">
+      <div class="pet-banner-avatar">${petSvg(st.idx)}</div>
+      <div class="pet-banner-info">
+        <div class="pet-banner-top">
+          <span class="pet-banner-name">${_escHtml(petName())}</span>
+          <span class="pet-banner-lv">Lv.${st.stage.lv} ${st.stage.name}</span>
+          <span class="pet-banner-mood">${face.emoji}</span>
+        </div>
+        <div class="pet-exp-track"><div class="pet-exp-fill" style="width:${st.pct}%"></div></div>
+        <div class="pet-banner-say">「${_escHtml(petSpeech())}」</div>
+      </div>
+      <div class="pet-banner-arrow">›</div>
+    </div>`;
+  }
+
+  /* ── Adoption ── */
+  function openPetAdopt() {
+    const grid = document.getElementById('pet-species-grid');
+    grid.innerHTML = Object.values(PET_SPECIES).map(sp =>
+      `<div class="pet-pick ${S.petPick === sp.key ? 'on' : ''}" onclick="App.pickPetSpecies('${sp.key}')">
+        <div class="pet-pick-art">${petSvg(2, sp)}</div>
+        <div class="pet-pick-name">${sp.emoji} ${sp.label}</div>
+        <div class="pet-pick-tone">${sp.tone === 'baby' ? '会叫你们爸爸妈妈' : '会叫你们主人'}</div>
+      </div>`).join('');
+    openModal('modal-pet-adopt');
+  }
+
+  function pickPetSpecies(key) {
+    S.petPick = key;
+    document.querySelectorAll('.pet-pick').forEach((el, i) => {
+      el.classList.toggle('on', Object.keys(PET_SPECIES)[i] === key);
+    });
+  }
+
+  async function confirmAdopt() {
+    const key  = S.petPick;
+    const name = document.getElementById('pet-name-input').value.trim();
+    if (!key)  { showToast('先选一个小家伙吧 🥚'); return; }
+    if (!name) { showToast('给它取个名字吧'); return; }
+    S.petSpecies = key; S.petName = name;
+    try {
+      await Data.saveConfig({ petSpecies: key, petName: name });
+      closeModal('modal-pet-adopt');
+      spawnConfetti();
+      showToast(`🎉 ${name} 加入了你们的小窝！`);
+      renderPetBanner();
+    } catch (err) {
+      showToast('保存失败: ' + err.message);
+    }
+  }
+
+  /* ── Pet home (小窝) ── */
+  let _petTaps = 0;
+
+  async function showPetHome() {
+    if (!S.petSpecies) { openPetAdopt(); return; }
+    document.getElementById('pet-page')?.classList.add('open');
+    await _loadStatsSources();
+    renderPetHome();
+  }
+
+  function closePetHome() {
+    document.getElementById('pet-page')?.classList.remove('open');
+    renderPetBanner();
+  }
+
+  function renderPetHome() {
+    const st   = petStageInfo();
+    const mood = petMood();
+    const face = petMoodFace(mood);
+    const sp   = petSpecies();
+
+    document.getElementById('pet-page-name').textContent = petName();
+    document.getElementById('pet-page-lv').textContent   = `Lv.${st.stage.lv} · ${st.stage.name}`;
+
+    // Window art follows the real clock, tying the room to the day/night theme
+    const hr = now().getHours();
+    const sky = hr >= 6 && hr < 17 ? 'day' : (hr >= 17 && hr < 19 ? 'dusk' : 'night');
+    document.getElementById('pet-room').className = 'pet-room sky-' + sky;
+
+    const stage = document.getElementById('pet-stage');
+    stage.style.setProperty('--pet-scale', st.scale);
+    stage.innerHTML = petSvg(st.idx);
+
+    document.getElementById('pet-speech').textContent = petSpeech();
+    document.getElementById('pet-mood-chip').innerHTML =
+      `${face.emoji} ${face.label} · ${mood}`;
+
+    document.getElementById('pet-exp-bar').innerHTML =
+      `<div class="pet-exp-track big"><div class="pet-exp-fill" style="width:${st.pct}%"></div></div>
+       <div class="pet-exp-txt">${st.next
+         ? `EXP ${st.exp} · 还差 ${st.toNext} 升到「${st.next.name}」`
+         : `EXP ${st.exp} · 已经养到圆满啦 👑`}</div>`;
+
+    // Contribution split — shown because you asked to see it, but it feeds
+    // nothing: the pet belongs to both of you equally.
+    const c1 = Math.max(0, S.char1Score), c2 = Math.max(0, S.char2Score);
+    const tot = c1 + c2;
+    const p1 = tot ? Math.round((c1 / tot) * 100) : 50;
+    document.getElementById('pet-contrib').innerHTML = `
+      <div class="pet-contrib-head">本轮一起投喂</div>
+      <div class="pet-contrib-bar">
+        <div class="pcb-1" style="width:${p1}%"></div>
+        <div class="pcb-2" style="width:${100 - p1}%"></div>
+      </div>
+      <div class="pet-contrib-legend">
+        <span><i class="dot c1"></i>${_escHtml(charDisplayName('char1'))} ${c1}</span>
+        <span><i class="dot c2"></i>${_escHtml(charDisplayName('char2'))} ${c2}</span>
+      </div>`;
+  }
+
+  function pokePet() {
+    const stage = document.getElementById('pet-stage');
+    if (!stage) return;
+    stage.classList.remove('poke');
+    void stage.offsetWidth;
+    stage.classList.add('poke');
+    _petTaps++;
+    const sp = petSpecies();
+    const who = sp.tone === 'baby' ? '爸爸妈妈' : '主人';
+    const lines = _petTaps > 3
+      ? [`好痒呀～`, `再摸就要生气咯 😖`, `${who}调皮！`]
+      : [`嘿嘿～`, `${who}摸摸我 💕`, `我在这儿呢！`, `喜欢你们 🥰`];
+    document.getElementById('pet-speech').textContent =
+      lines[Math.floor(Math.random() * lines.length)];
+    spawnPetHearts();
+  }
+
+  function spawnPetHearts() {
+    const room = document.getElementById('pet-room');
+    if (!room) return;
+    for (let i = 0; i < 4; i++) {
+      const h = document.createElement('span');
+      h.className = 'pet-heart';
+      h.textContent = ['💕','💖','✨','💗'][i % 4];
+      h.style.left = (42 + Math.random() * 16) + '%';
+      h.style.animationDelay = (i * 0.09) + 's';
+      room.appendChild(h);
+      setTimeout(() => h.remove(), 1500);
+    }
+  }
+
+  async function renamePet() {
+    const name = document.getElementById('pet-rename-input').value.trim();
+    if (!name) { showToast('名字不能为空'); return; }
+    S.petName = name;
+    try {
+      await Data.saveConfig({ petName: name });
+      closeModal('modal-pet-rename');
+      renderPetHome();
+      showToast('✅ 改名成功');
+    } catch (err) { showToast('保存失败: ' + err.message); }
+  }
+
+  function openPetRename() {
+    document.getElementById('pet-rename-input').value = S.petName || '';
+    openModal('modal-pet-rename');
+  }
+
   function logout() {
     localStorage.removeItem('sn_api_key');
     localStorage.removeItem('sn_username');
@@ -3163,6 +3617,9 @@ const App = (() => {
     pickMemoryPhoto, saveMemoryPhoto, deleteMemoryPhoto,
     playMemories, closeMemories, memoryPrev, memoryNext, toggleMemoryPlay,
     openGoalModal, saveGoal, clearGoal,
+    openPetAdopt, pickPetSpecies, confirmAdopt,
+    _petSvgTest: (st, sp) => petSvg(st, PET_SPECIES[sp]),   // art-review helper
+    showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
