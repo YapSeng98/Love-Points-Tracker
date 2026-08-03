@@ -51,6 +51,11 @@ Go to **System Definition → Tables → New** for each. Unless noted, add a `u_
 | u_reward_target | Integer | default `100` |
 | u_punish_threshold | Integer | default `-80` |
 | u_start_date | Date | "together since" date, for the Love Page day counter |
+| u_char1_name | String(40) | editable display name (falls back to the login username) |
+| u_char2_name | String(40) | |
+| u_goal_name | String(60) | 共同目标 — joint points goal; blank = no goal set |
+| u_goal_icon | String(10) | emoji for the goal card |
+| u_goal_target | Integer | combined points needed; `0` = no goal set |
 
 **`u_love_category`**
 | Field | Type | Notes |

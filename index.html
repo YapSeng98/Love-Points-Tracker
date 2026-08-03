@@ -1973,6 +1973,13 @@
     html[data-theme="dark"] .settle-preview .sp-result.none { background: #1E2A3D; border-color: #33405A; }
     html[data-theme="dark"] .settle-multi-note { background: rgba(240,180,41,0.14); color: #E8C06A; }
     html[data-theme="dark"] .settle-current-opt { background: #1E2A3D; }
+    html[data-theme="dark"] .ach-card { background: #1E2A3D; }
+    html[data-theme="dark"] .ach-card.on {
+      background: linear-gradient(160deg, rgba(255,215,0,0.15), rgba(255,165,0,0.10));
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+    }
+    html[data-theme="dark"] .goal-track, html[data-theme="dark"] .ach-prog { background: rgba(255,255,255,0.12); }
+    html[data-theme="dark"] .goal-box.done { background: linear-gradient(135deg, rgba(255,215,0,0.16), rgba(255,165,0,0.10)); }
     html[data-theme="dark"] .settle-char-card.char2 { background: rgba(255,143,160,0.14); border-color: rgba(255,143,160,0.3); }
     html[data-theme="dark"] .manage-pts-neg { background: rgba(255,107,107,0.16); }
     html[data-theme="dark"] .manage-pts-thr { background: rgba(240,180,41,0.16); color: #E8C06A; }
@@ -2219,6 +2226,158 @@
     }
     @media (prefers-reduced-motion: reduce) {
       .mem-layer.kb-a .mem-fg, .mem-layer.kb-b .mem-fg, .mem-p { animation: none; }
+    }
+
+    /* ── 共同目标 card on home ── */
+    #goal-card:empty { display: none; }
+    .goal-empty, .goal-box {
+      border-radius: 16px; padding: 12px 16px; margin: 0 0 14px;
+      cursor: pointer; transition: transform 0.15s;
+    }
+    .goal-empty:active, .goal-box:active { transform: scale(0.98); }
+    .goal-empty {
+      display: flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, rgba(107,203,119,0.12), rgba(91,155,213,0.12));
+      border: 1.5px dashed rgba(107,203,119,0.45);
+    }
+    .goal-empty-icon { font-size: 20px; }
+    .goal-empty-title { font-size: 14.5px; font-weight: 800; color: #3BA84A; }
+    .goal-empty-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .goal-box {
+      background: linear-gradient(135deg, rgba(107,203,119,0.14), rgba(91,155,213,0.14));
+      border: 1.5px solid rgba(107,203,119,0.4);
+    }
+    .goal-box.done { border-color: var(--gold); background: linear-gradient(135deg, #FFF8E0, #FFF3CC); }
+    .goal-head { display: flex; align-items: center; gap: 8px; }
+    .goal-icon { font-size: 19px; }
+    .goal-title { flex: 1; font-size: 14.5px; font-weight: 800; color: var(--dark); }
+    .goal-pct { font-size: 13px; font-weight: 800; color: #3BA84A; font-variant-numeric: tabular-nums; }
+    .goal-box.done .goal-pct { color: #B8860B; }
+    .goal-track {
+      height: 9px; border-radius: 6px; margin: 9px 0 7px; overflow: hidden;
+      background: rgba(0,0,0,0.08);
+    }
+    .goal-fill {
+      height: 100%; border-radius: 6px;
+      background: linear-gradient(90deg, #6BCB77, #5B9BD5);
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .goal-box.done .goal-fill { background: linear-gradient(90deg, #FFD700, #FFA500); }
+    .goal-foot { font-size: 11.5px; color: var(--sub); font-weight: 600; }
+
+    /* ── Love-page action buttons (成就 / 年度回顾) ── */
+    .lp-actions {
+      width: 100%; max-width: 310px; display: flex; gap: 10px;
+      margin-bottom: 14px; position: relative; z-index: 1;
+    }
+    .lp-action-btn {
+      flex: 1; padding: 12px 6px; cursor: pointer;
+      background: rgba(255,255,255,0.12);
+      border: 1.5px solid rgba(255,255,255,0.24);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px; color: white;
+      font-size: 13px; font-weight: 700;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .lp-action-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.2); }
+
+    /* ── Achievements ── */
+    .ach-summary {
+      font-size: 13px; color: var(--sub); text-align: center; margin-bottom: 14px;
+    }
+    .ach-summary b { color: var(--blue); font-size: 16px; }
+    .ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ach-card {
+      border-radius: 16px; padding: 14px 10px; text-align: center;
+      border: 1.5px solid var(--card-border); background: #F7F9FC;
+      transition: transform 0.15s;
+    }
+    .ach-card.on {
+      background: linear-gradient(160deg, #FFF8E0, #FFF1CC);
+      border-color: var(--gold);
+      box-shadow: 0 3px 12px rgba(255,196,66,0.22);
+    }
+    .ach-card.off { opacity: 0.55; }
+    .ach-card.off .ach-icon { filter: grayscale(1); }
+    .ach-icon { font-size: 30px; line-height: 1; }
+    .ach-name { font-size: 13px; font-weight: 800; color: var(--dark); margin-top: 6px; }
+    .ach-desc { font-size: 11px; color: var(--sub); margin-top: 3px; line-height: 1.35; }
+    .ach-prog {
+      height: 5px; border-radius: 4px; background: rgba(0,0,0,0.09);
+      margin: 7px 6px 3px; overflow: hidden;
+    }
+    .ach-prog-fill { height: 100%; background: var(--blue); border-radius: 4px; }
+    .ach-prog-txt { font-size: 10px; color: var(--sub); font-variant-numeric: tabular-nums; }
+
+    /* ── Year in Review ── */
+    .year-review-page {
+      position: fixed; inset: 0; z-index: 130;
+      background: linear-gradient(165deg, #2B1B4D 0%, #4A1F5C 32%, #8A2159 66%, #C2415E 100%);
+      transform: translateX(100%);
+      transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .year-review-page.open { transform: translateX(0); }
+    .yr-scroll {
+      height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: calc(76px + env(safe-area-inset-top)) 22px calc(40px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .yr-close {
+      position: absolute; top: calc(18px + env(safe-area-inset-top)); left: 16px; z-index: 5;
+      background: rgba(255,255,255,0.14); border: 1.5px solid rgba(255,255,255,0.28);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 50px; padding: 9px 18px;
+      font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.92); cursor: pointer;
+    }
+    .yr-head {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(255,255,255,0.55); margin-bottom: 22px;
+    }
+    .yr-hero { text-align: center; margin-bottom: 26px; }
+    .yr-hero-num {
+      font-size: 76px; font-weight: 900; line-height: 1; letter-spacing: -3px;
+      background: linear-gradient(160deg, #fff 0%, #ffd6ec 45%, #ff90c8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      filter: drop-shadow(0 2px 18px rgba(255,120,190,0.5));
+      font-variant-numeric: tabular-nums;
+    }
+    .yr-hero-lab { font-size: 13px; color: rgba(255,255,255,0.75); margin-top: 8px; font-weight: 600; }
+    .yr-grid {
+      width: 100%; max-width: 330px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+    }
+    .yr-stat {
+      background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-radius: 18px; padding: 14px 8px; text-align: center;
+    }
+    .yr-stat-ico { font-size: 22px; }
+    .yr-stat-num {
+      font-size: 24px; font-weight: 900; color: white; margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .yr-stat-lab { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .yr-line {
+      width: 100%; max-width: 330px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px; padding: 12px 16px; margin-bottom: 9px;
+      font-size: 13px; color: rgba(255,255,255,0.7);
+    }
+    .yr-line b { color: white; font-size: 13.5px; text-align: right; }
+    .yr-play {
+      width: 100%; max-width: 330px; margin-top: 14px; padding: 14px;
+      border: none; border-radius: 16px; cursor: pointer;
+      background: linear-gradient(135deg, #FF9CB2, #EC5C8D);
+      color: white; font-size: 14.5px; font-weight: 800;
+      box-shadow: 0 5px 18px rgba(236,92,141,0.42);
+      transition: transform 0.15s;
+    }
+    .yr-play:active { transform: scale(0.97); }
+    .yr-empty {
+      max-width: 330px; margin-top: 14px; text-align: center;
+      font-size: 12.5px; color: rgba(255,255,255,0.6); line-height: 1.6;
     }
 
     /* ── Wide screens (iPad / laptop) ──
@@ -2621,6 +2780,9 @@
     <div class="together-banner-arrow">›</div>
   </div>
 
+  <!-- Shared goal (共同目标) — filled by App.renderSharedGoal() -->
+  <div id="goal-card"></div>
+
   <!-- Letter banner (情书, private between the couple only) -->
   <div class="letter-banner" id="letter-banner" onclick="App.showLetters()">
     <div class="letter-banner-left">
@@ -2762,6 +2924,12 @@
     </div>
   </div>
 
+  <!-- Achievements + Year in Review -->
+  <div class="lp-actions">
+    <button class="lp-action-btn" onclick="App.showAchievements()">🏅 成就徽章</button>
+    <button class="lp-action-btn" onclick="App.showYearReview()">📊 年度回顾</button>
+  </div>
+
   <!-- Memory album (回忆相册) -->
   <div class="lp-memories">
     <div class="lp-mem-title">🎞 回忆相册</div>
@@ -2772,6 +2940,59 @@
   <button class="love-goto-score" onclick="App.closeLovePage()">
     📊 前往积分追踪
   </button>
+</div>
+
+<!-- Shared goal modal -->
+<div class="modal-overlay" id="modal-goal" style="z-index:120">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🤝 共同目标</div>
+    <p style="font-size:12.5px;color:var(--sub);line-height:1.6;margin:-10px 0 16px">
+      两个人的积分会一起累计到这个目标里（已结算 + 本轮），达成后一起兑现 🎉
+    </p>
+    <div style="display:flex;gap:10px">
+      <div class="modal-field" style="width:82px;flex-shrink:0">
+        <label>图标</label>
+        <input id="goal-icon" type="text" placeholder="🎯" maxlength="4" style="text-align:center;font-size:20px"/>
+      </div>
+      <div class="modal-field" style="flex:1">
+        <label>目标名称</label>
+        <input id="goal-name" type="text" placeholder="例如：一起去旅行" maxlength="30"/>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label>需要多少分（两人合计）</label>
+      <input id="goal-target" type="number" placeholder="1000"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-goal')">取消</button>
+      <button class="btn-primary" onclick="App.saveGoal()" style="flex:1">保存 ✅</button>
+    </div>
+    <button class="btn-danger" id="goal-delete-btn" onclick="App.clearGoal()"
+            style="width:100%;margin-top:10px;display:none">取消这个目标</button>
+  </div>
+</div>
+
+<!-- Achievements modal -->
+<div class="modal-overlay" id="modal-achievements" style="z-index:120">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🏅 成就徽章</div>
+    <div class="ach-summary" id="ach-summary"></div>
+    <div class="ach-grid" id="ach-grid"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="App.closeModal('modal-achievements')" style="flex:1">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Year in Review (full-screen) -->
+<div class="year-review-page" id="year-review-page">
+  <button class="yr-close" onclick="App.closeYearReview()">‹ 收起</button>
+  <div class="yr-scroll">
+    <div class="yr-head" id="yr-title">年度回顾</div>
+    <div id="yr-body"></div>
+  </div>
 </div>
 
 <!-- Memory photo caption/date modal -->

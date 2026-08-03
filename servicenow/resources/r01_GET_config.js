@@ -46,6 +46,10 @@
             char2Name:       cn2 || char2Name,
             charImg1:        charImg1,
             charImg2:        charImg2,
+            // 共同目标 — empty/0 until the couple sets one
+            goalName:        gr.getValue('u_goal_name') || '',
+            goalIcon:        gr.getValue('u_goal_icon') || '',
+            goalTarget:      parseInt(gr.getValue('u_goal_target')) || 0,
         });
     } else {
         response.setBody({ configured: false, startDate: '', char1Name: char1Name, char2Name: char2Name, charImg1: charImg1, charImg2: charImg2 });

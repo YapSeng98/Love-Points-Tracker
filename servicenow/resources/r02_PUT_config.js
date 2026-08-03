@@ -20,6 +20,10 @@
     if (body.startDate       !== undefined) gr.setValue('u_start_date',       body.startDate);
     if (body.charName1       !== undefined) gr.setValue('u_char1_name',       body.charName1);
     if (body.charName2       !== undefined) gr.setValue('u_char2_name',       body.charName2);
+    // 共同目标 (shared goal) — the couple's joint points target
+    if (body.goalName        !== undefined) gr.setValue('u_goal_name',        body.goalName);
+    if (body.goalIcon        !== undefined) gr.setValue('u_goal_icon',        body.goalIcon);
+    if (body.goalTarget      !== undefined) gr.setValue('u_goal_target',      parseInt(body.goalTarget) || 0);
     if (isNew) { gr.insert(); } else { gr.update(); }
 
     // Keep the couple name on the match record in sync with the display names

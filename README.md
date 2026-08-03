@@ -18,6 +18,9 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 - **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
 - **Letters (情书)** — Write a private letter to your partner; they see it as a sealed envelope until they tap to open it (unseal animation), then it's marked read
 - **Memories (回忆相册)** — Upload couple photos with captions and dates, then play them as a full-screen Ken Burns slideshow (slow zoom/pan, crossfades, floating hearts)
+- **Achievements (成就徽章)** — 16 badges derived from your real activity (check-in streaks, letters, photos, clean months, milestones); nothing stored, always accurate
+- **Year in Review (年度回顾)** — Spotify-Wrapped-style yearly recap: points earned, best month, most-logged category, check-ins, letters, photos, plus a slideshow of that year's memories
+- **Shared goal (共同目标)** — A joint points target both partners contribute to (a trip, a nice dinner), tracked across settled months on the home page
 - **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
 - **Light / dark theme** — 浅色, 深色, or follow the device setting; per-device preference in Settings
 - **Animated start screen** — Floating Pochacco couple with rising hearts
@@ -57,6 +60,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 ```
 恋爱积分簿/
 ├── index.html          # Single-page app (all UI, CSS, and inline styles)
+├── docs/               # Design docs (e.g. PET_GAME_DESIGN.md)
 ├── app.js              # All app logic (state, API calls, render functions)
 ├── *.mp3               # Background music tracks
 └── servicenow/
@@ -76,7 +80,7 @@ Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no buil
 | # | Method | Path | Description |
 |---|---|---|---|
 | R01 | GET | `/config` | Get couple config + partner names + profile pics |
-| R02 | PUT | `/config` | Update mode, target, threshold, start date |
+| R02 | PUT | `/config` | Update mode, target, threshold, start date, names, shared goal |
 | R03 | GET | `/categories` | List score categories |
 | R04 | GET | `/entries?month=YYYY-MM` | List entries for a month (unsettled only) |
 | R05 | POST | `/entries` | Add a score entry |

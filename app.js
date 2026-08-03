@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-1';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-2';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -162,6 +162,8 @@ const App = (() => {
     shopTab: 'shop',
     catTab: 'reward',   // quick-entry tab: 'reward' (加分) | 'punish' (扣分)
     shopEditId: null,
+    goalName: '', goalIcon: '🎯', goalTarget: 0,
+    achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
     photos: [],
@@ -264,6 +266,7 @@ const App = (() => {
         history: [],
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
+        goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -329,6 +332,11 @@ const App = (() => {
         if (cfg.char1Name) { S.charName1 = cfg.char1Name; localStorage.setItem('sn_charname1', cfg.char1Name); }
         if (cfg.char2Name) { S.charName2 = cfg.char2Name; localStorage.setItem('sn_charname2', cfg.char2Name); }
         S.startDate = cfg.startDate || '';
+        // Shared goal — blank until the couple sets one (and stays blank on an
+        // instance whose u_love_config lacks the u_goal_* fields yet)
+        S.goalName   = cfg.goalName   || '';
+        S.goalIcon   = cfg.goalIcon   || '🎯';
+        S.goalTarget = parseInt(cfg.goalTarget) || 0;
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
@@ -354,6 +362,10 @@ const App = (() => {
         S.charName2       = d.charName2 || '阿呆';
         S.charImg1        = d.charImg1  || '';
         S.charImg2        = d.charImg2  || '';
+        S.startDate       = d.startDate || '';
+        S.goalName        = d.goalName  || '';
+        S.goalIcon        = d.goalIcon  || '🎯';
+        S.goalTarget      = parseInt(d.goalTarget) || 0;
       }
     },
 
@@ -1009,6 +1021,10 @@ const App = (() => {
     renderEntries(entries);
     renderCategories();
     renderCheckinBanner();
+    // Needs settled history for the lifetime total — fetch in the background
+    // so the home page never blocks on it.
+    Data.getHistory().then(h => { S.historyRecords = h || []; renderSharedGoal(); })
+                     .catch(() => renderSharedGoal());
   }
 
   /* ── Daily check-in (签到) ── */
@@ -2206,6 +2222,283 @@ const App = (() => {
     document.getElementById('memory-show')?.classList.remove('open');
   }
 
+  /* ══════════════ 共同目标 · 成就徽章 · 年度回顾 ══════════════
+     All three read from data the app already has — the only backend touch is
+     three u_goal_* fields on the existing u_love_config row (shared goal). */
+
+  // Lifetime points the couple has banked together: every settled month's
+  // positive totals plus whatever is currently unsettled. Punishment-mode
+  // months store negative "bad behaviour" totals — those aren't contributions,
+  // so they're floored at 0 rather than eating into the shared pool.
+  function lifetimeCombinedPoints() {
+    const settled = (S.historyRecords || []).reduce((sum, r) =>
+      sum + Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0), 0);
+    const current = Math.max(0, S.char1Score) + Math.max(0, S.char2Score);
+    return settled + current;
+  }
+
+  function renderSharedGoal() {
+    const card = document.getElementById('goal-card');
+    if (!card) return;
+    if (!S.goalTarget) {
+      card.innerHTML = `<div class="goal-empty" onclick="App.openGoalModal()">
+        <span class="goal-empty-icon">🤝</span>
+        <div>
+          <div class="goal-empty-title">设定共同目标</div>
+          <div class="goal-empty-sub">一起攒积分，换一件大的 →</div>
+        </div>
+      </div>`;
+      return;
+    }
+    const have = lifetimeCombinedPoints();
+    const pct  = Math.min(100, Math.round((have / S.goalTarget) * 100));
+    const done = have >= S.goalTarget;
+    card.innerHTML = `<div class="goal-box ${done ? 'done' : ''}" onclick="App.openGoalModal()">
+      <div class="goal-head">
+        <span class="goal-icon">${S.goalIcon || '🎯'}</span>
+        <div class="goal-title">${_escHtml(S.goalName || '共同目标')}</div>
+        <span class="goal-pct">${pct}%</span>
+      </div>
+      <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>
+      <div class="goal-foot">${done ? '🎉 目标达成！一起去兑现吧' : `两人共攒 ${have} / ${S.goalTarget} 分`}</div>
+    </div>`;
+  }
+
+  function openGoalModal() {
+    document.getElementById('goal-name').value   = S.goalName || '';
+    document.getElementById('goal-icon').value   = S.goalIcon || '🎯';
+    document.getElementById('goal-target').value = S.goalTarget || '';
+    document.getElementById('goal-delete-btn').style.display = S.goalTarget ? '' : 'none';
+    openModal('modal-goal');
+  }
+
+  async function saveGoal() {
+    const name   = document.getElementById('goal-name').value.trim();
+    const icon   = document.getElementById('goal-icon').value.trim() || '🎯';
+    const target = parseInt(document.getElementById('goal-target').value) || 0;
+    if (!name || target <= 0) { showToast('请填写目标名称和分数'); return; }
+    S.goalName = name; S.goalIcon = icon; S.goalTarget = target;
+    try {
+      await Data.saveConfig({ goalName: name, goalIcon: icon, goalTarget: target });
+      closeModal('modal-goal');
+      renderSharedGoal();
+      showToast('🤝 共同目标已设定！');
+    } catch (err) {
+      showToast('保存失败: ' + err.message);
+    }
+  }
+
+  async function clearGoal() {
+    if (!(await showConfirm('取消这个共同目标？'))) return;
+    S.goalName = ''; S.goalTarget = 0;
+    try {
+      await Data.saveConfig({ goalName: '', goalIcon: '🎯', goalTarget: 0 });
+      closeModal('modal-goal');
+      renderSharedGoal();
+      showToast('已取消共同目标');
+    } catch (err) {
+      showToast('保存失败: ' + err.message);
+    }
+  }
+
+  /* ── 成就徽章 ── */
+  // Every badge is derived on the fly, so they stay correct even if data is
+  // edited or deleted later — nothing to store, nothing to migrate.
+  function computeAchievements() {
+    const hist     = S.historyRecords || [];
+    const letters  = (S.letters || []).length;
+    const photos   = (S.photos  || []).length;
+    const entries  = S.entries || [];
+    const streak   = Math.max(_streakFor('char1'), _streakFor('char2'));
+    const lifetime = lifetimeCombinedPoints();
+    const purchases = entries.filter(isPurchaseEntry).length;
+    const badMarks  = entries.filter(e => (parseInt(e.pts) || 0) < 0 && !isPurchaseEntry(e)).length;
+    const wonReward = hist.some(r => r.mode === 'reward' &&
+      ((r.result1 && r.result1 !== '无结果') || (r.result2 && r.result2 !== '无结果')));
+    const bothCheckedToday = checkinDatesFor('char1').has(todayStr()) &&
+                             checkinDatesFor('char2').has(todayStr());
+
+    const A = (id, icon, name, desc, ok, cur, target) =>
+      ({ id, icon, name, desc, unlocked: !!ok, cur, target });
+
+    return [
+      A('first_entry', '🌱', '第一笔记录', '记下第一条积分',
+        entries.length > 0 || hist.length > 0),
+      A('streak3',  '📅', '签到新手',   '连续签到 3 天',   streak >= 3,  streak, 3),
+      A('streak7',  '🔥', '签到达人',   '连续签到 7 天',   streak >= 7,  streak, 7),
+      A('streak30', '💪', '签到王者',   '连续签到 30 天',  streak >= 30, streak, 30),
+      A('both_today', '💞', '心有灵犀', '两个人同一天都签到', bothCheckedToday),
+      A('letter1',  '💌', '第一封情书', '写下第一封情书',  letters >= 1),
+      A('letter10', '💝', '情书收藏家', '累计 10 封情书',  letters >= 10, letters, 10),
+      A('photo1',   '📷', '第一张回忆', '收藏第一张照片',  photos >= 1),
+      A('photo20',  '🎞', '回忆满满',   '收藏 20 张回忆',  photos >= 20, photos, 20),
+      A('shop1',    '🛒', '首次兑换',   '在商店兑换一次',  purchases >= 1),
+      A('reward1',  '🏆', '首次达成奖励', '结算时拿到奖励', wonReward),
+      A('clean',    '✨', '零扣分',     '本轮一次扣分都没有', entries.length > 0 && badMarks === 0),
+      A('season',   '📆', '坚持一季',   '结算过 3 个月',   hist.length >= 3,  hist.length, 3),
+      A('year',     '🎊', '坚持一年',   '结算过 12 个月',  hist.length >= 12, hist.length, 12),
+      A('pts500',   '💰', '积分 500',   '两人共攒 500 分', lifetime >= 500,  lifetime, 500),
+      A('pts2000',  '👑', '积分 2000',  '两人共攒 2000 分', lifetime >= 2000, lifetime, 2000),
+    ];
+  }
+
+  // Streak for either character (checkinStreak() is hardcoded to the active one)
+  function _streakFor(charId) {
+    const set = checkinDatesFor(charId);
+    const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    const d = now();
+    if (!set.has(fmt(d))) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (set.has(fmt(d))) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  async function showAchievements() {
+    await _loadStatsSources();
+    const list = computeAchievements();
+    S.achievements = list;
+    const got = list.filter(a => a.unlocked).length;
+    document.getElementById('ach-summary').innerHTML =
+      `已解锁 <b>${got}</b> / ${list.length} 枚徽章`;
+    document.getElementById('ach-grid').innerHTML = list.map(a => {
+      const prog = (!a.unlocked && a.target)
+        ? `<div class="ach-prog"><div class="ach-prog-fill" style="width:${Math.min(100, Math.round((a.cur / a.target) * 100))}%"></div></div>
+           <div class="ach-prog-txt">${a.cur} / ${a.target}</div>`
+        : '';
+      return `<div class="ach-card ${a.unlocked ? 'on' : 'off'}">
+        <div class="ach-icon">${a.icon}</div>
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
+        ${prog}
+      </div>`;
+    }).join('');
+    openModal('modal-achievements');
+  }
+
+  // History/letters/photos aren't kept fresh by refresh() — pull them once
+  // before anything that reports across all of them.
+  async function _loadStatsSources() {
+    try {
+      const [hist, letters, photos] = await Promise.all([
+        Data.getHistory().catch(() => []),
+        Data.getLetters().catch(() => []),
+        Data.getPhotos().catch(() => []),
+      ]);
+      S.historyRecords = hist || [];
+      S.letters = letters || [];
+      S.photos  = photos  || [];
+    } catch (e) { /* best effort — badges just show what we do have */ }
+  }
+
+  /* ── 年度回顾 ── */
+  function computeYearReview(year) {
+    const yr = String(year);
+    const hist    = (S.historyRecords || []).filter(r => (r.month || '').startsWith(yr));
+    const entries = (S.entries || []).filter(e => (e.date || '').startsWith(yr));
+    const letters = (S.letters || []).filter(l => (l.date || '').startsWith(yr));
+    const photos  = (S.photos  || []).filter(p => (p.date || '').startsWith(yr));
+
+    const settledPts = hist.reduce((s, r) =>
+      s + Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0), 0);
+    const livePts = entries.reduce((s, e) => {
+      const p = parseInt(e.pts) || 0;
+      return s + (p > 0 ? p : 0);
+    }, 0);
+
+    // Best month: settled months carry their own totals; the live (unsettled)
+    // months only exist as raw entries, so tally those separately.
+    const monthTotals = {};
+    hist.forEach(r => {
+      monthTotals[r.month] = (monthTotals[r.month] || 0) +
+        Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0);
+    });
+    entries.forEach(e => {
+      const p = parseInt(e.pts) || 0;
+      if (p <= 0) return;
+      const m = e.month || (e.date || '').slice(0, 7);
+      monthTotals[m] = (monthTotals[m] || 0) + p;
+    });
+    let bestMonth = '', bestPts = 0;
+    Object.entries(monthTotals).forEach(([m, p]) => { if (p > bestPts) { bestMonth = m; bestPts = p; } });
+
+    const catCount = {};
+    entries.forEach(e => {
+      const n = e.catName && e.catName !== 'undefined' ? e.catName : '自定义';
+      if (isPurchaseEntry(e)) return;
+      catCount[n] = (catCount[n] || 0) + 1;
+    });
+    let topCat = '', topCatN = 0;
+    Object.entries(catCount).forEach(([n, c]) => { if (c > topCatN) { topCat = n; topCatN = c; } });
+
+    const checkins = entries.filter(e => e.catName === CHECKIN_CAT).length;
+
+    return {
+      year: yr,
+      totalPts: settledPts + livePts,
+      bestMonth, bestPts,
+      topCat, topCatN,
+      checkins,
+      letters: letters.length,
+      photos: photos.length,
+      settledMonths: hist.length,
+      yearPhotos: photos,
+    };
+  }
+
+  async function showYearReview() {
+    await _loadStatsSources();
+    const r = computeYearReview(now().getFullYear());
+    const daysTogether = S.startDate
+      ? Math.max(0, Math.floor((Date.now() - new Date(S.startDate).getTime()) / 86400000)) : null;
+
+    const stat = (icon, num, label) =>
+      `<div class="yr-stat"><div class="yr-stat-ico">${icon}</div>
+        <div class="yr-stat-num">${num}</div><div class="yr-stat-lab">${label}</div></div>`;
+
+    document.getElementById('yr-title').textContent = `${r.year} 年度回顾`;
+    document.getElementById('yr-body').innerHTML = `
+      <div class="yr-hero">
+        <div class="yr-hero-num">${r.totalPts}</div>
+        <div class="yr-hero-lab">今年一起赚到的爱心积分</div>
+      </div>
+      <div class="yr-grid">
+        ${stat('📅', r.checkins, '次签到')}
+        ${stat('💌', r.letters, '封情书')}
+        ${stat('📷', r.photos, '张回忆')}
+        ${stat('🎯', r.settledMonths, '个月结算')}
+      </div>
+      ${r.bestMonth ? `<div class="yr-line"><span>🏅 最高分月份</span><b>${monthLabel(r.bestMonth)} · ${r.bestPts} 分</b></div>` : ''}
+      ${r.topCat ? `<div class="yr-line"><span>💖 最常做的事</span><b>${_escHtml(r.topCat)} · ${r.topCatN} 次</b></div>` : ''}
+      ${daysTogether != null ? `<div class="yr-line"><span>💑 在一起</span><b>${daysTogether} 天</b></div>` : ''}
+      ${r.yearPhotos.length
+        ? `<button class="yr-play" onclick="App.playYearMemories()">▶️ 播放 ${r.year} 年的回忆（${r.yearPhotos.length} 张）</button>`
+        : `<div class="yr-empty">今年还没有回忆照片，去「在一起的时光」添加吧 📷</div>`}
+    `;
+    document.getElementById('year-review-page')?.classList.add('open');
+  }
+
+  function closeYearReview() {
+    document.getElementById('year-review-page')?.classList.remove('open');
+  }
+
+  // Reuse the Ken Burns player, but scoped to this year's photos only
+  function playYearMemories() {
+    const r = computeYearReview(now().getFullYear());
+    if (!r.yearPhotos.length) { showToast('今年还没有回忆照片'); return; }
+    const all = S.photos;
+    S.photos = r.yearPhotos;
+    playMemories();
+    // Restore the full album once the player closes so the album strip and
+    // badge counts don't silently shrink to just this year.
+    const restore = () => {
+      if (document.getElementById('memory-show')?.classList.contains('open')) {
+        return setTimeout(restore, 500);
+      }
+      S.photos = all;
+    };
+    setTimeout(restore, 500);
+  }
+
   function logout() {
     localStorage.removeItem('sn_api_key');
     localStorage.removeItem('sn_username');
@@ -2869,6 +3162,8 @@ const App = (() => {
     openLetterReader, closeLetterReader, deleteLetter,
     pickMemoryPhoto, saveMemoryPhoto, deleteMemoryPhoto,
     playMemories, closeMemories, memoryPrev, memoryNext, toggleMemoryPlay,
+    openGoalModal, saveGoal, clearGoal,
+    showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
     confirmUseItem,
