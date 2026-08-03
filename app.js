@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-4';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-5';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -316,8 +316,20 @@ const App = (() => {
     desc:   _safeStr(x.desc),
   });
 
+  // History is small (month summaries) so it's always refetched. Letters and
+  // ESPECIALLY photos are not: /photos returns full base64 images, so pulling
+  // them on every home refresh would re-download megabytes on mobile data.
+  // They're fetched once per data source and then kept current by the flows
+  // that change them (loadLetters / loadMemories write straight into S).
+  let _heavyStatsLoaded = false;
+
   const Data = {
     async init() {
+      // We're (re)connecting to a data source, so any cached letters/photos
+      // belong to the previous one. boot() runs a refresh BEFORE login, which
+      // would otherwise latch the cache on an empty dataset and leave the pet
+      // and badges under-counting for the rest of the session.
+      _heavyStatsLoaded = false;
       if (S.usingSN) {
         const cfg = await snFetch('/config');
         if (cfg && cfg.configured === false) {
@@ -2369,7 +2381,7 @@ const App = (() => {
   }
 
   async function showAchievements() {
-    await _loadStatsSources();
+    await _loadStatsSources(true);   // exact counts matter here
     const list = computeAchievements();
     S.achievements = list;
     const got = list.filter(a => a.unlocked).length;
@@ -2392,16 +2404,18 @@ const App = (() => {
 
   // History/letters/photos aren't kept fresh by refresh() — pull them once
   // before anything that reports across all of them.
-  async function _loadStatsSources() {
+  async function _loadStatsSources(force = false) {
     try {
-      const [hist, letters, photos] = await Promise.all([
-        Data.getHistory().catch(() => []),
-        Data.getLetters().catch(() => []),
-        Data.getPhotos().catch(() => []),
-      ]);
-      S.historyRecords = hist || [];
-      S.letters = letters || [];
-      S.photos  = photos  || [];
+      S.historyRecords = (await Data.getHistory().catch(() => [])) || [];
+      if (force || !_heavyStatsLoaded) {
+        const [letters, photos] = await Promise.all([
+          Data.getLetters().catch(() => []),
+          Data.getPhotos().catch(() => []),
+        ]);
+        S.letters = letters || [];
+        S.photos  = photos  || [];
+        _heavyStatsLoaded = true;
+      }
     } catch (e) { /* best effort — badges just show what we do have */ }
   }
 
@@ -2461,7 +2475,7 @@ const App = (() => {
   }
 
   async function showYearReview() {
-    await _loadStatsSources();
+    await _loadStatsSources(true);   // exact counts matter here
     const r = computeYearReview(now().getFullYear());
     const daysTogether = S.startDate
       ? Math.max(0, Math.floor((Date.now() - new Date(S.startDate).getTime()) / 86400000)) : null;
@@ -2614,7 +2628,10 @@ const App = (() => {
     const recentLetters = (S.letters || []).filter(l => (l.date || '').slice(0,10) >= sinceStr).length;
     const recentPhotos  = (S.photos  || []).filter(p => (p.date  || '') >= sinceStr).length;
 
-    let m = 30;   // baseline so a brand-new pet isn't born sad
+    // Low baseline on purpose: with no activity at all the pet must fall into
+    // 🥺 想你们了, because that sad state IS the come-back-and-open-the-app
+    // nudge. A higher floor made it unreachable and killed the mechanic.
+    let m = 15;
     recent.forEach(e => {
       const pts = parseInt(e.pts) || 0;
       if (e.catName === CHECKIN_CAT)      m += 12;
@@ -2623,6 +2640,14 @@ const App = (() => {
       else                                m -= 10;
     });
     m += recentLetters * 18 + recentPhotos * 12;
+
+    // A 月末结算 archives every entry out of /entries, so without this the pet
+    // would turn sad the instant a month is settled — even though the couple
+    // had just been active. A recent settlement is itself activity.
+    const lastSettle = (S.historyRecords || [])
+      .map(r => r.settledAt).filter(Boolean).sort().pop();
+    if (lastSettle && String(lastSettle).slice(0, 10) >= sinceStr) m += 30;
+
     return Math.max(0, Math.min(100, Math.round(m)));
   }
 
@@ -3634,7 +3659,10 @@ const App = (() => {
     openGoalModal, saveGoal, clearGoal,
     openPetAdopt, pickPetSpecies, confirmAdopt,
     _petSvgTest: (st, sp) => petSvg(st, PET_SPECIES[sp]),   // art-review helper
-    _petRawTest: () => petExpDerived(),                     // test helper
+    _petStatTest: () => {                                   // test helper
+      const st = petStageInfo();
+      return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
+    },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
