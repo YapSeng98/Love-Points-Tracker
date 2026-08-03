@@ -1,17 +1,15 @@
 // RESOURCE 40: POST /decor/buy  |  Method: POST  |  Path: /decor/buy  |  Requires Authentication: FALSE
 //
-// ⚠️ PHASE 2 — NOT DEPLOYED YET. Paste this when 恋爱小窝 decorating ships.
+// Buys a furniture/outfit item from the FRONTEND catalog (DECOR in app.js).
+// The catalog lives in code so prices and seasonal stock change with a git
+// push, never a ServiceNow edit.
 //
-// Buys a furniture/outfit item from the FRONTEND catalog (docs: DECOR in
-// app.js). Unlike /shop/buy (28), the item isn't a u_love_shop row — the
-// catalog lives in code so prices and seasonal stock can change without any
-// ServiceNow work. This resource therefore takes the item's id/name/price
-// from the request and does the three things that must happen together:
-//   1. verify the buyer can afford it
-//   2. write the negative score entry
-//   3. write the u_love_bag row that records ownership
-// Doing it here rather than as three client calls keeps it atomic — a client
-// that died halfway would otherwise deduct points without granting the item.
+// PAID IN 小窝币, NOT LOVE POINTS — deliberately. Furniture must never compete
+// with real-world rewards (奶茶/约会), or decorating feels like stealing from
+// your own date night. So this writes NO score entry and touches no points;
+// it only records ownership. The coin balance is derived on the client as
+// (pet EXP high-water / 2) minus the sum of u_pts_spent on decor rows, so the
+// price recorded here IS the ledger — no separate balance field to drift.
 //
 // Body: { itemId, itemName, itemIcon, price, charId?, date?, month? }
 (function process(request, response) {
@@ -49,43 +47,9 @@
         return;
     }
 
-    // Sum ALL unsettled entries for this character — must match r04/r28/r32.
-    // Never filter by month here: a missed 月末结算 leaves last month's points
-    // unsettled and they still count, exactly like the score the app shows.
-    var scoreGr = new GlideRecord('x_887486_love_app_u_love_entry');
-    if (matchId) scoreGr.addQuery('u_match', matchId);
-    scoreGr.addNullQuery('u_monthly');
-    if (charId === 'char2') {
-        scoreGr.addQuery('u_char', 'char2');
-    } else {
-        var cond = scoreGr.addQuery('u_char', 'char1');
-        cond.addOrCondition('u_char', '');
-    }
-    scoreGr.query();
-    var currentScore = 0;
-    while (scoreGr.next()) {
-        currentScore += parseInt(scoreGr.getValue('u_points')) || 0;
-    }
-    if (currentScore < price) {
-        response.setStatus(400);
-        response.setBody({ error: 'insufficient_points', currentScore: currentScore, required: price });
-        return;
-    }
-
-    // Deduct via a negative entry so the ledger explains where points went
-    var entryGr = new GlideRecord('x_887486_love_app_u_love_entry');
-    entryGr.initialize();
-    entryGr.setValue('u_char',          charId);
-    entryGr.setValue('u_category',      '');
-    entryGr.setValue('u_category_name', '🏡 小窝装修');
-    entryGr.setValue('u_category_pts',  -price);
-    entryGr.setValue('u_icon',          (body && body.itemIcon) || '🏡');
-    entryGr.setValue('u_points',        -price);
-    entryGr.setValue('u_note',          '购买：' + ((body && body.itemName) || itemId));
-    entryGr.setValue('u_month',         month);
-    entryGr.setValue('u_date',          today);
-    if (matchId) entryGr.setValue('u_match', matchId);
-    entryGr.insert();
+    // NOTE: no score check and no deduction entry — coins are a separate
+    // currency (see header). The client verifies the balance; the authoritative
+    // record of what was spent is the u_pts_spent written below.
 
     // Ownership row. u_shop_item holds the catalog id (not a sys_id) so the
     // frontend can look the item up in DECOR without another round trip.
@@ -104,5 +68,5 @@
     var bagId = bagGr.insert();
 
     response.setStatus(201);
-    response.setBody({ success: true, bagItemId: bagId, itemId: itemId, newScore: currentScore - price });
+    response.setBody({ success: true, bagItemId: bagId, itemId: itemId });
 })(request, response);

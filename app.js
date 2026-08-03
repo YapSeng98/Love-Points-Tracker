@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-8';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-10';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -164,6 +164,7 @@ const App = (() => {
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
     petName: '', petSpecies: '', petExpStored: 0, petBase: 0, petPick: '',
+    equipped: null, decorOwned: [], decorTab: 'floor',
     achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
@@ -217,8 +218,28 @@ const App = (() => {
     }).join('');
   }
 
+  // ServiceNow's MySQL is utf8mb3: 3-byte emoji (❤️) survive, 4-byte ones (🎯)
+  // get mangled — some land back as base64 of their UTF-8 bytes. Recover those
+  // on read so already-corrupted values heal themselves. Deliberately strict:
+  // only accepts a decode that yields a real supplementary-plane character, so
+  // ordinary text that happens to look like base64 ("test") is left alone.
+  function _recoverBase64Emoji(str) {
+    // SN prefixes the base64 with U+FDD6/U+FDD7 sentinels (they show as ▢▢) —
+    // strip those non-characters before testing, or the payload never matches.
+    const c = str.replace(/[\uFDD0-\uFDEF\uFFFE\uFFFF]/g, '');
+    if (!/^[A-Za-z0-9+/]{4,}={0,2}$/.test(c) || c.length % 4 !== 0) return null;
+    try {
+      const bin = atob(c);
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      const out = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      return [...out].some(ch => ch.codePointAt(0) > 0xFFFF) ? out : null;
+    } catch { return null; }
+  }
+
   function decodeFromSN(str) {
     if (!str) return str;
+    const recovered = _recoverBase64Emoji(str);
+    if (recovered) return recovered;
     // Decode \xCODEPOINT format (e.g. \x1F61A → 😚)
     if (str.includes('\\x')) {
       str = str.replace(/\\x([0-9a-fA-F]+)/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
@@ -269,7 +290,7 @@ const App = (() => {
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
-        petName: '', petSpecies: '', petExp: 0, petBase: 0,   // 恋爱小窝
+        petName: '', petSpecies: '', petExp: 0, petBase: 0, petEquipped: '',   // 恋爱小窝
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -344,18 +365,20 @@ const App = (() => {
           S.punishThreshold = cfg.punishThreshold || -80;
           S.needsSetup      = false;
         }
-        if (cfg.char1Name) { S.charName1 = cfg.char1Name; localStorage.setItem('sn_charname1', cfg.char1Name); }
-        if (cfg.char2Name) { S.charName2 = cfg.char2Name; localStorage.setItem('sn_charname2', cfg.char2Name); }
+        const cn1 = decodeFromSN(cfg.char1Name || ''), cn2 = decodeFromSN(cfg.char2Name || '');
+        if (cn1) { S.charName1 = cn1; localStorage.setItem('sn_charname1', cn1); }
+        if (cn2) { S.charName2 = cn2; localStorage.setItem('sn_charname2', cn2); }
         S.startDate = cfg.startDate || '';
         // Shared goal — blank until the couple sets one (and stays blank on an
         // instance whose u_love_config lacks the u_goal_* fields yet)
-        S.goalName   = cfg.goalName   || '';
-        S.goalIcon   = cfg.goalIcon   || '🎯';
+        S.goalName   = decodeFromSN(cfg.goalName || '');
+        S.goalIcon   = decodeFromSN(cfg.goalIcon || '') || '🎯';
         S.goalTarget = parseInt(cfg.goalTarget) || 0;
-        S.petName      = cfg.petName    || '';
+        S.petName      = decodeFromSN(cfg.petName || '');
         S.petSpecies   = cfg.petSpecies || '';
         S.petExpStored = parseInt(cfg.petExp) || 0;
         S.petBase      = parseInt(cfg.petBase) || 0;
+        S.equipped     = parseEquipped(cfg.petEquipped);
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
         S.charImg2 = cfg.charImg2 || '';
@@ -389,6 +412,7 @@ const App = (() => {
         S.petSpecies      = d.petSpecies || '';
         S.petExpStored    = parseInt(d.petExp) || 0;
         S.petBase         = parseInt(d.petBase) || 0;
+        S.equipped        = parseEquipped(d.petEquipped);
       }
     },
 
@@ -415,6 +439,33 @@ const App = (() => {
     // getEntries() only returns unsettled entries, so once a month is settled
     // its check-ins vanish and a yearly count silently shrinks to the current
     // month. Falls back to what we have if the backend doesn't support ?year.
+    // Couple-wide furniture: the room is shared, so a sofa one partner bought
+    // must be placeable by the other (real-world rewards stay per-person).
+    async getDecorOwned() {
+      if (S.usingSN) {
+        return ((await snFetch('/bag?type=decor')) || []).map(r => ({
+          ...r, itemName: decodeFromSN(r.itemName), itemIcon: decodeFromSN(r.itemIcon) }));
+      }
+      return (LS.load().decorOwned || []);
+    },
+
+    async buyDecor(itemId) {
+      const it = DECOR[itemId];
+      if (!it) throw new Error('unknown item');
+      if (S.usingSN) {
+        return snFetch('/decor/buy', { method:'POST', body: JSON.stringify({
+          itemId, itemName: encodeForSN(it.name), itemIcon: encodeForSN(it.art || ''), price: it.price,
+          charId: S.activeChar, date: todayStr(), month: monthKey(),
+        }) });
+      }
+      const d = LS.load();
+      d.decorOwned = d.decorOwned || [];
+      if (d.decorOwned.some(r => r.itemId === itemId)) throw new Error('already_owned');
+      d.decorOwned.push({ id:'d'+Date.now(), itemId, owner:S.activeChar,
+                          itemName:it.name, itemIcon:it.art||'', ptsSpent:it.price });
+      LS.save(d);
+    },
+
     async getEntriesOfYear(year) {
       if (S.usingSN) {
         const list = await snFetch(`/entries?year=${year}`);
@@ -568,8 +619,19 @@ const App = (() => {
       LS.save(d);
     },
 
+    // Any config field that can hold emoji MUST be encoded — utf8mb3 mangles
+    // 4-byte characters. Done here rather than at each call site so a new
+    // caller can't forget (that's exactly how the goal icon got corrupted).
+    _CFG_TEXT: ['goalName', 'goalIcon', 'petName', 'charName1', 'charName2'],
+
     async saveConfig(cfg) {
-      if (S.usingSN) return snFetch('/config', { method:'PUT', body: JSON.stringify(cfg) });
+      if (S.usingSN) {
+        const body = { ...cfg };
+        this._CFG_TEXT.forEach(k => {
+          if (body[k] !== undefined) body[k] = encodeForSN(String(body[k]));
+        });
+        return snFetch('/config', { method:'PUT', body: JSON.stringify(body) });
+      }
       const d = LS.load();
       const { entries, history, categories, rewards, punishments, ...rest } = cfg;
       Object.assign(d, rest);
@@ -2746,6 +2808,89 @@ const App = (() => {
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
+  /* ══════════════ 恋爱小窝 · 装修 (Phase 2) ══════════════
+     Catalog lives in code, not the database: prices and seasonal stock then
+     change with a git push instead of a ServiceNow edit. `ratio` is size
+     relative to the pet's height (see CLAUDE.md §7) — never hardcode px.
+     `free: true` items are the room you already had, so nothing disappears
+     the day decorating ships. */
+  const DECOR = {
+    // ── floor furniture ──
+    plant_pot:  { name:'绿植',       art:'🪴', slot:'floor', ratio:0.66, price:0,  free:true },
+    sofa_blue:  { name:'蓝色沙发',   art:'🛋️', slot:'floor', ratio:0.82, price:0,  free:true },
+    bed_pink:   { name:'粉色小床',   art:'🛏️', slot:'floor', ratio:0.90, price:80 },
+    table_wood: { name:'木餐桌',     art:'🪑', slot:'floor', ratio:0.62, price:45 },
+    lamp_floor: { name:'落地灯',     art:'🕯️', slot:'floor', ratio:0.70, price:40 },
+    fishtank:   { name:'小鱼缸',     art:'🐠', slot:'floor', ratio:0.55, price:55 },
+    // ── wall ──
+    pic_couple: { name:'全家福',     art:'🖼️', slot:'wall',  ratio:0.42, price:0,  free:true },
+    clock_wall: { name:'挂钟',       art:'🕰️', slot:'wall',  ratio:0.34, price:25 },
+    shelf_books:{ name:'书架',       art:'📚', slot:'wall',  ratio:0.48, price:45 },
+    neon_heart: { name:'爱心霓虹灯', art:'💗', slot:'wall',  ratio:0.38, price:60 },
+    // ── wallpaper (drawn, not emoji) ──
+    wp_cream:   { name:'奶油白墙', slot:'paper', price:35, wall:['#F3ECE2','#E8DED0'], floorTone:'#C4A484' },
+    wp_sakura:  { name:'樱花粉墙', slot:'paper', price:35, wall:['#FBE4EC','#F3D2DF'], floorTone:'#C9A08F' },
+    wp_night:   { name:'星空蓝墙', slot:'paper', price:45, wall:['#2E3A63','#263154'], floorTone:'#4A4266' },
+    // ── flooring ──
+    fl_wood:    { name:'木地板', slot:'mat', price:35, tone:['rgba(180,140,100,0.34)','rgba(150,110,75,0.5)'] },
+    fl_carpet:  { name:'毛毯',   slot:'mat', price:35, tone:['rgba(200,160,180,0.34)','rgba(170,125,150,0.5)'] },
+    fl_tile:    { name:'瓷砖',   slot:'mat', price:30, tone:['rgba(170,185,200,0.34)','rgba(135,155,175,0.5)'] },
+    // ── pet outfits (drawn into the pet SVG so they scale with it) ──
+    hat_party:  { name:'派对帽',   slot:'outfit', price:20, draw:'partyHat' },
+    scarf_red:  { name:'小红围巾', slot:'outfit', price:25, draw:'redScarf' },
+  };
+
+  const DECOR_SLOTS = { floor: 3, wall: 2 };   // how many can be out at once
+
+  // 小窝币: earned from the pet's growth, NOT from love points — furniture must
+  // never compete with real rewards (奶茶/约会). Uses the pet's EXP high-water
+  // (base + stored) so the balance can't dip on a punishment settle, a deleted
+  // photo, or re-adopting the pet.
+  function nestCoinsEarned() {
+    const highWater = (S.petBase || 0) + (S.petExpStored || 0);
+    return Math.floor(Math.max(petExpDerived(), highWater) / 2);
+  }
+  function nestCoinsSpent() {
+    return (S.decorOwned || []).reduce((s, r) => s + (parseInt(r.ptsSpent) || 0), 0);
+  }
+  function nestCoins() { return Math.max(0, nestCoinsEarned() - nestCoinsSpent()); }
+
+  const decorOwns = (id) => !!DECOR[id]?.free ||
+    (S.decorOwned || []).some(r => r.itemId === id);
+
+  // Seasonal stock: an item with a date window is only BUYABLE in season, but
+  // once owned it stays usable forever — never confiscate what they paid for.
+  function decorInSeason(item, d = now()) {
+    if (!item.from || !item.to) return true;
+    const md = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return item.from <= item.to
+      ? (md >= item.from && md <= item.to)
+      : (md >= item.from || md <= item.to);   // window wrapping new year
+  }
+
+  /* Equipped state — one small JSON blob on u_love_config. Bounded by design
+     (8 keys), so it can never outgrow the field the way an owned-list would. */
+  function defaultEquipped() {
+    return { paper:'', mat:'', wall:['pic_couple', ''], floor:['plant_pot','sofa_blue',''], outfit:'' };
+  }
+  function parseEquipped(raw) {
+    try {
+      const e = JSON.parse(raw || '{}');
+      const d = defaultEquipped();
+      return {
+        paper: e.paper || '',
+        mat:   e.mat   || '',
+        wall:  Array.isArray(e.wall)  ? e.wall  : d.wall,
+        floor: Array.isArray(e.floor) ? e.floor : d.floor,
+        outfit: e.outfit || '',
+      };
+    } catch { return defaultEquipped(); }
+  }
+  async function saveEquipped() {
+    try { await Data.saveConfig({ petEquipped: JSON.stringify(S.equipped) }); }
+    catch (err) { showToast('保存失败: ' + err.message); }
+  }
+
   /* ── Pet artwork ──
      One parametric SVG per species. Soft radial shading, real paws and tails,
      and — importantly — ears drawn OUTSIDE the head silhouette: an earlier
@@ -2856,6 +3001,17 @@ const App = (() => {
            <path d="M ${60+13} ${eyeY+12} L ${60+30} ${eyeY+14}"/>
          </g>` : '';
 
+    // Outfits are drawn into the SVG, never overlaid with absolute positioning
+    // — the pet scales with its level and an overlay would drift off it.
+    const outfitId = (S.equipped && S.equipped.outfit) || '';
+    const outfitArt = {
+      partyHat: `<path d="M ${60-13} ${headTop+4} L 60 ${headTop-26} L ${60+13} ${headTop+4} Z"
+                       fill="#FF8FA0" stroke="#E0687E" stroke-width="1.5" stroke-linejoin="round"/>
+                 <circle cx="60" cy="${headTop-28}" r="4.5" fill="#FFD24A"/>`,
+      redScarf: `<path d="M ${60-16} ${headY+headR*0.74} q 16 11 32 0 l 4 9 q -20 12 -40 0 z" fill="#E8556B"/>
+                 <path d="M ${60+11} ${headY+headR*0.82+6} l 10 15 l -9 3 l -6 -14 z" fill="#E8556B"/>`,
+    }[DECOR[outfitId]?.draw] || '';
+
     return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
       <ellipse cx="60" cy="139" rx="${bodyW*0.86}" ry="5.5" fill="rgba(0,0,0,0.14)"/>
       ${tail}
@@ -2869,7 +3025,7 @@ const App = (() => {
                transform="rotate(12 ${60+bodyW*0.86} ${bodyY+bodyH*0.3})"/>
       ${ears}
       <ellipse class="pet-head" cx="60" cy="${headY}" rx="${headR}" ry="${headR*0.92}" fill="${FILL}" stroke="${LINE}" stroke-width="1.8"/>
-      ${scarf}${shellHat}${halo}
+      ${scarf}${shellHat}${halo}${outfitArt}
       <ellipse cx="${60-eyeDX}" cy="${eyeY}" rx="${eyeR}" ry="${eyeR*1.06}" fill="#2A2A2A"/>
       <ellipse cx="${60+eyeDX}" cy="${eyeY}" rx="${eyeR}" ry="${eyeR*1.06}" fill="#2A2A2A"/>
       <circle cx="${60-eyeDX+2}" cy="${eyeY-2}" r="1.9" fill="#fff" opacity="0.95"/>
@@ -2960,12 +3116,43 @@ const App = (() => {
     if (!S.petSpecies) { openPetAdopt(); return; }
     document.getElementById('pet-page')?.classList.add('open');
     await _loadStatsSources();
+    try { S.decorOwned = await Data.getDecorOwned(); } catch { S.decorOwned = []; }
     renderPetHome();
   }
 
   function closePetHome() {
     document.getElementById('pet-page')?.classList.remove('open');
     renderPetBanner();
+  }
+
+  /* ── Room rendering from equipped state ── */
+  function renderRoomItems() {
+    const layer = document.getElementById('pet-decor-layer');
+    if (!layer) return;
+    const eq = S.equipped || (S.equipped = defaultEquipped());
+
+    const piece = (id, cls) => {
+      const it = DECOR[id];
+      if (!it || !it.art) return '';
+      return `<div class="${cls} pet-floor-item" style="font-size:calc(var(--pet-h) * ${it.ratio})">${it.art}</div>`;
+    };
+    let html = '';
+    (eq.wall  || []).forEach((id, i) => { if (i < DECOR_SLOTS.wall)  html += piece(id, `pet-wall-item pet-wall-${i}`); });
+    (eq.floor || []).forEach((id, i) => { if (i < DECOR_SLOTS.floor) html += piece(id, `pet-floor-${i}`); });
+    layer.innerHTML = html;
+    // Wall items use the softer wall shadow, not the floor one
+    layer.querySelectorAll('.pet-wall-item').forEach(el => el.classList.remove('pet-floor-item'));
+
+    // Wallpaper / flooring tint the room itself
+    const room = document.getElementById('pet-room');
+    const paper = DECOR[eq.paper], mat = DECOR[eq.mat];
+    if (room) {
+      room.style.background = paper
+        ? `linear-gradient(180deg, ${paper.wall[0]} 0%, ${paper.wall[1]} 58%, ${paper.floorTone} 58.2%, ${paper.floorTone} 100%)`
+        : '';
+      room.style.setProperty('--floor-a', mat ? mat.tone[0] : '');
+      room.style.setProperty('--floor-b', mat ? mat.tone[1] : '');
+    }
   }
 
   function renderPetHome() {
@@ -2982,9 +3169,14 @@ const App = (() => {
     const sky = hr >= 6 && hr < 17 ? 'day' : (hr >= 17 && hr < 19 ? 'dusk' : 'night');
     document.getElementById('pet-room').className = 'pet-room sky-' + sky;
 
+    renderRoomItems();
+
     const stage = document.getElementById('pet-stage');
     stage.style.setProperty('--pet-scale', st.scale);
     stage.innerHTML = petSvg(st.idx);
+
+    const pill = document.getElementById('pet-coin-pill');
+    if (pill) pill.textContent = `🪙 ${nestCoins()}`;
 
     document.getElementById('pet-speech').textContent = petSpeech();
     document.getElementById('pet-mood-chip').innerHTML =
@@ -3011,6 +3203,122 @@ const App = (() => {
         <span><i class="dot c1"></i>${_escHtml(charDisplayName('char1'))} ${c1}</span>
         <span><i class="dot c2"></i>${_escHtml(charDisplayName('char2'))} ${c2}</span>
       </div>`;
+  }
+
+  /* ── 装修面板 ── */
+  function openDecor() {
+    if (!S.petSpecies) { showToast('先领养一只小家伙吧 🥚'); return; }
+    renderDecor();
+    openModal('modal-decor');
+  }
+
+  function decorTab(tab) {
+    S.decorTab = tab;
+    renderDecor();
+  }
+
+  // Is this item currently placed? Slot items live in arrays, the rest are scalars.
+  function decorPlaced(id, slot) {
+    const eq = S.equipped || defaultEquipped();
+    if (slot === 'floor' || slot === 'wall') return (eq[slot] || []).includes(id);
+    return eq[slot] === id;
+  }
+
+  function renderDecor() {
+    const coins = nestCoins();
+    const pill = document.getElementById('pet-coin-pill');
+    if (pill) pill.textContent = `🪙 ${coins}`;
+    const badge = document.getElementById('decor-coins');
+    if (badge) badge.textContent = `🪙 ${coins} 小窝币`;
+
+    ['floor','wall','paper','mat','outfit'].forEach(t =>
+      document.getElementById('dtab-' + t)?.classList.toggle('active', t === S.decorTab));
+
+    const items = Object.entries(DECOR)
+      .filter(([, it]) => it.slot === S.decorTab)
+      // Out-of-season stock hides from the shop, but anything already owned
+      // stays visible so it can still be placed.
+      .filter(([id, it]) => decorInSeason(it) || decorOwns(id));
+
+    const grid = document.getElementById('decor-grid');
+    if (!items.length) { grid.innerHTML = `<div class="decor-empty">这一类还没有东西</div>`; return; }
+
+    grid.innerHTML = items.map(([id, it]) => {
+      const owned  = decorOwns(id);
+      const placed = decorPlaced(id, it.slot);
+      const afford = coins >= it.price;
+      const art = it.art
+        ? `<div class="decor-art">${it.art}</div>`
+        : `<div class="decor-swatch" style="background:${it.wall ? it.wall[0] : (it.tone ? it.tone[1] : '#DDD')}"></div>`;
+      let btn;
+      if (!owned) {
+        btn = `<button class="decor-btn" ${afford ? '' : 'disabled'} onclick="App.buyDecor('${id}')">
+                 ${afford ? `🪙 ${it.price} 购买` : `🪙 ${it.price} 不够`}</button>`;
+      } else if (placed) {
+        btn = `<button class="decor-btn placed" onclick="App.unplaceDecor('${id}')">✓ 已摆放</button>`;
+      } else {
+        btn = `<button class="decor-btn own" onclick="App.placeDecor('${id}')">摆进小窝</button>`;
+      }
+      return `<div class="decor-card ${placed ? 'placed' : ''}">
+        ${art}
+        <div class="decor-name">${_escHtml(it.name)}</div>
+        <div class="decor-price">${it.free ? '初始赠送' : owned ? '已拥有' : `售价 ${it.price}`}</div>
+        ${btn}
+      </div>`;
+    }).join('');
+  }
+
+  async function buyDecor(id) {
+    const it = DECOR[id];
+    if (!it || decorOwns(id)) return;
+    if (nestCoins() < it.price) { showToast('🪙 小窝币不够，再攒攒'); return; }
+    try {
+      await Data.buyDecor(id);
+      S.decorOwned = await Data.getDecorOwned();
+      spawnPetHearts();
+      showToast(`🎉 买下了「${it.name}」`);
+      await placeDecor(id);          // place it immediately — that's the payoff
+    } catch (err) {
+      showToast(err.message === 'already_owned' ? '已经拥有了' : '购买失败: ' + err.message);
+    }
+  }
+
+  async function placeDecor(id) {
+    const it = DECOR[id];
+    if (!it || !decorOwns(id)) return;
+    const eq = S.equipped || (S.equipped = defaultEquipped());
+    if (it.slot === 'floor' || it.slot === 'wall') {
+      const max = DECOR_SLOTS[it.slot];
+      const arr = (eq[it.slot] || []).slice(0, max);
+      while (arr.length < max) arr.push('');
+      if (!arr.includes(id)) {
+        const free = arr.indexOf('');
+        // All slots full → replace the oldest so a tap always does something
+        arr[free >= 0 ? free : 0] = id;
+      }
+      eq[it.slot] = arr;
+    } else {
+      eq[it.slot] = id;
+    }
+    renderRoomItems();
+    if (it.slot === 'outfit') renderPetHome();
+    renderDecor();
+    await saveEquipped();
+  }
+
+  async function unplaceDecor(id) {
+    const it = DECOR[id];
+    const eq = S.equipped || (S.equipped = defaultEquipped());
+    if (!it) return;
+    if (it.slot === 'floor' || it.slot === 'wall') {
+      eq[it.slot] = (eq[it.slot] || []).map(x => (x === id ? '' : x));
+    } else if (eq[it.slot] === id) {
+      eq[it.slot] = '';
+    }
+    renderRoomItems();
+    if (it.slot === 'outfit') renderPetHome();
+    renderDecor();
+    await saveEquipped();
   }
 
   function pokePet() {
@@ -3733,6 +4041,7 @@ const App = (() => {
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
+    openDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,

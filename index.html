@@ -2357,7 +2357,8 @@
        otherwise it tints the pet's legs and swallows taps meant for the pet. */
     .pet-room::after {
       content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
-      background: linear-gradient(180deg, rgba(180,140,100,0.28), rgba(150,110,75,0.42));
+      background: linear-gradient(180deg,
+        var(--floor-a, rgba(180,140,100,0.28)), var(--floor-b, rgba(150,110,75,0.42)));
       border-top: 2px solid rgba(120,85,55,0.28);
       z-index: 0; pointer-events: none;
     }
@@ -2404,9 +2405,14 @@
     }
     .pet-floor-item { filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); }
     .pet-wall-item  { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.22)); }
-    .pet-picture { top: 12%;    left: 9%;   font-size: calc(var(--pet-h) * 0.42); }
-    .pet-plant   { bottom: 13%; left: 5%;   font-size: calc(var(--pet-h) * 0.66); }
-    .pet-sofa    { bottom: 13%; right: 4%;  font-size: calc(var(--pet-h) * 0.82); }
+    /* Slot positions. Floor items share one baseline (bottom:13%) so nothing
+       floats; the middle floor slot is offset back so it can't sit on the pet. */
+    .pet-decor-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .pet-wall-0  { top: 12%;    left: 9%;  }
+    .pet-wall-1  { top: 13%;    left: 38%; }
+    .pet-floor-0 { bottom: 13%; left: 4%;  }
+    .pet-floor-1 { bottom: 13%; right: 4%; }
+    .pet-floor-2 { bottom: 30%; left: 26%; opacity: 0.92; }
     /* Narrow phones: shrink furniture a touch so it can't crowd the pet */
     @media (max-width: 380px) { .pet-room { --pet-h: 132px; } }
     .pet-rug {
@@ -2483,6 +2489,57 @@
       font-size: 11px; color: var(--sub); text-align: center;
       margin-top: 12px; line-height: 1.5; opacity: 0.85;
     }
+
+    /* Decor: entry button + panel */
+    .pet-decor-open {
+      width: 100%; margin-top: 12px; padding: 12px;
+      border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg, #C9B1FF, #A87CE0);
+      color: white; font-size: 14px; font-weight: 800;
+      box-shadow: 0 4px 14px rgba(168,124,224,0.38);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.15s;
+    }
+    .pet-decor-open:active { transform: scale(0.97); }
+    .pet-coin-pill {
+      background: rgba(255,255,255,0.24); border-radius: 20px;
+      padding: 2px 9px; font-size: 12px; font-weight: 800;
+    }
+    .decor-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .decor-coins {
+      font-size: 14px; font-weight: 800; color: #8A5FD0;
+      background: rgba(168,124,224,0.14); border-radius: 20px; padding: 5px 12px;
+    }
+    .decor-note { font-size: 11.5px; color: var(--sub); line-height: 1.5; margin-bottom: 12px; }
+    .decor-tabs { display: flex; gap: 5px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; }
+    .decor-tab {
+      flex-shrink: 0; padding: 6px 11px; border-radius: 20px; cursor: pointer;
+      border: 1.5px solid var(--card-border); background: none;
+      font-size: 12px; font-weight: 700; color: var(--sub);
+    }
+    .decor-tab.active { background: rgba(168,124,224,0.16); border-color: #A87CE0; color: #8A5FD0; }
+    .decor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .decor-card {
+      border: 1.5px solid var(--card-border); border-radius: 16px;
+      background: #F7F9FC; padding: 12px 8px 10px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+    }
+    .decor-card.placed { border-color: #6BCB77; background: rgba(107,203,119,0.12); }
+    .decor-art { font-size: 30px; line-height: 1; height: 34px; display: flex; align-items: center; }
+    .decor-swatch { width: 44px; height: 30px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12); }
+    .decor-name { font-size: 12.5px; font-weight: 700; color: var(--dark); }
+    .decor-btn {
+      width: 100%; margin-top: 2px; padding: 7px 0; border: none; border-radius: 10px;
+      font-size: 12px; font-weight: 800; cursor: pointer;
+      background: linear-gradient(135deg, #C9B1FF, #A87CE0); color: white;
+    }
+    .decor-btn.own    { background: rgba(107,203,119,0.18); color: #3BA84A; }
+    .decor-btn.placed { background: #6BCB77; color: white; }
+    .decor-btn:disabled { background: rgba(0,0,0,0.10); color: var(--sub); cursor: not-allowed; }
+    .decor-price { font-size: 11px; color: var(--sub); font-weight: 700; }
+    .decor-empty { grid-column: 1/-1; text-align: center; color: var(--sub); font-size: 12.5px; padding: 18px 0; }
+    html[data-theme="dark"] .decor-card { background: #1E2A3D; }
+    html[data-theme="dark"] .decor-card.placed { background: rgba(107,203,119,0.15); }
 
     /* Species picker */
     .pet-species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -3228,9 +3285,8 @@
 
   <div class="pet-room" id="pet-room">
     <div class="pet-window"><span class="pet-window-orb"></span></div>
-    <div class="pet-wall-item  pet-picture">🖼️</div>
-    <div class="pet-floor-item pet-plant">🪴</div>
-    <div class="pet-floor-item pet-sofa">🛋️</div>
+    <!-- Furniture is injected from the equipped state by App.renderRoomItems() -->
+    <div class="pet-decor-layer" id="pet-decor-layer"></div>
     <div class="pet-rug"></div>
     <div class="pet-speech-bubble" id="pet-speech">…</div>
     <div class="pet-stage" id="pet-stage" onclick="App.pokePet()"></div>
@@ -3239,7 +3295,33 @@
   <div class="pet-panel">
     <div id="pet-exp-bar"></div>
     <div id="pet-contrib"></div>
+    <button class="pet-decor-open" onclick="App.openDecor()">
+      🛍 装扮小窝 <span class="pet-coin-pill" id="pet-coin-pill">🪙 0</span>
+    </button>
     <div class="pet-hint">💡 签到、记分、写情书、加回忆都会让它长大 · 点它试试</div>
+  </div>
+</div>
+
+<!-- 装修面板：商店 / 收纳 / 换装 -->
+<div class="modal-overlay" id="modal-decor" style="z-index:140">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="decor-head">
+      <div class="modal-title" style="margin:0">🛍 装扮小窝</div>
+      <div class="decor-coins" id="decor-coins">🪙 0</div>
+    </div>
+    <p class="decor-note">小窝币来自宠物的成长，<b>不会花掉你们的爱心积分</b> 💕</p>
+    <div class="decor-tabs">
+      <button class="decor-tab active" id="dtab-floor"  onclick="App.decorTab('floor')">🛋 家具</button>
+      <button class="decor-tab"        id="dtab-wall"   onclick="App.decorTab('wall')">🖼 墙面</button>
+      <button class="decor-tab"        id="dtab-paper"  onclick="App.decorTab('paper')">🎨 墙纸</button>
+      <button class="decor-tab"        id="dtab-mat"    onclick="App.decorTab('mat')">🪵 地板</button>
+      <button class="decor-tab"        id="dtab-outfit" onclick="App.decorTab('outfit')">🎽 穿戴</button>
+    </div>
+    <div class="decor-grid" id="decor-grid"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="App.closeModal('modal-decor')" style="flex:1">完成 ✅</button>
+    </div>
   </div>
 </div>
 

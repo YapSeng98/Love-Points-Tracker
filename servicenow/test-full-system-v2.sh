@@ -878,6 +878,60 @@ RES=$(curl -s "${BASE}/entries?year=${YR_NOW}" "${AUTHD[@]}")
   fail "year scope leaked across couples: $RES"
 
 # ════════════════════════════════════════════════════════════
+section "28. 小窝装修 (decor: r40 buy + r29 ?type=decor)"
+# ════════════════════════════════════════════════════════════
+# Furniture is paid for in 小窝币, a currency derived from the pet's growth —
+# it must NEVER touch the couple's love points, or decorating would compete
+# with real rewards (奶茶/约会).
+PTS_BEFORE=$(curl -s "${BASE}/entries" "${AUTH1[@]}" | grep -o '"pts":-\{0,1\}[0-9]*' \
+  | grep -o -- '-\{0,1\}[0-9]*$' | awk '{s+=$1} END{print s+0}')
+
+# Icon is sent \xCODEPOINT-encoded, exactly as the app does — a raw 4-byte
+# emoji in the body is what utf8mb3 mangles.
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/decor/buy" "${AUTH1[@]}" \
+  -d "{\"itemId\":\"sofa_test\",\"itemName\":\"测试沙发\",\"itemIcon\":\"\\\\x1F6CB\",\"price\":80,\"charId\":\"char1\",\"date\":\"${TODAY}\",\"month\":\"${M5}\"}")
+HTTP=$(echo "$RES" | tail -1); BODY=$(echo "$RES" | head -1)
+if [ "$HTTP" = "201" ]; then
+  pass "POST /decor/buy → 201"
+elif echo "$BODY" | grep -q 'insufficient_points'; then
+  fail "decor buy rejected for POINTS — the OLD r40 is deployed; re-paste r40_POST_decor_buy.js (furniture now costs 小窝币, not love points)"
+else
+  fail "decor buy → $HTTP: $BODY"
+fi
+
+PTS_AFTER=$(curl -s "${BASE}/entries" "${AUTH1[@]}" | grep -o '"pts":-\{0,1\}[0-9]*' \
+  | grep -o -- '-\{0,1\}[0-9]*$' | awk '{s+=$1} END{print s+0}')
+[ "$PTS_BEFORE" = "$PTS_AFTER" ] && \
+  pass "buying furniture did NOT touch love points (${PTS_AFTER} unchanged)" || \
+  fail "love points changed: ${PTS_BEFORE} → ${PTS_AFTER}"
+
+RES=$(curl -s -w "\n%{http_code}" -X POST "${BASE}/decor/buy" "${AUTH1[@]}" \
+  -d '{"itemId":"sofa_test","itemName":"测试沙发","price":80}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "400" ] && pass "buying the same item twice → 400 already_owned" || fail "double-buy → $HTTP"
+
+# Decor is pooled across the couple — the room is shared
+RES=$(curl -s "${BASE}/bag?type=decor" "${AUTH2[@]}")
+echo "$RES" | grep -q '"itemId":"sofa_test"' && \
+  pass "partner sees furniture the other bought (decor is couple-wide)" || fail "decor not shared: $RES"
+
+# …but it must not pollute the personal reward bag
+RES=$(curl -s "${BASE}/bag" "${AUTH1[@]}")
+echo "$RES" | grep -qv '"itemId":"sofa_test"' && \
+  pass "furniture stays OUT of the personal reward bag" || fail "decor leaked into reward bag"
+
+# Placement rides on the existing config JSON — no new table
+EQ='{"paper":"wp_sakura","mat":"","wall":["pic_couple",""],"floor":["sofa_test","",""],"outfit":"hat_party"}'
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d "{\"petEquipped\":$(python3 -c "import json,sys;print(json.dumps(sys.argv[1]))" "$EQ")}" > /dev/null
+RES=$(curl -s "${BASE}/config" "${AUTH2[@]}")
+echo "$RES" | grep -q 'sofa_test' && echo "$RES" | grep -q 'hat_party' && \
+  pass "room layout is shared — partner sees the same arrangement" || fail "layout not shared: $RES"
+
+# Cross-couple isolation
+RES=$(curl -s "${BASE}/bag?type=decor" "${AUTHD[@]}")
+[ "$(id_count "$RES")" = "0" ] && pass "foreign couple sees none of our furniture" || fail "decor leaked across couples"
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""
