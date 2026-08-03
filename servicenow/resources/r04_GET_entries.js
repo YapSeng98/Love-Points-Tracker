@@ -10,6 +10,12 @@
 // vanished. The frontend groups the returned entries by their own u_month
 // when settling, so old months still land as their own separate history
 // record instead of getting silently dropped or lumped into "today".
+//
+// OPTIONAL ?year=YYYY — returns EVERY entry of that year, settled ones
+// included. The 年度回顾 needs this: settling stamps u_monthly and hides the
+// entries from the normal call, so a yearly "how many check-ins" count only
+// ever saw the current unsettled month. Without the param the behaviour is
+// unchanged (unsettled only), so this stays backward compatible.
 (function process(request, response) {
     var _tok = (request.getHeader('Authorization')||'').replace('Bearer ','').trim();
     var _au = new GlideRecord('x_887486_love_app_u_love_auth');
@@ -18,9 +24,17 @@
     if (!_au.next()) { response.setStatus(401); response.setBody({error:'Unauthorized'}); return; }
     var matchId = _au.getValue('u_match') || '';
 
+    var year = request.queryParams.year;
+    if (year && year.join) year = year.join('');   // SN may hand back an array
+
     var gr = new GlideRecord('x_887486_love_app_u_love_entry');
     if (matchId) gr.addQuery('u_match', matchId);
-    gr.addNullQuery('u_monthly');
+    if (year && /^\d{4}$/.test(year)) {
+        gr.addQuery('u_month', 'STARTSWITH', year);   // settled AND unsettled
+        gr.setLimit(2000);
+    } else {
+        gr.addNullQuery('u_monthly');
+    }
     gr.orderByDesc('u_date');
     // u_date has no time part — same-day entries tie, so break the tie by
     // actual creation time (newest first)

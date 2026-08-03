@@ -2245,6 +2245,32 @@
       .mem-layer.kb-a .mem-fg, .mem-layer.kb-b .mem-fg, .mem-p { animation: none; }
     }
 
+    /* ── Settings: reset / danger zone ── */
+    .cfg-danger-zone {
+      margin-top: 22px; padding-top: 16px;
+      border-top: 1px dashed var(--card-border);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .cfg-danger-title {
+      font-size: 12px; font-weight: 700; color: var(--sub);
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px;
+    }
+    .cfg-danger-btn {
+      width: 100%; text-align: left; cursor: pointer;
+      background: #FFF6F6; border: 1.5px solid rgba(255,107,107,0.28);
+      border-radius: var(--radius-sm); padding: 11px 14px;
+      font-size: 13.5px; font-weight: 700; color: #C94A4A;
+      display: flex; flex-direction: column; gap: 3px;
+      transition: background 0.15s;
+    }
+    .cfg-danger-btn:active { background: #FFECEC; }
+    .cfg-danger-btn span { font-size: 11px; font-weight: 500; color: var(--sub); }
+    .cfg-danger-btn.demo-only { display: none; }   /* shown only in demo mode */
+    html[data-theme="dark"] .cfg-danger-btn {
+      background: rgba(255,107,107,0.10); border-color: rgba(255,107,107,0.28); color: #FF9B9B;
+    }
+    html[data-theme="dark"] .cfg-danger-btn:active { background: rgba(255,107,107,0.18); }
+
     /* ══════════════ 恋爱小窝 · 宠物 ══════════════ */
     #pet-banner:empty { display: none; }
     .pet-adopt, .pet-banner-box {
@@ -3684,6 +3710,20 @@
       <button class="btn-secondary" onclick="App.closeModal('modal-settings')">取消</button>
       <button class="btn-primary" onclick="App.saveConfig()" style="flex:1">保存 ✅</button>
     </div>
+
+    <!-- Maintenance: pet reset always available; demo wipe only in demo mode -->
+    <div class="cfg-danger-zone">
+      <div class="cfg-danger-title">重置</div>
+      <button class="cfg-danger-btn" onclick="App.resetPet()">
+        🥚 重新领养宠物
+        <span>清空等级和经验，重新选一只从 0 开始养</span>
+      </button>
+      <button class="cfg-danger-btn demo-only" id="cfg-clear-demo" onclick="App.clearDemoData()">
+        🧹 清除本地 Demo 数据
+        <span>只清这台设备的本地试玩数据，不影响云端账号</span>
+      </button>
+    </div>
+
     <div id="app-version-tag" style="text-align:center;font-size:11px;color:var(--sub);opacity:0.6;margin-top:12px"></div>
   </div>
 </div>

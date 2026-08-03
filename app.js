@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-6';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-8';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -265,6 +265,7 @@ const App = (() => {
         punishThreshold: -80,
         entries: {},      // { 'YYYY-MM': [...] }
         history: [],
+        archive: [],      // settled entries, kept for 年度回顾
         letters: [],      // 情书: [{ id, charId, text, date, opened }]
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
@@ -410,6 +411,22 @@ const App = (() => {
       return all.sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
+    // Every entry of a given year, INCLUDING settled ones. Needed by 年度回顾:
+    // getEntries() only returns unsettled entries, so once a month is settled
+    // its check-ins vanish and a yearly count silently shrinks to the current
+    // month. Falls back to what we have if the backend doesn't support ?year.
+    async getEntriesOfYear(year) {
+      if (S.usingSN) {
+        const list = await snFetch(`/entries?year=${year}`);
+        return (list || []).map(e => ({ ...e, icon: decodeFromSN(e.icon) }));
+      }
+      const d = LS.load();
+      const live = Object.keys(d.entries || {}).flatMap(m => d.entries[m] || []);
+      const archived = d.archive || [];
+      return [...live, ...archived].filter(e =>
+        String(e.month || (e.date || '').slice(0, 7)).startsWith(String(year)));
+    },
+
     async addEntry(entry) {
       if (S.usingSN) {
         const encoded = { ...entry, icon: encodeForSN(entry.icon) };
@@ -544,6 +561,9 @@ const App = (() => {
       const d = LS.load();
       d.history = d.history || [];
       d.history.unshift({ month, char1Pts, char2Pts, mode, result1, result2, settledAt: new Date().toISOString() });
+      // Archive rather than delete — settled entries still exist server-side
+      // (u_monthly stamped) and 年度回顾 needs them for yearly counts.
+      d.archive = (d.archive || []).concat(d.entries[month] || []);
       d.entries[month] = [];
       LS.save(d);
     },
@@ -1888,9 +1908,43 @@ const App = (() => {
     }
   }
 
+  /* ── Settings: reset actions ── */
+
+  // Wipes ONLY this device's local試玩 data. Deliberately hidden while signed
+  // in to ServiceNow so it can never be mistaken for "delete our real data".
+  async function clearDemoData() {
+    if (S.usingSN) { showToast('云端账号不需要清除本地数据'); return; }
+    if (!(await showConfirm('清除这台设备上的本地 Demo 数据？\n所有试玩的记录、情书、回忆、宠物都会消失，且无法恢复。'))) return;
+    localStorage.removeItem(LS.KEY);
+    showToast('🧹 已清除，正在重新开始…');
+    setTimeout(() => location.reload(), 700);
+  }
+
+  // Re-adopting is the one legitimate way to reset EXP: a fresh petBase is
+  // sent alongside petExp 0, which is the only case r02 allows the stored
+  // high-water mark to drop (see the pet notes in CLAUDE.md).
+  async function resetPet() {
+    if (!S.petSpecies) { openPetAdopt(); return; }
+    if (!(await showConfirm(`确定让「${petName()}」重新开始吗？\n等级和经验会清零，可以重新选一只从 0 养起。`))) return;
+    try {
+      await _loadStatsSources();
+      const base = petExpDerived();
+      S.petSpecies = ''; S.petName = ''; S.petBase = base; S.petExpStored = 0;
+      await Data.saveConfig({ petSpecies: '', petName: '', petBase: base, petExp: 0 });
+      closeModal('modal-settings');
+      renderPetBanner();
+      showToast('🥚 可以重新领养啦');
+      openPetAdopt();
+    } catch (err) {
+      showToast('重置失败: ' + err.message);
+    }
+  }
+
   function showSettings() {
     const themeSel = document.getElementById('cfg-theme');
     if (themeSel) themeSel.value = themeMode();
+    const demoBtn = document.getElementById('cfg-clear-demo');
+    if (demoBtn) demoBtn.style.display = S.usingSN ? 'none' : 'flex';
     document.getElementById('cfg-reward-target').value    = S.rewardTarget;
     document.getElementById('cfg-punish-threshold').value = S.punishThreshold;
     document.getElementById('cfg-name1').value = S.charName1 || 'Pochacco';
@@ -2420,53 +2474,61 @@ const App = (() => {
   }
 
   /* ── 年度回顾 ── */
-  function computeYearReview(year) {
+  // `yearEntries` should be the FULL year (settled entries included) from
+  // Data.getEntriesOfYear. Counting from S.entries alone was the bug behind
+  // "5 次签到" for a whole year: settling archives entries out of /entries,
+  // so every month before the current one silently disappeared from the tally.
+  function computeYearReview(year, yearEntries) {
     const yr = String(year);
     const hist    = (S.historyRecords || []).filter(r => (r.month || '').startsWith(yr));
-    const entries = (S.entries || []).filter(e => (e.date || '').startsWith(yr));
     const letters = (S.letters || []).filter(l => (l.date || '').startsWith(yr));
     const photos  = (S.photos  || []).filter(p => (p.date || '').startsWith(yr));
 
-    const settledPts = hist.reduce((s, r) =>
-      s + Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0), 0);
-    const livePts = entries.reduce((s, e) => {
-      const p = parseInt(e.pts) || 0;
-      return s + (p > 0 ? p : 0);
-    }, 0);
+    const entries = (yearEntries && yearEntries.length)
+      ? yearEntries
+      : (S.entries || []).filter(e => (e.date || '').startsWith(yr));
 
-    // Best month: settled months carry their own totals; the live (unsettled)
-    // months only exist as raw entries, so tally those separately.
+    const monthOf = (e) => e.month || (e.date || '').slice(0, 7);
+    const monthsWithEntries = new Set(entries.map(monthOf));
+
+    // Points/best-month come from raw entries where we have them. For a settled
+    // month with no entries returned (backend not yet updated, or entries since
+    // deleted) fall back to that month's archived totals — so the numbers stay
+    // right either way instead of double-counting or dropping a month.
     const monthTotals = {};
-    hist.forEach(r => {
-      monthTotals[r.month] = (monthTotals[r.month] || 0) +
-        Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0);
-    });
     entries.forEach(e => {
       const p = parseInt(e.pts) || 0;
       if (p <= 0) return;
-      const m = e.month || (e.date || '').slice(0, 7);
+      const m = monthOf(e);
       monthTotals[m] = (monthTotals[m] || 0) + p;
     });
-    let bestMonth = '', bestPts = 0;
-    Object.entries(monthTotals).forEach(([m, p]) => { if (p > bestPts) { bestMonth = m; bestPts = p; } });
+    hist.forEach(r => {
+      if (monthsWithEntries.has(r.month)) return;   // already counted above
+      monthTotals[r.month] = (monthTotals[r.month] || 0) +
+        Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0);
+    });
+
+    let bestMonth = '', bestPts = 0, totalPts = 0;
+    Object.entries(monthTotals).forEach(([m, p]) => {
+      totalPts += p;
+      if (p > bestPts) { bestMonth = m; bestPts = p; }
+    });
 
     const catCount = {};
     entries.forEach(e => {
-      const n = e.catName && e.catName !== 'undefined' ? e.catName : '自定义';
       if (isPurchaseEntry(e)) return;
+      const n = e.catName && e.catName !== 'undefined' ? e.catName : '自定义';
       catCount[n] = (catCount[n] || 0) + 1;
     });
     let topCat = '', topCatN = 0;
     Object.entries(catCount).forEach(([n, c]) => { if (c > topCatN) { topCat = n; topCatN = c; } });
 
-    const checkins = entries.filter(e => e.catName === CHECKIN_CAT).length;
-
     return {
       year: yr,
-      totalPts: settledPts + livePts,
+      totalPts,
       bestMonth, bestPts,
       topCat, topCatN,
-      checkins,
+      checkins: entries.filter(e => e.catName === CHECKIN_CAT).length,
       letters: letters.length,
       photos: photos.length,
       settledMonths: hist.length,
@@ -2474,9 +2536,14 @@ const App = (() => {
     };
   }
 
+  let _yearEntriesCache = { year: null, list: [] };
+
   async function showYearReview() {
     await _loadStatsSources(true);   // exact counts matter here
-    const r = computeYearReview(now().getFullYear());
+    const y = now().getFullYear();
+    // Includes settled entries, which /entries hides — see computeYearReview
+    _yearEntriesCache = { year: y, list: await Data.getEntriesOfYear(y).catch(() => []) };
+    const r = computeYearReview(y, _yearEntriesCache.list);
     const daysTogether = S.startDate
       ? Math.max(0, Math.floor((Date.now() - new Date(S.startDate).getTime()) / 86400000)) : null;
 
@@ -2512,7 +2579,8 @@ const App = (() => {
 
   // Reuse the Ken Burns player, but scoped to this year's photos only
   function playYearMemories() {
-    const r = computeYearReview(now().getFullYear());
+    const y = now().getFullYear();
+    const r = computeYearReview(y, _yearEntriesCache.year === y ? _yearEntriesCache.list : null);
     if (!r.yearPhotos.length) { showToast('今年还没有回忆照片'); return; }
     const all = S.photos;
     S.photos = r.yearPhotos;
@@ -3645,6 +3713,7 @@ const App = (() => {
     quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, logout,
+    clearDemoData, resetPet,
     setTheme,
     claimReward,
     setCharImg, resetCharImg,
