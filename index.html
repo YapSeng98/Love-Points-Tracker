@@ -1976,6 +1976,7 @@
     html[data-theme="dark"] .settle-preview .sp-result.none { background: #1E2A3D; border-color: #33405A; }
     html[data-theme="dark"] .settle-multi-note { background: rgba(240,180,41,0.14); color: #E8C06A; }
     html[data-theme="dark"] .settle-current-opt { background: #1E2A3D; }
+    html[data-theme="dark"] .settle-char-card .sc-result { background: rgba(0,0,0,0.28); }
     html[data-theme="dark"] .pet-page { background: linear-gradient(180deg, #1B1730 0%, #2A1C2E 100%); }
     /* Keep the time-of-day variation, but pitch the whole room darker so it
        doesn't glow against a dark UI */
@@ -2408,11 +2409,35 @@
     /* Slot positions. Floor items share one baseline (bottom:13%) so nothing
        floats; the middle floor slot is offset back so it can't sit on the pet. */
     .pet-decor-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-    .pet-wall-0  { top: 12%;    left: 9%;  }
-    .pet-wall-1  { top: 13%;    left: 38%; }
-    .pet-floor-0 { bottom: 13%; left: 4%;  }
-    .pet-floor-1 { bottom: 13%; right: 4%; }
-    .pet-floor-2 { bottom: 30%; left: 26%; opacity: 0.92; }
+    /* Pieces are positioned by % and anchored bottom-centre so furniture sits
+       on the floor rather than hanging from its top-left corner. */
+    .decor-piece {
+      position: absolute; transform: translate(-50%, -100%);
+      pointer-events: auto; cursor: grab; touch-action: none;
+      line-height: 1; user-select: none; -webkit-user-select: none;
+      transition: filter 0.15s;
+    }
+    .decor-piece.dragging { cursor: grabbing; filter: brightness(1.15); z-index: 4; }
+    .decor-piece.selected { filter: drop-shadow(0 0 0 #A87CE0) drop-shadow(0 0 6px #A87CE0); }
+    .decor-handle {
+      position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%);
+      z-index: 6; display: none; align-items: center; gap: 6px;
+      background: rgba(20,16,32,0.88); border: 1.5px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 30px; padding: 6px 8px; max-width: 94%;
+    }
+    .decor-handle.show { display: flex; }
+    .dh-name { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.85);
+               max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dh-size { font-size: 11px; font-weight: 800; color: white; min-width: 34px; text-align: center;
+               font-variant-numeric: tabular-nums; }
+    .dh-btn {
+      border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
+      background: rgba(255,255,255,0.16); color: white; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .dh-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .dh-btn.del { background: rgba(255,107,107,0.34); }
     /* Narrow phones: shrink furniture a touch so it can't crowd the pet */
     @media (max-width: 380px) { .pet-room { --pet-h: 132px; } }
     .pet-rug {
@@ -2540,6 +2565,59 @@
     .decor-empty { grid-column: 1/-1; text-align: center; color: var(--sub); font-size: 12.5px; padding: 18px 0; }
     html[data-theme="dark"] .decor-card { background: #1E2A3D; }
     html[data-theme="dark"] .decor-card.placed { background: rgba(107,203,119,0.15); }
+
+    /* Maintenance notice */
+    .maint-card {
+      width: 100%; max-width: 360px; text-align: center;
+      background: var(--card); border: 1.5px solid var(--card-border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 34px 26px 26px;
+    }
+    .maint-icon { font-size: 54px; animation: bounce 2.4s ease-in-out infinite; }
+    .maint-title { font-size: 21px; font-weight: 800; color: var(--dark); margin-top: 10px; }
+    .maint-msg { font-size: 14px; color: var(--text); line-height: 1.7; margin-top: 12px; }
+    .maint-sub { font-size: 12px; color: var(--sub); line-height: 1.6; margin-top: 14px; }
+    .maint-demo {
+      margin-top: 22px; font-size: 12.5px; color: var(--blue);
+      cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    }
+
+    /* Seasonal / festival layer inside the room */
+    .pet-season-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+    .pet-season-p {
+      position: absolute; top: -28px; left: var(--x, 50%); font-size: 15px; opacity: 0;
+      animation: season-fall var(--r, 11s) linear infinite;
+      animation-delay: var(--d, 0s);
+    }
+    @keyframes season-fall {
+      0%   { opacity: 0;    transform: translateY(0) rotate(0deg); }
+      12%  { opacity: 0.85; }
+      88%  { opacity: 0.6; }
+      100% { opacity: 0;    transform: translateY(360px) rotate(220deg); }
+    }
+    /* Window scene follows the festival, and still shifts with time of day */
+    .pet-room[data-window="fullmoon"] .pet-window { background: linear-gradient(180deg, #1B2450, #33306B); }
+    .pet-room[data-window="fullmoon"] .pet-window-orb {
+      background: radial-gradient(circle, #FFF7DA, #F3E2A8);
+      box-shadow: 0 0 22px rgba(255,240,190,0.95); top: 9px; left: 22px;
+    }
+    .pet-room[data-window="snow"] .pet-window { background: linear-gradient(180deg, #C9DCEF, #EDF4FB); }
+    .pet-room[data-window="snow"] .pet-window-orb {
+      background: radial-gradient(circle, #FFFFFF, #DCEAF7); box-shadow: 0 0 14px rgba(255,255,255,0.9);
+    }
+    .pet-room[data-window="fireworks"] .pet-window { background: linear-gradient(180deg, #241A4A, #3A2159); }
+    .pet-room[data-window="fireworks"] .pet-window-orb {
+      background: radial-gradient(circle, #FFE9A8 0%, #FF7BA8 55%, rgba(255,123,168,0) 72%);
+      box-shadow: 0 0 20px rgba(255,150,190,0.9);
+      animation: season-pop 2.4s ease-in-out infinite;
+    }
+    @keyframes season-pop { 0%,100% { transform: scale(0.75); opacity: 0.75; } 50% { transform: scale(1.25); opacity: 1; } }
+    /* Theme badge on the pet page header */
+    .pet-season-chip {
+      font-size: 11px; font-weight: 700; white-space: nowrap;
+      background: rgba(255,255,255,0.6); border-radius: 20px; padding: 5px 10px; color: var(--sub);
+    }
+    html[data-theme="dark"] .pet-season-chip { background: rgba(255,255,255,0.10); }
 
     /* Species picker */
     .pet-species-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -2906,6 +2984,16 @@
 
 <!-- Setup overlay — shown after start page when no saved session -->
 <div id="setup-overlay" class="hidden">
+  <!-- Maintenance notice — shown instead of the login form when
+       MAINTENANCE.on is true in app.js -->
+  <div class="maint-card" id="maint-card" style="display:none">
+    <div class="maint-icon">🛠️</div>
+    <div class="maint-title" id="maint-title">系统升级中</div>
+    <div class="maint-msg" id="maint-msg"></div>
+    <div class="maint-sub" id="maint-sub"></div>
+    <div class="maint-demo" onclick="App.demoMode()">仍要试玩本地 Demo →</div>
+  </div>
+
   <div class="setup-logo">🐾</div>
   <div class="setup-card">
     <h2 style="text-align:center;margin-bottom:16px;">欢迎 💙</h2>
@@ -3288,6 +3376,7 @@
     <!-- Furniture is injected from the equipped state by App.renderRoomItems() -->
     <div class="pet-decor-layer" id="pet-decor-layer"></div>
     <div class="pet-rug"></div>
+    <div class="decor-handle" id="decor-handle"></div>
     <div class="pet-speech-bubble" id="pet-speech">…</div>
     <div class="pet-stage" id="pet-stage" onclick="App.pokePet()"></div>
   </div>

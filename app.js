@@ -15,7 +15,19 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.08.03-10';  // bump on each deploy — shown in ⚙️设置 + console
+  /* ── Maintenance mode ──
+     Flip `on` to true to close the app while work is in progress: the login
+     form is replaced by a notice, and a saved session will NOT auto-resume
+     (otherwise whoever is already signed in keeps using a half-updated app).
+     Local Demo stays reachable so you can still preview your own changes. */
+  const MAINTENANCE = {
+    on: true,
+    title: '系统升级中 🛠️',
+    message: '我们正在给小窝加新东西<br>暂时先不能登录哦 💕',
+    sub: '很快就好，等一下再来看看吧',
+  };
+
+  const APP_VERSION = 'v2026.08.03-13';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -164,7 +176,7 @@ const App = (() => {
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
     petName: '', petSpecies: '', petExpStored: 0, petBase: 0, petPick: '',
-    equipped: null, decorOwned: [], decorTab: 'floor',
+    equipped: null, decorOwned: [], decorTab: 'floor', decorSel: null,
     achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
@@ -2805,6 +2817,12 @@ const App = (() => {
     if (st.idx === 0) pool.push(`（蛋壳里传来动静…）`);
     if (checkinDatesFor('char1').has(todayStr()) && checkinDatesFor('char2').has(todayStr()))
       pool.push(`今天你们都来看我了，好开心！`);
+    // Festival lines are the cheapest way to make the pet feel like it lives
+    // in the same world you do — but only half the time, or they get stale.
+    const th = currentTheme();
+    if (th && th.speech && th.speech.length && Math.random() < 0.5) {
+      return th.speech[Math.floor(Math.random() * th.speech.length)];
+    }
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -2840,7 +2858,93 @@ const App = (() => {
     scarf_red:  { name:'小红围巾', slot:'outfit', price:25, draw:'redScarf' },
   };
 
-  const DECOR_SLOTS = { floor: 3, wall: 2 };   // how many can be out at once
+  // No placement cap: the couple can put out everything they own.
+  const DECOR_MAX_SCALE = 1.8, DECOR_MIN_SCALE = 0.5;
+
+  /* ══════════════ 恋爱小窝 · 季节 / 节日主题 (Phase 3) ══════════════
+     Entirely date-driven in the frontend — no scheduled job, no backend, no
+     stored state. A ServiceNow job would only add something that can fail to
+     fire (dev instances hibernate); a date comparison cannot.
+
+     currentTheme() takes the date as an ARGUMENT so seasons are testable
+     without touching the system clock. */
+
+  // Lunar festivals move every year, so a small lookup beats pulling in a
+  // whole calendar library. ⚠️ Extend this table before it runs out (see the
+  // maintenance checklist in docs/PET_GAME_DESIGN.md §7).
+  const LUNAR = {
+    cny:       { 2026:'02-17', 2027:'02-06', 2028:'01-26', 2029:'02-13', 2030:'02-03' },
+    midautumn: { 2026:'09-25', 2027:'09-15', 2028:'10-03', 2029:'09-22', 2030:'09-12' },
+    dragon:    { 2026:'06-19', 2027:'06-09', 2028:'05-28', 2029:'06-16', 2030:'06-05' },
+  };
+
+  // priority 10 = festival (overrides), 1 = ambient season.
+  // Written for a tropical climate: the four seasons are mood only, festivals
+  // are what actually feels real here.
+  const THEMES = [
+    { id:'cny', name:'新年', priority:10, lunar:'cny', span:[-2, 12], emoji:'🧧',
+      window:'fireworks', particle:'🧧', outfit:'scarf_red',
+      wall:['#5B2230','#4A1B27'], floorTone:'#6B2A2A',
+      speech:['新年快乐呀！🧧', '今年也要一直在一起哦', '有红包吗…我也想要'] },
+    { id:'vday', name:'情人节', priority:10, from:'02-12', to:'02-16', emoji:'💐',
+      window:'day', particle:'💗', outfit:'',
+      wall:['#5A2740','#4B1F35'], floorTone:'#6E3350',
+      speech:['今天是属于你们的日子 💕', '要好好说喜欢哦', '我也想要一朵花'] },
+    { id:'dragon', name:'端午', priority:10, lunar:'dragon', span:[-1, 3], emoji:'🐲',
+      window:'day', particle:'🍃', outfit:'',
+      wall:['#24463A','#1E3B31'], floorTone:'#3A5140',
+      speech:['粽子好香呀～', '要一起看龙舟吗？', '我也想吃一口粽子'] },
+    { id:'midautumn', name:'中秋', priority:10, lunar:'midautumn', span:[-3, 3], emoji:'🥮',
+      window:'fullmoon', particle:'🌾', outfit:'',
+      wall:['#4A3320','#3D2A1B'], floorTone:'#5C4028',
+      speech:['今晚月亮好圆呀，一起看嘛？', '月饼…我也想吃一口 🥮', '团团圆圆最好了'] },
+    { id:'xmas', name:'圣诞', priority:10, from:'12-18', to:'12-27', emoji:'🎄',
+      window:'snow', particle:'❄️', outfit:'hat_party',
+      wall:['#1F3A34','#18302B'], floorTone:'#2E4A40',
+      speech:['圣诞快乐！🎄', '有礼物吗？我很乖的', '一起听圣诞歌吧'] },
+    { id:'nye', name:'跨年', priority:10, from:'12-29', to:'01-02', emoji:'🎆',
+      window:'fireworks', particle:'✨', outfit:'hat_party',
+      wall:['#232A55','#1C2246'], floorTone:'#333A66',
+      speech:['新的一年也请多指教！', '一起倒数好不好 🎆', '今年过得开心吗？'] },
+    // Ambient seasons — subtle, no auto outfit
+    { id:'spring', name:'春', priority:1, from:'03-01', to:'05-31', emoji:'🌸',
+      window:'day', particle:'🌸', speech:['风好舒服呀～', '想出去走走'] },
+    { id:'summer', name:'夏', priority:1, from:'06-01', to:'08-31', emoji:'🌞',
+      window:'day', particle:'☀️', speech:['好热…想吃冰', '开空调好不好'] },
+    { id:'autumn', name:'秋', priority:1, from:'09-01', to:'11-30', emoji:'🍂',
+      window:'dusk', particle:'🍂', speech:['天黑得好早哦', '有点想窝着不动'] },
+    { id:'winter', name:'冬', priority:1, from:'12-01', to:'02-28', emoji:'⛄',
+      window:'snow', particle:'❄️', speech:['有点冷…抱抱', '想喝热的东西'] },
+  ];
+
+  const _md = (d) => `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  function _themeActive(th, d) {
+    if (th.lunar) {
+      const iso = LUNAR[th.lunar]?.[d.getFullYear()];
+      if (!iso) return false;                       // table ran out — fail quiet
+      // Compare CALENDAR days, not timestamps: diffing raw times let a 12:00
+      // "today" round half a day into the window, so 2/14 came back as 新年
+      // instead of 情人节.
+      const day  = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const fest = new Date(`${d.getFullYear()}-${iso}T00:00:00`);
+      const days = Math.round((day - fest) / 86400000);
+      return days >= th.span[0] && days <= th.span[1];
+    }
+    const md = _md(d);
+    return th.from <= th.to ? (md >= th.from && md <= th.to)
+                            : (md >= th.from || md <= th.to);   // wraps new year
+  }
+
+  // Highest-priority matching theme wins; festivals therefore override seasons.
+  function currentTheme(d = now()) {
+    let best = null;
+    for (const th of THEMES) {
+      if (!_themeActive(th, d)) continue;
+      if (!best || th.priority > best.priority) best = th;   // ties: first listed wins
+    }
+    return best;
+  }
 
   // 小窝币: earned from the pet's growth, NOT from love points — furniture must
   // never compete with real rewards (奶茶/约会). Uses the pet's EXP high-water
@@ -2870,23 +2974,53 @@ const App = (() => {
 
   /* Equipped state — one small JSON blob on u_love_config. Bounded by design
      (8 keys), so it can never outgrow the field the way an owned-list would. */
+  /* Placement model: a FLAT LIST, not fixed slots — the couple asked to place
+     as many pieces as they own and resize each one. Each entry is kept short
+     ({i,x,y,s}) and rounded to 1dp because the whole layout has to fit in the
+     u_pet_equipped string field.
+       i = catalog id · x,y = % of the room (anchored bottom-centre)
+       s = size multiplier applied on top of the catalog's ratio */
   function defaultEquipped() {
-    return { paper:'', mat:'', wall:['pic_couple', ''], floor:['plant_pot','sofa_blue',''], outfit:'' };
+    return { paper:'', mat:'', outfit:'', items:[
+      { i:'pic_couple', x:16, y:30, s:1 },
+      { i:'plant_pot',  x:16, y:87, s:1 },
+      { i:'sofa_blue',  x:84, y:87, s:1 },
+    ]};
   }
+  const _r1 = (n) => Math.round(n * 10) / 10;
+
   function parseEquipped(raw) {
     try {
       const e = JSON.parse(raw || '{}');
-      const d = defaultEquipped();
-      return {
-        paper: e.paper || '',
-        mat:   e.mat   || '',
-        wall:  Array.isArray(e.wall)  ? e.wall  : d.wall,
-        floor: Array.isArray(e.floor) ? e.floor : d.floor,
-        outfit: e.outfit || '',
-      };
+      let items = [];
+      if (Array.isArray(e.items)) {
+        items = e.items.map(o => ({
+          i: o.i || o.id || '',
+          x: Number.isFinite(+o.x) ? +o.x : 50,
+          y: Number.isFinite(+o.y) ? +o.y : 80,
+          s: Number.isFinite(+o.s) ? +o.s : 1,
+        })).filter(o => o.i);
+      } else if (Array.isArray(e.wall) || Array.isArray(e.floor)) {
+        // Migrate the old fixed-slot layout so nothing is lost
+        const home = { wall:[{x:16,y:30},{x:45,y:32}], floor:[{x:16,y:87},{x:84,y:87},{x:34,y:70}] };
+        ['wall','floor'].forEach(kind => (e[kind] || []).forEach((v, idx) => {
+          const id = typeof v === 'string' ? v : (v && v.id) || '';
+          if (!id) return;
+          const h = home[kind][idx] || { x:50, y:80 };
+          items.push({ i:id,
+            x: (v && Number.isFinite(+v.x)) ? +v.x : h.x,
+            y: (v && Number.isFinite(+v.y)) ? +v.y : h.y, s:1 });
+        }));
+      } else {
+        return defaultEquipped();
+      }
+      return { paper: e.paper || '', mat: e.mat || '', outfit: e.outfit || '', items };
     } catch { return defaultEquipped(); }
   }
+
   async function saveEquipped() {
+    // Round before saving: the whole layout must fit in u_pet_equipped
+    (S.equipped.items || []).forEach(o => { o.x = _r1(o.x); o.y = _r1(o.y); o.s = _r1(o.s); });
     try { await Data.saveConfig({ petEquipped: JSON.stringify(S.equipped) }); }
     catch (err) { showToast('保存失败: ' + err.message); }
   }
@@ -3003,7 +3137,9 @@ const App = (() => {
 
     // Outfits are drawn into the SVG, never overlaid with absolute positioning
     // — the pet scales with its level and an overlay would drift off it.
-    const outfitId = (S.equipped && S.equipped.outfit) || '';
+    // Player choice wins; the theme only dresses the pet if they haven't.
+    const _th = currentTheme();
+    const outfitId = (S.equipped && S.equipped.outfit) || (_th && _th.outfit) || '';
     const outfitArt = {
       partyHat: `<path d="M ${60-13} ${headTop+4} L 60 ${headTop-26} L ${60+13} ${headTop+4} Z"
                        fill="#FF8FA0" stroke="#E0687E" stroke-width="1.5" stroke-linejoin="round"/>
@@ -3131,28 +3267,145 @@ const App = (() => {
     if (!layer) return;
     const eq = S.equipped || (S.equipped = defaultEquipped());
 
-    const piece = (id, cls) => {
-      const it = DECOR[id];
+    layer.innerHTML = (eq.items || []).map((o, i) => {
+      const it = DECOR[o.i];
       if (!it || !it.art) return '';
-      return `<div class="${cls} pet-floor-item" style="font-size:calc(var(--pet-h) * ${it.ratio})">${it.art}</div>`;
-    };
-    let html = '';
-    (eq.wall  || []).forEach((id, i) => { if (i < DECOR_SLOTS.wall)  html += piece(id, `pet-wall-item pet-wall-${i}`); });
-    (eq.floor || []).forEach((id, i) => { if (i < DECOR_SLOTS.floor) html += piece(id, `pet-floor-${i}`); });
-    layer.innerHTML = html;
-    // Wall items use the softer wall shadow, not the floor one
-    layer.querySelectorAll('.pet-wall-item').forEach(el => el.classList.remove('pet-floor-item'));
+      const shadow = it.slot === 'wall' ? 'pet-wall-item' : 'pet-floor-item';
+      const sel = (S.decorSel === i) ? ' selected' : '';
+      return `<div class="decor-piece ${shadow}${sel}" data-i="${i}"
+                   style="left:${o.x}%;top:${o.y}%;font-size:calc(var(--pet-h) * ${it.ratio * (o.s || 1)})"
+                   title="${_escHtml(it.name)}">${it.art}</div>`;
+    }).join('');
+    layer.querySelectorAll('.decor-piece').forEach(attachDecorDrag);
+    renderDecorHandle();
 
-    // Wallpaper / flooring tint the room itself
+    // Wallpaper / flooring tint the room itself.
+    // CONFLICT RULE: anything the couple BOUGHT always beats the seasonal
+    // theme — a season must never paint over wallpaper they spent coins on.
     const room = document.getElementById('pet-room');
     const paper = DECOR[eq.paper], mat = DECOR[eq.mat];
+    const th = currentTheme();
     if (room) {
-      room.style.background = paper
-        ? `linear-gradient(180deg, ${paper.wall[0]} 0%, ${paper.wall[1]} 58%, ${paper.floorTone} 58.2%, ${paper.floorTone} 100%)`
+      const skin = paper || (th && th.wall ? { wall: th.wall, floorTone: th.floorTone } : null);
+      room.style.background = skin
+        ? `linear-gradient(180deg, ${skin.wall[0]} 0%, ${skin.wall[1]} 58%, ${skin.floorTone} 58.2%, ${skin.floorTone} 100%)`
         : '';
       room.style.setProperty('--floor-a', mat ? mat.tone[0] : '');
       room.style.setProperty('--floor-b', mat ? mat.tone[1] : '');
+      room.dataset.theme = th ? th.id : '';
+      room.dataset.window = th ? (th.window || '') : '';
     }
+    renderThemeParticles(th);
+  }
+
+  /* ── Select a piece to resize / remove it ──
+     Tap (a press that didn't turn into a drag) selects; the bar then edits
+     that one piece. Buttons rather than pinch: pinch fights the page zoom on
+     iOS and is far harder to hit accurately with furniture this small. */
+  function renderDecorHandle() {
+    const bar = document.getElementById('decor-handle');
+    if (!bar) return;
+    const o = (S.equipped?.items || [])[S.decorSel];
+    if (!o) { bar.classList.remove('show'); return; }
+    const it = DECOR[o.i];
+    bar.classList.add('show');
+    bar.innerHTML = `
+      <span class="dh-name">${it ? _escHtml(it.name) : ''}</span>
+      <button class="dh-btn" onclick="App.resizeDecor(-1)" ${o.s <= DECOR_MIN_SCALE ? 'disabled' : ''}>➖</button>
+      <span class="dh-size">${Math.round((o.s || 1) * 100)}%</span>
+      <button class="dh-btn" onclick="App.resizeDecor(1)" ${o.s >= DECOR_MAX_SCALE ? 'disabled' : ''}>➕</button>
+      <button class="dh-btn del" onclick="App.removeSelectedDecor()">🗑</button>
+      <button class="dh-btn" onclick="App.selectDecor(null)">✕</button>`;
+  }
+
+  function selectDecor(i) {
+    S.decorSel = (i === null || S.decorSel === i) ? null : i;
+    renderRoomItems();
+  }
+
+  async function resizeDecor(dir) {
+    const o = (S.equipped?.items || [])[S.decorSel];
+    if (!o) return;
+    o.s = Math.min(DECOR_MAX_SCALE, Math.max(DECOR_MIN_SCALE, _r1((o.s || 1) + dir * 0.1)));
+    renderRoomItems();
+    await saveEquipped();
+  }
+
+  async function removeSelectedDecor() {
+    const o = (S.equipped?.items || [])[S.decorSel];
+    if (!o) return;
+    await unplaceDecor(o.i);
+  }
+
+  /* ── Dragging furniture ──
+     Pointer Events (not mouse/touch separately) so one code path covers
+     finger and trackpad. Positions are stored as % of the room, so a layout
+     arranged on a phone still looks right on an iPad. */
+  const DRAG_BOUNDS = {
+    floor: { minX: 8, maxX: 92, minY: 62, maxY: 92 },   // must stay on the floor
+    wall:  { minX: 8, maxX: 92, minY: 10, maxY: 48 },   // must stay on the wall
+  };
+  let _dragSaveTimer = null;
+
+  function attachDecorDrag(el) {
+    el.addEventListener('pointerdown', (ev) => {
+      const room = document.getElementById('pet-room');
+      if (!room) return;
+      const idx = +el.dataset.i;
+      const slot = (S.equipped?.items || [])[idx];
+      if (!slot) return;
+      const kind = DECOR[slot.i]?.slot === 'wall' ? 'wall' : 'floor';
+
+      ev.preventDefault();
+      el.setPointerCapture(ev.pointerId);
+      el.classList.add('dragging');
+      const rect = room.getBoundingClientRect();
+      const b = DRAG_BOUNDS[kind];
+      let moved = false;
+      const startX = ev.clientX, startY = ev.clientY;
+
+      const move = (e) => {
+        const x = ((e.clientX - rect.left) / rect.width)  * 100;
+        const y = ((e.clientY - rect.top)  / rect.height) * 100;
+        slot.x = Math.min(b.maxX, Math.max(b.minX, x));
+        slot.y = Math.min(b.maxY, Math.max(b.minY, y));
+        el.style.left = slot.x + '%';
+        el.style.top  = slot.y + '%';
+        // A few px of finger wobble shouldn't count as a drag, or tapping to
+        // select would almost never work on a phone.
+        if (Math.abs(e.clientX - startX) > 4 || Math.abs(e.clientY - startY) > 4) moved = true;
+      };
+      const up = () => {
+        el.classList.remove('dragging');
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        if (!moved) { selectDecor(+el.dataset.i); return; }
+        // Debounced: dragging fires constantly, and each save is a PUT
+        clearTimeout(_dragSaveTimer);
+        _dragSaveTimer = setTimeout(() => saveEquipped(), 500);
+      };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    });
+  }
+
+  // Falling petals / snow / lanterns — purely decorative, click-through.
+  function renderThemeParticles(th) {
+    const room = document.getElementById('pet-room');
+    if (!room) return;
+    let layer = room.querySelector('.pet-season-layer');
+    if (!th || !th.particle) { layer?.remove(); return; }
+    if (layer && layer.dataset.for === th.id) return;   // already correct
+    layer?.remove();
+    layer = document.createElement('div');
+    layer.className = 'pet-season-layer';
+    layer.dataset.for = th.id;
+    layer.innerHTML = Array.from({ length: 7 }, (_, i) =>
+      `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${th.particle}</span>`
+    ).join('');
+    room.appendChild(layer);
   }
 
   function renderPetHome() {
@@ -3179,7 +3432,9 @@ const App = (() => {
     if (pill) pill.textContent = `🪙 ${nestCoins()}`;
 
     document.getElementById('pet-speech').textContent = petSpeech();
+    const th = currentTheme();
     document.getElementById('pet-mood-chip').innerHTML =
+      (th ? `<span class="pet-season-chip">${th.emoji} ${th.name}</span> ` : '') +
       `${face.emoji} ${face.label} · ${mood}`;
 
     document.getElementById('pet-exp-bar').innerHTML =
@@ -3220,7 +3475,7 @@ const App = (() => {
   // Is this item currently placed? Slot items live in arrays, the rest are scalars.
   function decorPlaced(id, slot) {
     const eq = S.equipped || defaultEquipped();
-    if (slot === 'floor' || slot === 'wall') return (eq[slot] || []).includes(id);
+    if (slot === 'floor' || slot === 'wall') return (eq.items || []).some(o => o.i === id);
     return eq[slot] === id;
   }
 
@@ -3288,15 +3543,14 @@ const App = (() => {
     if (!it || !decorOwns(id)) return;
     const eq = S.equipped || (S.equipped = defaultEquipped());
     if (it.slot === 'floor' || it.slot === 'wall') {
-      const max = DECOR_SLOTS[it.slot];
-      const arr = (eq[it.slot] || []).slice(0, max);
-      while (arr.length < max) arr.push('');
-      if (!arr.includes(id)) {
-        const free = arr.indexOf('');
-        // All slots full → replace the oldest so a tap always does something
-        arr[free >= 0 ? free : 0] = id;
+      eq.items = eq.items || [];
+      if (!eq.items.some(o => o.i === id)) {
+        // Stagger new pieces so they never land exactly on top of each other
+        const n = eq.items.length;
+        eq.items.push(it.slot === 'wall'
+          ? { i:id, x: 18 + (n % 4) * 20, y: 22 + (n % 3) * 8,  s:1 }
+          : { i:id, x: 14 + (n % 5) * 18, y: 70 + (n % 3) * 8, s:1 });
       }
-      eq[it.slot] = arr;
     } else {
       eq[it.slot] = id;
     }
@@ -3311,7 +3565,8 @@ const App = (() => {
     const eq = S.equipped || (S.equipped = defaultEquipped());
     if (!it) return;
     if (it.slot === 'floor' || it.slot === 'wall') {
-      eq[it.slot] = (eq[it.slot] || []).map(x => (x === id ? '' : x));
+      eq.items = (eq.items || []).filter(o => o.i !== id);
+      S.decorSel = null;
     } else if (eq[it.slot] === id) {
       eq[it.slot] = '';
     }
@@ -3956,6 +4211,23 @@ const App = (() => {
     if (vTag) vTag.textContent = '版本 ' + APP_VERSION;
     const savedKey = localStorage.getItem('sn_api_key');
 
+    if (MAINTENANCE.on) {
+      // Show the notice INSTEAD of the login form, and skip auto-resume so an
+      // existing session can't slip past the gate.
+      const card = document.getElementById('maint-card');
+      const form = document.querySelector('#setup-overlay .setup-card');
+      if (card) {
+        card.style.display = '';
+        document.getElementById('maint-title').textContent = MAINTENANCE.title;
+        document.getElementById('maint-msg').innerHTML     = MAINTENANCE.message;
+        document.getElementById('maint-sub').textContent   = MAINTENANCE.sub;
+      }
+      if (form) form.style.display = 'none';
+      S.usingSN = false;
+      await Data.init();
+      return;
+    }
+
     if (savedKey) {
       S.snInstance = SN_INSTANCE;
       S.apiKey     = savedKey;
@@ -4042,6 +4314,8 @@ const App = (() => {
     },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
+    selectDecor, resizeDecor, removeSelectedDecor,
+    _themeTest: (d) => currentTheme(d),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
