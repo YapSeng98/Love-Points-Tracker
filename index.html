@@ -63,16 +63,19 @@
       opacity: 0.55;
     }
     .cloud::before { content:''; position:absolute; background:white; border-radius:50%; }
-    .c1 { width:90px; height:28px; top:8%; left:-100px; animation: drift 22s linear infinite; }
-    .c1::before { width:50px; height:50px; top:-28px; left:12px; }
-    .c2 { width:70px; height:22px; top:18%; left:-80px; animation: drift 30s linear infinite 8s; opacity:0.35; }
-    .c2::before { width:38px; height:38px; top:-20px; left:10px; }
-    .c3 { width:120px; height:32px; top:5%; left:-130px; animation: drift 18s linear infinite 14s; opacity:0.4; }
-    .c3::before { width:60px; height:60px; top:-35px; left:20px; }
-    .c4 { width:80px; height:24px; top:28%; left:-90px; animation: drift 25s linear infinite 4s; opacity:0.3; }
-    .c4::before { width:44px; height:44px; top:-24px; left:14px; }
-    .c5 { width:60px; height:20px; top:12%; left:-70px; animation: drift 35s linear infinite 18s; opacity:0.45; }
-    .c5::before { width:34px; height:34px; top:-18px; left:8px; }
+    /* Scoped under .clouds-bg on purpose: bare .c1/.c2 are far too generic —
+       they collided with the pet page's char-colour dots, which inherited
+       `animation: drift` and flew across the screen as little balls. */
+    .clouds-bg .c1 { width:90px; height:28px; top:8%; left:-100px; animation: drift 22s linear infinite; }
+    .clouds-bg .c1::before { width:50px; height:50px; top:-28px; left:12px; }
+    .clouds-bg .c2 { width:70px; height:22px; top:18%; left:-80px; animation: drift 30s linear infinite 8s; opacity:0.35; }
+    .clouds-bg .c2::before { width:38px; height:38px; top:-20px; left:10px; }
+    .clouds-bg .c3 { width:120px; height:32px; top:5%; left:-130px; animation: drift 18s linear infinite 14s; opacity:0.4; }
+    .clouds-bg .c3::before { width:60px; height:60px; top:-35px; left:20px; }
+    .clouds-bg .c4 { width:80px; height:24px; top:28%; left:-90px; animation: drift 25s linear infinite 4s; opacity:0.3; }
+    .clouds-bg .c4::before { width:44px; height:44px; top:-24px; left:14px; }
+    .clouds-bg .c5 { width:60px; height:20px; top:12%; left:-70px; animation: drift 35s linear infinite 18s; opacity:0.45; }
+    .clouds-bg .c5::before { width:34px; height:34px; top:-18px; left:8px; }
     @keyframes drift { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 200px)); } }
 
     /* ── Floating deco elements ── */
@@ -2362,9 +2365,24 @@
       background: radial-gradient(circle at 62% 38%, transparent 46%, #EDE6CF 47%);
       box-shadow: 0 0 16px rgba(237,230,207,0.5); top: 9px;
     }
-    .pet-picture { position: absolute; top: 13%; left: 11%; font-size: 30px; opacity: 0.9; z-index: 1; }
-    .pet-plant   { position: absolute; bottom: 12%; left: 8%;  font-size: 34px; z-index: 1; }
-    .pet-sofa    { position: absolute; bottom: 13%; right: 7%; font-size: 40px; z-index: 1; }
+    /* Furniture is sized RELATIVE TO THE PET (--pet-h, the 154px stage), not
+       in arbitrary px — that's what makes a room read as a real space. Rough
+       real-world ratios against a ~1m-tall pet: a 2-seat sofa is a bit wider
+       than the pet is tall, a floor plant about 3/4 of it, a wall picture
+       about half. Everything on the floor sits on the same baseline and casts
+       a shadow so it looks placed rather than floating. */
+    .pet-room { --pet-h: 154px; }
+    .pet-floor-item, .pet-wall-item {
+      position: absolute; z-index: 1; line-height: 1;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .pet-floor-item { filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3)); }
+    .pet-wall-item  { filter: drop-shadow(0 4px 6px rgba(0,0,0,0.22)); }
+    .pet-picture { top: 12%;    left: 9%;   font-size: calc(var(--pet-h) * 0.42); }
+    .pet-plant   { bottom: 13%; left: 5%;   font-size: calc(var(--pet-h) * 0.66); }
+    .pet-sofa    { bottom: 13%; right: 4%;  font-size: calc(var(--pet-h) * 0.82); }
+    /* Narrow phones: shrink furniture a touch so it can't crowd the pet */
+    @media (max-width: 380px) { .pet-room { --pet-h: 132px; } }
     .pet-rug {
       position: absolute; bottom: 7%; left: 50%; transform: translateX(-50%); z-index: 1;
       width: 62%; height: 12%; border-radius: 50%;
@@ -3184,9 +3202,9 @@
 
   <div class="pet-room" id="pet-room">
     <div class="pet-window"><span class="pet-window-orb"></span></div>
-    <div class="pet-picture">🖼</div>
-    <div class="pet-plant">🌱</div>
-    <div class="pet-sofa">🛋️</div>
+    <div class="pet-wall-item  pet-picture">🖼️</div>
+    <div class="pet-floor-item pet-plant">🪴</div>
+    <div class="pet-floor-item pet-sofa">🛋️</div>
     <div class="pet-rug"></div>
     <div class="pet-speech-bubble" id="pet-speech">…</div>
     <div class="pet-stage" id="pet-stage" onclick="App.pokePet()"></div>
