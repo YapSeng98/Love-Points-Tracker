@@ -190,6 +190,21 @@ need (e.g. `u_pet_equipped`) so the user isn't sent back a second time.
 
 ---
 
+## 8.5 🛠️ Maintenance mode
+
+`MAINTENANCE.on` at the top of `app.js` closes the app: the login form is
+replaced by a notice AND a saved session is not auto-resumed (otherwise
+whoever was already signed in keeps using a half-updated build).
+
+- Reopen: set `on: false`, push.
+- Test the real login while it's closed: visit `?dev=1` once (sticks on that
+  device); `?dev=0` clears it. Convenience gate, not a security boundary.
+- Local Demo stays reachable either way.
+- **Browser tests must call `App.demoMode()` directly**, not click
+  `.demo-link` — that link lives inside the hidden login card.
+
+---
+
 ## 9. 🧪 Testing
 
 | Suite | Covers |

@@ -20,6 +20,19 @@ const App = (() => {
      form is replaced by a notice, and a saved session will NOT auto-resume
      (otherwise whoever is already signed in keeps using a half-updated app).
      Local Demo stays reachable so you can still preview your own changes. */
+  // Bypass: open the app with ?dev=1 once and this device remembers it, so you
+  // can keep testing the real login while everyone else sees the notice.
+  // Clear it with ?dev=0. Good enough for a two-person private app — it is a
+  // convenience gate, not a security boundary.
+  const _maintBypass = (() => {
+    try {
+      const q = new URLSearchParams(location.search).get('dev');
+      if (q === '1') localStorage.setItem('maint_bypass', '1');
+      if (q === '0') localStorage.removeItem('maint_bypass');
+      return localStorage.getItem('maint_bypass') === '1';
+    } catch { return false; }
+  })();
+
   const MAINTENANCE = {
     on: true,
     title: '系统升级中 🛠️',
@@ -27,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.03-13';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-15';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -176,7 +189,7 @@ const App = (() => {
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
     petName: '', petSpecies: '', petExpStored: 0, petBase: 0, petPick: '',
-    equipped: null, decorOwned: [], decorTab: 'floor', decorSel: null,
+    equipped: null, decorOwned: [], decorTab: 'floor', decorSel: null, roomSig: '',
     achievements: [],
     letters: [],
     letterReaderId: null,   // id of the letter currently open in the reader overlay
@@ -2856,6 +2869,28 @@ const App = (() => {
     // ── pet outfits (drawn into the pet SVG so they scale with it) ──
     hat_party:  { name:'派对帽',   slot:'outfit', price:20, draw:'partyHat' },
     scarf_red:  { name:'小红围巾', slot:'outfit', price:25, draw:'redScarf' },
+
+    // ── 季节限定 ──
+    // Windows are fixed MM-DD and deliberately generous, because lunar
+    // festivals drift by weeks year to year. Out of season these vanish from
+    // the shop, but anything already bought stays usable forever — never
+    // confiscate what someone paid for.
+    lantern_pair:{ name:'兔子灯笼', art:'🏮', slot:'floor', ratio:0.52, price:65,
+                   from:'01-20', to:'02-25', season:'新年' },
+    fu_scroll:   { name:'福字挂轴', art:'🧧', slot:'wall',  ratio:0.40, price:50,
+                   from:'01-20', to:'02-25', season:'新年' },
+    rose_vase:   { name:'玫瑰花瓶', art:'🌹', slot:'floor', ratio:0.48, price:55,
+                   from:'02-08', to:'02-20', season:'情人节' },
+    zongzi_tray: { name:'粽子小桌', art:'🍡', slot:'floor', ratio:0.50, price:55,
+                   from:'05-25', to:'06-25', season:'端午' },
+    mooncake_set:{ name:'月饼茶席', art:'🥮', slot:'floor', ratio:0.54, price:70,
+                   from:'09-05', to:'10-05', season:'中秋' },
+    xmas_tree:   { name:'圣诞树',   art:'🎄', slot:'floor', ratio:0.88, price:90,
+                   from:'12-10', to:'12-28', season:'圣诞' },
+    star_string: { name:'星星彩灯', art:'✨', slot:'wall',  ratio:0.36, price:45,
+                   from:'12-10', to:'01-05', season:'节日' },
+    sakura_vase: { name:'樱花瓶',   art:'🌸', slot:'floor', ratio:0.46, price:50,
+                   from:'03-01', to:'04-30', season:'春' },
   };
 
   // No placement cap: the couple can put out everything they own.
@@ -3021,8 +3056,10 @@ const App = (() => {
   async function saveEquipped() {
     // Round before saving: the whole layout must fit in u_pet_equipped
     (S.equipped.items || []).forEach(o => { o.x = _r1(o.x); o.y = _r1(o.y); o.s = _r1(o.s); });
-    try { await Data.saveConfig({ petEquipped: JSON.stringify(S.equipped) }); }
-    catch (err) { showToast('保存失败: ' + err.message); }
+    try {
+      await Data.saveConfig({ petEquipped: JSON.stringify(S.equipped) });
+      _markRoomSynced();          // our own change is not "someone else edited"
+    } catch (err) { showToast('保存失败: ' + err.message); }
   }
 
   /* ── Pet artwork ──
@@ -3254,9 +3291,13 @@ const App = (() => {
     await _loadStatsSources();
     try { S.decorOwned = await Data.getDecorOwned(); } catch { S.decorOwned = []; }
     renderPetHome();
+    _markRoomSynced();
+    startPetSync();
   }
 
   function closePetHome() {
+    stopPetSync();
+    document.getElementById('room-sync-banner')?.classList.remove('show');
     document.getElementById('pet-page')?.classList.remove('open');
     renderPetBanner();
   }
@@ -3296,6 +3337,67 @@ const App = (() => {
       room.dataset.window = th ? (th.window || '') : '';
     }
     renderThemeParticles(th);
+  }
+
+  /* ── Keeping the two phones in sync ──
+     The room is shared, so a partner rearranging it should show up on your
+     screen. We poll rather than push (no websockets available), and we do NOT
+     silently re-render: yanking the room out from under someone mid-drag is
+     worse than a stale view. Instead a banner offers a refresh, which reloads
+     the room only — never a logout. */
+  const PET_SYNC_MS = 20000;
+  let _petSyncTimer = null, _petSyncBusy = false;
+
+  // Order-independent fingerprint of the shared room state
+  function _roomSig(eq, name, species) {
+    if (!eq) return '';
+    const items = (eq.items || []).map(o => `${o.i}:${_r1(o.x)},${_r1(o.y)},${_r1(o.s)}`).sort().join('|');
+    return [name || '', species || '', eq.paper || '', eq.mat || '', eq.outfit || '', items].join('~');
+  }
+  function _markRoomSynced() {
+    S.roomSig = _roomSig(S.equipped, S.petName, S.petSpecies);
+  }
+
+  function startPetSync() {
+    stopPetSync();
+    if (!S.usingSN) return;          // demo mode has no partner to sync with
+    _petSyncTimer = setInterval(checkRoomRemote, PET_SYNC_MS);
+  }
+  function stopPetSync() { clearInterval(_petSyncTimer); _petSyncTimer = null; }
+
+  async function checkRoomRemote() {
+    if (document.hidden || _petSyncBusy) return;      // don't poll a background tab
+    if (!document.getElementById('pet-page')?.classList.contains('open')) return;
+    _petSyncBusy = true;
+    try {
+      const cfg = await snFetch('/config');
+      const sig = _roomSig(parseEquipped(cfg.petEquipped),
+                           decodeFromSN(cfg.petName || ''), cfg.petSpecies || '');
+      if (S.roomSig && sig !== S.roomSig) showRoomUpdateBanner();
+    } catch { /* offline or hiccup — just try again next tick */ }
+    finally { _petSyncBusy = false; }
+  }
+
+  function showRoomUpdateBanner() {
+    const el = document.getElementById('room-sync-banner');
+    if (el) el.classList.add('show');
+  }
+
+  // Pulls the shared room again in place. Deliberately does not touch the
+  // session — the partner changing the sofa must never log you out.
+  async function refreshRoom() {
+    const el = document.getElementById('room-sync-banner');
+    try {
+      await Data.init();                       // re-reads config → equipped/pet
+      S.decorOwned = await Data.getDecorOwned();
+      S.decorSel = null;
+      renderPetHome();
+      _markRoomSynced();
+      el?.classList.remove('show');
+      showToast('🔄 小窝已更新');
+    } catch (err) {
+      showToast('刷新失败: ' + err.message);
+    }
   }
 
   /* ── Select a piece to resize / remove it ──
@@ -3515,6 +3617,7 @@ const App = (() => {
         btn = `<button class="decor-btn own" onclick="App.placeDecor('${id}')">摆进小窝</button>`;
       }
       return `<div class="decor-card ${placed ? 'placed' : ''}">
+        ${it.season ? `<span class="decor-limited">${it.season}限定</span>` : ''}
         ${art}
         <div class="decor-name">${_escHtml(it.name)}</div>
         <div class="decor-price">${it.free ? '初始赠送' : owned ? '已拥有' : `售价 ${it.price}`}</div>
@@ -4211,7 +4314,7 @@ const App = (() => {
     if (vTag) vTag.textContent = '版本 ' + APP_VERSION;
     const savedKey = localStorage.getItem('sn_api_key');
 
-    if (MAINTENANCE.on) {
+    if (MAINTENANCE.on && !_maintBypass) {
       // Show the notice INSTEAD of the login form, and skip auto-resume so an
       // existing session can't slip past the gate.
       const card = document.getElementById('maint-card');
@@ -4314,7 +4417,9 @@ const App = (() => {
     },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
-    selectDecor, resizeDecor, removeSelectedDecor,
+    selectDecor, resizeDecor, removeSelectedDecor, refreshRoom,
+    _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
+    _forceRoomBanner: () => showRoomUpdateBanner(),
     _themeTest: (d) => currentTheme(d),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,

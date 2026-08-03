@@ -2566,6 +2566,34 @@
     html[data-theme="dark"] .decor-card { background: #1E2A3D; }
     html[data-theme="dark"] .decor-card.placed { background: rgba(107,203,119,0.15); }
 
+    /* Partner-changed-the-room prompt. Sits above the room, never auto-applies. */
+    .room-sync-banner {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%) translateY(-16px);
+      z-index: 7; cursor: pointer; white-space: nowrap;
+      background: linear-gradient(135deg, #C9B1FF, #A87CE0); color: white;
+      font-size: 12px; font-weight: 800; padding: 8px 15px; border-radius: 30px;
+      box-shadow: 0 5px 18px rgba(120,70,190,0.45);
+      opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+    }
+    .room-sync-banner.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+
+    /* Grounding shadow so furniture sits on the floor instead of hovering */
+    .decor-piece.pet-floor-item::after {
+      content: ''; position: absolute; left: 50%; bottom: 2px;
+      width: 74%; height: 12%; transform: translateX(-50%);
+      background: radial-gradient(ellipse, rgba(0,0,0,0.34), rgba(0,0,0,0));
+      pointer-events: none; z-index: -1;
+    }
+
+    /* Seasonal-exclusive badge in the shop */
+    .decor-limited {
+      position: absolute; top: 6px; right: 6px;
+      font-size: 9.5px; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, #FF9CB2, #EC5C8D);
+      border-radius: 20px; padding: 2px 7px;
+    }
+    .decor-card { position: relative; }
+
     /* Maintenance notice */
     .maint-card {
       width: 100%; max-width: 360px; text-align: center;
@@ -3376,6 +3404,9 @@
     <!-- Furniture is injected from the equipped state by App.renderRoomItems() -->
     <div class="pet-decor-layer" id="pet-decor-layer"></div>
     <div class="pet-rug"></div>
+    <div class="room-sync-banner" id="room-sync-banner" onclick="App.refreshRoom()">
+      🔄 对方刚更新了小窝 · 点这里刷新
+    </div>
     <div class="decor-handle" id="decor-handle"></div>
     <div class="pet-speech-bubble" id="pet-speech">…</div>
     <div class="pet-stage" id="pet-stage" onclick="App.pokePet()"></div>
