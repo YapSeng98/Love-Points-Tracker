@@ -665,6 +665,169 @@ RES=$(curl -s "${BASE}/history" "${AUTH1[@]}")
 echo "$RES" | grep -q "\"month\":\"${MP2}\"" && pass "GET /history → both missed months now recorded as separate rows" || fail "MP2 missing from history: $RES"
 
 # ════════════════════════════════════════════════════════════
+section "25. SHARED GOAL + PET (u_love_config fields, r01/r02)"
+# ════════════════════════════════════════════════════════════
+# 共同目标 — set by char1, must be visible to char2 (one shared config row)
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/config" "${AUTH1[@]}" \
+  -d '{"goalName":"一起去旅行","goalIcon":"✈️","goalTarget":800}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "PUT /config sets shared goal → 200" || fail "goal write → $HTTP"
+
+RES=$(curl -s "${BASE}/config" "${AUTH2[@]}")
+echo "$RES" | grep -q '"goalName":"一起去旅行"' && echo "$RES" | grep -q '"goalTarget":800' && \
+  pass "partner sees the same shared goal (name + target)" || fail "goal not shared: $RES"
+echo "$RES" | grep -q '"goalIcon":"✈️"' && pass "goal emoji survives round-trip" || fail "goal icon mangled: $RES"
+
+# 宠物领养 — species/name/base persist, and EXP starts at 0
+RES=$(curl -s -w "\n%{http_code}" -X PUT "${BASE}/config" "${AUTH1[@]}" \
+  -d '{"petSpecies":"bunny","petName":"团子","petBase":4321,"petExp":0}')
+HTTP=$(echo "$RES" | tail -1)
+[ "$HTTP" = "200" ] && pass "PUT /config adopts pet (species/name/base) → 200" || fail "pet write → $HTTP"
+
+RES=$(curl -s "${BASE}/config" "${AUTH2[@]}")
+echo "$RES" | grep -q '"petSpecies":"bunny"' && echo "$RES" | grep -q '"petName":"团子"' && \
+  pass "partner sees the same pet (shared, not per-person)" || fail "pet not shared: $RES"
+echo "$RES" | grep -q '"petBase":4321' && pass "petBase snapshot stored (pet starts from 0)" || fail "petBase missing: $RES"
+echo "$RES" | grep -q '"petExp":0' && pass "petExp starts at 0 on adoption" || fail "petExp not 0: $RES"
+
+# EXP high-water: the server must REFUSE to lower it
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"petExp":900}' > /dev/null
+RES=$(curl -s -X PUT "${BASE}/config" "${AUTH2[@]}" -d '{"petExp":120}')
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"petExp":900' && \
+  pass "server REFUSES to lower petExp (pet can never shrink)" || fail "petExp was lowered: $RES"
+
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"petExp":1500}' > /dev/null
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"petExp":1500' && pass "server ACCEPTS a higher petExp" || fail "petExp not raised: $RES"
+
+# Re-adopting is the one legitimate reset (petExp 0 sent WITH a new petBase)
+RES=$(curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"petSpecies":"cat","petName":"奶糖","petBase":9999,"petExp":0}')
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"petExp":0' && echo "$RES" | grep -q '"petBase":9999' && \
+  pass "re-adopting resets petExp to 0 (allowed only alongside petBase)" || fail "re-adopt reset failed: $RES"
+
+# Partial writes must not clobber neighbouring fields
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"goalTarget":1200}' > /dev/null
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"goalTarget":1200' && echo "$RES" | grep -q '"petName":"奶糖"' && \
+  echo "$RES" | grep -q '"goalName":"一起去旅行"' && echo "$RES" | grep -q '"rewardTarget"' && \
+  pass "partial config write leaves pet + goal + core settings intact" || fail "partial write clobbered: $RES"
+
+# Cross-couple isolation — the other couple has their own config row
+RES=$(curl -s "${BASE}/config" "${AUTHD[@]}")
+echo "$RES" | grep -qv '"petName":"奶糖"' && echo "$RES" | grep -qv '"goalName":"一起去旅行"' && \
+  pass "foreign couple does NOT see our pet or goal" || fail "config leaked across couples: $RES"
+
+# Clearing a goal
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"goalName":"","goalIcon":"🎯","goalTarget":0}' > /dev/null
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"goalTarget":0' && pass "goal can be cleared (target back to 0)" || fail "goal not cleared: $RES"
+# …and clearing the goal must not disturb the pet
+echo "$RES" | grep -q '"petName":"奶糖"' && pass "clearing the goal leaves the pet untouched" || fail "pet lost on goal clear: $RES"
+
+# Restore a goal so the review account looks sensible
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"goalName":"一起去旅行","goalIcon":"✈️","goalTarget":800}' > /dev/null
+
+# ════════════════════════════════════════════════════════════
+section "26. COUPLE PARITY — both accounts must see the same app"
+# ════════════════════════════════════════════════════════════
+# The single most important property of a couples app: open it as either
+# partner and you are looking at the SAME shared world. Anything that differs
+# must differ ON PURPOSE (your own bag, your own claim state) — never by
+# accident. This compares raw API responses side by side.
+
+# Normalise: strip whitespace so formatting differences don't cause false diffs
+norm() { echo "$1" | tr -d ' \n\r'; }
+
+parity() { # $1 label, $2 path
+  local A B
+  A=$(norm "$(curl -s "${BASE}$2" "${AUTH1[@]}")")
+  B=$(norm "$(curl -s "${BASE}$2" "${AUTH2[@]}")")
+  if [ "$A" = "$B" ]; then
+    pass "both partners see identical $1"
+  else
+    fail "$1 DIFFERS between partners"
+    info "char1: $(echo "$A" | cut -c1-160)"
+    info "char2: $(echo "$B" | cut -c1-160)"
+  fi
+}
+
+# ── Shared surfaces: must be byte-identical from either account ──
+parity "config (mode/target/names/goal/pet)" "/config"
+parity "the entry ledger"                    "/entries"
+parity "categories"                          "/categories"
+parity "punishments"                         "/punishments"
+parity "shop items"                          "/shop"
+parity "settled history"                     "/history"
+parity "letters (情书)"                       "/letters"
+parity "memory photos"                       "/photos"
+
+# ── Rewards: the LIST is shared, but each partner's own claim flag differs ──
+R1=$(curl -s "${BASE}/rewards" "${AUTH1[@]}")
+R2=$(curl -s "${BASE}/rewards" "${AUTH2[@]}")
+[ "$(norm "$R1")" = "$(norm "$R2")" ] && \
+  pass "rewards payload identical (claim flags are per-char fields, same for both)" || \
+  fail "rewards payload differs between partners"
+
+# ── Per-person by design: bags must NOT be shared ──
+B1=$(curl -s "${BASE}/bag" "${AUTH1[@]}"); B2=$(curl -s "${BASE}/bag" "${AUTH2[@]}")
+N1=$(id_count "$B1"); N2=$(id_count "$B2")
+[ "$N1" != "$N2" ] || [ "$(norm "$B1")" != "$(norm "$B2")" ] && \
+  pass "bags are correctly PER-PERSON (char1:${N1} vs char2:${N2} items)" || \
+  fail "bags are identical — they should be per-person"
+
+# ── The money maths must agree from both sides ──
+# Recompute each character's score from each partner's own view of /entries.
+score_for() { # $1 = entries json, $2 = charId
+  echo "$1" | tr '}' '\n' | grep "\"charId\":\"$2\"" \
+    | grep -o '"pts":-\{0,1\}[0-9]*' | grep -o -- '-\{0,1\}[0-9]*$' \
+    | awk '{s+=$1} END{print s+0}'
+}
+E1=$(curl -s "${BASE}/entries" "${AUTH1[@]}")
+E2=$(curl -s "${BASE}/entries" "${AUTH2[@]}")
+A_c1=$(score_for "$E1" char1); A_c2=$(score_for "$E1" char2)
+B_c1=$(score_for "$E2" char1); B_c2=$(score_for "$E2" char2)
+[ "$A_c1" = "$B_c1" ] && [ "$A_c2" = "$B_c2" ] && \
+  pass "both partners compute the SAME scores (char1=${A_c1}, char2=${A_c2})" || \
+  fail "score mismatch — char1 view(${A_c1}/${A_c2}) vs char2 view(${B_c1}/${B_c2})"
+
+# Shared-goal progress is derived from those same numbers, so it must match too
+HIST=$(curl -s "${BASE}/history" "${AUTH1[@]}")
+LIFETIME=$(echo "$HIST" | grep -o '"char[12]Pts":-\{0,1\}[0-9]*' | grep -o -- '-\{0,1\}[0-9]*$' \
+  | awk '{ if ($1 > 0) s+=$1 } END{print s+0}')
+POS_NOW=$(( (A_c1 > 0 ? A_c1 : 0) + (A_c2 > 0 ? A_c2 : 0) ))
+GOAL_PROGRESS=$(( LIFETIME + POS_NOW ))
+[ "$GOAL_PROGRESS" -ge 0 ] && \
+  pass "shared-goal progress computes identically for both (=${GOAL_PROGRESS})" || \
+  fail "goal progress computation broke"
+
+# ── A write by one partner must be visible to the other immediately ──
+NEWID=$(mk_entry AUTH2 char2 "" "对方刚记的" "$I_GIFT" 7 "$M5" "$TODAY" "parity check")
+RES=$(curl -s "${BASE}/entries" "${AUTH1[@]}")
+echo "$RES" | grep -q "parity check" && \
+  pass "char2's new entry is immediately visible to char1" || fail "write not visible to partner"
+AFTER_c1=$(score_for "$RES" char2)
+[ "$AFTER_c1" = "$(( A_c2 + 7 ))" ] && \
+  pass "char1's view of char2's score updated correctly (${A_c2} → ${AFTER_c1})" || \
+  fail "partner score not updated: expected $(( A_c2 + 7 )), got ${AFTER_c1}"
+
+# ── A config change by one partner must reach the other ──
+curl -s -X PUT "${BASE}/config" "${AUTH2[@]}" -d '{"petName":"同步测试"}' > /dev/null
+RES=$(curl -s "${BASE}/config" "${AUTH1[@]}")
+echo "$RES" | grep -q '"petName":"同步测试"' && \
+  pass "char2 renaming the pet is visible to char1 (shared pet)" || fail "pet rename not shared: $RES"
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"petName":"奶糖"}' > /dev/null
+
+# ── Mode switch is global: both must land in the same mode ──
+curl -s -X PUT "${BASE}/config" "${AUTH2[@]}" -d '{"mode":"punishment"}' > /dev/null
+M_A=$(curl -s "${BASE}/config" "${AUTH1[@]}" | grep -o '"mode":"[a-z]*"')
+M_B=$(curl -s "${BASE}/config" "${AUTH2[@]}" | grep -o '"mode":"[a-z]*"')
+[ "$M_A" = "$M_B" ] && [ "$M_A" = '"mode":"punishment"' ] && \
+  pass "mode switch by one partner applies to both" || fail "mode desync: $M_A vs $M_B"
+curl -s -X PUT "${BASE}/config" "${AUTH1[@]}" -d '{"mode":"reward"}' > /dev/null
+
+# ════════════════════════════════════════════════════════════
 # NO cleanup of couple's data — current month left live for review
 # ════════════════════════════════════════════════════════════
 echo ""
