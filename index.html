@@ -1091,6 +1091,19 @@
       height: 1px; background: var(--card-border);
       margin: 4px 24px;
     }
+    /* Opt-in for closing the month that's still running */
+    .settle-current-opt {
+      display: flex; align-items: flex-start; gap: 10px;
+      text-align: left; cursor: pointer;
+      background: #F7F9FC; border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-sm); padding: 12px 14px;
+      margin-top: 6px;
+      font-size: 12.5px; line-height: 1.5; color: var(--text);
+    }
+    .settle-current-opt input {
+      width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+      accent-color: var(--blue); cursor: pointer;
+    }
 
     /* Particles */
     .particle {
@@ -1959,6 +1972,7 @@
     html[data-theme="dark"] .history-badge.settled { background: rgba(107,203,119,0.16); color: #7DD98A; }
     html[data-theme="dark"] .settle-preview .sp-result.none { background: #1E2A3D; border-color: #33405A; }
     html[data-theme="dark"] .settle-multi-note { background: rgba(240,180,41,0.14); color: #E8C06A; }
+    html[data-theme="dark"] .settle-current-opt { background: #1E2A3D; }
     html[data-theme="dark"] .settle-char-card.char2 { background: rgba(255,143,160,0.14); border-color: rgba(255,143,160,0.3); }
     html[data-theme="dark"] .manage-pts-neg { background: rgba(255,107,107,0.16); }
     html[data-theme="dark"] .manage-pts-thr { background: rgba(240,180,41,0.16); color: #E8C06A; }

@@ -15,7 +15,7 @@ const App = (() => {
   /* ── Config ── */
   const SN_API_PATH = '/api/x_887486_love_app/love_score';
   const SN_INSTANCE = 'dev405150.service-now.com';
-  const APP_VERSION = 'v2026.07.19-7';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.03-1';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1542,7 +1542,9 @@ const App = (() => {
     };
   }
 
-  let _pendingSettleGroups = [];   // [[month, entries], ...] snapshotted when the modal opens
+  let _pendingSettleGroups = [];   // [[month, entries], ...] chosen at confirm time
+  let _settlePastGroups    = [];   // months that are definitely over
+  let _settleCurrentGroup  = null; // [month, entries] for the still-running month
 
   function openSettleModal() {
     // Nothing logged → settling would just create an empty record.
@@ -1551,8 +1553,14 @@ const App = (() => {
       showToast('📭 还没有任何记分，先记录一下再结算吧！');
       return;
     }
-    _pendingSettleGroups = _groupEntriesByMonth(S.entries);
-    const multi = _pendingSettleGroups.length > 1;
+    // The current month is still being lived in — closing it early would wipe
+    // a half-finished month's points. Past months are over and safe to sweep;
+    // the current one is only settled if the user explicitly ticks the box.
+    const groups   = _groupEntriesByMonth(S.entries);
+    const thisMonth = monthKey();
+    _settlePastGroups   = groups.filter(([m]) => m < thisMonth);
+    _settleCurrentGroup = groups.find(([m]) => m >= thisMonth) || null;
+
     const prev = document.getElementById('settle-preview');
     const fmtScore = s => (s > 0 ? '+' : '') + s;
 
@@ -1569,31 +1577,56 @@ const App = (() => {
       </div>`;
     };
 
-    const blocks = _pendingSettleGroups.map(([month, monthEntries]) => {
+    const monthBlock = ([month, monthEntries], isCurrent) => {
       const r = _monthOutcomes(monthEntries);
       const anyReward = S.mode === 'reward' && (r.o1 || r.o2);
       const anyPunish = S.mode === 'punishment' && (r.o1 || r.o2);
       return `<div class="settle-month-block">
         <div class="sp-icon">${anyReward ? '🎊' : anyPunish ? '😱' : '📊'}</div>
-        <div class="sp-title">${monthLabel(month)} 结算</div>
+        <div class="sp-title">${monthLabel(month)} 结算${isCurrent ? '（本月·进行中）' : ''}</div>
         <div class="settle-char-row">
           ${charCard('char1', r.s1, r.i1, r.o1)}
           ${charCard('char2', r.s2, r.i2, r.o2)}
         </div>
       </div>`;
-    }).join('<div class="settle-month-sep"></div>');
+    };
 
-    const note = multi
-      ? `<div class="settle-multi-note">⚠️ 有 ${_pendingSettleGroups.length} 个月尚未结算，将分别存入历史记录</div>`
-      : '';
+    let html = '';
+    if (_settlePastGroups.length) {
+      html += `<div class="settle-multi-note">⚠️ 有 ${_settlePastGroups.length} 个已过去的月份尚未结算，将分别存入历史记录</div>`;
+      html += _settlePastGroups.map(g => monthBlock(g, false)).join('<div class="settle-month-sep"></div>');
+    }
+    if (_settleCurrentGroup) {
+      if (_settlePastGroups.length) html += '<div class="settle-month-sep"></div>';
+      html += monthBlock(_settleCurrentGroup, true);
+      // Default: OFF when there are past months to clean up (the common
+      // "I forgot to settle" case — don't also close the month they're in),
+      // ON when the current month is all there is (the normal month-end flow).
+      const defaultOn = _settlePastGroups.length === 0;
+      html += `<label class="settle-current-opt">
+        <input type="checkbox" id="settle-include-current" ${defaultOn ? 'checked' : ''}/>
+        <span>同时结算本月（${monthLabel(_settleCurrentGroup[0])}）——本月还没结束，通常等月底再结算</span>
+      </label>`;
+    }
+    html += `<div style="font-size:12px;color:var(--sub);margin-top:4px">结算后对应月份积分清零，开始新的一轮</div>`;
 
-    prev.innerHTML = note + blocks +
-      `<div style="font-size:12px;color:var(--sub);margin-top:4px">结算后积分清零，开始新的一轮</div>`;
+    prev.innerHTML = html;
     openModal('modal-settle');
   }
 
   async function confirmSettle() {
-    if (!_pendingSettleGroups.length) { closeModal('modal-settle'); return; }
+    // Read the opt-in at confirm time, so the user can tick/untick freely
+    // before committing.
+    const includeCurrent = !!document.getElementById('settle-include-current')?.checked;
+    _pendingSettleGroups = [
+      ..._settlePastGroups,
+      ...(includeCurrent && _settleCurrentGroup ? [_settleCurrentGroup] : []),
+    ];
+    if (!_pendingSettleGroups.length) {
+      closeModal('modal-settle');
+      showToast('ℹ️ 没有选择要结算的月份');
+      return;
+    }
     try {
       let res, r;
       // Settle oldest → newest so history stays in the order it happened.
@@ -1617,6 +1650,7 @@ const App = (() => {
       else                                                { showToast('✅ 已结算，新的一轮开始！'); }
 
       _pendingSettleGroups = [];
+      _settlePastGroups = []; _settleCurrentGroup = null;
       S.month = monthKey();
       try { await Data.reloadTiers(); } catch {}
       await refresh();
