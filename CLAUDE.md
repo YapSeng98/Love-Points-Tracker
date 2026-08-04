@@ -327,6 +327,47 @@ conversation.
 
 ---
 
+## 7.3 ♿ Contrast, tap targets and motion
+
+Audited from **rendered pixels**, not computed styles. Three earlier attempts
+at a computed-style checker all lied: they ignored alpha, then guessed at
+gradient ancestors, and reported false 1:1 ratios across the app. Screenshot
+the element, take the 1st/99th luminance percentiles, compare. Two caveats:
+a crop that is mostly background (a thin ✕ in a 36×36 button, a 3-character
+chip) under-reports, and an emoji has no meaningful ratio at all.
+
+What that found, all real and all now fixed:
+
+- `--blue`, `--sub` and `--red` are tuned for **fills**. At 10–15px they were
+  2.1–3.0:1 on white. Small text now uses `--blue-ink` / `--sub-ink` /
+  `--red-ink` / `--nav-off` / `--goal-ink` / `--lv-ink`, which flip per theme.
+  The bottom-nav labels — read on every screen — were **2.09:1**.
+- **A theme-flipping token is wrong on a fixed-colour surface.**
+  `.score-card-header` is the same blue gradient in both themes, so
+  `--sub-ink` there went light-on-light-blue and dropped to 1.4:1. It needs a
+  hardcoded ink.
+- **Watch for duplicate rules.** `.checkin-banner-sub` is styled in *both*
+  index.html and the injected block in app.js; the app.js copy won by load
+  order and silently undid the fix. Grep both files.
+- **A more specific old rule beats a new token.**
+  `html[data-theme="dark"] .nav-label` hardcoded the *light* grey and kept the
+  dark nav at 3.4:1 long after the variable was correct.
+- `.modal-close` had **no CSS at all** — a 14×19 UA-default button.
+- `prefers-reduced-motion` needs **one blanket rule**. Per-feature opt-outs
+  were added with each new animation, but sixteen older ones (drifting clouds,
+  idle character bob, pet ear-flaps) kept moving. The spinner is exempt so
+  "loading" still reads as loading.
+
+## 7.4 ⚡ Measured performance (keep it here)
+
+Cold load **317ms**, DCL 56ms, 432KB, 818 nodes. With a year of data — 220
+entries, 120 letters, 40 photos, 24 settled months — home renders in **268ms**
+at 2780 nodes, the slowest screen switch is 13ms, and the heap sits at 6MB.
+DOM plateaus: 48 open/close cycles of the pet room and 20 weather flips add
+zero nodes. If a change pushes any of these materially, find out why.
+
+---
+
 ## 8. 🚀 Shipping checklist
 
 ```

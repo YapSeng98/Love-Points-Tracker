@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-24';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-25';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -318,7 +318,7 @@ const App = (() => {
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
     .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }
-    .checkin-banner-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .checkin-banner-sub { font-size: 12px; color: var(--sub-ink); font-weight: 600; margin-top: 2px; }
     .checkin-banner-badge { font-size: 13px; font-weight: 800; color: white; white-space: nowrap; background: linear-gradient(135deg, #5B9BD5, #3D7BB8); padding: 7px 14px; border-radius: 20px; }
     .checkin-banner-badge.done { background: #E4E9F0; color: var(--sub); }
     .checkin-rule { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 14px; }

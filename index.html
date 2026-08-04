@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.04c">
+  <meta name="app-html-v" content="2026.08.04d">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -25,6 +25,15 @@
   <style>
     :root {
       --blue: #5B9BD5;
+      /* Small-text inks. Measured from real pixels: --blue at 10-13px on white
+         is 2.1-3.0:1, well under AA. Fills keep --blue; small type uses these. */
+      --blue-ink: #2E6DA6;
+      --sub-ink:  #4E5A6E;
+      --nav-off:  #647285;
+      --goal-ink: #1C5A2D;
+      --red-ink:  #C0392F;   /* --red at 15px on white is 2.7:1 */
+      --lv-ink:   #5B3A9E;   /* level pill sits on a translucent purple wash */
+      --lv-bg:    rgba(160,120,220,0.20);
       --blue-light: #A8D8F5;
       --sky: #D4EAFF;
       --pink: #FFB3C6;
@@ -373,7 +382,10 @@
     }
     .score-card-body { padding: 16px 24px 0; }
     .month-label {
-      font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9);
+      /* .score-card-header is the SAME blue gradient in both themes, so this
+         needs a fixed ink — a theme-flipping token went light-on-light-blue
+         in dark mode and dropped to 1.4:1. */
+      font-size: 13px; font-weight: 700; color: #14395C;
       text-transform: uppercase; letter-spacing: 0.08em;
     }
     .score-display {
@@ -393,7 +405,7 @@
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 8px;
     }
-    .progress-label { font-size: 12px; color: var(--sub); }
+    .progress-label { font-size: 12px; color: var(--sub-ink); }
     .progress-pct {
       font-size: 14px; font-weight: 700;
       padding: 2px 10px; border-radius: 20px;
@@ -553,12 +565,14 @@
     .entry-icon { font-size: 22px; flex-shrink: 0; }
     .entry-info { flex: 1; min-width: 0; }
     .entry-cat { font-size: 14px; font-weight: 600; color: var(--dark); }
-    .entry-desc { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .entry-desc { font-size: 12px; color: var(--sub-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .entry-pts {
       font-size: 16px; font-weight: 800; flex-shrink: 0;
     }
-    .entry-pts.positive { color: var(--blue); }
-    .entry-pts.negative { color: var(--red); }
+    /* --blue at 15px on the white entry row measured 2.7:1 — fills keep --blue,
+       small text uses the darker ink. */
+    .entry-pts.positive { color: var(--blue-ink); }
+    .entry-pts.negative { color: var(--red-ink); }
     .entry-edit {
       font-size: 15px; cursor: pointer; opacity: 0.3;
       padding: 4px; border-radius: 50%; transition: opacity 0.2s;
@@ -610,10 +624,10 @@
     .nav-icon { font-size: 20px; transition: transform 0.2s; }
     .nav-item.active .nav-icon { transform: scale(1.10); }
     .nav-label {
-      font-size: 10px; font-weight: 600; color: #A8B5C2;
+      font-size: 10px; font-weight: 600; color: var(--nav-off);
       letter-spacing: 0.02em; transition: color 0.2s;
     }
-    .nav-item.active .nav-label { color: var(--blue); font-weight: 700; }
+    .nav-item.active .nav-label { color: var(--blue-ink); font-weight: 700; }
 
     /* ── Settle FAB ── */
     .settle-fab {
@@ -850,7 +864,7 @@
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
     .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }
-    .checkin-banner-sub { font-size: 12px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+    .checkin-banner-sub { font-size: 12px; color: var(--sub-ink); font-weight: 600; margin-top: 2px; }
     .checkin-banner-badge {
       font-size: 13px; font-weight: 800; color: white; white-space: nowrap;
       background: linear-gradient(135deg, #5B9BD5, #3D7BB8);
@@ -1324,9 +1338,9 @@
       display: inline-block;
       transition: all 0.3s;
     }
-    .char-score-badge.pos { color: var(--blue); }
-    .char-score-badge.neg { color: var(--red); }
-    .char-score-badge.zero { color: var(--sub); }
+    .char-score-badge.pos { color: var(--blue-ink); }
+    .char-score-badge.neg { color: var(--red-ink); }
+    .char-score-badge.zero { color: var(--sub-ink); }
 
     /* ── Active-for indicator ── */
     .active-for-row {
@@ -1921,6 +1935,13 @@
     html[data-theme="dark"] {
       --cal-dot-off: #3A4763;
       --blue: #7CB2E8;
+      --blue-ink: #93C4F2;
+      --sub-ink:  #A3B2C6;
+      --nav-off:  #A7B7CB;
+      --goal-ink: #6FD98A;
+      --red-ink:  #FF9A9A;
+      --lv-ink:   #D8C4FF;
+      --lv-bg:    rgba(160,120,220,0.26);
       --sky: rgba(91,155,213,0.22);
       --pink-light: #4A2B38;
       --red: #FF8080;
@@ -1969,7 +1990,10 @@
       box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 10px rgba(0,0,0,0.35),
                   inset 0 1px 0 rgba(255,255,255,0.06);
     }
-    html[data-theme="dark"] .nav-label { color: #64748B; }
+    /* Uses the token so the light/dark inks stay in one place — this line
+       previously hardcoded the LIGHT grey and won on specificity, leaving the
+       dark nav labels at 3.4:1. */
+    html[data-theme="dark"] .nav-label { color: var(--nav-off); }
     html[data-theme="dark"] .modal-sheet { background: #16202F; }
     html[data-theme="dark"] .modal-handle { background: #33405A; }
     html[data-theme="dark"] .btn-secondary { background: #223047; color: var(--sub); border-color: rgba(120,170,220,0.2); }
@@ -2384,8 +2408,8 @@
     .pet-banner-top { display: flex; align-items: center; gap: 6px; }
     .pet-banner-name { font-size: 14px; font-weight: 800; color: var(--dark); }
     .pet-banner-lv {
-      font-size: 10.5px; font-weight: 700; color: #8A5FD0;
-      background: rgba(160,120,220,0.16); padding: 2px 7px; border-radius: 8px;
+      font-size: 10.5px; font-weight: 700; color: var(--lv-ink);
+      background: var(--lv-bg); padding: 2px 7px; border-radius: 8px;
     }
     .pet-banner-mood { margin-left: auto; font-size: 15px; }
     .pet-exp-track {
@@ -2399,7 +2423,7 @@
       transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
     }
     .pet-banner-say {
-      font-size: 11.5px; color: var(--sub); font-weight: 600;
+      font-size: 11.5px; color: var(--sub-ink); font-weight: 600;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .pet-banner-arrow { font-size: 16px; color: #8A5FD0; opacity: 0.7; }
@@ -2721,6 +2745,19 @@
     }
     html[data-theme="dark"] .decor-ends { color: #F0B67F; }
 
+    /* This had no styling at all and rendered as a 14x19 UA-default button —
+       far below a comfortable thumb target. */
+    .modal-close {
+      background: none; border: none; cursor: pointer;
+      width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 17px; line-height: 1; color: var(--sub-ink);
+      transition: background 0.15s, color 0.15s;
+    }
+    .modal-close:hover, .modal-close:active { background: rgba(0,0,0,0.07); color: var(--dark); }
+    html[data-theme="dark"] .modal-close:hover,
+    html[data-theme="dark"] .modal-close:active { background: rgba(255,255,255,0.12); }
+
     .decor-swatch { width: 58px; height: 40px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12);
                     box-shadow: inset 0 1px 3px rgba(0,0,0,0.10); }
     /* 穿戴 items have no emoji and no colour — a little head models them instead */
@@ -2861,7 +2898,7 @@
     .goal-head { display: flex; align-items: center; gap: 8px; }
     .goal-icon { font-size: 19px; }
     .goal-title { flex: 1; font-size: 14.5px; font-weight: 800; color: var(--dark); }
-    .goal-pct { font-size: 13px; font-weight: 800; color: #3BA84A; font-variant-numeric: tabular-nums; }
+    .goal-pct { font-size: 13px; font-weight: 800; color: var(--goal-ink); font-variant-numeric: tabular-nums; }
     .goal-box.done .goal-pct { color: #B8860B; }
     .goal-track {
       height: 9px; border-radius: 6px; margin: 9px 0 7px; overflow: hidden;
@@ -2873,7 +2910,7 @@
       transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
     }
     .goal-box.done .goal-fill { background: linear-gradient(90deg, #FFD700, #FFA500); }
-    .goal-foot { font-size: 11.5px; color: var(--sub); font-weight: 600; }
+    .goal-foot { font-size: 11.5px; color: var(--sub-ink); font-weight: 600; }
 
     /* ── Love-page action buttons (成就 / 年度回顾) ── */
     .lp-actions {
@@ -3011,6 +3048,21 @@
       .shop-content, .letter-list {
         width: 100%; max-width: 592px; margin: 0 auto;
       }
+    }
+    /* ── prefers-reduced-motion ───────────────────────────────────────────
+       A blanket rule on purpose. Per-feature opt-outs were added alongside new
+       animations, but sixteen older ones (drifting clouds, the idle character
+       bob, pet ear-flaps, the spinning music note) kept moving regardless.
+       Transitions are shortened rather than removed so state changes stay
+       legible; the spinner keeps turning so "loading" still reads as loading. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .spinner { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
     }
   </style>
 </head>
