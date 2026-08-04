@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-26';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-27';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -3777,8 +3777,25 @@ const App = (() => {
      silently re-render: yanking the room out from under someone mid-drag is
      worse than a stale view. Instead a banner offers a refresh, which reloads
      the room only — never a logout. */
-  const PET_SYNC_MS = 20000;
-  let _petSyncTimer = null, _petSyncBusy = false;
+  /* Sync cadence. The instance answers a /config poll in ~1.1s (worst seen
+     3.5s), so "instant" is not on the table — but 20s felt dead when both of
+     you are decorating together. Poll fast in a burst after anything happens,
+     then decay, so the average stays close to the old cost:
+        active   4s   for 90s after a change or an edit
+        settled 12s   for the next 3 min
+        idle    30s   thereafter
+     Backgrounded tabs poll not at all (checked in checkRoomRemote). */
+  const SYNC_FAST = 4000, SYNC_CALM = 12000, SYNC_IDLE = 30000;
+  const SYNC_FAST_FOR = 60000, SYNC_CALM_FOR = 180000;
+  let _petSyncTimer = null, _petSyncBusy = false, _petSyncAt = 0, _lastLively = 0;
+
+  function _syncGap() {
+    const quiet = Date.now() - _lastLively;
+    return quiet < SYNC_FAST_FOR ? SYNC_FAST
+         : quiet < SYNC_CALM_FOR ? SYNC_CALM : SYNC_IDLE;
+  }
+  // Anything that suggests the two of you are in there together right now.
+  function markLively() { _lastLively = Date.now(); }
 
   // Order-independent fingerprint of the shared room state
   function _roomSig(eq, name, species) {
@@ -3790,22 +3807,37 @@ const App = (() => {
     S.roomSig = _roomSig(S.equipped, S.petName, S.petSpecies);
   }
 
+  // A self-rescheduling timeout rather than setInterval, so the gap can change
+  // between ticks without tearing the timer down.
   function startPetSync() {
     stopPetSync();
     if (!S.usingSN) return;          // demo mode has no partner to sync with
-    _petSyncTimer = setInterval(checkRoomRemote, PET_SYNC_MS);
+    markLively();                    // opening the room counts as activity
+    const tick = async () => {
+      await checkRoomRemote();
+      if (_petSyncTimer !== null) _petSyncTimer = setTimeout(tick, _syncGap());
+    };
+    _petSyncTimer = setTimeout(tick, _syncGap());
   }
-  function stopPetSync() { clearInterval(_petSyncTimer); _petSyncTimer = null; }
+  function stopPetSync() { clearTimeout(_petSyncTimer); _petSyncTimer = null; }
 
   async function checkRoomRemote() {
     if (document.hidden || _petSyncBusy) return;      // don't poll a background tab
     if (!document.getElementById('pet-page')?.classList.contains('open')) return;
     _petSyncBusy = true;
     try {
+      _petSyncAt = Date.now();
       const cfg = await snFetch('/config');
       const sig = _roomSig(parseEquipped(cfg.petEquipped),
                            decodeFromSN(cfg.petName || ''), cfg.petSpecies || '');
-      if (S.roomSig && sig !== S.roomSig) showRoomUpdateBanner();
+      if (S.roomSig && sig !== S.roomSig) {
+        markLively();                       // they're clearly in there too
+        // Apply it silently if you're only looking. If you're mid-arrangement
+        // — a piece selected, the shop open — pulling the room out from under
+        // you would be hostile, so ask instead.
+        if (_roomBusyEditing()) showRoomUpdateBanner();
+        else await refreshRoom(true);
+      }
     } catch { /* offline or hiccup — just try again next tick */ }
     finally { _petSyncBusy = false; }
   }
@@ -3817,7 +3849,15 @@ const App = (() => {
 
   // Pulls the shared room again in place. Deliberately does not touch the
   // session — the partner changing the sofa must never log you out.
-  async function refreshRoom() {
+  // True while the couple could lose work to an auto-refresh.
+  function _roomBusyEditing() {
+    if (S.decorSel !== null && S.decorSel !== undefined) return true;
+    const shop = document.getElementById('modal-decor');
+    if (shop && shop.classList.contains('open')) return true;   // modals use .open
+    return false;
+  }
+
+  async function refreshRoom(quiet) {
     const el = document.getElementById('room-sync-banner');
     try {
       await Data.init();                       // re-reads config → equipped/pet
@@ -3826,7 +3866,7 @@ const App = (() => {
       renderPetHome();
       _markRoomSynced();
       el?.classList.remove('show');
-      showToast('🔄 小窝已更新');
+      showToast(quiet ? '✨ 对方刚刚动了小窝' : '🔄 小窝已更新');
     } catch (err) {
       showToast('刷新失败: ' + err.message);
     }
@@ -4203,6 +4243,7 @@ const App = (() => {
     renderRoomItems();
     if (it.slot === 'outfit') renderPetHome();
     renderDecor();
+    markLively();
     await saveEquipped();
   }
 
@@ -4920,8 +4961,13 @@ const App = (() => {
   // Coming back to the app (tab switch, phone unlock): sync with SN so a
   // settle or new entries from the partner's device show up without a manual reload
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && S.usingSN && S.apiKey) {
-      refresh().catch(() => {});
+    if (document.visibilityState !== 'visible' || !S.usingSN || !S.apiKey) return;
+    refresh().catch(() => {});
+    // Coming back to the app is the moment you most want the room to be right,
+    // so check it now rather than waiting out the current gap.
+    markLively();
+    if (document.getElementById('pet-page')?.classList.contains('open')) {
+      checkRoomRemote().catch(() => {});
     }
   });
 
@@ -4991,6 +5037,10 @@ const App = (() => {
     _isNewDecorTest: (id) => isNewDecor(id),
     _daysLeftTest: (id, d) => decorDaysLeft(DECOR[id], d),
     _renderSeasonTest: () => renderSeasonCard(),
+    _syncGapTest: () => _syncGap(),
+    _markLivelyTest: () => markLively(),
+    _setLivelyTest: (ms) => { _lastLively = Date.now() - ms; },
+    _busyEditTest: () => _roomBusyEditing(),
     _refreshWeatherTest: () => refreshWeather(),
     _coordsTest: () => guessCoords(),
     _moonSvgTest: (d) => moonSvg(d),

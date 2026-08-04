@@ -327,6 +327,38 @@ conversation.
 
 ---
 
+## 7.24 🔄 Live sync: adaptive, never a fixed fast poll
+
+Measured against the real instance: a `/config` poll is **322 bytes but takes
+~1.1s** (worst seen 3.5s), and 30 back-to-back polls all succeeded — so the
+limit is latency and battery, not bandwidth or rate limiting. True "instant"
+does not exist here; a couple of seconds is the floor.
+
+So the cadence adapts instead of being fast all the time:
+
+| when | gap |
+|---|---|
+| 60s after any change or edit | 4s |
+| next 3 min | 12s |
+| idle after that | 30s |
+
+A quiet hour costs ~120 requests (**cheaper** than the old fixed 20s poll at
+180); a busy hour ~252, against 900 for naive 4s polling. Backgrounded tabs
+poll not at all, and returning to the app polls immediately rather than
+waiting out the gap.
+
+**The bigger win was not the interval.** Detecting a change only raised a
+banner the user had to notice and tap, so the *perceived* delay was however
+long that took. It now applies silently when you are merely looking, and only
+asks when you could lose work — a piece selected, or the shop open
+(`_roomBusyEditing`). Pulling the room out from under someone mid-arrangement
+would be hostile; doing it while they watch is the magic bit.
+
+Use a self-rescheduling `setTimeout`, not `setInterval`, so the gap can change
+between ticks.
+
+---
+
 ## 7.25 🖥 Wide screens: cap the canvas, scale the contents
 
 `.pet-page` is `position:fixed; inset:0` and `.pet-room` was `flex:1`, so on a
