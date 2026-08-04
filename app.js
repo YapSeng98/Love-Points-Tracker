@@ -40,28 +40,212 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-21';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-23';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
      each partner picks their own. index.html stamps the theme pre-paint;
      these keep it in sync afterwards (incl. live OS changes in auto mode). */
-  const THEME_KEY = 'theme_mode';   // 'auto' | 'light' | 'dark'
-  const themeMode = () => localStorage.getItem(THEME_KEY) || 'auto';
+  const THEME_KEY = 'theme_mode';   // 'time' | 'auto' | 'light' | 'dark'
+  const themeMode = () => localStorage.getItem(THEME_KEY) || 'time';
+
+  /* Time of day comes from the DEVICE clock and nothing else. A server-side
+     "it is night now" would be wrong for hours every day — the ServiceNow
+     instance runs behind UTC+8 (§2), and it would also be wrong for whichever
+     partner is travelling. So there is no scheduled job anywhere: the phone
+     already knows, and it re-reads on open plus once a minute while open. */
+  const PERIODS = [
+    { id:'morning', from:6,  name:'早晨', emoji:'🌅', hi:'早安' },
+    { id:'day',     from:11, name:'白天', emoji:'🌤', hi:'午安' },
+    { id:'dusk',    from:17, name:'黄昏', emoji:'🌇', hi:'傍晚好' },
+    { id:'night',   from:19, name:'夜晚', emoji:'🌙', hi:'晚安' },
+  ];
+  // Takes a date so the boundaries are testable without waiting for 6pm.
+  function periodOf(d) {
+    const h = (d || new Date()).getHours();
+    if (h < PERIODS[0].from) return PERIODS[PERIODS.length - 1];  // 00:00–05:59 is still night
+    let best = PERIODS[0];
+    for (const p of PERIODS) if (h >= p.from) best = p;
+    return best;
+  }
+
+  /* ── The moon is the real moon ──────────────────────────────────────────
+     Its shape follows the actual lunar cycle, so it is a full circle on
+     农历十五 (which is what 中秋 IS) and invisible on 初一. Computed from the
+     mean synodic month rather than a lookup table, so unlike LUNAR it never
+     runs out of years. Verified against the 农历 dates the app already knows:
+     春节 = 初一 (new), 端午 = 初五, 中秋 = 十五 (full).                       */
+  const SYNODIC   = 29.530588853;                       // mean lunar month, days
+  const NEW_MOON0 = Date.UTC(2000, 0, 6, 18, 14);       // a known new moon
+
+  function moonInfo(d) {
+    const days = ((d || new Date()).getTime() - NEW_MOON0) / 86400000;
+    let age = days % SYNODIC;
+    if (age < 0) age += SYNODIC;                        // dates before 2000
+    const phase = age / SYNODIC;                        // 0 new · 0.5 full · 1 new
+    return {
+      age,
+      phase,
+      lunarDay: Math.floor(age) + 1,                    // 农历几号 (1–30)
+      illum: (1 - Math.cos(2 * Math.PI * phase)) / 2,   // 0 dark … 1 full
+      name: age < 1.5 ? '新月' : age < 6.5 ? '娥眉月' : age < 9.5 ? '上弦月'
+          : age < 13.5 ? '盈凸月' : age < 16.5 ? '满月' : age < 20.5 ? '亏凸月'
+          : age < 23.5 ? '下弦月' : age < 28.5 ? '残月' : '新月',
+    };
+  }
+
+  // Lit area as one path: a half-disc plus the terminator ellipse. Past full
+  // the whole thing mirrors, because a zero-width terminator can't tell a
+  // waxing half-moon from a waning one on its own.
+  function moonSvg(d) {
+    const m = moonInfo(d);
+    const R = 34, C = 40;
+    const waning = m.phase > 0.5;
+    const k  = Math.cos(2 * Math.PI * (waning ? 1 - m.phase : m.phase));
+    const rx = Math.abs(k) * R;
+    const lit = `M ${C},${C - R} A ${R},${R} 0 0 1 ${C},${C + R}`
+              // sweep 0 retraces the lit edge (new moon, nothing lit); sweep 1
+              // carries the terminator round the far side (full moon, all lit).
+              + ` A ${rx.toFixed(2)},${R} 0 0 ${k > 0 ? 0 : 1} ${C},${C - R} Z`;
+    return `<svg viewBox="0 0 80 80" class="moon-svg" aria-hidden="true">
+      <circle cx="${C}" cy="${C}" r="${R}" fill="rgba(226,232,246,0.10)"/>
+      <g${waning ? ` transform="translate(80,0) scale(-1,1)"` : ''}>
+        <path d="${lit}" fill="#F2ECD6"/>
+        <circle cx="${C - 9}" cy="${C - 7}" r="4.5" fill="#DED6BC" opacity="0.55"/>
+        <circle cx="${C + 6}" cy="${C + 8}" r="6"   fill="#DED6BC" opacity="0.4"/>
+        <circle cx="${C + 2}" cy="${C - 13}" r="3"  fill="#DED6BC" opacity="0.45"/>
+      </g></svg>`;
+  }
+
+  function renderMoon() {
+    const el = document.querySelector('.sky-bg .moon');
+    if (!el) return;
+    const m = moonInfo();
+    el.innerHTML = moonSvg();
+    el.title = `${m.name} · 农历${m.lunarDay}`;
+    // Full moon sits bigger and glows harder — 中秋 should feel like an event.
+    el.style.setProperty('--moon-glow', (0.18 + m.illum * 0.5).toFixed(2));
+    el.style.setProperty('--moon-size', (46 + m.illum * 16).toFixed(0) + 'px');
+  }
+
+  /* ── Real local weather ─────────────────────────────────────────────────
+     If it is raining outside, it rains in the app. Two deliberate choices:
+
+     · Location comes from the DEVICE TIMEZONE, not GPS. No permission prompt
+       for a decoration, nothing personal leaves the phone, and it still
+       follows you if you travel (the phone's zone changes with you).
+     · Everything fails silent. Offline, blocked, or an API change just leaves
+       the app looking exactly as it does today — weather is a garnish and
+       must never be able to break the screen.                              */
+  const WEATHER_KEY = 'weather_cache';
+  const WEATHER_TTL = 20 * 60 * 1000;          // don't re-ask on every open
+  const TZ_COORDS = {
+    'Asia/Singapore':[1.35,103.82],   'Asia/Kuala_Lumpur':[3.14,101.69],
+    'Asia/Hong_Kong':[22.32,114.17],  'Asia/Taipei':[25.03,121.57],
+    'Asia/Shanghai':[31.23,121.47],   'Asia/Tokyo':[35.68,139.65],
+    'Asia/Seoul':[37.57,126.98],      'Asia/Bangkok':[13.76,100.50],
+    'Asia/Jakarta':[-6.21,106.85],    'Asia/Manila':[14.60,120.98],
+    'Australia/Sydney':[-33.87,151.21],'Europe/London':[51.51,-0.13],
+    'America/New_York':[40.71,-74.01],'America/Los_Angeles':[34.05,-118.24],
+  };
+  const DEFAULT_COORDS = TZ_COORDS['Asia/Singapore'];
+
+  function guessCoords() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return TZ_COORDS[tz] || DEFAULT_COORDS;
+    } catch { return DEFAULT_COORDS; }
+  }
+
+  // WMO weather codes → the handful of moods we actually draw.
+  function weatherKind(code) {
+    const c = Number(code);
+    if (!Number.isFinite(c)) return '';
+    if (c >= 95) return 'thunder';
+    if (c >= 85) return 'snow';
+    if (c >= 80) return 'rain';
+    if (c >= 71) return 'snow';
+    if (c >= 51) return 'rain';
+    if (c >= 45) return 'fog';
+    if (c >= 1)  return 'cloudy';
+    return 'clear';
+  }
+
+  let _wxKind = '';
+  function applyWeather(kind) {
+    _wxKind = kind || '';
+    const root = document.documentElement;
+    if (kind) root.dataset.weather = kind; else delete root.dataset.weather;
+    const sky = document.querySelector('.sky-bg');
+    if (!sky) return;
+    sky.querySelectorAll('.wx-drop').forEach(e => e.remove());
+    try { renderRoomWeather(); } catch (e) {}
+    if (kind !== 'rain' && kind !== 'thunder' && kind !== 'snow') return;
+    const snow = kind === 'snow';
+    let html = '';
+    for (let i = 0; i < (snow ? 22 : 34); i++) {
+      // --d is unitless and applied as a NEGATIVE delay, so every drop starts
+      // already part-way down. With positive delays the first seconds of rain
+      // were an empty sky — you'd open the app and see nothing falling.
+      html += `<span class="wx-drop${snow ? ' snow' : ''}" style="--x:${(i * 97) % 100}%;` +
+              `--d:${((i * 37) % 40) / 10};--t:${(snow ? 5 : 0.9) + ((i * 13) % 7) / 10}s;` +
+              `--o:${0.45 + ((i * 7) % 5) / 10}"></span>`;
+    }
+    sky.insertAdjacentHTML('beforeend', html);
+  }
+
+  async function refreshWeather() {
+    try {
+      const c = JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
+      if (c && Date.now() - c.at < WEATHER_TTL) { applyWeather(c.kind); return c.kind; }
+      const [lat, lon] = guessCoords();
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${lat}&longitude=${lon}&current=weather_code`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('weather ' + res.status);
+      const j = await res.json();
+      const kind = weatherKind(j && j.current && j.current.weather_code);
+      localStorage.setItem(WEATHER_KEY, JSON.stringify({ at: Date.now(), kind }));
+      applyWeather(kind);
+      return kind;
+    } catch (e) {
+      return '';                       // silent on purpose — see the note above
+    }
+  }
+
   function applyTheme() {
     const mode = themeMode();
-    const dark = mode === 'dark' ||
-      (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    const per  = periodOf();
+    const dark = mode === 'dark'
+      || (mode === 'time' && per.id === 'night')
+      || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const root = document.documentElement;
+    root.dataset.theme  = dark ? 'dark' : 'light';
+    root.dataset.period = per.id;      // sky + accents follow the clock in EVERY mode
+    renderMoon();
   }
   applyTheme();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (themeMode() === 'auto') applyTheme();
   });
+  // Roll into 黄昏/夜晚 while the app is left open. Cheap, and it means a phone
+  // sitting on the table at 18:59 still looks right at 19:01.
+  let _lastPeriod = periodOf().id;
+  setInterval(() => {
+    const p = periodOf().id;
+    if (p === _lastPeriod) return;
+    _lastPeriod = p;
+    applyTheme();
+    try { renderPetBanner(); } catch (e) {}
+  }, 60000);
+  refreshWeather();                                   // once now…
+  setInterval(refreshWeather, WEATHER_TTL);           // …then every 20 min
+
   function setTheme(mode) {
     localStorage.setItem(THEME_KEY, mode);
     applyTheme();
-    showToast(mode === 'auto' ? '🌗 跟随系统主题' : mode === 'dark' ? '🌙 深色主题' : '☀️ 浅色主题');
+    showToast(mode === 'time' ? '🕑 跟着一天的时间变化'
+            : mode === 'auto' ? '🌗 跟随系统主题'
+            : mode === 'dark' ? '🌙 一直深色' : '☀️ 一直浅色');
   }
 
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
@@ -3469,6 +3653,35 @@ const App = (() => {
   }
 
   /* ── Room rendering from equipped state ── */
+  // The view out of the window is the actual view out of your window: same
+  // weather, and at night the same moon phase as the sky outside.
+  function renderRoomWeather() {
+    const room = document.getElementById('pet-room');
+    if (!room) return;
+    room.classList.remove('wx-rain', 'wx-thunder', 'wx-snow', 'wx-fog', 'wx-cloudy', 'wx-clear');
+    if (_wxKind) room.classList.add('wx-' + _wxKind);
+
+    const win = room.querySelector('.pet-window');
+    if (!win) return;
+    win.querySelectorAll('.pet-win-drop').forEach(e => e.remove());
+    const wet = _wxKind === 'rain' || _wxKind === 'thunder' || _wxKind === 'snow';
+    if (wet) {
+      const snow = _wxKind === 'snow';
+      let h = '';
+      for (let i = 0; i < 9; i++) {
+        h += `<span class="pet-win-drop${snow ? ' snow' : ''}" style="--x:${6 + i * 10}%;` +
+             `--d:${((i * 31) % 20) / 10};--t:${(snow ? 3.2 : 0.75) + ((i * 17) % 5) / 10}s"></span>`;
+      }
+      win.insertAdjacentHTML('beforeend', h);
+    }
+
+    const orb = win.querySelector('.pet-window-orb');
+    if (!orb) return;
+    const night = room.classList.contains('sky-night');
+    orb.innerHTML = night ? moonSvg() : '';
+    orb.classList.toggle('is-moon', night);
+  }
+
   function renderRoomItems() {
     const layer = document.getElementById('pet-decor-layer');
     if (!layer) return;
@@ -3688,7 +3901,9 @@ const App = (() => {
     // Window art follows the real clock, tying the room to the day/night theme
     const hr = now().getHours();
     const sky = hr >= 6 && hr < 17 ? 'day' : (hr >= 17 && hr < 19 ? 'dusk' : 'night');
-    document.getElementById('pet-room').className = 'pet-room sky-' + sky;
+    document.getElementById('pet-room').className =
+      'pet-room sky-' + sky + (_wxKind ? ' wx-' + _wxKind : '');
+    renderRoomWeather();
 
     renderRoomItems();
 
@@ -4608,7 +4823,16 @@ const App = (() => {
     _bootTest: () => boot(),
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
-    _themeTest: (d) => currentTheme(d),   // seasons take a date so they're testable
+    _themeTest: (d) => currentTheme(d),
+    _periodTest: (d) => { const p = periodOf(d); return { id: p.id, name: p.name, hi: p.hi }; },
+    _moonTest: (d) => moonInfo(d),
+    _weatherKindTest: (c) => weatherKind(c),
+    _applyWeatherTest: (k) => applyWeather(k),
+    _roomWeatherTest: () => _wxKind,
+    _refreshWeatherTest: () => refreshWeather(),
+    _coordsTest: () => guessCoords(),
+    _moonSvgTest: (d) => moonSvg(d),
+    _applyThemeTest: () => applyTheme(),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,

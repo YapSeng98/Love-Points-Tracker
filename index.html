@@ -5,14 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.04">
+  <meta name="app-html-v" content="2026.08.04b">
   <title>🐾 恋爱积分簿</title>
   <script>
-    // Stamp the theme before first paint (no flash). Mode: 'auto' | 'light' | 'dark'.
+    // Stamp theme AND time-of-day before first paint (no flash).
+    // Mode: 'time' (default) | 'auto' | 'light' | 'dark'. The clock is the
+    // device's — never the server's, which runs behind UTC+8.
     try {
-      var _tm = localStorage.getItem('theme_mode') || 'auto';
-      document.documentElement.dataset.theme =
-        (_tm === 'dark' || (_tm === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) ? 'dark' : 'light';
+      var _tm = localStorage.getItem('theme_mode') || 'time';
+      var _h  = new Date().getHours();
+      var _p  = _h < 6 ? 'night' : _h < 11 ? 'morning' : _h < 17 ? 'day' : _h < 19 ? 'dusk' : 'night';
+      var _d  = _tm === 'dark'
+             || (_tm === 'time' && _p === 'night')
+             || (_tm === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme  = _d ? 'dark' : 'light';
+      document.documentElement.dataset.period = _p;
     } catch (e) {}
   </script>
   <style>
@@ -2049,16 +2056,20 @@
       50%      { transform: scale(1.1);  opacity: 1; }
     }
     /* Night: glowing crescent moon (inset-shadow crescent) */
+    /* Shape comes from the real lunar cycle (see moonSvg); size and glow scale
+       with how full it is, so 农历十五 genuinely looks like an event. */
     .sky-bg .moon {
-      position: absolute; top: 86px; right: 30px; width: 52px; height: 52px;
-      border-radius: 50%;
-      box-shadow: inset -11px 7px 0 0 #EDE6CF, 0 0 22px rgba(237,230,207,0.25);
-      transform: rotate(12deg);
+      position: absolute; top: 86px; right: 30px;
+      width: var(--moon-size, 52px); height: var(--moon-size, 52px);
+      transform: rotate(10deg);
+      filter: drop-shadow(0 0 14px rgba(237,230,207,var(--moon-glow, 0.3)));
       animation: moon-glow 6s ease-in-out infinite;
+      transition: width .8s ease, height .8s ease;
     }
+    .sky-bg .moon .moon-svg { width: 100%; height: 100%; display: block; }
     @keyframes moon-glow {
-      0%, 100% { box-shadow: inset -11px 7px 0 0 #EDE6CF, 0 0 16px rgba(237,230,207,0.2); }
-      50%      { box-shadow: inset -11px 7px 0 0 #F7F1DE, 0 0 30px rgba(237,230,207,0.42); }
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(237,230,207,var(--moon-glow, 0.3))); }
+      50%      { filter: drop-shadow(0 0 24px rgba(237,230,207,var(--moon-glow, 0.3))); }
     }
     /* Night: twinkling stars (position/size/delay via inline custom props) */
     .sky-bg .star {
@@ -2088,10 +2099,83 @@
     }
     /* Theme switching: sun+clouds by day, moon+stars by night */
     html[data-theme="dark"] .clouds-bg,
-    html[data-theme="dark"] .sky-bg .sun { display: none; }
-    html[data-theme="light"] .sky-bg .moon,
-    html[data-theme="light"] .sky-bg .star,
-    html[data-theme="light"] .sky-bg .shooting-star { display: none; }
+    /* Gated by the clock, not the palette: 黄昏 is still a light theme but
+       must show a low sun, and a forced-light night must still show the moon. */
+    html[data-period="night"] .sky-bg .sun { display: none; }
+    html:not([data-period="night"]) .sky-bg .moon,
+    html:not([data-period="night"]) .sky-bg .star,
+    html:not([data-period="night"]) .sky-bg .shooting-star { display: none; }
+
+    /* The sun rides lower and warmer at the ends of the day. */
+    .sky-bg .sun, .sky-bg .moon { transition: top .8s ease, filter .8s ease, opacity .8s ease; }
+    html[data-period="morning"] .sky-bg .sun {
+      top: 62px; filter: saturate(1.15) hue-rotate(-6deg); opacity: 0.85; }
+    html[data-period="dusk"] .sky-bg .sun {
+      top: 104px; filter: saturate(1.5) hue-rotate(-26deg) brightness(0.96); opacity: 0.9; }
+
+    /* A wash of the current hour over the whole page. Decorative only, so it
+       is explicitly click-through and behind everything (§1.2). */
+    .sky-bg::after {
+      content: ''; position: absolute; inset: 0; z-index: -1;
+      pointer-events: none; transition: background 1.4s ease;
+    }
+    html[data-period="morning"] .sky-bg::after {
+      background: linear-gradient(180deg, rgba(255,206,138,0.34), rgba(255,229,190,0.10) 26%, transparent 46%); }
+    html[data-period="day"] .sky-bg::after {
+      background: linear-gradient(180deg, rgba(150,205,255,0.28), transparent 42%); }
+    html[data-period="dusk"] .sky-bg::after {
+      background: linear-gradient(180deg, rgba(255,138,96,0.36), rgba(255,186,140,0.14) 28%, transparent 50%); }
+    /* ── weather ──────────────────────────────────────────────────────────
+       Scoped under .sky-bg (§1.1) and click-through (§1.2). Absent attribute
+       = today's look, so a failed lookup changes nothing. */
+    .sky-bg .wx-drop {
+      position: absolute; top: -10%; left: var(--x);
+      width: 2px; height: 20px; border-radius: 2px;
+      background: linear-gradient(180deg, rgba(120,165,215,0), rgba(120,165,215,0.95));
+      opacity: var(--o, 0.5); pointer-events: none;
+      animation: wx-fall var(--t, 1s) linear infinite;
+      animation-delay: calc(var(--d, 0) * -1s);   /* negative: already falling */
+    }
+    html[data-theme="dark"] .sky-bg .wx-drop {
+      background: linear-gradient(180deg, rgba(190,215,245,0), rgba(190,215,245,0.9));
+    }
+    .sky-bg .wx-drop.snow {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.9); box-shadow: 0 0 5px rgba(255,255,255,0.6);
+      animation-name: wx-drift;
+      animation-delay: calc(var(--d, 0) * -1s);
+    }
+    @keyframes wx-fall  { to { transform: translateY(115vh); } }
+    @keyframes wx-drift {
+      0%   { transform: translate(0, 0); }
+      50%  { transform: translate(18px, 55vh); }
+      100% { transform: translate(-8px, 115vh); }
+    }
+    /* Overcast/rain dims the sky wash; thunder adds an occasional flash. */
+    html[data-weather="cloudy"] .sky-bg .sun { opacity: 0.42; filter: saturate(0.6) blur(1px); }
+    html[data-weather="fog"]    .sky-bg { backdrop-filter: blur(1.5px); }
+    html[data-weather="fog"]    .sky-bg::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(210,214,222,0.45), rgba(210,214,222,0.10) 45%, transparent 70%);
+    }
+    html[data-weather="rain"]    .sky-bg .sun,
+    html[data-weather="thunder"] .sky-bg .sun { opacity: 0.22; filter: saturate(0.4) blur(2px); }
+    html[data-weather="rain"]    .sky-bg::after,
+    html[data-weather="thunder"] .sky-bg::after { filter: saturate(0.55) brightness(0.82); }
+    html[data-weather="thunder"] .sky-bg .wx-drop:first-of-type::after {
+      content: ''; position: fixed; inset: 0; background: rgba(226,236,255,0.5);
+      opacity: 0; pointer-events: none; animation: wx-flash 9s ease-out infinite;
+    }
+    @keyframes wx-flash {
+      0%, 4%, 100% { opacity: 0; } 1% { opacity: 0.55; } 2.2% { opacity: 0.22; } 3% { opacity: 0.45; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sky-bg .wx-drop { animation: none; opacity: 0.28; }
+      html[data-weather="thunder"] .sky-bg .wx-drop:first-of-type::after { animation: none; }
+    }
+
+    html[data-period="night"] .sky-bg::after {
+      background: linear-gradient(180deg, rgba(26,40,84,0.55), rgba(26,40,84,0.12) 34%, transparent 56%); }
     @media (prefers-reduced-motion: reduce) {
       .sky-bg .sun::before, .sky-bg .sun-core, .sky-bg .moon,
       .sky-bg .star, .sky-bg .shooting-star { animation: none; }
@@ -2390,10 +2474,46 @@
     .sky-dusk .pet-window { background: linear-gradient(180deg, #FFC48A, #FFE0C0); }
     .sky-dusk .pet-window-orb { background: radial-gradient(circle, #FFD9A0, #FF9A4E); box-shadow: 0 0 18px rgba(255,154,78,0.9); top: 26px; }
     .sky-night .pet-window { background: linear-gradient(180deg, #1B2450, #2E3B72); }
+    /* At night the orb becomes the REAL moon (same phase as the sky outside),
+       so the CSS crescent is dropped in favour of the drawn one. */
     .sky-night .pet-window-orb {
-      background: radial-gradient(circle at 62% 38%, transparent 46%, #EDE6CF 47%);
-      box-shadow: 0 0 16px rgba(237,230,207,0.5); top: 9px;
+      background: none; box-shadow: none; top: 8px; left: 10px;
+      width: 24px; height: 24px;
+      filter: drop-shadow(0 0 8px rgba(237,230,207,0.55));
     }
+    .pet-window-orb.is-moon svg { width: 100%; height: 100%; display: block; }
+
+    /* ── weather seen through the window ── */
+    /* NOTE: translate percentages resolve against the ELEMENT, not the pane —
+       an earlier 150% moved each drop 16px and never crossed the window. The
+       distance is in px, comfortably past the 62px pane. */
+    .pet-win-drop {
+      position: absolute; top: -14px; left: var(--x); z-index: 2;
+      width: 2px; height: 13px; border-radius: 2px;
+      background: linear-gradient(180deg, rgba(74,116,166,0), rgba(74,116,166,0.85));
+      pointer-events: none;
+      animation: pet-win-fall var(--t, 1s) linear infinite;
+      animation-delay: calc(var(--d, 0) * -1s);
+    }
+    .sky-night .pet-win-drop {
+      background: linear-gradient(180deg, rgba(198,222,255,0), rgba(198,222,255,0.9));
+    }
+    .pet-win-drop.snow {
+      width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.95);
+      box-shadow: 0 0 4px rgba(255,255,255,0.7); animation-name: pet-win-drift;
+    }
+    @keyframes pet-win-fall  { to { transform: translateY(82px); } }
+    @keyframes pet-win-drift {
+      0% { transform: translate(0,0); } 100% { transform: translate(7px, 82px); }
+    }
+    /* Overcast dims the pane and the whole room reads a touch cooler. */
+    .pet-room.wx-rain    .pet-window,
+    .pet-room.wx-thunder .pet-window { filter: saturate(0.6) brightness(0.82); }
+    .pet-room.wx-rain    .pet-window-orb,
+    .pet-room.wx-thunder .pet-window-orb { opacity: 0.25; }
+    .pet-room.wx-fog     .pet-window { filter: blur(1.2px) saturate(0.5) brightness(1.06); }
+    .pet-room.wx-cloudy  .pet-window-orb { opacity: 0.5; }
+    @media (prefers-reduced-motion: reduce) { .pet-win-drop { animation: none; } }
     /* Furniture is sized RELATIVE TO THE PET (--pet-h, the 154px stage), not
        in arbitrary px — that's what makes a room read as a real space. Rough
        real-world ratios against a ~1m-tall pet: a 2-seat sofa is a bit wider
@@ -3860,9 +3980,10 @@
     <div class="modal-field">
       <label>🌗 主题</label>
       <select id="cfg-theme" onchange="App.setTheme(this.value)">
+        <option value="time">跟着时间（早晨 · 白天 · 黄昏 · 夜晚）</option>
         <option value="auto">跟随系统</option>
-        <option value="light">浅色</option>
-        <option value="dark">深色</option>
+        <option value="light">一直浅色</option>
+        <option value="dark">一直深色</option>
       </select>
     </div>
 

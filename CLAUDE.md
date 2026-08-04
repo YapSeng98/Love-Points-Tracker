@@ -245,6 +245,40 @@ looking like a sticker sheet.
 - `artsheet.js` renders the whole catalog on one page. Regenerate it after any
   art change and actually look.
 
+## 7.15 🌗 Time of day, moon phase and weather
+
+The whole app follows the **device** clock — `html[data-theme]` and
+`html[data-period]` (`morning|day|dusk|night`) are both stamped pre-paint in
+index.html so there is no flash, then kept in sync by `applyTheme()` and a
+60-second tick that catches the app being left open across a boundary.
+
+- Default mode is `time`: 夜晚 turns dark on its own. `light`/`dark`/`auto`
+  remain in 设置 as overrides, and **period is stamped in every mode** — a
+  forced-light night still shows the moon, and 黄昏 is a light theme that must
+  show a low sun, not a midday one. Gate sky art on `data-period`, never on
+  `data-theme`.
+- **The moon is the real moon.** `moonInfo()` uses the mean synodic month from
+  a known new moon, so it is a full disc on 农历十五 and dark on 初一, and
+  unlike `LUNAR` it never runs out of years. Verified against the 15 festival
+  dates the app already knows (中秋 99–100% lit, 春节 0%).
+- **Weather** comes from Open-Meteo, located by **device timezone** — no GPS
+  prompt for a decoration, and it follows you when you travel. Cached 20 min.
+  Every failure path is silent: offline or blocked just leaves the app exactly
+  as it looks today.
+- Furniture is **never** changed by time or weather — only by what the couple
+  bought. Seasons change light, sky, wall/floor tint, the window and the pet's
+  lines; a bought wallpaper always beats the seasonal one.
+
+Two bugs worth remembering, both invisible to green tests:
+1. **A test that encodes the implementation's own convention proves nothing.**
+   The moon shipped inverted (new moon drawn as a full disc) and the test
+   passed, because it asserted the sweep flag rather than what was lit. It now
+   asserts via `isPointInFill` — actual lit geometry.
+2. **`translate` percentages resolve against the element, not the parent.**
+   Window raindrops moved 150% of their own 11px and never crossed the pane.
+
+---
+
 ## 7.2 🗓 Seasonal content has no scheduled job — on purpose
 
 `currentTheme()` reads the device clock, so 中秋/圣诞/新年 arrive by themselves
