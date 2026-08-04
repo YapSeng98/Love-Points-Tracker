@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-27';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-28';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -3257,7 +3257,10 @@ const App = (() => {
       window:'fireworks', particle:'🧧', outfit:'scarf_red',
       wall:['#5B2230','#4A1B27'], floorTone:'#6B2A2A',
       speech:['新年快乐呀！🧧', '今年也要一直在一起哦', '有红包吗…我也想要'] },
-    { id:'vday', name:'情人节', priority:10, from:'02-12', to:'02-16', emoji:'💐',
+    // Priority 12, above 新年's 10: the CNY window runs 15 days and swallowed
+    // 2/14 in 3 of the next 5 years (2027/2029/2030). For a couples app the
+    // narrow, specific day has to win over the broad season.
+    { id:'vday', name:'情人节', priority:12, from:'02-13', to:'02-15', emoji:'💐',
       window:'day', particle:'💗', outfit:'',
       wall:['#5A2740','#4B1F35'], floorTone:'#6E3350',
       speech:['今天是属于你们的日子 💕', '要好好说喜欢哦', '我也想要一朵花'] },
@@ -3281,7 +3284,10 @@ const App = (() => {
     { id:'spring', name:'春', priority:1, from:'03-01', to:'05-31', emoji:'🌸',
       window:'day', particle:'🌸', speech:['风好舒服呀～', '想出去走走'] },
     { id:'summer', name:'夏', priority:1, from:'06-01', to:'08-31', emoji:'🌞',
-      window:'day', particle:'☀️', speech:['好热…想吃冰', '开空调好不好'] },
+      // A sun still drifting through a pitch-dark room at 9pm looked broken.
+      // Summer nights get fireflies instead; every other season's particle
+      // (leaves, snow, hearts, lanterns) reads fine after dark.
+      window:'day', particle:'☀️', nightParticle:'✨', speech:['好热…想吃冰', '开空调好不好'] },
     { id:'autumn', name:'秋', priority:1, from:'09-01', to:'11-30', emoji:'🍂',
       window:'dusk', particle:'🍂', speech:['天黑得好早哦', '有点想窝着不动'] },
     { id:'winter', name:'冬', priority:1, from:'12-01', to:'02-28', emoji:'⛄',
@@ -3305,6 +3311,13 @@ const App = (() => {
     const md = _md(d);
     return th.from <= th.to ? (md >= th.from && md <= th.to)
                             : (md >= th.from || md <= th.to);   // wraps new year
+  }
+
+  // Some particles only make sense in daylight. Takes the date so it is
+  // testable without waiting for nightfall.
+  function themeParticle(th, d) {
+    if (!th) return '';
+    return (periodOf(d).id === 'night' && th.nightParticle) ? th.nightParticle : th.particle;
   }
 
   // Highest-priority matching theme wins; festivals therefore override seasons.
@@ -3977,7 +3990,7 @@ const App = (() => {
     layer.className = 'pet-season-layer';
     layer.dataset.for = th.id;
     layer.innerHTML = Array.from({ length: 7 }, (_, i) =>
-      `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${th.particle}</span>`
+      `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${themeParticle(th)}</span>`
     ).join('');
     room.appendChild(layer);
   }
@@ -5028,6 +5041,7 @@ const App = (() => {
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
     _themeTest: (d) => currentTheme(d),
+    _particleTest: (d) => themeParticle(currentTheme(d), d),
     _periodTest: (d) => { const p = periodOf(d); return { id: p.id, name: p.name, hi: p.hi }; },
     _moonTest: (d) => moonInfo(d),
     _weatherKindTest: (c) => weatherKind(c),

@@ -327,6 +327,26 @@ conversation.
 
 ---
 
+## 7.23 🌙 A season is not a time of day
+
+夏's particle was `☀️`, so at 21:45 little suns drifted through a pitch-dark
+room while the window correctly showed the moon. A theme describes the time of
+*year*; anything in it that implies time of *day* needs a night variant.
+`themeParticle(th, d)` returns `nightParticle` after dark — summer gets
+fireflies `✨`. Every other particle (leaves, snow, hearts, lanterns, 红包)
+reads fine at night and is unchanged. Dusk keeps the sun; it is still setting.
+
+**Overlapping festivals: the narrower window should win.** Chasing the above,
+情人节 turned out to be swallowed by 新年 in **2027, 2029 and 2030** — the CNY
+window is 15 days (`span:[-2,12]`) and 2/14 lands inside it, and both sat at
+priority 10 where the first one listed wins. For a couples app that is the
+wrong trade, so 情人节 is priority 12 over a tight 3-day window (02-13→02-15):
+it takes the days that matter and hands the rest of the fortnight back to 新年.
+When adding a festival, check it against every other window in the table
+rather than only against the ambient seasons.
+
+---
+
 ## 7.24 🔄 Live sync: adaptive, never a fixed fast poll
 
 Measured against the real instance: a `/config` poll is **322 bytes but takes
