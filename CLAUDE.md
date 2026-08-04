@@ -227,6 +227,41 @@ data. Section 26 of the test suite enforces all of this.
 
 ---
 
+## 7.1 🪑 Furniture art
+
+Pieces are **hand-drawn SVG**, not emoji. Emoji render differently on every
+platform, can't follow the theme, and sat next to the pet's own vector art
+looking like a sticker sheet.
+
+- One shared language: soft fill, a darker outline of the same hue, one white
+  highlight, and a `0 0 100 100` viewBox so the `ratio` table keeps sizing
+  everything. `_ds()` wraps it; `.decor-svg { width:1em }` means the room's
+  `font-size: calc(var(--pet-h) * ratio)` math is untouched.
+- `art` (emoji) stays on every item as the fallback, and the shop/room both
+  prefer `svg` when present.
+- **Draw it, then look at it at real size.** The first pass shipped a bed that
+  read as a fragment, roses that read as a lollipop, and a zongzi that read as
+  a tent. None of that shows up in a passing test — only in the art sheet.
+- `artsheet.js` renders the whole catalog on one page. Regenerate it after any
+  art change and actually look.
+
+## 7.2 🗓 Seasonal content has no scheduled job — on purpose
+
+`currentTheme()` reads the device clock, so 中秋/圣诞/新年 arrive by themselves
+with nothing running anywhere. Two things still rot quietly, and
+`tools/season-check.js` (monthly GitHub Action) watches both:
+
+1. **`LUNAR` runs out.** Past its last listed year, `_themeActive` returns
+   false and the lunar festivals silently stop happening — no error. Currently
+   covered to **2030**. This *fails* the job.
+2. **A season with one piece of furniture** feels empty when it arrives (中秋
+   shipped like that). This only *reports* — it's a backlog, not a breakage.
+
+The job needs no laptop. It cannot design furniture — that still needs a
+conversation.
+
+---
+
 ## 8. 🚀 Shipping checklist
 
 ```

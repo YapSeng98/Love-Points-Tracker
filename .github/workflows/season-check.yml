@@ -1,0 +1,24 @@
+# The app changes its own theme from the device clock — nothing needs to run
+# for 中秋 or 圣诞 to arrive. This job exists for the two things that DO rot
+# quietly: the lunar festival table running out, and a season that never got
+# enough furniture. It runs on GitHub's servers, so no laptop has to be on.
+name: Seasonal content check
+
+on:
+  schedule:
+    - cron: '0 1 1 * *'      # 1st of each month, 09:00 SGT
+  workflow_dispatch:
+  push:
+    paths: ['app.js', 'tools/season-check.js']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: app.js parses
+        run: node --check app.js
+      - name: Seasons are healthy
+        run: node tools/season-check.js

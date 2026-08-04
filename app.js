@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-20';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-21';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2789,6 +2789,7 @@ const App = (() => {
   // sample for floors (their tones are semi-transparent and washed out when
   // painted straight onto the card), and a little head modelling the outfit.
   function decorArtHtml(it) {
+    if (it.svg) return `<div class="decor-art">${it.svg}</div>`;
     if (it.art) return `<div class="decor-art">${it.art}</div>`;
 
     if (it.draw) {                                   // 穿戴 — model it on a head
@@ -2905,19 +2906,40 @@ const App = (() => {
      relative to the pet's height (see CLAUDE.md §7) — never hardcode px.
      `free: true` items are the room you already had, so nothing disappears
      the day decorating ships. */
+  // ── furniture art ────────────────────────────────────────────────────
+  // Hand-drawn SVG rather than emoji. Emoji render differently on every
+  // platform, can't follow the theme, and sat next to the pet's own vector
+  // art looking like a sticker sheet. Every piece shares one language: a soft
+  // fill, a darker outline of the same hue, one white highlight, and a
+  // 0 0 100 100 viewBox so the existing `ratio` sizing keeps working. `art`
+  // stays on each item as the fallback if an SVG is ever missing.
+  const _ds = (inner) => `<svg class="decor-svg" viewBox="0 0 100 100">${inner}</svg>`;
+  const _hi = (x, y, rx, ry) =>
+    `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff" opacity="0.28"/>`;
+
   const DECOR = {
     // ── floor furniture ──
-    plant_pot:  { name:'绿植',       art:'🪴', slot:'floor', ratio:0.66, price:0,  free:true },
-    sofa_blue:  { name:'蓝色沙发',   art:'🛋️', slot:'floor', ratio:0.82, price:0,  free:true },
-    bed_pink:   { name:'粉色小床',   art:'🛏️', slot:'floor', ratio:0.90, price:80 },
-    table_wood: { name:'木餐桌',     art:'🪑', slot:'floor', ratio:0.62, price:45 },
-    lamp_floor: { name:'落地灯',     art:'🕯️', slot:'floor', ratio:0.70, price:40 },
-    fishtank:   { name:'小鱼缸',     art:'🐠', slot:'floor', ratio:0.55, price:55 },
+    plant_pot:  { name:'绿植',       art:'🪴', slot:'floor', ratio:0.66, price:0,  free:true,
+                   svg:_ds(`<path d="M32 60h36l-4 29a5 5 0 0 1-5 4H41a5 5 0 0 1-5-4z" fill="#CE8355" stroke="#96562F" stroke-width="2.6" stroke-linejoin="round"/> <rect x="28" y="52" width="44" height="11" rx="4.5" fill="#E09765" stroke="#96562F" stroke-width="2.6"/> <ellipse cx="38" cy="38" rx="12" ry="16" transform="rotate(-24 38 38)" fill="#72C176" stroke="#3C8354" stroke-width="2.4"/> <ellipse cx="62" cy="36" rx="11" ry="15" transform="rotate(22 62 36)" fill="#86D08A" stroke="#3C8354" stroke-width="2.4"/> <ellipse cx="50" cy="26" rx="10" ry="14" fill="#7ECA82" stroke="#3C8354" stroke-width="2.4"/> <path d="M50 52V30" stroke="#3C8354" stroke-width="2.4" stroke-linecap="round"/>${_hi(40,68,7,4)}`) },
+    sofa_blue:  { name:'蓝色沙发',   art:'🛋️', slot:'floor', ratio:0.82, price:0,  free:true,
+                   svg:_ds(`<rect x="14" y="46" width="72" height="30" rx="10" fill="#7FB3DC" stroke="#4B7EA8" stroke-width="2.6"/> <rect x="10" y="52" width="16" height="26" rx="7" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="2.6"/> <rect x="74" y="52" width="16" height="26" rx="7" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="2.6"/> <rect x="26" y="56" width="24" height="16" rx="5" fill="#B3D8F2" stroke="#4B7EA8" stroke-width="2.2"/> <rect x="52" y="56" width="24" height="16" rx="5" fill="#B3D8F2" stroke="#4B7EA8" stroke-width="2.2"/> <path d="M20 78v8M80 78v8" stroke="#4B7EA8" stroke-width="4" stroke-linecap="round"/>${_hi(36,52,12,3.5)}`) },
+    bed_pink:   { name:'粉色小床',   art:'🛏️', slot:'floor', ratio:0.90, price:80,
+                   svg:_ds(`<rect x="9" y="32" width="17" height="50" rx="7" fill="#F2B9CC" stroke="#C4738F" stroke-width="2.6"/> <rect x="26" y="76" width="9" height="12" rx="3" fill="#E3A3BA" stroke="#C4738F" stroke-width="2.2"/> <rect x="14" y="58" width="76" height="20" rx="7" fill="#FFF3F7" stroke="#C4738F" stroke-width="2.6"/> <path d="M48 56h36a7 7 0 0 1 7 7v9a6 6 0 0 1-6 6H48z" fill="#F5A9C4" stroke="#C4738F" stroke-width="2.6" stroke-linejoin="round"/> <path d="M48 62h43" stroke="#DE8DAE" stroke-width="2.2" stroke-linecap="round"/> <rect x="21" y="49" width="25" height="14" rx="6" fill="#fff" stroke="#C4738F" stroke-width="2.4"/> <path d="M20 78v9M85 78v9" stroke="#C4738F" stroke-width="4.5" stroke-linecap="round"/>`) },
+    table_wood: { name:'木餐桌',     art:'🪑', slot:'floor', ratio:0.62, price:45,
+                   svg:_ds(`<ellipse cx="50" cy="46" rx="38" ry="10" fill="#D2A06B" stroke="#94663A" stroke-width="2.6"/> <path d="M12 46v4a38 10 0 0 0 76 0v-4" fill="#B8854F" stroke="#94663A" stroke-width="2.6" stroke-linejoin="round"/> <path d="M50 56v22" stroke="#94663A" stroke-width="6" stroke-linecap="round"/> <path d="M32 88h36" stroke="#94663A" stroke-width="6" stroke-linecap="round"/>${_hi(40,43,14,3.5)}`) },
+    lamp_floor: { name:'落地灯',     art:'🕯️', slot:'floor', ratio:0.70, price:40,
+                   svg:_ds(`<path d="M34 20h32l8 26H26z" fill="#F6D98E" stroke="#C29A45" stroke-width="2.6" stroke-linejoin="round"/> <ellipse cx="50" cy="52" rx="16" ry="5" fill="#FFF0BF" opacity="0.75"/> <path d="M50 46v36" stroke="#8A7B6B" stroke-width="4.5" stroke-linecap="round"/> <ellipse cx="50" cy="86" rx="17" ry="6" fill="#A99684" stroke="#7B6957" stroke-width="2.4"/>${_hi(44,30,6,7)}`) },
+    fishtank:   { name:'小鱼缸',     art:'🐠', slot:'floor', ratio:0.55, price:55,
+                   svg:_ds(`<rect x="16" y="34" width="68" height="48" rx="8" fill="#BFE6F2" stroke="#5C93A8" stroke-width="2.8"/> <path d="M18 52h64v26a6 6 0 0 1-6 6H24a6 6 0 0 1-6-6z" fill="#7FCBE3" opacity="0.85"/> <ellipse cx="42" cy="64" rx="9" ry="6" fill="#FF9F5B" stroke="#D2703A" stroke-width="1.8"/> <path d="M51 64l8-5v10z" fill="#FF9F5B" stroke="#D2703A" stroke-width="1.8" stroke-linejoin="round"/> <circle cx="39" cy="62" r="1.6" fill="#3A2A22"/> <circle cx="64" cy="46" r="3" fill="#fff" opacity="0.7"/> <circle cx="70" cy="56" r="2" fill="#fff" opacity="0.55"/>${_hi(28,42,7,4)}`) },
     // ── wall ──
-    pic_couple: { name:'全家福',     art:'🖼️', slot:'wall',  ratio:0.42, price:0,  free:true },
-    clock_wall: { name:'挂钟',       art:'🕰️', slot:'wall',  ratio:0.34, price:25 },
-    shelf_books:{ name:'书架',       art:'📚', slot:'wall',  ratio:0.48, price:45 },
-    neon_heart: { name:'爱心霓虹灯', art:'💗', slot:'wall',  ratio:0.38, price:60 },
+    pic_couple: { name:'全家福',     art:'🖼️', slot:'wall',  ratio:0.42, price:0,  free:true,
+                   svg:_ds(`<rect x="16" y="22" width="68" height="56" rx="6" fill="#C9A227" stroke="#8E7015" stroke-width="3"/> <rect x="24" y="30" width="52" height="40" rx="3" fill="#DFF1FB"/> <path d="M24 58l14-13 10 9 12-14 16 18v-4H24z" fill="#8FCB9B"/> <circle cx="63" cy="40" r="6" fill="#FFD86B"/> <circle cx="41" cy="58" r="6.5" fill="#F5A9C4" stroke="#C4738F" stroke-width="1.6"/> <circle cx="55" cy="58" r="6.5" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="1.6"/>`) },
+    clock_wall: { name:'挂钟',       art:'🕰️', slot:'wall',  ratio:0.34, price:25,
+                   svg:_ds(`<circle cx="50" cy="50" r="32" fill="#F5EFE3" stroke="#8B6F52" stroke-width="3.2"/> <circle cx="50" cy="50" r="25" fill="#fff" stroke="#C8B79A" stroke-width="1.8"/> <path d="M50 32v18l12 8" stroke="#5A4632" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/> <circle cx="50" cy="50" r="3" fill="#5A4632"/> <circle cx="50" cy="24" r="1.8" fill="#8B6F52"/><circle cx="76" cy="50" r="1.8" fill="#8B6F52"/> <circle cx="50" cy="76" r="1.8" fill="#8B6F52"/><circle cx="24" cy="50" r="1.8" fill="#8B6F52"/>`) },
+    shelf_books:{ name:'书架',       art:'📚', slot:'wall',  ratio:0.48, price:45,
+                   svg:_ds(`<rect x="12" y="60" width="76" height="9" rx="3" fill="#C08E5C" stroke="#8A6137" stroke-width="2.6"/> <rect x="22" y="30" width="12" height="30" rx="2.5" fill="#E2707E" stroke="#AE4655" stroke-width="2.2"/> <rect x="36" y="24" width="11" height="36" rx="2.5" fill="#7FB3DC" stroke="#4B7EA8" stroke-width="2.2"/> <rect x="49" y="34" width="12" height="26" rx="2.5" fill="#F0C24B" stroke="#BE9022" stroke-width="2.2"/> <rect x="63" y="28" width="11" height="32" rx="2.5" fill="#8FCB9B" stroke="#4E8D62" stroke-width="2.2"/> <path d="M20 69v8M80 69v8" stroke="#8A6137" stroke-width="3.4" stroke-linecap="round"/>`) },
+    neon_heart: { name:'爱心霓虹灯', art:'💗', slot:'wall',  ratio:0.38, price:60,
+                   svg:_ds(`<path d="M50 78S16 58 16 38a18 18 0 0 1 34-8 18 18 0 0 1 34 8c0 20-34 40-34 40z" fill="#FF6F91" opacity="0.28"/> <path d="M50 74S22 56 22 39a15 15 0 0 1 28-7 15 15 0 0 1 28 7c0 17-28 35-28 35z" fill="none" stroke="#FF4D7E" stroke-width="6" stroke-linejoin="round"/> <path d="M50 74S22 56 22 39a15 15 0 0 1 28-7 15 15 0 0 1 28 7c0 17-28 35-28 35z" fill="none" stroke="#FFD3E0" stroke-width="2" stroke-linejoin="round"/>`) },
     // ── wallpaper (drawn, not emoji) ──
     wp_cream:   { name:'奶油白墙', slot:'paper', price:35, wall:['#F3ECE2','#E8DED0'], floorTone:'#C4A484' },
     wp_sakura:  { name:'樱花粉墙', slot:'paper', price:35, wall:['#FBE4EC','#F3D2DF'], floorTone:'#C9A08F' },
@@ -2936,21 +2958,38 @@ const App = (() => {
     // the shop, but anything already bought stays usable forever — never
     // confiscate what someone paid for.
     lantern_pair:{ name:'兔子灯笼', art:'🏮', slot:'floor', ratio:0.52, price:65,
-                   from:'01-20', to:'02-25', season:'新年' },
+                   from:'01-20', to:'02-25', season:'新年',
+                   svg:_ds(`<path d="M50 14v8M50 78v10" stroke="#9C5F3A" stroke-width="3" stroke-linecap="round"/> <ellipse cx="50" cy="50" rx="28" ry="28" fill="#E24B4B" stroke="#A82B2B" stroke-width="2.8"/> <path d="M30 30q20 12 40 0M30 70q20-12 40 0" stroke="#F5B54A" stroke-width="2.2" fill="none"/> <rect x="34" y="20" width="32" height="7" rx="3" fill="#F5B54A" stroke="#B9832A" stroke-width="2"/> <rect x="34" y="73" width="32" height="7" rx="3" fill="#F5B54A" stroke="#B9832A" stroke-width="2"/> <path d="M44 88v8M50 88v10M56 88v8" stroke="#F5B54A" stroke-width="2.6" stroke-linecap="round"/>${_hi(40,38,6,9)}`) },
     fu_scroll:   { name:'福字挂轴', art:'🧧', slot:'wall',  ratio:0.40, price:50,
-                   from:'01-20', to:'02-25', season:'新年' },
+                   from:'01-20', to:'02-25', season:'新年',
+                   svg:_ds(`<rect x="26" y="16" width="48" height="68" rx="4" fill="#D8443F" stroke="#9B2A26" stroke-width="2.8"/> <rect x="20" y="12" width="60" height="8" rx="4" fill="#C79A3E" stroke="#8E6B1F" stroke-width="2.2"/> <rect x="20" y="80" width="60" height="8" rx="4" fill="#C79A3E" stroke="#8E6B1F" stroke-width="2.2"/> <path d="M50 30l16 20-16 20-16-20z" fill="#F2D68A" stroke="#B08D2C" stroke-width="2.2" stroke-linejoin="round"/> <path d="M43 44h14M50 40v18M45 52h10" stroke="#9B2A26" stroke-width="2.6" stroke-linecap="round"/>`) },
     rose_vase:   { name:'玫瑰花瓶', art:'🌹', slot:'floor', ratio:0.48, price:55,
-                   from:'02-08', to:'02-20', season:'情人节' },
+                   from:'02-08', to:'02-20', season:'情人节',
+                   svg:_ds(`<path d="M39 56h22l-3 30a5 5 0 0 1-5 4h-6a5 5 0 0 1-5-4z" fill="#CFE3EE" stroke="#7397AC" stroke-width="2.6" stroke-linejoin="round"/> <path d="M37 56h26" stroke="#7397AC" stroke-width="2.6" stroke-linecap="round"/> <path d="M50 56V30M50 44l-13-7M50 40l14-9" stroke="#4E8D62" stroke-width="2.4" stroke-linecap="round"/> <ellipse cx="33" cy="45" rx="7.5" ry="4.5" transform="rotate(-24 33 45)" fill="#63AE76" stroke="#3F7A54" stroke-width="1.8"/> <ellipse cx="67" cy="41" rx="7.5" ry="4.5" transform="rotate(22 67 41)" fill="#63AE76" stroke="#3F7A54" stroke-width="1.8"/> <circle cx="34" cy="30" r="9" fill="#E8556B" stroke="#AE3349" stroke-width="2.2"/> <path d="M34 30a4 4 0 1 0 3-3" fill="none" stroke="#FBAFBE" stroke-width="2"/> <circle cx="66" cy="26" r="9" fill="#F0728A" stroke="#AE3349" stroke-width="2.2"/> <path d="M66 26a4 4 0 1 0 3-3" fill="none" stroke="#FBAFBE" stroke-width="2"/> <circle cx="50" cy="18" r="10.5" fill="#E8556B" stroke="#AE3349" stroke-width="2.4"/> <path d="M50 18a5 5 0 1 0 4-4" fill="none" stroke="#FBAFBE" stroke-width="2.2"/>`) },
     zongzi_tray: { name:'粽子小桌', art:'🍡', slot:'floor', ratio:0.50, price:55,
-                   from:'05-25', to:'06-25', season:'端午' },
+                   from:'05-25', to:'06-25', season:'端午',
+                   svg:_ds(`<ellipse cx="50" cy="74" rx="34" ry="10" fill="#D7A97A" stroke="#8A6137" stroke-width="2.6"/> <ellipse cx="50" cy="71" rx="27" ry="7" fill="#EBD3B4" opacity="0.7"/> <path d="M72 56c3 0 5 3 4 6-1 4-6 7-11 7l-3-9z" fill="#8CBF6E" stroke="#3F7038" stroke-width="2.2" stroke-linejoin="round"/> <path d="M50 34c3 0 5 2 6 4l14 22c2 3 0 7-4 7H34c-4 0-6-4-4-7l14-22c1-2 3-4 6-4z" fill="#7FB863" stroke="#3F7038" stroke-width="2.8" stroke-linejoin="round"/> <path d="M50 34c-3 0-5 2-6 4L30 60c-2 3 0 7 4 7h16z" fill="#9AD183" opacity="0.55"/> <path d="M50 38v29" stroke="#3F7038" stroke-width="2" opacity="0.5"/> <path d="M32 58h36" stroke="#C9302C" stroke-width="3.4" stroke-linecap="round"/> <path d="M50 45l-11 22M50 45l11 22" stroke="#C9302C" stroke-width="2.6" stroke-linecap="round"/> <path d="M50 34c-3-5-1-9 0-11 2 2 3 6 0 11z" fill="#5F9A48" stroke="#3F7038" stroke-width="2" stroke-linejoin="round"/>`) },
     mooncake_set:{ name:'月饼茶席', art:'🥮', slot:'floor', ratio:0.54, price:70,
-                   from:'09-05', to:'10-05', season:'中秋' },
+                   from:'09-05', to:'10-05', season:'中秋',
+                   svg:_ds(`<ellipse cx="50" cy="78" rx="38" ry="9" fill="#B9855A" stroke="#8A6137" stroke-width="2.6"/> <rect x="24" y="56" width="30" height="18" rx="6" fill="#E8B96F" stroke="#A87A33" stroke-width="2.6"/> <path d="M29 62h20M29 68h20" stroke="#A87A33" stroke-width="1.8" opacity="0.7"/> <rect x="31" y="50" width="16" height="8" rx="3" fill="#F0CB8C" stroke="#A87A33" stroke-width="2.2"/> <path d="M62 56h18a4 4 0 0 1 4 4v8a6 6 0 0 1-6 6H62z" fill="#EFE6D8" stroke="#9C8B72" stroke-width="2.4" stroke-linejoin="round"/> <path d="M84 62c6 0 6 8 0 8" fill="none" stroke="#9C8B72" stroke-width="2.4"/> <path d="M68 56l2-8" stroke="#9C8B72" stroke-width="2.4" stroke-linecap="round"/>${_hi(34,60,7,3)}`) },
+    moon_window: { name:'满月挂画', art:'🌕', slot:'wall',  ratio:0.46, price:55,
+                   from:'09-05', to:'10-05', season:'中秋',
+                   svg:_ds(`<circle cx="50" cy="50" r="34" fill="#1E2A4A" stroke="#5A6B93" stroke-width="3"/> <circle cx="52" cy="46" r="20" fill="#FBF3D0" stroke="#DCC98A" stroke-width="2"/> <circle cx="45" cy="41" r="4" fill="#EADFB4" opacity="0.85"/> <circle cx="58" cy="52" r="3" fill="#EADFB4" opacity="0.7"/> <circle cx="54" cy="38" r="2.2" fill="#EADFB4" opacity="0.6"/> <path d="M22 66q12-7 24 0t24-4" fill="none" stroke="#8894BC" stroke-width="2.4" stroke-linecap="round" opacity="0.75"/> <circle cx="28" cy="30" r="2" fill="#FFF6CF"/><circle cx="74" cy="66" r="1.8" fill="#FFF6CF"/>`) },
+    rabbit_lamp: { name:'玉兔灯',   art:'🐰', slot:'floor', ratio:0.58, price:60,
+                   from:'09-05', to:'10-05', season:'中秋',
+                   svg:_ds(`<ellipse cx="50" cy="86" rx="22" ry="6" fill="#C8B79A" stroke="#9C8B72" stroke-width="2.2"/> <ellipse cx="50" cy="58" rx="24" ry="24" fill="#FDF4E3" stroke="#D9C49B" stroke-width="2.8"/> <ellipse cx="40" cy="26" rx="6.5" ry="16" transform="rotate(-13 40 26)" fill="#FDF4E3" stroke="#D9C49B" stroke-width="2.6"/> <ellipse cx="60" cy="26" rx="6.5" ry="16" transform="rotate(13 60 26)" fill="#FDF4E3" stroke="#D9C49B" stroke-width="2.6"/> <ellipse cx="40" cy="26" rx="3" ry="10" transform="rotate(-13 40 26)" fill="#F7C9D8"/> <ellipse cx="60" cy="26" rx="3" ry="10" transform="rotate(13 60 26)" fill="#F7C9D8"/> <circle cx="42" cy="54" r="2.8" fill="#3A2A22"/><circle cx="58" cy="54" r="2.8" fill="#3A2A22"/> <path d="M47 62q3 3 6 0" stroke="#3A2A22" stroke-width="2" fill="none" stroke-linecap="round"/> <circle cx="34" cy="62" r="4" fill="#F7C9D8" opacity="0.8"/><circle cx="66" cy="62" r="4" fill="#F7C9D8" opacity="0.8"/>${_hi(40,46,7,5)}`) },
+    osmanthus:   { name:'桂花树',   art:'🌼', slot:'floor', ratio:0.74, price:65,
+                   from:'09-05', to:'10-05', season:'中秋',
+                   svg:_ds(`<path d="M42 60h16l-2 28a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z" fill="#B98A5E" stroke="#8A6137" stroke-width="2.6" stroke-linejoin="round"/> <ellipse cx="50" cy="38" rx="30" ry="24" fill="#5FA873" stroke="#3F7A54" stroke-width="2.8"/> <ellipse cx="38" cy="32" rx="11" ry="9" fill="#72C176" opacity="0.9"/> <g fill="#F7B733" stroke="#D18E14" stroke-width="1.4"> <circle cx="34" cy="42" r="3.4"/><circle cx="50" cy="26" r="3.4"/><circle cx="62" cy="40" r="3.4"/> <circle cx="44" cy="52" r="3"/><circle cx="66" cy="26" r="3"/><circle cx="26" cy="30" r="3"/> <circle cx="56" cy="50" r="3"/> </g> <path d="M50 62V48" stroke="#8A6137" stroke-width="2.4" stroke-linecap="round"/>${_hi(46,72,4,8)}`) },
     xmas_tree:   { name:'圣诞树',   art:'🎄', slot:'floor', ratio:0.88, price:90,
-                   from:'12-10', to:'12-28', season:'圣诞' },
+                   from:'12-10', to:'12-28', season:'圣诞',
+                   svg:_ds(`<path d="M50 12l16 24H34z" fill="#4E9A5B" stroke="#2F6B3C" stroke-width="2.6" stroke-linejoin="round"/> <path d="M50 28l21 28H29z" fill="#57A867" stroke="#2F6B3C" stroke-width="2.6" stroke-linejoin="round"/> <path d="M50 46l26 32H24z" fill="#63B573" stroke="#2F6B3C" stroke-width="2.6" stroke-linejoin="round"/> <rect x="43" y="78" width="14" height="12" rx="3" fill="#96683C" stroke="#6B4726" stroke-width="2.4"/> <path d="M50 4l3 6 6 1-5 4 2 6-6-3-6 3 2-6-5-4 6-1z" fill="#FFD24A" stroke="#C79A1E" stroke-width="1.8" stroke-linejoin="round"/> <circle cx="42" cy="40" r="3.4" fill="#E8556B"/><circle cx="60" cy="50" r="3.4" fill="#7FB3DC"/> <circle cx="46" cy="64" r="3.4" fill="#F0C24B"/><circle cx="60" cy="30" r="3" fill="#F5A9C4"/>`) },
     star_string: { name:'星星彩灯', art:'✨', slot:'wall',  ratio:0.36, price:45,
-                   from:'12-10', to:'01-05', season:'节日' },
+                   from:'12-10', to:'01-05', season:'节日',
+                   svg:_ds(`<path d="M6 26q22 22 44 0t44 0" fill="none" stroke="#8A7B6B" stroke-width="2.6" stroke-linecap="round"/> <g stroke-linejoin="round" stroke-width="2"> <path d="M22 40l3.5 7 7.5 1-5.5 5 1.5 8-6.5-4-6.5 4 1.5-8-5.5-5 7.5-1z" fill="#FFD24A" stroke="#C79A1E"/> <path d="M50 52l3.5 7 7.5 1-5.5 5 1.5 8-6.5-4-6.5 4 1.5-8-5.5-5 7.5-1z" fill="#FFE9A6" stroke="#C79A1E"/> <path d="M78 40l3.5 7 7.5 1-5.5 5 1.5 8-6.5-4-6.5 4 1.5-8-5.5-5 7.5-1z" fill="#FFD24A" stroke="#C79A1E"/> </g>`) },
     sakura_vase: { name:'樱花瓶',   art:'🌸', slot:'floor', ratio:0.46, price:50,
-                   from:'03-01', to:'04-30', season:'春' },
+                   from:'03-01', to:'04-30', season:'春',
+                   svg:_ds(`<path d="M40 54h20l-3 32a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4z" fill="#E4EEF5" stroke="#8FA9BA" stroke-width="2.6" stroke-linejoin="round"/> <path d="M50 54V34M50 42l-12-8M50 40l13-10" stroke="#8A6B5C" stroke-width="2.4" stroke-linecap="round"/> <g fill="#FBC6DA" stroke="#DE8DAE" stroke-width="1.8"> <circle cx="36" cy="31" r="7"/><circle cx="64" cy="27" r="7.5"/><circle cx="50" cy="20" r="8"/> </g> <circle cx="36" cy="31" r="2.2" fill="#F390B4"/><circle cx="64" cy="27" r="2.2" fill="#F390B4"/> <circle cx="50" cy="20" r="2.4" fill="#F390B4"/>${_hi(44,64,5,9)}`) },
   };
 
   // No placement cap: the couple can put out everything they own.
@@ -3437,12 +3476,12 @@ const App = (() => {
 
     layer.innerHTML = (eq.items || []).map((o, i) => {
       const it = DECOR[o.i];
-      if (!it || !it.art) return '';
+      if (!it || (!it.svg && !it.art)) return '';
       const shadow = it.slot === 'wall' ? 'pet-wall-item' : 'pet-floor-item';
       const sel = (S.decorSel === i) ? ' selected' : '';
       return `<div class="decor-piece ${shadow}${sel}" data-i="${i}"
                    style="left:${o.x}%;top:${o.y}%;font-size:calc(var(--pet-h) * ${it.ratio * (o.s || 1)})"
-                   title="${_escHtml(it.name)}">${it.art}</div>`;
+                   title="${_escHtml(it.name)}">${it.svg || it.art}</div>`;
     }).join('');
     layer.querySelectorAll('.decor-piece').forEach(attachDecorDrag);
     renderDecorHandle();

@@ -2551,11 +2551,16 @@
       display: flex; flex-direction: column; align-items: center; gap: 5px;
     }
     .decor-card.placed { border-color: #6BCB77; background: rgba(107,203,119,0.12); }
-    .decor-art { font-size: 30px; line-height: 1; height: 34px; display: flex; align-items: center; }
-    .decor-swatch { width: 44px; height: 30px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12);
+    /* Drawn furniture needs more room than emoji did — line art at 30px in a
+       160px card just reads as a speck. */
+    .decor-art { font-size: 46px; line-height: 1; height: 50px; display: flex; align-items: center; }
+    .decor-swatch { width: 58px; height: 40px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12);
                     box-shadow: inset 0 1px 3px rgba(0,0,0,0.10); }
     /* 穿戴 items have no emoji and no colour — a little head models them instead */
-    .decor-model { height: 34px; width: auto; display: block; overflow: visible; }
+    .decor-model { height: 50px; width: auto; display: block; overflow: visible; }
+    /* Furniture is drawn, not emoji. width:1em keeps the existing font-size
+       ratio sizing (room) and the 30px shop tile working unchanged. */
+    .decor-svg { width: 1em; height: 1em; display: block; overflow: visible; }
     .decor-name { font-size: 12.5px; font-weight: 700; color: var(--dark); }
     .decor-btn {
       width: 100%; margin-top: 2px; padding: 7px 0; border: none; border-radius: 10px;
