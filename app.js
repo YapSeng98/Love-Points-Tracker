@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-23';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-24';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -180,6 +180,7 @@ const App = (() => {
     if (!sky) return;
     sky.querySelectorAll('.wx-drop').forEach(e => e.remove());
     try { renderRoomWeather(); } catch (e) {}
+    try { renderPartnerWeather(); } catch (e) {}
     if (kind !== 'rain' && kind !== 'thunder' && kind !== 'snow') return;
     const snow = kind === 'snow';
     let html = '';
@@ -194,10 +195,53 @@ const App = (() => {
     sky.insertAdjacentHTML('beforeend', html);
   }
 
+  const WX_LABEL = { clear:'晴', cloudy:'多云', rain:'下雨', thunder:'雷雨',
+                     snow:'下雪', fog:'有雾' };
+  const WX_ICON  = { clear:'☀️', cloudy:'☁️', rain:'🌧', thunder:'⛈',
+                     snow:'❄️', fog:'🌫' };
+  const WX_STALE = 3 * 60 * 60 * 1000;      // older than this = they're not around
+
+  // Each partner writes ONLY their own slot (u_wx_1 / u_wx_2), so two phones
+  // updating at once can never overwrite each other. Hour travels with it so
+  // the card can say "21:00 那边在下雨" even across time zones.
+  function publishWeather(kind) {
+    if (!S.usingSN || !kind) return;
+    const slot = S.activeChar === 'char2' ? 'wx2' : 'wx1';
+    const payload = JSON.stringify({ k: kind, h: new Date().getHours(), at: Date.now() });
+    Data.saveConfig({ [slot]: payload }).catch(() => {});   // best effort, never blocks
+  }
+
+  function partnerWeather() {
+    const raw = S.activeChar === 'char2' ? S.wx1 : S.wx2;
+    if (!raw) return null;
+    try {
+      const w = JSON.parse(raw);
+      if (!w || !w.k || !w.at) return null;
+      if (Date.now() - w.at > WX_STALE) return null;        // gone quiet — say nothing
+      return { kind: w.k, hour: w.h, label: WX_LABEL[w.k] || w.k, icon: WX_ICON[w.k] || '🌤' };
+    } catch { return null; }
+  }
+
+  function renderPartnerWeather() {
+    const el = document.getElementById('partner-wx');
+    if (!el) return;
+    const w = partnerWeather();
+    const mine = _wxKind;
+    if (!w) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const name = S.activeChar === 'char2' ? (S.charName1 || 'TA') : (S.charName2 || 'TA');
+    const hour = Number.isFinite(w.hour) ? `${String(w.hour).padStart(2,'0')}:00 · ` : '';
+    // Same weather on both sides is its own small moment.
+    const same = mine && mine === w.kind;
+    el.innerHTML = `<span class="pwx-ico">${w.icon}</span>
+      <span class="pwx-txt">${_escHtml(name)}那边 ${hour}${w.label}</span>
+      ${same ? `<span class="pwx-same">和你一样 💛</span>` : ''}`;
+  }
+
   async function refreshWeather() {
     try {
       const c = JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
-      if (c && Date.now() - c.at < WEATHER_TTL) { applyWeather(c.kind); return c.kind; }
+      if (c && Date.now() - c.at < WEATHER_TTL) { applyWeather(c.kind); publishWeather(c.kind); return c.kind; }
       const [lat, lon] = guessCoords();
       const res = await fetch(`https://api.open-meteo.com/v1/forecast` +
         `?latitude=${lat}&longitude=${lon}&current=weather_code`, { cache: 'no-store' });
@@ -206,6 +250,7 @@ const App = (() => {
       const kind = weatherKind(j && j.current && j.current.weather_code);
       localStorage.setItem(WEATHER_KEY, JSON.stringify({ at: Date.now(), kind }));
       applyWeather(kind);
+      publishWeather(kind);
       return kind;
     } catch (e) {
       return '';                       // silent on purpose — see the note above
@@ -373,6 +418,7 @@ const App = (() => {
     shopEditId: null,
     goalName: '', goalIcon: '🎯', goalTarget: 0,
     petName: '', petSpecies: '', petExpStored: 0, petBase: 0, petPick: '',
+    wx1: '', wx2: '',                 // each partner's last reported weather
     equipped: null, decorOwned: [], decorTab: 'floor', decorSel: null, roomSig: '',
     achievements: [],
     letters: [],
@@ -500,6 +546,7 @@ const App = (() => {
         photos: [],       // 回忆相册: [{ id, charId, image, caption, date }]
         goalName: '', goalIcon: '🎯', goalTarget: 0,   // 共同目标
         petName: '', petSpecies: '', petExp: 0, petBase: 0, petEquipped: '',   // 恋爱小窝
+        wx1: '', wx2: '',
         charName1: '线条小狗·他',
         charName2: '线条小狗·她',
         charImg1: '',
@@ -587,6 +634,8 @@ const App = (() => {
         S.petSpecies   = cfg.petSpecies || '';
         S.petExpStored = parseInt(cfg.petExp) || 0;
         S.petBase      = parseInt(cfg.petBase) || 0;
+        S.wx1          = cfg.wx1 || '';
+        S.wx2          = cfg.wx2 || '';
         S.equipped     = parseEquipped(cfg.petEquipped);
         // Profile pictures come from SN auth records; blank if not set
         S.charImg1 = cfg.charImg1 || '';
@@ -621,6 +670,8 @@ const App = (() => {
         S.petSpecies      = d.petSpecies || '';
         S.petExpStored    = parseInt(d.petExp) || 0;
         S.petBase         = parseInt(d.petBase) || 0;
+        S.wx1             = d.wx1 || '';
+        S.wx2             = d.wx2 || '';
         S.equipped        = parseEquipped(d.petEquipped);
       }
     },
@@ -1343,6 +1394,8 @@ const App = (() => {
       renderPetBanner();
       _syncPetExp();
     }).catch(() => { renderSharedGoal(); renderPetBanner(); });
+    renderSeasonCard();
+    renderPartnerWeather();
   }
 
   /* ── Daily check-in (签到) ── */
@@ -3955,11 +4008,112 @@ const App = (() => {
     renderDecor();
   }
 
+  // Mark on the way OUT, not on render — marking during render would clear the
+  // badge in the same frame it appeared and the couple would never see it.
+  function closeDecor() {
+    markSeen(Object.keys(DECOR).filter(id => decorInSeason(DECOR[id])));
+    _stampSeasonSeen();
+    closeModal('modal-decor');
+    renderSeasonCard();
+  }
+
   // Is this item currently placed? Slot items live in arrays, the rest are scalars.
   function decorPlaced(id, slot) {
     const eq = S.equipped || defaultEquipped();
     if (slot === 'floor' || slot === 'wall') return (eq.items || []).some(o => o.i === id);
     return eq[slot] === id;
+  }
+
+  /* ── "something new is in the shop" ─────────────────────────────────────
+     Seasonal stock appears and disappears on its own, so without a nudge a
+     couple can miss a whole festival. Two device-local markers (never synced
+     — each partner should get their own heads-up):
+       decor_seen   ids already shown in the shop → anything else is 🆕
+       season_seen  the last festival we announced → announce each one once   */
+  const SEEN_KEY   = 'decor_seen';
+  const SEASON_KEY = 'season_seen';
+
+  // First run after this update: treat everything already on the shelf as
+  // seen. Otherwise a couple who has been playing for months opens the shop
+  // to 18 NEW badges, and the marker means nothing. From then on, only stock
+  // that appears later — a new season, a new drop — is genuinely new.
+  function seenIds() {
+    try {
+      const raw = localStorage.getItem(SEEN_KEY);
+      if (raw === null) {
+        const baseline = Object.keys(DECOR).filter(id => decorInSeason(DECOR[id]));
+        localStorage.setItem(SEEN_KEY, JSON.stringify(baseline));
+        return baseline;
+      }
+      return JSON.parse(raw) || [];
+    } catch { return []; }
+  }
+  function markSeen(ids) {
+    const set = new Set(seenIds());
+    ids.forEach(i => set.add(i));
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...set])); } catch {}
+  }
+  // In stock, not owned, and never displayed to this person before.
+  function isNewDecor(id) {
+    return decorInSeason(DECOR[id]) && !decorOwns(id) && !seenIds().includes(id);
+  }
+  function inSeasonIds() {
+    return Object.keys(DECOR).filter(id => DECOR[id].season && decorInSeason(DECOR[id]));
+  }
+  // Days until a limited piece leaves the shop (null = not limited).
+  function decorDaysLeft(it, d) {
+    if (!it || !it.to) return null;
+    const now0 = d || now();
+    const [em, ed] = it.to.split('-').map(Number);
+    let end = new Date(now0.getFullYear(), em - 1, ed, 23, 59, 59);
+    if (end < now0) end = new Date(now0.getFullYear() + 1, em - 1, ed, 23, 59, 59);
+    return Math.ceil((end - now0) / 86400000);
+  }
+
+  function renderSeasonCard() {
+    const card = document.getElementById('season-card');
+    if (!card) return;
+    const th    = currentTheme();
+    const stock = inSeasonIds();
+    const fresh = stock.filter(isNewDecor);
+    let seen = ''; try { seen = localStorage.getItem(SEASON_KEY) || ''; } catch {}
+    const tag = (th ? th.id : 'plain') + ':' + stock.sort().join(',');
+    // Nothing new to say, or already said it for this exact stock list.
+    if (!stock.length || !fresh.length || seen === tag) { card.classList.add('hidden'); return; }
+
+    const it   = DECOR[fresh[0]] || DECOR[stock[0]];
+    const left = decorDaysLeft(it);
+    // Name the card after the FURNITURE's season, not the current theme:
+    // 中秋 stock opens 09-05 but the 中秋 theme only starts 09-21, so for two
+    // weeks the card would have announced "秋来啦" over a tray of mooncakes.
+    const label = it.season || (th ? th.name : '');
+    const emoji = (it.season && th && th.name === it.season) ? th.emoji
+                : it.season === '中秋' ? '🥮' : it.season === '圣诞' ? '🎄'
+                : it.season === '新年' ? '🧧' : it.season === '端午' ? '🐲'
+                : it.season === '情人节' ? '💐' : th ? th.emoji : '🎁';
+    card.classList.remove('hidden');
+    card.innerHTML = `
+      <span class="sc-emoji">${emoji}</span>
+      <div class="sc-body" onclick="App.openDecorFromSeason()">
+        <div class="sc-title">${label ? label + '限定上架' : '新家具上架'} · ${fresh.length} 件</div>
+        <div class="sc-sub">${fresh.slice(0,3).map(i => DECOR[i].name).join('、')}${
+          fresh.length > 3 ? ' 等' : ''}${left != null ? ` · 还有 ${left} 天下架` : ''}</div>
+      </div>
+      <button class="sc-close" onclick="event.stopPropagation();App.dismissSeasonCard()"
+              aria-label="知道了">✕</button>`;
+  }
+
+  function _stampSeasonSeen() {
+    const th = currentTheme(), stock = inSeasonIds();
+    try { localStorage.setItem(SEASON_KEY, (th ? th.id : 'plain') + ':' + stock.sort().join(',')); } catch {}
+  }
+  function dismissSeasonCard() {
+    _stampSeasonSeen();
+    document.getElementById('season-card')?.classList.add('hidden');
+  }
+  function openDecorFromSeason() {
+    dismissSeasonCard();
+    showPetHome().then(() => openDecor()).catch(() => {});
   }
 
   function renderDecor() {
@@ -3995,11 +4149,14 @@ const App = (() => {
       } else {
         btn = `<button class="decor-btn own" onclick="App.placeDecor('${id}')">摆进小窝</button>`;
       }
+      const left = decorDaysLeft(it);
       return `<div class="decor-card ${placed ? 'placed' : ''}">
+        ${isNewDecor(id) ? `<span class="decor-new">🆕 NEW</span>` : ''}
         ${it.season ? `<span class="decor-limited">${it.season}限定</span>` : ''}
         ${art}
         <div class="decor-name">${_escHtml(it.name)}</div>
         <div class="decor-price">${it.free ? '初始赠送' : owned ? '已拥有' : `售价 ${it.price}`}</div>
+        ${(left != null && !owned) ? `<div class="decor-ends">⏳ 还有 ${left} 天下架</div>` : ''}
         ${btn}
       </div>`;
     }).join('');
@@ -4802,7 +4959,8 @@ const App = (() => {
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
-    openDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
+    openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
+    dismissSeasonCard, openDecorFromSeason,
     selectDecor, resizeDecor, removeSelectedDecor, refreshRoom,
     _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
     _forceRoomBanner: () => showRoomUpdateBanner(),
@@ -4829,6 +4987,10 @@ const App = (() => {
     _weatherKindTest: (c) => weatherKind(c),
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
+    _partnerWxTest: () => partnerWeather(),
+    _isNewDecorTest: (id) => isNewDecor(id),
+    _daysLeftTest: (id, d) => decorDaysLeft(DECOR[id], d),
+    _renderSeasonTest: () => renderSeasonCard(),
     _refreshWeatherTest: () => refreshWeather(),
     _coordsTest: () => guessCoords(),
     _moonSvgTest: (d) => moonSvg(d),

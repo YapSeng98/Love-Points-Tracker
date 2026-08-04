@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.04b">
+  <meta name="app-html-v" content="2026.08.04c">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2674,6 +2674,53 @@
     /* Drawn furniture needs more room than emoji did — line art at 30px in a
        160px card just reads as a speck. */
     .decor-art { font-size: 46px; line-height: 1; height: 50px; display: flex; align-items: center; }
+    /* ── partner's weather ── */
+    #partner-wx {
+      display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
+      padding: 10px 14px; border-radius: 14px;
+      background: var(--card); border: 1.5px solid rgba(0,0,0,0.06);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-size: 13.5px;
+    }
+    #partner-wx.hidden { display: none; }
+    .pwx-ico { font-size: 19px; line-height: 1; }
+    .pwx-txt { color: var(--dark); font-weight: 700; }
+    .pwx-same { margin-left: auto; font-size: 11.5px; color: var(--sub); font-weight: 700; }
+    html[data-theme="dark"] #partner-wx { background: #1E2A3D; border-color: rgba(255,255,255,0.10); }
+
+    /* ── "a new season is here" card ── */
+    #season-card {
+      margin: 0 0 12px; padding: 13px 15px; border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255,214,138,0.28), rgba(255,175,190,0.22));
+      border: 1.5px solid rgba(214,160,80,0.42);
+      box-shadow: 0 3px 12px rgba(190,140,60,0.14);
+      display: flex; align-items: center; gap: 11px; cursor: pointer;
+    }
+    #season-card.hidden { display: none; }
+    .sc-emoji { font-size: 27px; line-height: 1; flex-shrink: 0; }
+    .sc-body { flex: 1; min-width: 0; }
+    .sc-title { font-size: 14.5px; font-weight: 800; color: var(--dark); }
+    .sc-sub { font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+    .sc-close {
+      background: none; border: none; font-size: 17px; color: var(--sub);
+      cursor: pointer; padding: 4px 2px; line-height: 1; flex-shrink: 0;
+    }
+    html[data-theme="dark"] #season-card {
+      background: linear-gradient(135deg, rgba(255,200,110,0.16), rgba(255,150,175,0.13));
+      border-color: rgba(255,200,120,0.34);
+    }
+
+    /* 🆕 on furniture the couple hasn't seen yet, and a shelf-life countdown */
+    .decor-new {
+      position: absolute; top: -7px; left: -6px; z-index: 3;
+      background: #FF4D7E; color: #fff; font-size: 9.5px; font-weight: 800;
+      padding: 2.5px 7px; border-radius: 9px; letter-spacing: .03em;
+      box-shadow: 0 2px 6px rgba(255,77,126,0.45);
+    }
+    .decor-ends {
+      font-size: 10px; color: #C2703A; font-weight: 700; margin-top: 2px;
+    }
+    html[data-theme="dark"] .decor-ends { color: #F0B67F; }
+
     .decor-swatch { width: 58px; height: 40px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12);
                     box-shadow: inset 0 1px 3px rgba(0,0,0,0.10); }
     /* 穿戴 items have no emoji and no colour — a little head models them instead */
@@ -3358,6 +3405,8 @@
   <div id="pet-banner"></div>
 
   <!-- Shared goal (共同目标) — filled by App.renderSharedGoal() -->
+  <div id="season-card" class="hidden"></div>
+  <div id="partner-wx" class="hidden"></div>
   <div id="goal-card"></div>
 
   <!-- Letter banner (情书, private between the couple only) -->
@@ -3571,7 +3620,7 @@
     </div>
     <div class="decor-grid" id="decor-grid"></div>
     <div class="modal-actions">
-      <button class="btn-primary" onclick="App.closeModal('modal-decor')" style="flex:1">完成 ✅</button>
+      <button class="btn-primary" onclick="App.closeDecor()" style="flex:1">完成 ✅</button>
     </div>
   </div>
 </div>

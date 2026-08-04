@@ -279,6 +279,37 @@ Two bugs worth remembering, both invisible to green tests:
 
 ---
 
+## 7.16 👀 Telling the couple something changed
+
+Seasonal stock appears and vanishes on its own, so without a nudge a whole
+festival can pass unnoticed.
+
+- **Name a drop after the FURNITURE's season, not the current theme.** 中秋
+  stock opens 09-05 but the 中秋 theme only starts 09-21 — for two weeks the
+  card announced 「秋来啦」 over a tray of mooncakes.
+- **Seed the "seen" baseline on first run.** `decor_seen` starts as everything
+  currently in stock, otherwise an existing couple updates and meets 18 NEW
+  badges at once, which makes the badge meaningless. Only stock that appears
+  *later* is new.
+- **Mark seen on the way OUT of the shop** (`closeDecor`), never during
+  render — marking while rendering clears the badge in the frame it appears.
+- Limited pieces carry a 下架 countdown; "还有 16 天" counts the last day as
+  still available.
+- These markers are device-local and deliberately NOT synced: each partner
+  deserves their own heads-up.
+
+## 7.17 🌦 Sharing weather between partners
+
+`u_wx_1` / `u_wx_2` — **one slot per partner**, each phone writing only its
+own. A single shared blob would let two simultaneous writes lose each other.
+Payload is `{"k":kind,"h":localHour,"at":epochMs}`; entries older than 3h are
+ignored so a partner who hasn't opened the app shows nothing rather than
+stale sun. Weather is display-only and stays out of `_roomSig()`, so a change
+in the weather can never raise a false 「对方改了小窝」 banner — verified with
+two partners in different cities in `split_weather_test.js`.
+
+---
+
 ## 7.2 🗓 Seasonal content has no scheduled job — on purpose
 
 `currentTheme()` reads the device clock, so 中秋/圣诞/新年 arrive by themselves

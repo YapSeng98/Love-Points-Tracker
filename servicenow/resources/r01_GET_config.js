@@ -56,6 +56,12 @@
             petEquipped:     gr.getValue('u_pet_equipped') || '',
             petExp:          parseInt(gr.getValue('u_pet_exp'))  || 0,
             petBase:         parseInt(gr.getValue('u_pet_base')) || 0,
+            // 天气 — one slot per partner so each phone only ever writes its
+            // own and the two can never clobber each other. Compact JSON:
+            // {"k":kind,"h":localHour,"at":epochMs}. Stale entries are ignored
+            // client-side, so a partner who hasn't opened the app shows nothing.
+            wx1:             gr.getValue('u_wx_1') || '',
+            wx2:             gr.getValue('u_wx_2') || '',
         });
     } else {
         response.setBody({ configured: false, startDate: '', char1Name: char1Name, char2Name: char2Name, charImg1: charImg1, charImg2: charImg2 });

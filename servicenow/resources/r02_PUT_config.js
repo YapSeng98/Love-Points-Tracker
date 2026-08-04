@@ -30,6 +30,10 @@
     if (body.petName         !== undefined) gr.setValue('u_pet_name',         body.petName);
     if (body.petSpecies      !== undefined) gr.setValue('u_pet_species',      body.petSpecies);
     if (body.petEquipped     !== undefined) gr.setValue('u_pet_equipped',     body.petEquipped);
+    // 天气 — each partner writes ONLY their own slot. Two fields rather than
+    // one shared blob precisely so simultaneous writes can't lose each other.
+    if (body.wx1 !== undefined) gr.setValue('u_wx_1', String(body.wx1).substring(0, 190));
+    if (body.wx2 !== undefined) gr.setValue('u_wx_2', String(body.wx2).substring(0, 190));
     // Activity score snapshotted at adoption, so the pet starts at 0 EXP
     // instead of inheriting everything the couple did before it existed.
     // Written once by the adoption flow; a re-adopt legitimately resets it.
