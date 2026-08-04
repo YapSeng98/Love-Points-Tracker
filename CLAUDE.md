@@ -149,6 +149,33 @@ Whenever user content accumulates into a fixed-size field:
 
 ---
 
+## 4.6 🖼 Every icon needs a fallback — and a reserved column
+
+The 穿戴 shop tiles rendered as blank grey boxes: outfits carry neither an
+`art` emoji nor a colour swatch (they're SVG drawn onto the pet), so they fell
+through `decorArtHtml`'s final `#DDD` default. You could not tell 派对帽 from
+小红围巾 except by reading the name.
+
+Sweeping for the same shape found a second one: a reward or punishment saved
+without an icon rendered `.tier-icon` at **zero width**, knocking that row out
+of line with every other row.
+
+**Rules:**
+- Every `${…icon}` interpolation of *user-editable* data gets a `|| 'default'`.
+  Categories/entries `📌`, rewards/shop `🎁`, punishments `⚠️`, goal `🎯`.
+  Icons from a hardcoded internal table (achievements, species) don't need one.
+- Icon containers get a `min-width`, so an empty one still holds its column.
+- A preview must show the *real thing*: wallpaper renders its actual gradient,
+  floors composite their semi-transparent tone over an opaque base (painted
+  straight onto the card they washed out and looked identical), and outfits
+  draw the actual SVG on a little head.
+- `icon_sweep.js` walks 19 screens × both themes and fails on any icon element
+  that has no text, no background and no child `svg/img`. Extend the screen
+  list whenever a new screen is added — 奖惩表 was missing from the first
+  version, which is exactly why the tier bug survived it.
+
+---
+
 ## 5. ⚡ Performance: never refetch photos casually
 
 `GET /photos` returns full base64 images. Pulling them on every home refresh

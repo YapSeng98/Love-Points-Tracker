@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-19';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-20';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1551,7 +1551,7 @@ const App = (() => {
 
     try {
       await Data.addEntry(entry);
-      showToast(`${cat.icon} ${cat.name} ${cat.pts >= 0 ? '+' : ''}${cat.pts} 分！`);
+      showToast(`${cat.icon || '📌'} ${cat.name} ${cat.pts >= 0 ? '+' : ''}${cat.pts} 分！`);
       await refresh();
       checkThreshold();
     } catch (err) {
@@ -1567,7 +1567,7 @@ const App = (() => {
     document.getElementById('add-desc').value = '';
     const sel = document.getElementById('add-cat-select');
     sel.innerHTML = S.categories.filter(c=>c.active!==false).map(c =>
-      `<option value="${c.id}" data-pts="${c.pts}">${c.icon} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
+      `<option value="${c.id}" data-pts="${c.pts}">${c.icon || '📌'} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');
     sel.onchange = () => {
       const opt = sel.selectedOptions[0];
@@ -1600,7 +1600,7 @@ const App = (() => {
     const keepOpt = inList ? '' :
       `<option value="__original__" data-pts="${entry.pts || 0}" selected>${keepIcon}${keepName}（原分类）</option>`;
     sel.innerHTML = keepOpt + activeCats.map(c =>
-      `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${c.icon} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
+      `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${c.icon || '📌'} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');
     sel.onchange = () => {
       const opt = sel.selectedOptions[0];
@@ -1717,7 +1717,7 @@ const App = (() => {
     const charCard = (charId, score, info, outcome) => {
       const name   = charDisplayName(charId);
       const result = outcome
-        ? (S.mode === 'reward' ? `🎊 ${outcome.icon} ${outcome.name}` : `⚠️ ${outcome.icon} ${outcome.name}`)
+        ? (S.mode === 'reward' ? `🎊 ${outcome.icon || '🎁'} ${outcome.name}` : `⚠️ ${outcome.icon || '⚠️'} ${outcome.name}`)
         : '😐 无结果';
       return `<div class="settle-char-card ${charId}">
         <div class="sc-name">${name}</div>
@@ -1857,7 +1857,7 @@ const App = (() => {
           }
           return `
           <div class="tier-row ${outcome && outcome.id === r.id ? 'current-tier' : ''}">
-            <div class="tier-icon">${r.icon}</div>
+            <div class="tier-icon">${r.icon || '🎁'}</div>
             <div class="tier-info">
               <div class="tier-name">${r.name}</div>
               <div class="tier-desc">${r.desc}</div>
@@ -1873,7 +1873,7 @@ const App = (() => {
       content.innerHTML = `<div class="tier-table">${
         sorted.map(p => `
           <div class="tier-row ${outcome && outcome.id === p.id ? 'current-tier' : ''}">
-            <div class="tier-icon">${p.icon}</div>
+            <div class="tier-icon">${p.icon || '⚠️'}</div>
             <div class="tier-info">
               <div class="tier-name">${p.name}</div>
               <div class="tier-desc">${p.desc}</div>
@@ -1889,7 +1889,7 @@ const App = (() => {
     const r = S.rewards.find(x => x.id === rewardId);
     if (!r) return;
     const who = charDisplayName(S.activeChar);
-    if (!(await showConfirm(`以「${who}」的身份领取奖励「${r.icon} ${r.name}」？将放入 TA 的背包 🎒`))) return;
+    if (!(await showConfirm(`以「${who}」的身份领取奖励「${r.icon || '🎁'} ${r.name}」？将放入 TA 的背包 🎒`))) return;
     try {
       await ShopData.claimReward(rewardId);
       spawnConfetti();
@@ -2771,6 +2771,48 @@ const App = (() => {
 
   // Takes the EXP as an argument (defaulting to the live value) so stage
   // boundaries can be exercised directly instead of by seeding a whole couple.
+  // Outfit geometry is shared between the pet and the shop tile: the shop used
+  // to render outfits as a blank grey box (they have no `art` emoji and no
+  // colour swatch), so you could not tell 派对帽 from 小红围巾 except by name.
+  function outfitArtFor(draw, headTop, headY, headR) {
+    return {
+      partyHat: `<path d="M ${60-13} ${headTop+4} L 60 ${headTop-26} L ${60+13} ${headTop+4} Z"
+                       fill="#FF8FA0" stroke="#E0687E" stroke-width="1.5" stroke-linejoin="round"/>
+                 <circle cx="60" cy="${headTop-28}" r="4.5" fill="#FFD24A"/>`,
+      redScarf: `<path d="M ${60-16} ${headY+headR*0.74} q 16 11 32 0 l 4 9 q -20 12 -40 0 z" fill="#E8556B"/>
+                 <path d="M ${60+11} ${headY+headR*0.82+6} l 10 15 l -9 3 l -6 -14 z" fill="#E8556B"/>`,
+    }[draw] || '';
+  }
+
+  // What a shop tile shows. Every category must preview something real:
+  // an emoji for furniture, the actual gradient for wallpaper, an opaque
+  // sample for floors (their tones are semi-transparent and washed out when
+  // painted straight onto the card), and a little head modelling the outfit.
+  function decorArtHtml(it) {
+    if (it.art) return `<div class="decor-art">${it.art}</div>`;
+
+    if (it.draw) {                                   // 穿戴 — model it on a head
+      const headY = 46, headR = 22, headTop = headY - headR * 0.92;
+      return `<div class="decor-art"><svg class="decor-model" viewBox="0 8 120 92">
+        <ellipse cx="60" cy="${headY}" rx="${headR}" ry="${headR*0.92}"
+                 fill="#FFF3E4" stroke="#D9B48F" stroke-width="2"/>
+        <ellipse cx="${60-8}" cy="${headY+1}" rx="2.6" ry="2.9" fill="#2A2A2A"/>
+        <ellipse cx="${60+8}" cy="${headY+1}" rx="2.6" ry="2.9" fill="#2A2A2A"/>
+        <path d="M ${60-4} ${headY+9} q 4 3.5 8 0" stroke="#2A2A2A" stroke-width="1.6"
+              fill="none" stroke-linecap="round"/>
+        ${outfitArtFor(it.draw, headTop, headY, headR)}
+      </svg></div>`;
+    }
+
+    if (it.wall) return `<div class="decor-swatch"
+      style="background:linear-gradient(160deg, ${it.wall[0]}, ${it.wall[1]})"></div>`;
+
+    if (it.tone) return `<div class="decor-swatch"
+      style="background:linear-gradient(160deg, ${it.tone[0]}, ${it.tone[1]}), #E7D9C6"></div>`;
+
+    return `<div class="decor-swatch" style="background:#DDD"></div>`;
+  }
+
   function petStageInfo(expIn) {
     const exp = (expIn === undefined) ? petExp() : expIn;
     let idx = 0;
@@ -3268,13 +3310,7 @@ const App = (() => {
     // Player choice wins; the theme only dresses the pet if they haven't.
     const _th = currentTheme();
     const outfitId = (S.equipped && S.equipped.outfit) || (_th && _th.outfit) || '';
-    const outfitArt = {
-      partyHat: `<path d="M ${60-13} ${headTop+4} L 60 ${headTop-26} L ${60+13} ${headTop+4} Z"
-                       fill="#FF8FA0" stroke="#E0687E" stroke-width="1.5" stroke-linejoin="round"/>
-                 <circle cx="60" cy="${headTop-28}" r="4.5" fill="#FFD24A"/>`,
-      redScarf: `<path d="M ${60-16} ${headY+headR*0.74} q 16 11 32 0 l 4 9 q -20 12 -40 0 z" fill="#E8556B"/>
-                 <path d="M ${60+11} ${headY+headR*0.82+6} l 10 15 l -9 3 l -6 -14 z" fill="#E8556B"/>`,
-    }[DECOR[outfitId]?.draw] || '';
+    const outfitArt = outfitArtFor(DECOR[outfitId]?.draw, headTop, headY, headR);
 
     return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
       <ellipse cx="60" cy="139" rx="${bodyW*0.86}" ry="5.5" fill="rgba(0,0,0,0.14)"/>
@@ -3695,9 +3731,7 @@ const App = (() => {
       const owned  = decorOwns(id);
       const placed = decorPlaced(id, it.slot);
       const afford = coins >= it.price;
-      const art = it.art
-        ? `<div class="decor-art">${it.art}</div>`
-        : `<div class="decor-swatch" style="background:${it.wall ? it.wall[0] : (it.tone ? it.tone[1] : '#DDD')}"></div>`;
+      const art = decorArtHtml(it);
       let btn;
       if (!owned) {
         btn = `<button class="decor-btn" ${afford ? '' : 'disabled'} onclick="App.buyDecor('${id}')">
@@ -4533,6 +4567,7 @@ const App = (() => {
     _saveEqTest: () => saveEquipped(),
     _maintTest: () => MAINTENANCE,
     _bootTest: () => boot(),
+    _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
     _themeTest: (d) => currentTheme(d),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,

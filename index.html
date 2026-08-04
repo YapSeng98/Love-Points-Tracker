@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.07.19">
+  <meta name="app-html-v" content="2026.08.04">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp the theme before first paint (no flash). Mode: 'auto' | 'light' | 'dark'.
@@ -976,7 +976,8 @@
       transition: border-color 0.2s;
     }
     .tier-row.current-tier { border-color: var(--blue); background: var(--sky); }
-    .tier-icon { font-size: 28px; flex-shrink: 0; }
+    /* min-width keeps the row aligned even if an icon is ever empty */
+    .tier-icon { font-size: 28px; flex-shrink: 0; min-width: 34px; text-align: center; }
     .tier-info { flex: 1; }
     .tier-name { font-size: 15px; font-weight: 700; color: var(--dark); }
     .tier-desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
@@ -2551,7 +2552,10 @@
     }
     .decor-card.placed { border-color: #6BCB77; background: rgba(107,203,119,0.12); }
     .decor-art { font-size: 30px; line-height: 1; height: 34px; display: flex; align-items: center; }
-    .decor-swatch { width: 44px; height: 30px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12); }
+    .decor-swatch { width: 44px; height: 30px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.12);
+                    box-shadow: inset 0 1px 3px rgba(0,0,0,0.10); }
+    /* 穿戴 items have no emoji and no colour — a little head models them instead */
+    .decor-model { height: 34px; width: auto; display: block; overflow: visible; }
     .decor-name { font-size: 12.5px; font-weight: 700; color: var(--dark); }
     .decor-btn {
       width: 100%; margin-top: 2px; padding: 7px 0; border: none; border-radius: 10px;
@@ -2564,6 +2568,7 @@
     .decor-price { font-size: 11px; color: var(--sub); font-weight: 700; }
     .decor-empty { grid-column: 1/-1; text-align: center; color: var(--sub); font-size: 12.5px; padding: 18px 0; }
     html[data-theme="dark"] .decor-card { background: #1E2A3D; }
+    html[data-theme="dark"] .decor-swatch { border-color: rgba(255,255,255,0.22); }
     html[data-theme="dark"] .decor-card.placed { background: rgba(107,203,119,0.15); }
 
     /* Partner-changed-the-room prompt. Sits above the room, never auto-applies. */
