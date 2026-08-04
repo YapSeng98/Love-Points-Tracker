@@ -113,6 +113,39 @@ and it needs no ServiceNow migration. But watch these traps:
 4. **A "sad/empty" state must be reachable.** Pet mood had a baseline of 30
    but the sad threshold was 20 — the entire come-back-and-play mechanic was
    dead. Check that every state in a state machine can actually occur.
+5. **Rebase EVERY value derived from a number you rebase.** `u_pet_base` made
+   pet EXP start at 0, but 小窝币 was still computed from the *raw* lifetime
+   score — so the screen showed `EXP 0` and `🪙 691` side by side. When you
+   introduce a baseline, grep for every reader of the pre-baseline value.
+6. **Resetting one side of a ledger creates hidden debt.** Re-adopting reset
+   EXP (and therefore coins *earned*) to 0 while the *spent* total still
+   counted every piece of furniture ever bought. A room furnished for 300
+   coins silently owed 600 EXP before a single coin reappeared, with nothing
+   on screen explaining the wait. Reset both sides together, or forgive the
+   other side explicitly (`eq.sf`).
+
+---
+
+## 4.5 🗄 Fixed-size ServiceNow fields vs. unbounded user content
+
+`u_pet_equipped` is `String(1000)`. It was sized when the room had fixed slots
+and the design doc promised "<200 chars, safe". Then free placement added
+`x/y/scale` per piece and the catalog grew every season — the verbose encoding
+hit the ceiling at **21 items**, and ServiceNow **truncates silently**, which
+fed `parseEquipped` invalid JSON and reset the couple's entire room to the 3
+starter pieces. Total, silent data loss.
+
+Whenever user content accumulates into a fixed-size field:
+
+1. **Encode compactly.** `"id,x,y"` (scale omitted when it's 1) costs ~21
+   chars vs ~45 for `{"i":…,"x":…,"y":…,"s":…}` — capacity 21 → 36 items.
+2. **Guard before mutating.** `placeDecor` refuses the piece *before* it lands
+   in the room, so nothing appears that would vanish on the partner's refresh.
+   `saveEquipped` returns `false` rather than letting the field truncate.
+3. **Salvage on parse failure.** `salvageEquipped` regexes out every complete
+   record, so a truncated blob loses the tail — never the whole room.
+4. **Budget against catalog GROWTH, not today's size.** "It'll always be
+   small" is how this bug was born.
 
 ---
 
@@ -209,7 +242,7 @@ whoever was already signed in keeps using a half-updated build).
 
 | Suite | Covers |
 |---|---|
-| `servicenow/test-full-system-v2.sh` | 134 live checks against the real instance: scoring, settle, shop, bag, letters, photos, claims, isolation, auth, goal+pet config, couple parity |
+| `servicenow/test-full-system-v2.sh` | 148 live checks against the real instance: scoring, settle, shop, bag, letters, photos, claims, isolation, auth, goal+pet config, couple parity |
 | `servicenow/test-dates.sh` | Timezone regression (purchase/use/claim dates) |
 | Browser tests (scratchpad) | Pet invariants, settle UI, layout sweep, art sheet |
 
@@ -218,3 +251,24 @@ account — safe to re-run any time.
 
 **When a bug is found: add a test that reproduces it before fixing.** Sections
 24 (missed settle) and 26 (couple parity) exist because of real reported bugs.
+
+### 9.1 Writing tests that don't rot
+
+- **Assert semantics, not storage encoding.** Tests that read
+  `JSON.parse(petEquipped).items[1]` all broke when the blob was compacted —
+  they were checking the format, not the behaviour. Go through the app's own
+  parser (`App._parseEqTest`) so an encoding change is free.
+- **Never hard-code an operational toggle.** `maint_test` asserted the login
+  page was locked; the moment the system went live it "failed" while the app
+  was perfectly correct. Read the shipped flag (`App._maintTest().on`) and
+  assert the matching expectation, and force the flag on to exercise the
+  locked path even while live.
+- **Load the data source before reading derived state.** `S.decorOwned` is
+  only fetched in `showPetHome()`, so reading the wallet straight after boot
+  reports 0 spent — a false pass. Drive the real flow.
+- **Verify a failing assertion is the app's fault before "fixing" the app.**
+  Several red lines this round were wrong test setup (free starter items cost
+  0; a 34-item blob that never exceeded the cap).
+- **Build an oracle for number-heavy screens.** `number_oracle.js` hand-computes
+  every displayed figure from a seeded couple, which is what proved 年度回顾
+  and 共同目标 finally agree.

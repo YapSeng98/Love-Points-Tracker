@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.03-18';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.04-19';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2015,9 +2015,15 @@ const App = (() => {
     if (!(await showConfirm(`确定让「${petName()}」重新开始吗？\n等级、经验和小窝币都会清零，可以重新选一只从 0 养起。\n（已买的家具会保留）`))) return;
     try {
       await _loadStatsSources();
+      // Need the bag loaded to know what the outgoing pet actually spent —
+      // 重置 is reachable from 设置, which never opens the room.
+      try { S.decorOwned = await Data.getDecorOwned(); } catch { /* keep last known */ }
       const base = petExpDerived();
+      const eq = S.equipped || (S.equipped = defaultEquipped());
+      eq.sf = decorSpentTotal();
       S.petSpecies = ''; S.petName = ''; S.petBase = base; S.petExpStored = 0;
-      await Data.saveConfig({ petSpecies: '', petName: '', petBase: base, petExp: 0 });
+      await Data.saveConfig({ petSpecies: '', petName: '', petBase: base, petExp: 0,
+                              petEquipped: JSON.stringify(eq) });
       closeModal('modal-settings');
       renderPetBanner();
       showToast('🥚 可以重新领养啦');
@@ -2763,8 +2769,10 @@ const App = (() => {
     }
   }
 
-  function petStageInfo() {
-    const exp = petExp();
+  // Takes the EXP as an argument (defaulting to the live value) so stage
+  // boundaries can be exercised directly instead of by seeding a whole couple.
+  function petStageInfo(expIn) {
+    const exp = (expIn === undefined) ? petExp() : expIn;
     let idx = 0;
     for (let i = 0; i < PET_STAGES.length; i++) if (exp >= PET_STAGES[i].min) idx = i;
     const cur  = PET_STAGES[idx];
@@ -3003,8 +3011,20 @@ const App = (() => {
     // high-water mark, so this stays monotonic between adoptions.
     return Math.floor(petExp() / 2);
   }
-  function nestCoinsSpent() {
+  function decorSpentTotal() {
     return (S.decorOwned || []).reduce((s, r) => s + (parseInt(r.ptsSpent) || 0), 0);
+  }
+
+  // Furniture is permanent and belongs to the ROOM, not to the pet — but the
+  // coins that bought it were the pet's. Re-adopting resets EXP to 0, so
+  // without forgiving the past spend the couple would silently owe it: a room
+  // furnished for 300 coins meant re-earning 600 EXP before a single coin
+  // reappeared, with nothing on screen explaining the wait. resetPet() banks
+  // the running total into eq.sf so the new pet opens with an empty wallet
+  // instead of a hidden debt, and later purchases still deduct normally.
+  function nestCoinsSpent() {
+    const forgiven = (S.equipped && +S.equipped.sf) || 0;
+    return Math.max(0, decorSpentTotal() - forgiven);
   }
   function nestCoins() { return Math.max(0, nestCoinsEarned() - nestCoinsSpent()); }
 
@@ -3030,7 +3050,7 @@ const App = (() => {
        i = catalog id · x,y = % of the room (anchored bottom-centre)
        s = size multiplier applied on top of the catalog's ratio */
   function defaultEquipped() {
-    return { paper:'', mat:'', outfit:'', items:[
+    return { paper:'', mat:'', outfit:'', sf:0, items:[
       { i:'pic_couple', x:16, y:30, s:1 },
       { i:'plant_pot',  x:16, y:87, s:1 },
       { i:'sofa_blue',  x:84, y:87, s:1 },
@@ -3038,10 +3058,57 @@ const App = (() => {
   }
   const _r1 = (n) => Math.round(n * 10) / 10;
 
+  // u_pet_equipped is String(1000) in ServiceNow. The old verbose encoding
+  // cost ~45 chars per piece, so a room hit the ceiling at 21 items — and
+  // ServiceNow truncates silently, which fed parseEquipped invalid JSON and
+  // reset the whole room to the 3 starter pieces. With seasonal furniture
+  // added every season the catalog only grows, so the layout is stored
+  // compactly instead: "id,x,y" (plus ",scale" only when it isn't 1), which
+  // is ~21 chars a piece and leaves room for the catalog to keep growing.
+  const EQ_MAX = 1000;
+
+  function encodeEquipped(eq) {
+    const it = (eq.items || []).map(o => {
+      const sc = _r1(o.s);
+      const base = `${o.i},${_r1(o.x)},${_r1(o.y)}`;
+      return sc === 1 ? base : `${base},${sc}`;
+    });
+    const out = { p: eq.paper || '', m: eq.mat || '', o: eq.outfit || '', it };
+    if (+eq.sf > 0) out.sf = +eq.sf;
+    return JSON.stringify(out);
+  }
+
+  // Last line of defence: if a blob was truncated anyway (an older oversized
+  // row, a hand-edited field), rescue every COMPLETE record rather than
+  // throwing the couple's whole room away.
+  function salvageEquipped(raw) {
+    if (!raw || raw.length < 20) return null;
+    const items = [];
+    const re = /"([a-z0-9_]+),([\d.]+),([\d.]+)(?:,([\d.]+))?"/g;
+    let m;
+    while ((m = re.exec(raw))) items.push({ i:m[1], x:+m[2], y:+m[3], s:m[4] ? +m[4] : 1 });
+    if (!items.length) return null;
+    const g = (k) => (new RegExp(`"${k}":"([^"]*)"`).exec(raw) || ['', ''])[1];
+    return { paper: g('p') || g('paper'), mat: g('m') || g('mat'),
+             outfit: g('o') || g('outfit'),
+             sf: +((/"sf":(\d+)/.exec(raw) || ['', 0])[1]) || 0, items };
+  }
+
   function parseEquipped(raw) {
     try {
       const e = JSON.parse(raw || '{}');
       let items = [];
+      if (Array.isArray(e.it)) {                    // compact format
+        items = e.it.map(str => {
+          const [i, x, y, sc] = String(str).split(',');
+          return { i: i || '',
+                   x: Number.isFinite(+x)  ? +x  : 50,
+                   y: Number.isFinite(+y)  ? +y  : 80,
+                   s: Number.isFinite(+sc) ? +sc : 1 };
+        }).filter(o => o.i);
+        return { paper: e.p || '', mat: e.m || '', outfit: e.o || '',
+                 sf: (+e.sf > 0) ? +e.sf : 0, items };
+      }
       if (Array.isArray(e.items)) {
         items = e.items.map(o => ({
           i: o.i || o.id || '',
@@ -3061,19 +3128,29 @@ const App = (() => {
             y: (v && Number.isFinite(+v.y)) ? +v.y : h.y, s:1 });
         }));
       } else {
-        return defaultEquipped();
+        const def = defaultEquipped();
+        def.sf = (+e.sf > 0) ? +e.sf : 0;
+        return def;
       }
-      return { paper: e.paper || '', mat: e.mat || '', outfit: e.outfit || '', items };
-    } catch { return defaultEquipped(); }
+      // sf = 小窝币 already spent that has been forgiven (see nestCoinsSpent)
+      return { paper: e.paper || '', mat: e.mat || '', outfit: e.outfit || '',
+               sf: (+e.sf > 0) ? +e.sf : 0, items };
+    } catch { return salvageEquipped(raw) || defaultEquipped(); }
   }
 
   async function saveEquipped() {
     // Round before saving: the whole layout must fit in u_pet_equipped
     (S.equipped.items || []).forEach(o => { o.x = _r1(o.x); o.y = _r1(o.y); o.s = _r1(o.s); });
+    const blob = encodeEquipped(S.equipped);
+    if (blob.length > EQ_MAX) {          // never let the field truncate silently
+      showToast('小窝摆太满啦，先收起一件再摆 🧺');
+      return false;
+    }
     try {
-      await Data.saveConfig({ petEquipped: JSON.stringify(S.equipped) });
+      await Data.saveConfig({ petEquipped: blob });
       _markRoomSynced();          // our own change is not "someone else edited"
-    } catch (err) { showToast('保存失败: ' + err.message); }
+      return true;
+    } catch (err) { showToast('保存失败: ' + err.message); return false; }
   }
 
   /* ── Pet artwork ──
@@ -3664,9 +3741,16 @@ const App = (() => {
       if (!eq.items.some(o => o.i === id)) {
         // Stagger new pieces so they never land exactly on top of each other
         const n = eq.items.length;
-        eq.items.push(it.slot === 'wall'
+        const piece = it.slot === 'wall'
           ? { i:id, x: 18 + (n % 4) * 20, y: 22 + (n % 3) * 8,  s:1 }
-          : { i:id, x: 14 + (n % 5) * 18, y: 70 + (n % 3) * 8, s:1 });
+          : { i:id, x: 14 + (n % 5) * 18, y: 70 + (n % 3) * 8, s:1 };
+        // Refuse BEFORE the room changes: a piece that can't be saved would
+        // otherwise show up now and vanish on the partner's next refresh.
+        if (encodeEquipped({ ...eq, items: [...eq.items, piece] }).length > EQ_MAX) {
+          showToast('小窝摆太满啦，先收起一件再摆 🧺');
+          return;
+        }
+        eq.items.push(piece);
       }
     } else {
       eq[it.slot] = id;
@@ -4434,6 +4518,22 @@ const App = (() => {
     selectDecor, resizeDecor, removeSelectedDecor, refreshRoom,
     _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
     _forceRoomBanner: () => showRoomUpdateBanner(),
+    _coinTest: () => ({ exp: petExp(), earned: nestCoinsEarned(), spent: nestCoinsSpent(), balance: nestCoins() }),
+    _scoreTest: () => ({ c1: S.char1Score, c2: S.char2Score }),
+    _decorTest: () => DECOR,
+    _lifetimeTest: () => lifetimeCombinedPoints(),
+    _stageTest: (v) => { const st = petStageInfo(v); return { lv: st.stage.lv, name: st.stage.name, pct: st.pct, next: st.next ? st.next.name : null, toNext: st.toNext, scale: st.scale }; },
+    _roomSigTest: () => _roomSig(S.equipped, S.petName, S.petSpecies),
+    _setChar: (w) => { S.activeChar = w; },
+    _moodTest: () => petMood(),
+    _moodFaceTest: () => petMoodFace(petMood()).label,
+    _eqTest: () => S.equipped,
+    _parseEqTest: (raw) => parseEquipped(raw),
+    _encodeEqTest: (eq) => encodeEquipped(eq),
+    _saveEqTest: () => saveEquipped(),
+    _maintTest: () => MAINTENANCE,
+    _bootTest: () => boot(),
+    _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
     _themeTest: (d) => currentTheme(d),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
