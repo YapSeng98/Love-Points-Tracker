@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.04d">
+  <meta name="app-html-v" content="2026.08.04e">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2456,7 +2456,13 @@
 
     /* The room: a simple 2.5D box — back wall + floor with perspective */
     .pet-room {
-      position: relative; flex: 1; min-height: 0; margin: 0 14px;
+      position: relative; flex: 1; min-height: 0;
+      /* A diorama, not a wall. Left to fill a laptop the room became 1250px
+         wide around a 130px pet — 8% of the width — and the furniture read as
+         specks scattered along a thin strip. Cap it, centre it, and let
+         --pet-h grow with it so the ratio table in §7 keeps holding. */
+      width: calc(100% - 28px); max-width: 560px;
+      max-height: 620px; margin-inline: auto;
       border-radius: 22px 22px 18px 18px; overflow: hidden;
       background: linear-gradient(180deg, #EADDFB 0%, #E4D3F6 58%, #D9C4EE 58.2%, #CDB4E6 100%);
       box-shadow: inset 0 10px 30px rgba(120,80,180,0.14);
@@ -2545,6 +2551,16 @@
        about half. Everything on the floor sits on the same baseline and casts
        a shadow so it looks placed rather than floating. */
     .pet-room { --pet-h: 154px; }
+    /* Grow the pet WITH the room, or a wider room just means more empty floor. */
+    @media (min-width: 640px)  { .pet-room { --pet-h: 178px; } }
+    @media (min-width: 900px)  { .pet-room { --pet-h: 196px; } }
+    @media (min-width: 1200px) { .pet-room { --pet-h: 208px; } }
+    /* Keep the rest of the page on the same column as the room. */
+    .pet-topbar, .pet-panel { width: calc(100% - 28px); max-width: 560px; margin-inline: auto; }
+    /* A little more presence on a real laptop screen. */
+    @media (min-width: 900px) {
+      .pet-room, .pet-topbar, .pet-panel { max-width: 640px; }
+    }
     .pet-floor-item, .pet-wall-item {
       position: absolute; z-index: 1; line-height: 1;
       display: flex; align-items: flex-end; justify-content: center;
@@ -2593,7 +2609,11 @@
 
     .pet-stage {
       position: absolute; bottom: 14%; left: 50%; z-index: 3;
-      width: 132px; height: 154px;
+      /* The furniture has always been sized off --pet-h; the pet itself was
+         hardcoded, so on a wide screen the room and its contents grew while
+         the pet stayed 154px — the thing everything else is measured against.
+         132/154 keeps the original aspect. */
+      width: calc(var(--pet-h) * 0.857); height: var(--pet-h);
       transform: translateX(-50%) scale(var(--pet-scale, 1));
       transform-origin: bottom center;
       cursor: pointer;

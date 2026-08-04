@@ -327,6 +327,28 @@ conversation.
 
 ---
 
+## 7.25 🖥 Wide screens: cap the canvas, scale the contents
+
+`.pet-page` is `position:fixed; inset:0` and `.pet-room` was `flex:1`, so on a
+laptop the room stretched to ~1250px — while `--pet-h` stayed a hardcoded
+154px. The pet went from **36% of the room width on a phone to 8% on a wide
+screen**, and the furniture read as specks scattered along a thin strip.
+
+Two separate mistakes, both worth remembering:
+
+1. **A flexible container needs a max-width.** The room is a diorama, not a
+   wall: `width: calc(100% - 28px); max-width: 560px` (640px ≥900px),
+   `margin-inline: auto`, and the topbar/panel pinned to the same column.
+2. **`.pet-stage` was hardcoded `132×154px`** even though every piece of
+   furniture is sized off `--pet-h`. The thing everything else is measured
+   *against* wasn't participating in the scale, so widening the room could
+   never have helped. It is now `height: var(--pet-h)`.
+
+`responsive_test.js` asserts the room stays ≤660px, centred, with the pet at
+25–45% of its width at 390/820/1280.
+
+---
+
 ## 7.3 ♿ Contrast, tap targets and motion
 
 Audited from **rendered pixels**, not computed styles. Three earlier attempts
