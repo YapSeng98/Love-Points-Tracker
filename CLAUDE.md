@@ -637,6 +637,32 @@ account — safe to re-run any time.
 **When a bug is found: add a test that reproduces it before fixing.** Sections
 24 (missed settle) and 26 (couple parity) exist because of real reported bugs.
 
+### 9.0 `regression_reported.js` — every reported bug, in one file
+
+One file replays **every issue actually reported** plus the ones found while
+fixing them. If a line there goes red, that exact bug is back. Add to it
+whenever something is reported; it is the cheapest guard in the suite and it
+already caught a silent regression of the 年度回顾/共同目标 mismatch.
+
+**That regression is worth understanding.** Both figures were "fixed" to use a
+net basis, and both did — but they floored at different *granularity*:
+`lifetimeCombinedPoints` floors **per person** (`max(0,c1)+max(0,c2)`), while
+the recap summed a month into one lump and floored that once. Identical for a
+happy month; with char1 +200 and char2 −40 they read 200 and 160. The first fix
+only ever got tested with both partners positive. When two figures must agree,
+test them with **one side negative, both negative, and with settled history** —
+not just the happy path.
+
+### 9.05 A YAML block scalar swallows anything at column 1
+
+`season-check.yml` silently stopped running for two commits: a `gh issue create
+--body "$(cat <<BODY …)"` heredoc put its content at column 1, which closes the
+`run: |` block and makes the rest parse as new top-level keys. GitHub reports
+this as a run that *failed with zero jobs*, and shows the workflow's **filename
+instead of its `name:`** — that pair is the tell. Never build multi-line text
+inside a workflow; emit it from a script (`season-plan.js --issue`) and pass
+`--body-file`. Validate with `yaml.safe_load` before pushing.
+
 ### 9.1 Writing tests that don't rot
 
 - **Assert semantics, not storage encoding.** Tests that read

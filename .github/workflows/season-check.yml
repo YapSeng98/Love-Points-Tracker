@@ -68,31 +68,12 @@ jobs:
           WANT:   ${{ steps.plan.outputs.want }}
           DAYS:   ${{ steps.plan.outputs.days }}
         run: |
-          # One open issue per season — don't nag twice for the same festival.
-          if gh issue list --state open --label seasonal --json title \
-               --jq '.[].title' | grep -qF "$SEASON"; then
-            echo "already raised for $SEASON"; exit 0
+          gh label create seasonal --color C2417A --description "季节限定内容" || true
+          # One open issue per season — never nag twice for the same festival.
+          if gh issue list --state open --label seasonal --json title --jq '.[].title' | grep -qF "$SEASON"; then
+            echo "already raised for $SEASON"
+            exit 0
           fi
-          gh label create seasonal --color C2417A --description "季节限定内容" 2>/dev/null || true
-          gh issue create \
-            --title "🎨 $SEASON 还有 $DAYS 天上架，还差 $WANT 件家具" \
-            --label seasonal \
-            --body "$(cat <<BODY
-$SEASON 的商店窗口 $DAYS 天后就开了，现在只有 $(node -p "(require('./season-plan.json').due[0]||{}).have||0") 件限定家具 —
-到时候房间会显得空。
-
-$(cat plan.txt)
-
----
-
-**要做的事：** 跟 Claude 说一句就行，例如
-
-> 帮我设计 $SEASON 的限定家具，$WANT 件，跟现有画风一致
-
-它会画好、渲染图鉴给你看、跑完测试再提交。看图觉得不好看就让它重画
-（21 件里有 3 件当初就是这样重画的 —— 测试全绿，只有看图能看出来）。
-
-_这个 issue 由 [季节检查](../actions/workflows/season-check.yml) 自动开的，
-每月 1 号和 15 号跑一次。_
-BODY
-)"
+          node tools/season-plan.js --issue > issue-body.md
+          gh issue create --title "🎨 $SEASON 还有 $DAYS 天上架，还差 $WANT 件家具" \
+                          --label seasonal --body-file issue-body.md

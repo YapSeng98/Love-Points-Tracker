@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-33';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-34';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2968,12 +2968,24 @@ const App = (() => {
       monthTotals[r.month] = Math.max(0, parseInt(r.char1Pts) || 0)
                            + Math.max(0, parseInt(r.char2Pts) || 0);
     });
+    // Floor PER PERSON, exactly like lifetimeCombinedPoints and the archived
+    // history rows above. Summing the month into one lump and flooring that
+    // once looks equivalent but is not: with char1 +200 and char2 -40, a lump
+    // gives 160 while the goal card gives 200, and the two figures drift apart
+    // again the moment one partner goes negative — which is the whole bug this
+    // was supposed to have fixed.
+    const perChar = {};
     entries.forEach(e => {
       const m = monthOf(e);
       if (settledMonths.has(m)) return;             // already counted above
-      monthTotals[m] = (monthTotals[m] || 0) + (parseInt(e.pts) || 0);
+      const who = e.charId === 'char2' ? 'char2' : 'char1';
+      ((perChar[m] ||= {}))[who] = (perChar[m][who] || 0) + (parseInt(e.pts) || 0);
     });
-    Object.keys(monthTotals).forEach(m => {         // a month never goes negative
+    Object.entries(perChar).forEach(([m, byWho]) => {
+      monthTotals[m] = (monthTotals[m] || 0)
+        + Math.max(0, byWho.char1 || 0) + Math.max(0, byWho.char2 || 0);
+    });
+    Object.keys(monthTotals).forEach(m => {         // belt and braces
       if (monthTotals[m] < 0) monthTotals[m] = 0;
     });
 

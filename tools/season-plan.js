@@ -66,6 +66,32 @@ const out = {
   all: plan,
 };
 
+if (process.argv.includes('--issue')) {
+  // Emitted to a file and passed to `gh issue create --body-file`. Building
+  // this in YAML with a heredoc put the body at column 1, which breaks out of
+  // the block scalar and makes the whole workflow unparseable.
+  const j = out.due[0];
+  if (!j) { console.log('都够用。'); process.exit(0); }
+  console.log(
+`**${j.season}** 的商店窗口 ${j.opensIn} 天后就开（${j.window}），现在只有 ${j.have} 件限定家具 —
+到时候房间会显得空。
+
+\`\`\`
+${plan.map(x => `${x.season.padEnd(4)} ${String(x.have).padStart(2)} 件  ${String(x.opensIn).padStart(4)} 天后上架  ${x.window}`).join('\n')}
+\`\`\`
+
+---
+
+**要做的事：** 跟 Claude 说一句就行，例如
+
+> 帮我设计 ${j.season} 的限定家具，${j.want} 件，跟现有画风一致
+
+它会画好、渲染图鉴给你看、跑完测试再提交。看图觉得不好看就让它重画。
+
+_由 [季节检查](../../actions/workflows/season-check.yml) 自动开的，每月 1 号和 15 号跑一次。_`);
+  process.exit(0);
+}
+
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(out, null, 2));
 } else {
