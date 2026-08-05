@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-38';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-41';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -640,9 +640,34 @@ const App = (() => {
     return str;
   }
 
+  /* A phone hopping between wifi and 4G, or a moment of weak signal, drops one
+     request — and with no retry that surfaced as 「无法连接服务器（CORS 或网络
+     问题）」, which is alarming, unhelpful, and almost never actually CORS.
+     A network-level throw means the request did not reach the server, so
+     retrying is safe even for POST. HTTP errors (401/404/500) are NOT retried:
+     the server answered, and asking again will not change its mind.          */
+  const NET_RETRIES = 2;
+  const _isNetworkError = (e) =>
+    e instanceof TypeError ||                       // fetch's network failure
+    /Failed to fetch|NetworkError|Load failed|network/i.test(e.message || '');
+
+  async function _fetchWithRetry(url, init) {
+    let last;
+    for (let i = 0; i <= NET_RETRIES; i++) {
+      try {
+        return await fetch(url, init);
+      } catch (e) {
+        last = e;
+        if (!_isNetworkError(e) || i === NET_RETRIES) break;
+        await new Promise(r => setTimeout(r, 400 * (i + 1)));   // 400ms, 800ms
+      }
+    }
+    throw last;
+  }
+
   async function snFetch(path, opts = {}) {
     const url = `https://${S.snInstance}${SN_API_PATH}${path}`;
-    const res = await fetch(url, {
+    const res = await _fetchWithRetry(url, {
       headers: { 'Authorization': 'Bearer ' + S.apiKey, 'Content-Type': 'application/json', 'Accept': 'application/json' },
       ...opts,
     });
@@ -652,7 +677,7 @@ const App = (() => {
 
   async function snPublicFetch(path, opts = {}) {
     const url = `https://${S.snInstance}${SN_API_PATH}${path}`;
-    const res = await fetch(url, {
+    const res = await _fetchWithRetry(url, {
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       ...opts,
     });
@@ -1761,11 +1786,7 @@ const App = (() => {
     } catch (err) {
       S.usingSN = false;
       S.apiKey  = '';
-      const msg = err.message.includes('401') ? '账号或密码错误'
-                : err.message.includes('404') ? '账号不存在，请先注册'
-                : err.message.includes('Failed to fetch') ? '无法连接服务器（CORS 或网络问题）'
-                : `登录失败：${err.message.slice(0, 80)}`;
-      _loginErr(msg);
+      _loginErr(_loginErrText(err));
       if (btn) { btn.disabled = false; btn.textContent = '登录'; }
     }
   }
@@ -1862,6 +1883,19 @@ const App = (() => {
     document.getElementById('reg-step-1').classList.add('hidden');
     document.getElementById('reg-step-2').classList.remove('hidden');
     document.getElementById('display-pair-code').textContent = pairCode || '------';
+  }
+
+  // Split out so the wording can be tested without a round trip.
+  function _loginErrText(err) {
+    const m = err && err.message || '';
+    if (m.includes('401')) return '账号或密码错误';
+    if (m.includes('404')) return '账号不存在，请先注册';
+    if (_isNetworkError(err)) {
+      return navigator.onLine === false
+        ? '手机好像没有网络，连上 wifi 或数据再试一次 📶'
+        : '连不上服务器，可能是信号不稳。已自动重试过，请再点一次登录 🔄';
+    }
+    return `登录失败：${m.slice(0, 80)}`;
   }
 
   function _loginErr(msg) {
@@ -2539,6 +2573,9 @@ const App = (() => {
 
   function closeLetters() {
     document.getElementById('letter-page')?.classList.remove('open');
+    // Belt and braces: anything that changed in there (opened, deleted, sent)
+    // has to be reflected on the card you land back on.
+    renderLetterBanner();
   }
 
   async function loadLetters() {
@@ -2602,6 +2639,7 @@ const App = (() => {
     if (!text) return;
     try {
       await Data.addLetter({ charId: S.activeChar, text, date: new Date().toISOString(), opened: false });
+      renderLetterBanner();
       closeModal('modal-letter-compose');
       showToast('💌 信已封好送出');
       await loadLetters();
@@ -2642,6 +2680,7 @@ const App = (() => {
           requestAnimationFrame(() => paper.classList.add('show'));
           letter.opened = true;
           renderLetters();
+          renderLetterBanner();   // the home card counts unread — keep it honest
           try { await Data.markLetterOpened(id); } catch (e) { /* best-effort */ }
         }, 650);
       }, 300);
@@ -2663,6 +2702,7 @@ const App = (() => {
       await Data.deleteLetter(id);
       if (S.letterReaderId === id) closeLetterReader();
       await loadLetters();
+      renderLetterBanner();
       showToast('🗑️ 已删除');
     } catch (err) {
       showToast('删除失败: ' + err.message);
@@ -4035,13 +4075,34 @@ const App = (() => {
     if (!layer) return;
     const eq = S.equipped || (S.equipped = defaultEquipped());
 
-    layer.innerHTML = (eq.items || []).map((o, i) => {
+    /* Depth comes from POSITION, the way it does in a real room: the further
+       down the screen a piece sits, the nearer it is, so it paints in front.
+       A table pushed up against the back wall therefore falls behind a fish
+       tank standing higher up, with nobody touching a layer control.
+
+       Two supporting rules:
+         · wall pieces are always behind every floor piece — furniture cannot
+           be behind the wall it stands against;
+         · ties fall back to the order in eq.items, so ⬆️⬇️ still settles two
+           pieces at the same height.
+       Costs nothing to store: y is already in the blob, and the array order
+       is already the array order. z-index carries the result so the DOM order
+       never shuffles under the drag handlers (they key off data-i).        */
+    const order = (eq.items || [])
+      .map((o, i) => ({ o, i, wall: DECOR[o.i]?.slot === 'wall' }))
+      .sort((a, b) =>
+        (a.wall !== b.wall) ? (a.wall ? -1 : 1)      // walls to the back
+        : ((+a.o.y || 0) - (+b.o.y || 0))            // higher up = further away
+        || (a.i - b.i))                              // tie → placement order
+      .map((x, seq) => ({ ...x, z: seq + 1 }));
+
+    layer.innerHTML = order.map(({ o, i, z }) => {
       const it = DECOR[o.i];
       if (!it || (!it.svg && !it.art)) return '';
       const shadow = it.slot === 'wall' ? 'pet-wall-item' : 'pet-floor-item';
       const sel = (S.decorSel === i) ? ' selected' : '';
       return `<div class="decor-piece ${shadow}${sel}" data-i="${i}"
-                   style="left:${o.x}%;top:${o.y}%;font-size:calc(var(--pet-h) * ${it.ratio * (o.s || 1)})"
+                   style="left:${o.x}%;top:${o.y}%;z-index:${z};font-size:calc(var(--pet-h) * ${it.ratio * (o.s || 1)})"
                    title="${_escHtml(it.name)}">${it.svg || it.art}</div>`;
     }).join('');
     layer.querySelectorAll('.decor-piece').forEach(attachDecorDrag);
@@ -4183,6 +4244,8 @@ const App = (() => {
       <button class="dh-btn" onclick="App.resizeDecor(-1)" ${o.s <= DECOR_MIN_SCALE ? 'disabled' : ''}>➖</button>
       <span class="dh-size">${Math.round((o.s || 1) * 100)}%</span>
       <button class="dh-btn" onclick="App.resizeDecor(1)" ${o.s >= DECOR_MAX_SCALE ? 'disabled' : ''}>➕</button>
+      <button class="dh-btn" onclick="App.layerDecor(-1)" title="往后放">⬇️</button>
+      <button class="dh-btn" onclick="App.layerDecor(1)" title="往前放">⬆️</button>
       <button class="dh-btn del" onclick="App.removeSelectedDecor()">🗑</button>
       <button class="dh-btn" onclick="App.selectDecor(null)">✕</button>`;
   }
@@ -4190,6 +4253,29 @@ const App = (() => {
   function selectDecor(i) {
     S.decorSel = (i === null || S.decorSel === i) ? null : i;
     renderRoomItems();
+  }
+
+  /* Nudge the selected piece past its nearest neighbour in depth. Because
+     depth is derived from y, "forward" means taking a y just past the piece
+     currently in front — a visible move of a pixel or two rather than a hidden
+     layer number. One source of truth, and nothing extra to store.          */
+  async function layerDecor(dir) {
+    const items = S.equipped?.items || [];
+    const me = items[S.decorSel];
+    if (!me) return;
+    const mine = DECOR[me.i]?.slot === 'wall';
+    const peers = items
+      .filter((o, i) => i !== S.decorSel && (DECOR[o.i]?.slot === 'wall') === mine)
+      .map(o => +o.y || 0)
+      .sort((a, b) => a - b);
+    const y = +me.y || 0;
+    const next = dir > 0 ? peers.find(p => p > y)
+                         : [...peers].reverse().find(p => p < y);
+    if (next === undefined) return;                     // already front/back
+    me.y = Math.max(0, Math.min(100, _r1(next + (dir > 0 ? 0.6 : -0.6))));
+    markLively();
+    renderRoomItems();
+    await saveEquipped();
   }
 
   async function resizeDecor(dir) {
@@ -5301,7 +5387,7 @@ const App = (() => {
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
-    openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor,
+    openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,
     selectDecor, resizeDecor, removeSelectedDecor, refreshRoom,
     _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
@@ -5312,6 +5398,9 @@ const App = (() => {
     _lifetimeTest: () => lifetimeCombinedPoints(),
     _stageTest: (v) => { const st = petStageInfo(v); return { lv: st.stage.lv, name: st.stage.name, pct: st.pct, next: st.next ? st.next.name : null, toNext: st.toNext, scale: st.scale }; },
     _roomSigTest: () => _roomSig(S.equipped, S.petName, S.petSpecies),
+    _renderRoomTest: () => renderRoomItems(),
+    _stackTest: () => [...document.querySelectorAll('#pet-decor-layer .decor-piece')]
+      .map(e => ({ name: e.title, z: +getComputedStyle(e).zIndex })),
     _setChar: (w) => { S.activeChar = w; },
     _moodTest: () => petMood(),
     _moodFaceTest: () => petMoodFace(petMood()).label,
@@ -5342,6 +5431,10 @@ const App = (() => {
     _busyEditTest: () => _roomBusyEditing(),
     _nextMilestoneTest: (d) => nextMilestone(d),
     _daysTogetherTest: (s, ref) => daysTogether(s, ref ? new Date(ref) : undefined),
+    _isNetErrTest: (m) => _isNetworkError(new TypeError(m)),
+    _retriesTest: () => NET_RETRIES,
+    _snFetchTest: (p) => snFetch(p),
+    _loginErrTest: (e) => _loginErr(_loginErrText(e)),
     _inSeasonTest: (id, d) => decorInSeason(DECOR[id], d),
     _seasonLabelTest: (id) => decorSeasonLabel(DECOR[id]),
     _renderLetterBannerTest: () => renderLetterBanner(),

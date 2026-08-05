@@ -514,6 +514,35 @@ between ticks.
 
 ---
 
+## 7.245 🪑 Depth comes from POSITION, not a layer number
+
+A table placed after a fish tank painted in front of it, because render order
+was array order. The fix is not a hidden z-field: **the lower down the room a
+piece sits, the nearer it is**, exactly like a real room. Sort by `y`, put wall
+pieces behind every floor piece, break ties on placement order, and write the
+result into `z-index` so the DOM order never shuffles under the drag handlers
+(they key off `data-i`).
+
+Costs **nothing** to store — `y` is already in the blob. The ⬆️⬇️ buttons nudge
+`y` just past the neighbouring piece rather than editing a separate layer
+number, so there is one source of truth and the move is visible.
+
+> Note `fishtank` is a **floor** piece despite usually being placed high; the
+> wall/floor rule alone would not have fixed the reported case. Depth-by-y did.
+
+## 7.246 🔔 A cached count has to be told when it changes
+
+Opening a letter set `opened` on the in-memory object, re-rendered the letter
+*list*, and saved to ServiceNow — but never re-rendered the **home card**, so
+「1 封未拆」 stayed after reading it. `S.letters` is cached deliberately (§5),
+which means nothing refetches to correct it.
+
+Any derived badge over cached data must be re-rendered by every action that
+changes the underlying value: `renderLetterBanner()` now runs on open, on send,
+on delete, and on leaving the letters page.
+
+---
+
 ## 7.25 🖥 Wide screens: cap the canvas, scale the contents
 
 `.pet-page` is `position:fixed; inset:0` and `.pet-room` was `flex:1`, so on a
