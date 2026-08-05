@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-32';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-33';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -150,6 +150,59 @@ const App = (() => {
   };
   const DEFAULT_COORDS = TZ_COORDS['Asia/Singapore'];
 
+  /* Where the weather comes from is the user's call:
+       city    – from the device timezone. No permission prompt, but a city
+                 coordinate cannot tell whether it is raining at YOUR window.
+                 Singapore showers are hyper-local: pouring in one district and
+                 dry two streets away, which reads as "why is it raining in the
+                 app when it is not raining here".
+       precise – real coordinates, asks once. Accurate to your actual block.
+       off     – no weather layer at all.                                    */
+  const WX_MODE_KEY = 'weather_mode';
+  const wxMode = () => localStorage.getItem(WX_MODE_KEY) || 'city';
+  let _preciseCoords = null;
+
+  async function preciseCoords() {
+    if (_preciseCoords) return _preciseCoords;
+    try {
+      const c = JSON.parse(localStorage.getItem('wx_coords') || 'null');
+      if (c && Date.now() - c.at < 7 * 86400000) return (_preciseCoords = [c.lat, c.lon]);
+    } catch {}
+    if (!navigator.geolocation) return null;
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = +pos.coords.latitude.toFixed(2), lon = +pos.coords.longitude.toFixed(2);
+          // Two decimals ≈ 1km. Enough for weather, and deliberately not a
+          // precise home address sitting in localStorage.
+          try { localStorage.setItem('wx_coords', JSON.stringify({ lat, lon, at: Date.now() })); } catch {}
+          resolve(_preciseCoords = [lat, lon]);
+        },
+        () => resolve(null),                       // refused or unavailable
+        { timeout: 8000, maximumAge: 6 * 3600000 });
+    });
+  }
+
+  async function setWeatherMode(mode) {
+    localStorage.setItem(WX_MODE_KEY, mode);
+    localStorage.removeItem(WEATHER_KEY);          // don't show a stale reading
+    if (mode === 'off') {
+      applyWeather('');
+      showToast('☁️ 已关闭天气');
+      return;
+    }
+    if (mode === 'precise') {
+      showToast('📍 正在取位置…');
+      const c = await preciseCoords();
+      if (!c) {
+        localStorage.setItem(WX_MODE_KEY, 'city');
+        showToast('拿不到位置，先用城市天气');
+      }
+    }
+    const kind = await refreshWeather();
+    showToast(kind ? `${WX_ICON[kind] || '🌤'} ${WX_LABEL[kind] || ''}` : '天气暂时取不到');
+  }
+
   function guessCoords() {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -240,9 +293,11 @@ const App = (() => {
 
   async function refreshWeather() {
     try {
+      if (wxMode() === 'off') { applyWeather(''); return ''; }
       const c = JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
       if (c && Date.now() - c.at < WEATHER_TTL) { applyWeather(c.kind); publishWeather(c.kind); return c.kind; }
-      const [lat, lon] = guessCoords();
+      if (wxMode() === 'off') { applyWeather(''); return ''; }
+      const [lat, lon] = (wxMode() === 'precise' && await preciseCoords()) || guessCoords();
       const res = await fetch(`https://api.open-meteo.com/v1/forecast` +
         `?latitude=${lat}&longitude=${lon}&current=weather_code`, { cache: 'no-store' });
       if (!res.ok) throw new Error('weather ' + res.status);
@@ -316,7 +371,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.08.05a';
+  const HTML_V = '2026.08.05b';
 
   (function ensureFreshHtml() {
     try {
@@ -2307,6 +2362,8 @@ const App = (() => {
   function showSettings() {
     const themeSel = document.getElementById('cfg-theme');
     if (themeSel) themeSel.value = themeMode();
+    const wxSel = document.getElementById('cfg-weather');
+    if (wxSel) wxSel.value = wxMode();
     const demoBtn = document.getElementById('cfg-clear-demo');
     if (demoBtn) demoBtn.style.display = S.usingSN ? 'none' : 'flex';
     document.getElementById('cfg-reward-target').value    = S.rewardTarget;
@@ -5213,6 +5270,9 @@ const App = (() => {
     _renderLetterBannerTest: () => renderLetterBanner(),
     _refreshWeatherTest: () => refreshWeather(),
     _coordsTest: () => guessCoords(),
+    _wxModeTest: () => wxMode(),
+    _htmlVTest: () => HTML_V,
+    setWeatherMode,
     _moonSvgTest: (d) => moonSvg(d),
     _applyThemeTest: () => applyTheme(),   // seasons take a date so they're testable
     showAchievements, showYearReview, closeYearReview, playYearMemories,

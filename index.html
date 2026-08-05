@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.05a">
+  <meta name="app-html-v" content="2026.08.05b">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -4197,6 +4197,15 @@
         <option value="auto">跟随系统</option>
         <option value="light">一直浅色</option>
         <option value="dark">一直深色</option>
+      </select>
+    </div>
+
+    <div class="modal-field">
+      <label>🌦 天气</label>
+      <select id="cfg-weather" onchange="App.setWeatherMode(this.value)">
+        <option value="city">跟着城市（不用定位）</option>
+        <option value="precise">用精确位置（更准）</option>
+        <option value="off">关掉天气</option>
       </select>
     </div>
 

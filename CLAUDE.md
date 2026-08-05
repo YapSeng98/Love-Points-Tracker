@@ -411,6 +411,33 @@ rather than only against the ambient seasons.
 
 ---
 
+## 7.22 🌧 Weather accuracy is a user choice, not a default
+
+"It says raining but it isn't here" was **not** a bug — Open-Meteo genuinely
+reported code 81 (阵雨) for Singapore. The problem is that a *city* coordinate
+cannot answer "is it raining at my window": Singapore showers are hyper-local,
+pouring in one district and dry two streets away.
+
+There is no correct default, so 设置 › 天气 offers all three:
+`跟着城市` (no prompt, city-level), `用精确位置` (asks once, accurate to the
+block), `关掉天气`. Precise coordinates are rounded to **2 decimals ≈ 1km** and
+cached 7 days — enough for weather, deliberately not a home address sitting in
+localStorage. Refusing the prompt silently falls back to city; `off` doesn't
+even call the service.
+
+**Two test-harness traps worth remembering**, both of which made a working
+feature look broken:
+- A mocked cross-origin response **needs `access-control-allow-origin`**, or
+  the browser rejects it before the app sees it.
+- `navigator.geolocation` is read-only; plain assignment is silently ignored.
+  Use `Object.defineProperty`.
+
+And when verifying couple-scoped data by hand: partners are linked by
+**`pairCode`**, not by passing `matchId`. Getting that wrong creates two
+separate couples and makes perfectly good sync look broken.
+
+---
+
 ## 7.24 🔄 Live sync: adaptive, never a fixed fast poll
 
 Measured against the real instance: a `/config` poll is **322 bytes but takes
