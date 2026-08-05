@@ -126,6 +126,42 @@ and it needs no ServiceNow migration. But watch these traps:
 
 ---
 
+## 4.4 🎁 Year-locked keepsakes — how the room stays new without a job
+
+Each big festival gets one piece tagged `year: 2026` on top of the pieces that
+return annually. It is on sale **only in that year**; miss it and it is gone,
+buy it and you keep it forever. That is what makes the room a memory box
+rather than the same five things every December.
+
+Crucially this is how "new stuff every year" happens **with no scheduled job
+and no API**: future years are *drawn ahead of time* and sit dormant in the
+catalog until their own year. 2026/2027/2028 are stocked. The art is reviewed
+once, now, instead of trusting an unattended generator later — which matters,
+because 3 of the first 21 drawings had to be redrawn and every test passed on
+all three.
+
+`season-check.js` therefore watches the **keepsake runway** the same way it
+watches `LUNAR`: fewer than 2 years pre-drawn *fails* the monthly job.
+
+---
+
+## 4.6 🔑 The saved room stores CODES, not ids
+
+`u_pet_equipped` holds a two-letter `k` per piece, never the id. Ids are
+readable (`mooncake_box_27`) but average 11 characters, and at 32 pieces they
+alone cost **349 of the 1000** the field allows — a fully furnished room hit
+**939/1000, 6% spare**, which two more years of keepsakes would have pushed
+into silent truncation. Codes took the same room to **651/1000**.
+
+- `k` is **explicit in the catalog and must never be reassigned** — it is the
+  only link between a saved room and its furniture.
+- `parseEquipped` accepts a code *or* a bare id, so rooms saved before codes
+  existed keep loading; they convert on the next save.
+- An unknown code is preserved verbatim, never guessed at.
+- Ids stay untouched because the ServiceNow bag rows reference them.
+
+---
+
 ## 4.5 🗄 Fixed-size ServiceNow fields vs. unbounded user content
 
 `u_pet_equipped` is `String(1000)`. It was sized when the room had fixed slots

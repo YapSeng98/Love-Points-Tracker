@@ -43,6 +43,26 @@ else {
   }
 }
 
+// ── 1b. year-locked keepsakes: how many years are pre-drawn? ──
+// Each year gets its own one-off piece so the room becomes a memory box
+// ("this lantern is from our first 中秋"). They are drawn AHEAD of time and
+// sit dormant until their year, which is what makes the yearly refresh
+// automatic with no job and no API. That runway has to be topped up before it
+// runs out, exactly like LUNAR.
+const KEEPSAKE_RUNWAY = 2;          // years of headroom we insist on
+const years = {};
+for (const m of src.matchAll(/year:(\d{4})/g)) years[m[1]] = (years[m[1]] || 0) + 1;
+const yearList = Object.keys(years).map(Number).sort();
+const lastYear = yearList.length ? Math.max(...yearList) : 0;
+const runway = lastYear - YEAR;
+if (!yearList.length) {
+  thin.push('no year-locked keepsakes at all');
+} else {
+  const detail = yearList.map(y => `${y}:${years[y]}`).join(' ');
+  (runway < KEEPSAKE_RUNWAY ? broken : notes).push(
+    `keepsakes pre-drawn through ${lastYear} (${runway} year${runway === 1 ? '' : 's'} of runway) — ${detail}`);
+}
+
 // ── 2. every festival has enough furniture ──
 const counts = {};
 for (const m of src.matchAll(/season:'([^']+)'/g)) counts[m[1]] = (counts[m[1]] || 0) + 1;
@@ -71,7 +91,7 @@ if (thin.length) {
   console.log(`\n${thin.length} season(s) could use more furniture — ask Claude to design some.`);
 }
 if (broken.length) {
-  console.error(`\n${broken.length} thing(s) WILL BREAK — the lunar table needs extending.`);
+  console.error(`\n${broken.length} thing(s) WILL BREAK — extend the lunar table and/or pre-draw more keepsake years.`);
   process.exit(1);
 }
 console.log('\nNothing is going to break.');
