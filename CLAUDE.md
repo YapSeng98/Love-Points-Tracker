@@ -310,6 +310,34 @@ two partners in different cities in `split_weather_test.js`.
 
 ---
 
+## 7.21 🤖 What can and cannot be automated about seasonal content
+
+Three separable problems. Only two of them a schedule can solve.
+
+| | automatable? |
+|---|---|
+| Knowing a festival is coming | **yes** — `tools/season-plan.js`, free |
+| Shipping it without a deploy | yes, if the catalog moves to JSON (not done) |
+| **Producing art that looks good** | **no** |
+
+The third is the one that matters. Of the twenty-one pieces drawn by hand,
+**three had to be redrawn** — a bed that read as a fragment, roses that read
+as a lollipop, a zongzi that read as a tent — and **every automated test passed
+on all three**. `art_verify.js` checks viewBox, shape count, no NaN, correct
+in-room sizing; none of that can tell you a drawing is ugly. It was only caught
+by rendering `artsheet.js` and looking.
+
+So generation may be automated one day; **approval may not**. Any future
+drafting step must open a PR with a rendered art sheet, never merge itself.
+
+The shipped workflow is deliberately the free half: GitHub-official actions
+only, built-in `GITHUB_TOKEN`, no API keys, no third-party actions. It opens
+**one issue per season** (deduped by label + title) when a festival is within
+45 days and under-stocked, with the exact sentence to paste to Claude. Runs on
+the 1st and the 15th so a 45-day lead is never straddled by a monthly gap.
+
+---
+
 ## 7.2 🗓 Seasonal content has no scheduled job — on purpose
 
 `currentTheme()` reads the device clock, so 中秋/圣诞/新年 arrive by themselves
