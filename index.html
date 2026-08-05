@@ -2815,7 +2815,11 @@
     #partner-wx.hidden { display: none; }
     .pwx-ico { font-size: 19px; line-height: 1; }
     .pwx-txt { color: var(--dark); font-weight: 700; }
-    .pwx-same { margin-left: auto; font-size: 11.5px; color: var(--sub); font-weight: 700; }
+    .pwx-same { margin-left: auto; font-size: 11.5px; color: var(--sub-ink); font-weight: 700; }
+    .pwx-sep  { color: var(--sub-ink); opacity: 0.45; margin: 0 2px; }
+    /* Each fragment keeps its own breathing room, so 「晴·」 never jams up. */
+    #partner-wx .pwx-txt { margin-right: 2px; }
+    #partner-wx .pwx-ico + .pwx-txt { margin-left: -2px; }
     html[data-theme="dark"] #partner-wx { background: #1E2A3D; border-color: rgba(255,255,255,0.10); }
 
     /* ── "a new season is here" card ── */

@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-34';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-35';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -257,11 +257,28 @@ const App = (() => {
   // Each partner writes ONLY their own slot (u_wx_1 / u_wx_2), so two phones
   // updating at once can never overwrite each other. Hour travels with it so
   // the card can say "21:00 那边在下雨" even across time zones.
+  // The first refreshWeather() runs at script load, BEFORE login — so
+  // S.usingSN is still false and this used to just return, leaving the next
+  // attempt 20 minutes away. Anyone using the app for less than that never
+  // published anything and their partner saw nothing at all. Hold the reading
+  // and flush it the moment a session exists.
+  let _wxPending = '', _lastPublished = null;
   function publishWeather(kind) {
+    if (kind) _wxPending = kind;
     if (!S.usingSN || !kind) return;
+    _wxPending = '';
     const slot = S.activeChar === 'char2' ? 'wx2' : 'wx1';
     const payload = JSON.stringify({ k: kind, h: new Date().getHours(), at: Date.now() });
+    _lastPublished = { slot, payload };
     Data.saveConfig({ [slot]: payload }).catch(() => {});   // best effort, never blocks
+  }
+
+  // Called once the session is up (both login paths + a resumed session).
+  function flushWeather() {
+    if (!S.usingSN) return;
+    if (_wxPending) publishWeather(_wxPending);
+    else refreshWeather().catch(() => {});   // warm cache → publishes, no refetch
+    try { renderPartnerWeather(); } catch (e) {}
   }
 
   function partnerWeather() {
@@ -280,15 +297,27 @@ const App = (() => {
     if (!el) return;
     const w = partnerWeather();
     const mine = _wxKind;
-    if (!w) { el.classList.add('hidden'); return; }
+    // Show YOUR side as soon as there is one. Previously the whole card hid
+    // until the partner reported, so "it says rain but it isn't raining" had
+    // nowhere to be checked — you could not see what the app thought.
+    if (!w && !mine) { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const name = S.activeChar === 'char2' ? (S.charName1 || 'TA') : (S.charName2 || 'TA');
-    const hour = Number.isFinite(w.hour) ? `${String(w.hour).padStart(2,'0')}:00 · ` : '';
-    // Same weather on both sides is its own small moment.
+    const mineBit = mine
+      ? `<span class="pwx-ico">${WX_ICON[mine] || '🌤'}</span>
+         <span class="pwx-txt">你这边 ${WX_LABEL[mine] || ''}</span>` : '';
+    if (!w) {
+      el.innerHTML = mineBit +
+        `<span class="pwx-same">${_escHtml(name)} 还没打开过</span>`;
+      return;
+    }
+    const hour = Number.isFinite(w.hour) ? `${String(w.hour).padStart(2,'0')}:00 ` : '';
     const same = mine && mine === w.kind;
-    el.innerHTML = `<span class="pwx-ico">${w.icon}</span>
-      <span class="pwx-txt">${_escHtml(name)}那边 ${hour}${w.label}</span>
-      ${same ? `<span class="pwx-same">和你一样 💛</span>` : ''}`;
+    el.innerHTML = mineBit +
+      `<span class="pwx-sep">·</span>
+       <span class="pwx-ico">${w.icon}</span>
+       <span class="pwx-txt">${_escHtml(name)}那边 ${hour}${w.label}</span>
+       ${same ? `<span class="pwx-same">一样 💛</span>` : ''}`;
   }
 
   async function refreshWeather() {
@@ -1752,6 +1781,7 @@ const App = (() => {
       S.matchId    = result.matchId   || '';
       S.activeChar = charId;
       S.usingSN    = true;
+      setTimeout(flushWeather, 0);        // after Data.init has the config
 
       if (charId === 'char1') {
         S.charName1 = username;
@@ -5158,6 +5188,7 @@ const App = (() => {
       try {
         await Data.init();
         await refresh();
+        flushWeather();
       } catch (err) {
         S.usingSN = false;
         localStorage.removeItem('sn_api_key');
@@ -5283,6 +5314,10 @@ const App = (() => {
     _refreshWeatherTest: () => refreshWeather(),
     _coordsTest: () => guessCoords(),
     _wxModeTest: () => wxMode(),
+    _flushWeatherTest: () => flushWeather(),
+    _fakeSessionTest: () => { S.usingSN = true; S.apiKey = 'test'; flushWeather(); },
+    _pendingWxTest: () => _wxPending,
+    _lastPublishedTest: () => _lastPublished,
     _htmlVTest: () => HTML_V,
     setWeatherMode,
     _moonSvgTest: (d) => moonSvg(d),

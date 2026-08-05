@@ -411,6 +411,26 @@ rather than only against the ambient seasons.
 
 ---
 
+## 7.215 ⏱ Anything published at module load runs BEFORE login
+
+`refreshWeather()` is called at module level, which is *before* a session
+exists — so `publishWeather` saw `S.usingSN === false` and returned every
+single time. The next attempt was 20 minutes later, so anyone who used the app
+for less than that **never published their weather at all** and their partner's
+card stayed empty forever. It looked like a sync bug; it was an ordering bug.
+
+- Hold the value (`_wxPending`) instead of dropping it, and **flush on login** —
+  from *both* paths: fresh sign-in and resumed session.
+- Anything else computed at module load and pushed to the server has the same
+  hazard. Check when it actually runs relative to `S.usingSN = true`.
+
+**And show your own side.** The card used to hide entirely until the partner
+reported, so "it says rain but it isn't raining" had nowhere to be checked. It
+now reads 「你这边 晴 · YY那边 下雨」, or 「YY 还没打开过」 — the state is
+visible instead of mysterious.
+
+---
+
 ## 7.22 🌧 Weather accuracy is a user choice, not a default
 
 "It says raining but it isn't here" was **not** a bug — Open-Meteo genuinely
