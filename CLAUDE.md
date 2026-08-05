@@ -431,6 +431,30 @@ visible instead of mysterious.
 
 ---
 
+## 7.225 🌧 Trust millimetres, not the weather code
+
+"No rain here but the app shows rain" had **two** causes, and the code-only
+mapping was the bigger one. Measured live in Singapore at the same moment:
+
+| | code | precipitation |
+|---|---|---|
+| 市中心 | 53 | **0.2 mm** |
+| 榜鹅 | 51 | **0.1 mm** |
+| 樟宜 | 51 | **0.1 mm** |
+| 裕廊 | 3 | 0.0 mm |
+
+Codes 51–53 are *light drizzle* — 0.1mm/h is a mist you would not call rain —
+and the old `c >= 51 → 'rain'` drew a full downpour for all three. `weatherKind`
+now takes `precipitation` and needs **≥ 0.3 mm/h** before it draws rain;
+anything below is overcast. Thunder and snow still trust the code alone,
+because you don't need a threshold to know it's thundering. With no reading at
+all it falls back to the code rather than showing nothing.
+
+The second cause is genuine location spread — 裕廊 was dry while 市中心
+drizzled — which is what 设置 › 天气 › 用精确位置 is for.
+
+---
+
 ## 7.22 🌧 Weather accuracy is a user choice, not a default
 
 "It says raining but it isn't here" was **not** a bug — Open-Meteo genuinely

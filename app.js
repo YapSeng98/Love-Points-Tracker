@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-35';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-36';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -210,16 +210,30 @@ const App = (() => {
     } catch { return DEFAULT_COORDS; }
   }
 
-  // WMO weather codes → the handful of moods we actually draw.
-  function weatherKind(code) {
+  /* WMO code → the handful of moods we draw, gated on how much water is
+     ACTUALLY falling.
+
+     The code alone is far too eager. Measured live: 市中心 reported code 53
+     with 0.2mm, 榜鹅 and 樟宜 code 51 with 0.1mm — light drizzle you would not
+     even call rain — and the app drew a full downpour for all of them. 0.3mm/h
+     is roughly "you would notice it on your face"; below that it is overcast,
+     not rain. Thunder and snow still trust the code, because you do not need
+     a millimetre threshold to know it is thundering.                        */
+  const RAIN_MM = 0.3;
+  function weatherKind(code, precip) {
     const c = Number(code);
     if (!Number.isFinite(c)) return '';
     if (c >= 95) return 'thunder';
     if (c >= 85) return 'snow';
-    if (c >= 80) return 'rain';
-    if (c >= 71) return 'snow';
-    if (c >= 51) return 'rain';
-    if (c >= 45) return 'fog';
+    if (c >= 71 && c <= 77) return 'snow';
+    const wet = Number(precip);
+    const wetKnown = Number.isFinite(wet);
+    if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) {
+      // No reading at all → fall back to trusting the code.
+      if (!wetKnown || wet >= RAIN_MM) return 'rain';
+      return 'cloudy';                    // drizzle that is not really falling
+    }
+    if (c >= 45 && c <= 48) return 'fog';
     if (c >= 1)  return 'cloudy';
     return 'clear';
   }
@@ -328,10 +342,12 @@ const App = (() => {
       if (wxMode() === 'off') { applyWeather(''); return ''; }
       const [lat, lon] = (wxMode() === 'precise' && await preciseCoords()) || guessCoords();
       const res = await fetch(`https://api.open-meteo.com/v1/forecast` +
-        `?latitude=${lat}&longitude=${lon}&current=weather_code`, { cache: 'no-store' });
+        `?latitude=${lat}&longitude=${lon}&current=weather_code,precipitation`,
+        { cache: 'no-store' });
       if (!res.ok) throw new Error('weather ' + res.status);
       const j = await res.json();
-      const kind = weatherKind(j && j.current && j.current.weather_code);
+      const cur  = (j && j.current) || {};
+      const kind = weatherKind(cur.weather_code, cur.precipitation);
       localStorage.setItem(WEATHER_KEY, JSON.stringify({ at: Date.now(), kind }));
       applyWeather(kind);
       publishWeather(kind);
@@ -5295,7 +5311,7 @@ const App = (() => {
     _particleTest: (d) => themeParticle(currentTheme(d), d),
     _periodTest: (d) => { const p = periodOf(d); return { id: p.id, name: p.name, hi: p.hi }; },
     _moonTest: (d) => moonInfo(d),
-    _weatherKindTest: (c) => weatherKind(c),
+    _weatherKindTest: (c, mm) => weatherKind(c, mm),
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
