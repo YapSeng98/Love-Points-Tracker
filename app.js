@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-29';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-30';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -275,13 +275,32 @@ const App = (() => {
   // Roll into 黄昏/夜晚 while the app is left open. Cheap, and it means a phone
   // sitting on the table at 18:59 still looks right at 19:01.
   let _lastPeriod = periodOf().id;
-  setInterval(() => {
-    const p = periodOf().id;
-    if (p === _lastPeriod) return;
-    _lastPeriod = p;
-    applyTheme();
-    try { renderPetBanner(); } catch (e) {}
-  }, 60000);
+  // Set on the first tick, NOT here: todayStr() is a const declared further
+  // down the file, so calling it at this point hits the temporal dead zone and
+  // takes the whole boot with it.
+  let _lastDay = null;
+
+  // One tick handles both boundaries the app can cross while sitting open:
+  // the hour band (早晨→白天→黄昏→夜晚) and midnight itself. Without the date
+  // half, a phone left open overnight kept yesterday's day count and never
+  // showed the new season's furniture until you happened to navigate.
+  function _clockTick() {
+    const per = periodOf().id;
+    if (per !== _lastPeriod) {
+      _lastPeriod = per;
+      applyTheme();
+      try { renderPetBanner(); } catch (e) {}
+    }
+    const day = todayStr();
+    if (_lastDay === null) { _lastDay = day; return; }
+    if (day !== _lastDay) {
+      _lastDay = day;
+      try { renderTogetherBanner(); } catch (e) {}   // 天数 + 里程碑
+      try { renderSeasonCard(); }      catch (e) {}   // 限定家具上架
+      try { renderPetBanner(); }       catch (e) {}
+    }
+  }
+  setInterval(_clockTick, 60000);
   refreshWeather();                                   // once now…
   setInterval(refreshWeather, WEATHER_TTL);           // …then every 20 min
 
@@ -296,12 +315,27 @@ const App = (() => {
   // Self-heal stale caches: app.js is always fetched fresh, but index.html can
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
+  // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
+  const HTML_V = '2026.08.05a';
+
   (function ensureFreshHtml() {
     try {
-      if (!document.querySelector('meta[name="app-html-v"]') && !sessionStorage.getItem('html_reloaded')) {
-        sessionStorage.setItem('html_reloaded', '1');
-        location.replace(location.pathname + '?fresh=' + Date.now());
-      }
+      // Compare the marker, don't just check that one exists. The old version
+      // of this only fired when the meta was ABSENT — but a phone holding a
+      // cached index.html still has the meta, just an older value, so the
+      // reload never triggered. Result: new app.js driving old HTML/CSS, which
+      // is exactly the mismatch this guard exists to prevent (new elements
+      // unstyled, new layout missing entirely).
+      const meta = document.querySelector('meta[name="app-html-v"]');
+      const got  = meta ? (meta.getAttribute('content') || '') : '';
+      if (got === HTML_V) return;
+      // Key the flag by version so every new release gets exactly one retry,
+      // instead of one stale flag blocking reloads forever.
+      const key = 'html_reloaded_' + HTML_V;
+      if (sessionStorage.getItem(key)) return;      // already tried; don't loop
+      sessionStorage.setItem(key, '1');
+      console.warn(`[恋爱积分簿] stale index.html (${got || 'none'} → ${HTML_V}), reloading once`);
+      location.replace(location.pathname + '?fresh=' + Date.now());
     } catch (e) { /* never block boot */ }
   })();
 
@@ -2843,8 +2877,8 @@ const App = (() => {
     const mine = S.activeChar === 'char2' ? 'char1' : 'char2';   // written BY them
     const unread = all.filter(l => l.charId === mine && !l.opened).length;
     el.innerHTML = unread
-      ? `<b>${unread} 封未拆 💌</b><span class="tb-left">共 ${all.length} 封</span>`
-      : `${all.length} 封<span class="tb-left">都读过啦</span>`;
+      ? `<b>${unread} 封未拆 💌</b> <span class="tb-left">共 ${all.length} 封</span>`
+      : `${all.length} 封 <span class="tb-left">都读过啦</span>`;
   }
 
   /* ── 年度回顾 ── */
@@ -3700,7 +3734,7 @@ const App = (() => {
         <div class="pet-banner-say">「${_escHtml(petSpeech())}」</div>
       </div>
       <div class="tb-right">
-        <div class="tb-next">EXP ${st.exp}<span class="tb-left">${
+        <div class="tb-next">EXP ${st.exp} <span class="tb-left">${
           st.next ? `还差 ${st.toNext}` : '已圆满 👑'}</span></div>
         <div class="pet-banner-arrow">›</div>
       </div>
@@ -5100,6 +5134,7 @@ const App = (() => {
     _isNewDecorTest: (id) => isNewDecor(id),
     _daysLeftTest: (id, d) => decorDaysLeft(DECOR[id], d),
     _renderSeasonTest: () => renderSeasonCard(),
+    _tickTest: () => _clockTick(),
     _syncGapTest: () => _syncGap(),
     _markLivelyTest: () => markLively(),
     _setLivelyTest: (ms) => { _lastLively = Date.now() - ms; },

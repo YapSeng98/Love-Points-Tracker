@@ -401,6 +401,32 @@ Two separate mistakes, both worth remembering:
 
 ---
 
+## 7.27 🔁 The stale-HTML guard must COMPARE, not just check presence
+
+`app.js` is always fetched fresh; `index.html` (which carries every bit of CSS
+and the page structure) can sit in a phone's cache for days. `ensureFreshHtml`
+existed for exactly this — but it only fired when the `app-html-v` meta was
+**absent**. A cached index.html still has the meta, just an older value, so it
+sailed through and the user ran **new JS against old HTML/CSS**: new elements
+unstyled, a whole new layout invisible, `EXP 148还差 152` with no separator
+because the class that adds the line break didn't exist yet.
+
+- `HTML_V` in app.js must equal `<meta name="app-html-v">`. **Bump both.**
+- The guard compares them and reloads once with a cache-busting query.
+- The "already retried" flag is **keyed by version**, or one stale flag blocks
+  every future release.
+- Belt and braces: put a literal space in markup that relies on CSS for
+  separation, so a momentary mismatch degrades to `EXP 148 还差 152` rather
+  than nonsense.
+
+**Also: the minute tick watches the DATE, not only the hour band.** A phone
+left open overnight kept yesterday's day count and never showed the new
+season's furniture until the user happened to navigate. `_lastDay` is
+initialised to `null` and latched on the first tick — calling `todayStr()` at
+module top level hits the temporal dead zone and kills boot outright.
+
+---
+
 ## 7.26 🏠 Home layout: hero + duo + rows
 
 The home cards were five identical full-width rows. Measured, each was ~430px
