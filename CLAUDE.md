@@ -562,6 +562,36 @@ module top level hits the temporal dead zone and kills boot outright.
 
 ---
 
+## 7.255 📏 One rhythm for the home stack
+
+Every card on the home page must share **one width, one left edge, one gap and
+one internal padding**. Three separate drifts were visible on a real phone
+before anyone measured:
+
+- `#partner-wx` had `padding: … 14px` and the duo tiles `13px`, against `18px`
+  on the hero and the rows — content sat 4–5px out of line down the page.
+- `.letter-banner` and `.checkin-banner` kept `margin-bottom: 14px` from the
+  pre-hero layout while everything else moved to `12px`, so the vertical gaps
+  visibly stepped as you scrolled.
+
+`days_test.js` asserts all five cards share one width, one left edge and one
+gap. Add any new home card to that list.
+
+## 7.256 📅 「在一起 X 天」 counts inclusively, in LOCAL days
+
+Two bugs in one line, both reported:
+
+1. `Math.floor((Date.now() - start) / 86400000)` is **exclusive** — the day you
+   got together showed **0 天**. The first day is day 1.
+2. `new Date('2024-12-24')` parses as **UTC midnight**, then got compared
+   against a local `Date.now()`. At UTC+8 the number rolled over at **08:00
+   local**, not midnight — it changed over breakfast.
+
+`daysTogether()` builds a **local** midnight from the Y-M-D parts and diffs
+whole calendar days, `+1`. Any future "days since" figure must do the same.
+
+---
+
 ## 7.26 🏠 Home layout: hero + duo + rows
 
 The home cards were five identical full-width rows. Measured, each was ~430px

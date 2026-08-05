@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-36';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-37';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -448,7 +448,7 @@ const App = (() => {
     const st = document.createElement('style');
     st.id = 'checkin-css';
     st.textContent = `
-    .checkin-banner { background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14)); border: 1.5px solid rgba(91,155,213,0.28); border-radius: 16px; padding: 11px 18px; display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; cursor: pointer; transition: transform 0.15s; }
+    .checkin-banner { background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14)); border: 1.5px solid rgba(91,155,213,0.28); border-radius: 16px; padding: 11px 18px; display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; cursor: pointer; transition: transform 0.15s; }
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
     .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }
@@ -2454,6 +2454,25 @@ const App = (() => {
     return { at: next, left, label };
   }
 
+  /* Days together, counted the way a person counts them.
+     Two bugs lived in the old one-liner:
+       1. It was EXCLUSIVE, so the day you got together showed "0 天".
+          The first day is day 1.
+       2. `new Date('2024-12-24')` parses as UTC midnight, then got compared
+          against a local `Date.now()`. At UTC+8 that put the rollover at
+          08:00 local instead of midnight — the number changed over breakfast.
+     Compare whole LOCAL calendar days, and count inclusively.               */
+  function daysTogether(startStr, ref) {
+    if (!startStr) return null;
+    const [y, m, d] = String(startStr).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !d) return null;
+    const start = new Date(y, m - 1, d);                       // local midnight
+    const t0    = ref || now();
+    const today = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate());
+    const diff  = Math.round((today - start) / 86400000);
+    return diff < 0 ? null : diff + 1;                         // day one is 1
+  }
+
   function renderTogetherBanner() {
     const el = document.getElementById('together-days');
     if (!el) return;
@@ -2463,13 +2482,12 @@ const App = (() => {
       if (tip) tip.textContent = '';
       return;
     }
-    const start = new Date(S.startDate);
-    const days  = Math.floor((Date.now() - start.getTime()) / 86400000);
-    el.textContent = days >= 0 ? String(days) : '--';     // hero shows the bare number
+    const days = daysTogether(S.startDate);
+    el.textContent = days === null ? '--' : String(days);   // hero shows the bare number
     // Fill the empty right-hand side of the row with something to look
     // forward to, instead of 283px of nothing and a chevron.
     if (tip) {
-      const m = days >= 0 ? nextMilestone(days) : null;
+      const m = days === null ? null : nextMilestone(days);
       tip.innerHTML = m
         ? (m.left === 0 ? `🎉 今天就是 ${m.label}`
                         : `${m.label} · 还有 ${m.left} 天`)
@@ -2490,10 +2508,9 @@ const App = (() => {
     if (n1) n1.textContent = S.charName1 || '--';
     if (n2) n2.textContent = S.charName2 || '--';
     if (S.startDate) {
-      const start = new Date(S.startDate);
-      const days  = Math.floor((Date.now() - start.getTime()) / 86400000);
-      if (dn) dn.textContent = days >= 0 ? days : '--';
-      if (ly) ly.textContent = days >= 0 ? Math.floor(days / 365) : '--';
+      const days = daysTogether(S.startDate);
+      if (dn) dn.textContent = days === null ? '--' : days;
+      if (ly) ly.textContent = days === null ? '--' : Math.floor(days / 365);
       if (lm) lm.textContent = days >= 0 ? Math.floor(days / 30) : '--';
       if (lw) lw.textContent = days >= 0 ? Math.floor(days / 7) : '--';
       if (sd) sd.textContent = S.startDate;
@@ -5324,6 +5341,7 @@ const App = (() => {
     _setLivelyTest: (ms) => { _lastLively = Date.now() - ms; },
     _busyEditTest: () => _roomBusyEditing(),
     _nextMilestoneTest: (d) => nextMilestone(d),
+    _daysTogetherTest: (s, ref) => daysTogether(s, ref ? new Date(ref) : undefined),
     _inSeasonTest: (id, d) => decorInSeason(DECOR[id], d),
     _seasonLabelTest: (id) => decorSeasonLabel(DECOR[id]),
     _renderLetterBannerTest: () => renderLetterBanner(),

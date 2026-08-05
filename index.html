@@ -855,7 +855,7 @@
       border: 1.5px solid rgba(232,96,154,0.22);
       border-radius: 16px; padding: 11px 18px;
       display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 14px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+      margin: 0 0 12px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
     }
     .together-banner:active { transform: scale(0.97); }
     .together-banner-left  { display: flex; align-items: center; gap: 9px; }
@@ -901,7 +901,7 @@
     .home-duo .pet-banner-box, .home-duo .pet-adopt,
     .home-duo .goal-box, .home-duo .goal-empty {
       margin: 0; height: 100%; flex-direction: column; align-items: stretch;
-      padding: 13px 13px 12px; gap: 0;
+      padding: 13px 18px 12px; gap: 0;   /* 18px side = same as the full rows */
     }
     /* Pet as a tile: portrait beside the name so the two tiles share the same
        head-row → bar → footnote rhythm rather than one being visibly airier. */
@@ -925,6 +925,12 @@
     .home-duo .goal-foot { font-size: 10.5px; }
     .home-duo .goal-empty-sub { display: none; }
 
+    /* One vertical rhythm for the whole home stack. These rows used to sit on
+       14px while the hero, weather card and duo used 12px, so the gaps visibly
+       stepped as you scrolled. */
+    .together-hero, #partner-wx, #season-card, .home-duo,
+    .letter-banner, .checkin-banner { margin-bottom: 12px; }
+
     .tb-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
     .tb-next {
       font-size: 11.5px; font-weight: 700; color: var(--sub-ink);
@@ -940,7 +946,7 @@
       border: 1.5px solid rgba(91,155,213,0.28);
       border-radius: 16px; padding: 11px 18px;
       display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 14px; cursor: pointer; transition: transform 0.15s;
+      margin: 0 0 12px; cursor: pointer; transition: transform 0.15s;
     }
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
@@ -1845,7 +1851,7 @@
       border: 1.5px solid rgba(255,143,160,0.28);
       border-radius: 16px; padding: 11px 18px;
       display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 14px; cursor: pointer; transition: transform 0.15s;
+      margin: 0 0 12px; cursor: pointer; transition: transform 0.15s;
     }
     .letter-banner:active { transform: scale(0.97); }
     .letter-banner-left { display: flex; align-items: center; gap: 9px; }
@@ -2467,7 +2473,7 @@
     .pet-adopt, .pet-banner-box {
       /* 18px to match .together-banner / .letter-banner / .checkin-banner —
          at 14px this row's contents sat visibly out of line with the stack. */
-      border-radius: 16px; padding: 11px 18px; margin: 0 0 14px;
+      border-radius: 16px; padding: 11px 18px; margin: 0 0 12px;
       cursor: pointer; transition: transform 0.15s;
       display: flex; align-items: center; gap: 11px;
     }
@@ -2808,7 +2814,9 @@
     /* ── partner's weather ── */
     #partner-wx {
       display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
-      padding: 10px 14px; border-radius: 14px;
+      /* 18px to match .together-hero / .letter-banner / .checkin-banner — at
+         14px this card's text started 4px left of every other row. */
+      padding: 11px 18px; border-radius: 14px;
       background: var(--card); border: 1.5px solid rgba(0,0,0,0.06);
       box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-size: 13.5px;
     }
@@ -2994,7 +3002,7 @@
     /* ── 共同目标 card on home ── */
     #goal-card:empty { display: none; }
     .goal-empty, .goal-box {
-      border-radius: 16px; padding: 12px 16px; margin: 0 0 14px;
+      border-radius: 16px; padding: 12px 16px; margin: 0 0 12px;
       cursor: pointer; transition: transform 0.15s;
     }
     .goal-empty:active, .goal-box:active { transform: scale(0.98); }
