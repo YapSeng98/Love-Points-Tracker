@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-37';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-38';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -448,7 +448,7 @@ const App = (() => {
     const st = document.createElement('style');
     st.id = 'checkin-css';
     st.textContent = `
-    .checkin-banner { background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14)); border: 1.5px solid rgba(91,155,213,0.28); border-radius: 16px; padding: 11px 18px; display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; cursor: pointer; transition: transform 0.15s; }
+    .checkin-banner { background: linear-gradient(135deg, rgba(91,155,213,0.14), rgba(120,180,120,0.14)); border: 1.5px solid rgba(91,155,213,0.28); border-radius: 16px; padding: 11px 18px; display: flex; align-items: center; justify-content: space-between; margin: 0 16px 12px; cursor: pointer; transition: transform 0.15s; }
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
     .checkin-banner-title { font-size: 15px; font-weight: 800; color: var(--blue); line-height: 1.1; }

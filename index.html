@@ -869,7 +869,7 @@
     .together-hero {
       background: linear-gradient(135deg, rgba(232,96,154,0.16), rgba(160,109,208,0.15));
       border: 1.5px solid rgba(232,96,154,0.26);
-      border-radius: 20px; padding: 17px 18px 15px; margin: 0 0 12px;
+      border-radius: 20px; padding: 17px 18px 15px; margin: 0 16px 12px;
       text-align: center; cursor: pointer;
       transition: transform 0.15s, box-shadow 0.15s;
       box-shadow: 0 3px 14px rgba(200,90,150,0.10);
@@ -896,7 +896,7 @@
     }
 
     /* ── the two progress tiles ── */
-    .home-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 0 0 12px; }
+    .home-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 0 16px 12px; }
     .home-duo > div { min-width: 0; }
     .home-duo .pet-banner-box, .home-duo .pet-adopt,
     .home-duo .goal-box, .home-duo .goal-empty {
@@ -928,8 +928,13 @@
     /* One vertical rhythm for the whole home stack. These rows used to sit on
        14px while the hero, weather card and duo used 12px, so the gaps visibly
        stepped as you scrolled. */
+    /* One rhythm AND one inset. These sat full-bleed against the screen edge
+       while .score-card below them used margin: 8px 16px, so the top half of
+       the page looked like a different app from the bottom half. */
     .together-hero, #partner-wx, #season-card, .home-duo,
-    .letter-banner, .checkin-banner { margin-bottom: 12px; }
+    .letter-banner, .checkin-banner { margin: 0 16px 12px; }
+    /* NOTE: each rule above also sets this itself — a grouped override loses
+       to #partner-wx (an ID) and to any class rule declared later. */
 
     .tb-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
     .tb-next {
@@ -946,7 +951,7 @@
       border: 1.5px solid rgba(91,155,213,0.28);
       border-radius: 16px; padding: 11px 18px;
       display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 12px; cursor: pointer; transition: transform 0.15s;
+      margin: 0 16px 12px; cursor: pointer; transition: transform 0.15s;
     }
     .checkin-banner:active { transform: scale(0.97); }
     .checkin-banner-left { display: flex; align-items: center; gap: 9px; }
@@ -1851,7 +1856,7 @@
       border: 1.5px solid rgba(255,143,160,0.28);
       border-radius: 16px; padding: 11px 18px;
       display: flex; align-items: center; justify-content: space-between;
-      margin: 0 0 12px; cursor: pointer; transition: transform 0.15s;
+      margin: 0 16px 12px; cursor: pointer; transition: transform 0.15s;
     }
     .letter-banner:active { transform: scale(0.97); }
     .letter-banner-left { display: flex; align-items: center; gap: 9px; }
@@ -2813,7 +2818,7 @@
     .decor-art { font-size: 46px; line-height: 1; height: 50px; display: flex; align-items: center; }
     /* ── partner's weather ── */
     #partner-wx {
-      display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
+      display: flex; align-items: center; gap: 8px; margin: 0 16px 12px;
       /* 18px to match .together-hero / .letter-banner / .checkin-banner — at
          14px this card's text started 4px left of every other row. */
       padding: 11px 18px; border-radius: 14px;
@@ -2832,7 +2837,7 @@
 
     /* ── "a new season is here" card ── */
     #season-card {
-      margin: 0 0 12px; padding: 13px 15px; border-radius: 16px;
+      margin: 0 16px 12px; padding: 13px 15px; border-radius: 16px;
       background: linear-gradient(135deg, rgba(255,214,138,0.28), rgba(255,175,190,0.22));
       border: 1.5px solid rgba(214,160,80,0.42);
       box-shadow: 0 3px 12px rgba(190,140,60,0.14);

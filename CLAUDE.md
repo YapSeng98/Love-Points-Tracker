@@ -574,8 +574,17 @@ before anyone measured:
   pre-hero layout while everything else moved to `12px`, so the vertical gaps
   visibly stepped as you scrolled.
 
-`days_test.js` asserts all five cards share one width, one left edge and one
-gap. Add any new home card to that list.
+They were also **full-bleed** while `.score-card` below them used
+`margin: 8px 16px`, so the top half of the page looked like a different app
+from the bottom half. Everything is `0 16px 12px` now.
+
+**Set the inset on each rule, not as a grouped override.** A grouped
+`.a, #b, .c { margin: … }` loses to `#partner-wx` (an ID beats a class) and to
+any class rule declared later in the file — half the stack silently ignored it.
+
+`days_test.js` asserts all six cards, `.score-card` included, share one width,
+one left edge and one gap, and that nothing touches the screen edge. Add any
+new home card to that list.
 
 ## 7.256 📅 「在一起 X 天」 counts inclusively, in LOCAL days
 
