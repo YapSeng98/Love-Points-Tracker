@@ -1,186 +1,307 @@
-# 恋爱积分簿 💕 Love Points Tracker
+# 恋爱积分簿 · Love Points Tracker 💕
 
-A Pochacco-themed couples score-tracking web app. Each partner logs daily acts of love and effort — cooking, housework, sweet moments, romantic surprises — and earns points together toward shared rewards (or faces cute punishments when points fall short).
+A private score-keeping app for two people. Log the small things you do for each
+other — cooking, chores, a letter, a photo — and watch them add up: into points,
+into a shared goal, into a pet that grows, into a room you decorate together.
 
-Built with **Vanilla JS + ServiceNow Scripted REST API**. No frameworks, no build step — open `index.html` and go.
+Built as **vanilla JS + HTML + CSS** against a **ServiceNow Scripted REST API**.
+No framework, no bundler, no build step. `index.html` is the app.
 
-📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** — how to register, pair, score, check in, write letters, shop, and settle each month.
-
----
-
-## Features
-
-- **Couple pairing** — One partner registers, shares a 6-digit pair code, the other joins
-- **Dual character tracking** — Each person (他💙 / 她🩷) has their own score with a shared feed
-- **Reward & Punishment mode** — Set a monthly target; reach it for rewards, miss it for consequences
-- **5 CRUD resources** — Categories, Entries, Rewards, Punishments, Config — all manageable in-app
-- **Monthly settlement** — Settle the month, archive results to history, start fresh
-- **Points shop & bag** — Redeem points for custom rewards, use them later, track use history (SN-only, no demo mode)
-- **Letters (情书)** — Write a private letter to your partner; they see it as a sealed envelope until they tap to open it (unseal animation), then it's marked read
-- **Memories (回忆相册)** — Upload couple photos with captions and dates, then play them as a full-screen Ken Burns slideshow (slow zoom/pan, crossfades, floating hearts)
-- **Achievements (成就徽章)** — 16 badges derived from your real activity (check-in streaks, letters, photos, clean months, milestones); nothing stored, always accurate
-- **Year in Review (年度回顾)** — Spotify-Wrapped-style yearly recap: points earned, best month, most-logged category, check-ins, letters, photos, plus a slideshow of that year's memories
-- **Shared goal (共同目标)** — A joint points target both partners contribute to (a trip, a nice dinner), tracked across settled months on the home page
-- **Profile pictures** — Upload custom avatars per partner, stored in ServiceNow
-- **Light / dark theme** — 浅色, 深色, or follow the device setting; per-device preference in Settings
-- **Animated start screen** — Floating Pochacco couple with rising hearts
-- **Background music** — Toggleable ambient piano track
-- **Password show/hide** — Eye icon toggle on login and register
-- **Data isolation** — Each couple sees only their own data; cross-couple writes blocked (ISO-06)
+📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** · 🐣 **[小窝设计文档](docs/PET_GAME_DESIGN.md)** · 🛠 **[Engineering rules](CLAUDE.md)**
 
 ---
 
-## Tech Stack
+## What it does
 
-| Layer | Technology |
-|---|---|
-| Frontend | Vanilla JS · HTML · CSS (no frameworks) |
-| Backend | ServiceNow Scripted REST API (39 resources) |
-| Auth | Custom `u_love_auth` table · Bearer API key tokens |
-| Storage | ServiceNow tables (12 tables, scoped app) |
-| Hosting | Static file — open `index.html` directly in browser |
+**Scoring**
+- Two accounts, one shared ledger. Each partner has their own score; both see every entry.
+- Custom categories with emoji and point values; 奖励模式 / 惩罚模式 with a monthly target.
+- 月末结算 archives the month to history and starts fresh. Past months are swept
+  automatically; the still-running month is opt-in.
 
----
+**Together**
+- **共同目标** — a joint points target you both feed (a trip, a nice dinner).
+- **情书** — a private letter arrives as a sealed envelope until your partner opens it.
+- **回忆相册** — photos with captions, played back as a Ken Burns slideshow.
+- **成就徽章** — 16 badges derived from real activity, so they can never be wrong.
+- **年度回顾** — a yearly recap with your best month, top category and that year's photos.
+- **对方的天气** — each phone publishes its own weather so you can see their sky.
 
-## Quick Start
+**恋爱小窝 (the pet game)**
+- Adopt one of 4 species; it grows from **your** activity, starting at 0 EXP.
+- 小窝币 come from the pet's growth, never from your love points — furniture never
+  competes with real rewards.
+- **32 hand-drawn SVG pieces**, freely placed, dragged, resized. The room is shared:
+  move a sofa and your partner sees it within seconds.
+- **10 seasons and festivals** with their own palette, sky, particles and pet outfit.
+- **Year-locked keepsakes** — one piece per festival per year (2026–2028 pre-drawn).
+  Miss it and it's gone; buy it and it's yours forever.
 
-1. Clone or download this repo
-2. Open `index.html` in any modern browser (Chrome / Safari / Firefox)
-3. Register as a couple:
-   - **Partner 1** → tap 他💙 → fill in username & password → tap 注册 → copy the **pair code**
-   - **Partner 2** → tap 她🩷 → fill in username & password → paste pair code → tap 注册
-4. Both partners can now log in and share the same score feed
-
-> The app connects to a hosted ServiceNow developer instance. No local server needed.
-
----
-
-## App Structure
-
-```
-恋爱积分簿/
-├── index.html          # Single-page app (all UI, CSS, and inline styles)
-├── docs/               # Design docs (e.g. PET_GAME_DESIGN.md)
-├── app.js              # All app logic (state, API calls, render functions)
-├── *.mp3               # Background music tracks
-└── servicenow/
-    ├── resources/      # 39 Scripted REST API scripts (deployed to SN)
-    ├── scripted-rest-api.js
-    ├── background-setup.js
-    └── README.md       # ServiceNow setup guide
-```
-
----
-
-## API Reference
-
-**Base URL:** `https://dev405150.service-now.com/api/x_887486_love_app/love_score`  
-**Auth:** `Authorization: Bearer <apiKey>` header on all requests except register/login
-
-| # | Method | Path | Description |
-|---|---|---|---|
-| R01 | GET | `/config` | Get couple config + partner names + profile pics |
-| R02 | PUT | `/config` | Update mode, target, threshold, start date, names, shared goal |
-| R03 | GET | `/categories` | List score categories |
-| R04 | GET | `/entries?month=YYYY-MM` | List entries for a month (unsettled only) |
-| R05 | POST | `/entries` | Add a score entry |
-| R06 | PUT | `/entries/:id` | Edit an entry |
-| R07 | DELETE | `/entries/:id` | Delete an entry |
-| R08 | GET | `/rewards` | List rewards |
-| R09 | GET | `/punishments` | List punishments |
-| R10 | GET | `/history` | List settled months |
-| R11 | POST | `/monthly/settle` | Settle the current month |
-| R12 | POST | `/categories` | Create a category |
-| R13 | PUT | `/categories/:id` | Edit a category |
-| R14 | DELETE | `/categories/:id` | Delete a category |
-| R15 | POST | `/rewards` | Create a reward |
-| R16 | PUT | `/rewards/:id` | Edit a reward |
-| R17 | DELETE | `/rewards/:id` | Delete a reward |
-| R18 | POST | `/punishments` | Create a punishment |
-| R19 | PUT | `/punishments/:id` | Edit a punishment |
-| R20 | DELETE | `/punishments/:id` | Delete a punishment |
-| R21 | POST | `/auth/register` | Register a new user / pair with partner |
-| R22 | POST | `/auth/login` | Login, returns apiKey + partnerName |
-| R23 | PUT | `/auth/charimg` | Upload profile picture (base64) |
-| R24 | GET | `/shop` | List shop items |
-| R25 | POST | `/shop` | Create a shop item |
-| R26 | PUT | `/shop/:id` | Edit a shop item |
-| R27 | DELETE | `/shop/:id` | Delete a shop item |
-| R28 | POST | `/shop/buy/:id` | Redeem points for a shop item |
-| R29 | GET | `/bag` | List owned (unused) items |
-| R30 | POST | `/bag/use/:id` | Mark an owned item as used |
-| R31 | GET | `/bag/history` | List used items |
-| R32 | POST | `/bag/claim` | Claim a milestone reward into the bag |
-| R33 | GET | `/letters` | List letters (oldest first, capped at 500) |
-| R34 | POST | `/letters` | Write & send a letter |
-| R35 | PUT | `/letters/:id` | Mark a letter as opened |
-| R36 | DELETE | `/letters/:id` | Delete a letter |
-| R37 | GET | `/photos` | List memory photos (oldest first, max 100) |
-| R38 | POST | `/photos` | Upload a memory photo (compressed base64) |
-| R39 | DELETE | `/photos/:id` | Delete a memory photo |
-
----
-
-## ServiceNow Tables
-
-| Table | Scoped Name | Purpose |
-|---|---|---|
-| u_love_auth | `x_887486_love_app_u_love_auth` | User accounts & API keys |
-| u_love_match | `x_887486_love_app_u_love_match` | Couple pairing records |
-| u_love_config | `x_887486_love_app_u_love_config` | Per-couple app settings |
-| u_love_category | `x_887486_love_app_u_love_category` | Score categories |
-| u_love_entry | `x_887486_love_app_u_love_entry` | Individual score entries |
-| u_love_reward | `x_887486_love_app_u_love_reward` | Reward catalog |
-| u_love_punishment | `x_887486_love_app_u_love_punishment` | Punishment catalog |
-| u_love_monthly | `x_887486_love_app_u_love_monthly` | Settled month records |
-| u_love_shop | `x_887486_love_app_u_love_shop` | Point-redeemable shop items |
-| u_love_bag | `x_887486_love_app_u_love_bag` | Items owned per person (bought or claimed) |
-| u_love_letter | `x_887486_love_app_u_love_letter` | Private letters (情书) between the couple |
-| u_love_photo | `x_887486_love_app_u_love_photo` | Memory photos (回忆相册) for the slideshow |
-
-> Full field-level schema (types, defaults, exact field names like `u_emoji`/`u_points`/`u_desc`) lives in [`servicenow/README.md`](servicenow/README.md).
-
----
-
-## Security
-
-- **No hardcoded credentials** — API keys stored in `localStorage` only; never in source code
-- **Custom auth table** — `u_love_auth` only; SN admin/native accounts are never used for login
-- **ISO-06 cross-couple protection** — All PUT/DELETE resources verify `u_match === caller's matchId` before mutating; returns 404 if mismatch
-- **Data isolation** — All list queries filter by `matchId` derived from the Bearer token on the server side
-- **Public repo safe** — No secrets, tokens, or passwords committed
+**The whole app follows your phone**
+- 早晨 · 白天 · 黄昏 · 夜晚 — palette and sky follow the local clock; night goes dark.
+- The **moon is the real moon**, computed from the lunar cycle — a full disc on 农历十五.
+- Real local weather falls over the page and against the pet-room window.
 
 ---
 
 ## Architecture
 
 ```
-Browser (index.html + app.js)
-        │
-        │  HTTPS · Bearer token auth
-        ▼
-ServiceNow dev405150.service-now.com
-  └── Scripted REST API  /api/x_887486_love_app/love_score/*
-        ├── u_love_auth        — Accounts & API keys
-        ├── u_love_match       — Couple pairs
-        ├── u_love_config      — Settings per couple
-        ├── u_love_category    — Score categories
-        ├── u_love_entry       — Score log entries
-        ├── u_love_reward      — Rewards catalog
-        ├── u_love_punishment  — Punishments catalog
-        ├── u_love_monthly     — Monthly settlement archive
-        ├── u_love_shop        — Point-redeemable shop items
-        ├── u_love_bag         — Items owned per person
-        ├── u_love_letter      — Private letters (情书) per couple
-        └── u_love_photo       — Memory photos (回忆相册) per couple
+  iPhone / laptop browser
+  ├── index.html   all markup + CSS (4.3k lines)
+  └── app.js       all logic — state, render, API, SVG art (5.4k lines)
+          │
+          │  HTTPS · Authorization: Bearer <apiKey>
+          ▼
+  ServiceNow  dev405150.service-now.com
+  └── Scripted REST API   /api/x_887486_love_app/love_score/*
+        └── 40 resources → 12 scoped tables
 ```
+
+Deployment is deliberately lopsided: **the frontend auto-deploys** from `main` via
+GitHub Pages, while **ServiceNow scripts are pasted by hand**. So resource changes
+are batched and rare, and new state prefers an existing field over a new table.
 
 ---
 
-## Development Notes
+## Data model
 
-- **Icon encoding** — Emoji stored in SN as `\xCODEPOINT` (e.g. `\x1F495` for 💕) via `encodeForSN()` / `decodeFromSN()` in `app.js` to work around Rhino JS surrogate pair limitations
-- **SN response unwrapping** — SN wraps `setBody()` in `{"result": ...}`. `_snUnwrap()` handles single and double wrapping
-- **Null field handling** — SN Rhino may omit null JSON properties; `safeStr()` + `normCat()` / `normItem()` normalise all inbound data
-- **Dates are client-authoritative** — The SN instance runs in a timezone behind the users (UTC+8), so server-computed `getLocalDate()` is "yesterday" for most of their day. The app always sends its local `date`/`month` in the request body (entries, shop buy, bag use, milestone claim, letters), and the scripts only fall back to the server date if the client omits it. Never add a new resource that stamps dates server-side
-- **macOS curl** — Test scripts use `sed '$d'` (not `head -n -1`) for macOS BSD compatibility
+Everything shared is scoped by `u_match` (the couple). Anything personal is also
+scoped by `u_char`. Cross-couple reads return empty; cross-couple writes 404.
+
+```mermaid
+erDiagram
+    MATCH ||--|| CONFIG : "one per couple"
+    MATCH ||--o{ AUTH : "exactly 2 partners"
+    MATCH ||--o{ CATEGORY : ""
+    MATCH ||--o{ ENTRY : ""
+    MATCH ||--o{ REWARD : ""
+    MATCH ||--o{ PUNISHMENT : ""
+    MATCH ||--o{ MONTHLY : ""
+    MATCH ||--o{ SHOP : ""
+    MATCH ||--o{ BAG : ""
+    MATCH ||--o{ LETTER : ""
+    MATCH ||--o{ PHOTO : ""
+
+    CATEGORY ||--o{ ENTRY : "scored as"
+    MONTHLY  ||--o{ ENTRY : "archives"
+    SHOP     ||--o{ BAG : "bought as"
+    AUTH     ||--o{ ENTRY : "logged by"
+    AUTH     ||--o{ BAG : "owned by"
+    AUTH     ||--o{ LETTER : "written by"
+    AUTH     ||--o{ PHOTO : "added by"
+
+    MATCH {
+        string u_match PK "couple id"
+        string u_couple_name
+        string u_pair_code "6 digits, used once to pair"
+    }
+    AUTH {
+        string u_username PK
+        string u_password
+        string u_api_key "bearer token"
+        string u_char_id "char1 or char2"
+        string u_match FK
+        string u_profile_picture "base64"
+        string u_last_login
+    }
+    CONFIG {
+        string u_match FK
+        string u_mode "reward or punish"
+        int    u_reward_target
+        int    u_punish_threshold
+        string u_start_date "在一起的日子"
+        string u_char1_name
+        string u_char2_name
+        string u_goal_name "共同目标"
+        string u_goal_icon
+        int    u_goal_target
+        string u_pet_species "empty until adopted"
+        string u_pet_name
+        int    u_pet_exp "high-water, never lowered"
+        int    u_pet_base "snapshot at adoption"
+        string u_pet_equipped "room layout JSON, String(1000)"
+        string u_wx_1 "char1 weather"
+        string u_wx_2 "char2 weather"
+    }
+    CATEGORY {
+        string u_match FK
+        string u_name
+        string u_emoji
+        int    u_points "may be negative"
+        bool   u_active
+    }
+    ENTRY {
+        string u_match FK
+        string u_char "char1 or char2"
+        string u_category FK
+        string u_category_name "snapshot"
+        int    u_category_pts "snapshot"
+        int    u_points
+        string u_icon
+        string u_note
+        string u_date "client local"
+        string u_month "label, NOT a filter"
+        string u_monthly FK "empty = unsettled"
+    }
+    MONTHLY {
+        string u_match FK
+        string u_month
+        int    u_char1_pts
+        int    u_char2_pts
+        string u_mode
+        string u_result_1 "reward or punishment won"
+        string u_result_2
+        string u_settled_at
+        bool   u_claimed_1 "per person"
+        bool   u_claimed_2
+    }
+    REWARD {
+        string u_match FK
+        string u_name
+        string u_emoji
+        string u_desc
+        int    u_points "tier threshold"
+    }
+    PUNISHMENT {
+        string u_match FK
+        string u_name
+        string u_emoji
+        string u_desc
+        int    u_points
+    }
+    SHOP {
+        string u_match FK
+        string u_name
+        string u_icon
+        string u_desc
+        int    u_pts_cost
+        bool   u_active
+    }
+    BAG {
+        string u_match FK
+        string u_char "owner — personal, not shared"
+        string u_shop_item FK
+        string u_item_name "snapshot"
+        string u_item_icon
+        int    u_pts_spent
+        string u_source_type "shop, claim or decor"
+        string u_status "active or used"
+        string u_acquired_date
+        string u_used_date
+    }
+    LETTER {
+        string u_match FK
+        string u_char "author"
+        string u_text
+        string u_date
+        bool   u_opened "sealed until read"
+    }
+    PHOTO {
+        string u_match FK
+        string u_char
+        string u_image "compressed base64"
+        string u_caption
+        string u_date
+    }
+```
+
+### Things the diagram can't show
+
+| | |
+|---|---|
+| **`u_month` is a label, not a filter** | `GET /entries` returns everything with `u_monthly` empty. Filtering by month once made an entire month vanish when it rolled over unsettled. |
+| **Furniture lives in `u_love_bag`** | with `u_source_type='decor'`, so no new table was needed. Decor is couple-pooled; shop purchases are personal. |
+| **The room is one JSON blob** | `u_pet_equipped` is `String(1000)` and stores 2-letter codes, not ids — ids cost 349 of the 1000 characters and truncation silently wiped rooms. |
+| **Weather is one slot per partner** | Two fields, never one shared blob, so simultaneous writes can't lose each other. |
+| **Dates come from the client** | The instance runs behind UTC+8, so a server-side date is *yesterday* for most of the users' day. |
+
+---
+
+## API
+
+**Base** `https://dev405150.service-now.com/api/x_887486_love_app/love_score`
+**Auth** `Authorization: Bearer <apiKey>` on everything except register/login.
+
+<details><summary><b>40 resources</b></summary>
+
+| # | Method | Path | Description |
+|---|---|---|---|
+| R01 | GET | `/config` | Couple config, names, avatars, pet, goal, weather |
+| R02 | PUT | `/config` | Update any of the above |
+| R03 | GET | `/categories` | List categories |
+| R04 | GET | `/entries` | All **unsettled** entries (`?year=` for the recap) |
+| R05 | POST | `/entries` | Add an entry |
+| R06 | PUT | `/entries/:id` | Edit |
+| R07 | DELETE | `/entries/:id` | Delete |
+| R08 | GET | `/rewards` | Reward tiers |
+| R09 | GET | `/punishments` | Punishment tiers |
+| R10 | GET | `/history` | Settled months |
+| R11 | POST | `/monthly/settle` | Settle one month |
+| R12–14 | POST/PUT/DELETE | `/categories[/:id]` | Category CRUD |
+| R15–17 | POST/PUT/DELETE | `/rewards[/:id]` | Reward CRUD |
+| R18–20 | POST/PUT/DELETE | `/punishments[/:id]` | Punishment CRUD |
+| R21 | POST | `/auth/register` | Register, or pair with a code |
+| R22 | POST | `/auth/login` | Login → apiKey + partner name |
+| R23 | PUT | `/auth/charimg` | Upload avatar |
+| R24–27 | GET/POST/PUT/DELETE | `/shop[/:id]` | Shop CRUD |
+| R28 | POST | `/shop/buy/:id` | Redeem points |
+| R29 | GET | `/bag` | Owned items (`?type=decor` for furniture) |
+| R30 | POST | `/bag/use/:id` | Mark used |
+| R31 | GET | `/bag/history` | Used items |
+| R32 | POST | `/bag/claim` | Claim a milestone reward |
+| R33–36 | GET/POST/PUT/DELETE | `/letters[/:id]` | Letters |
+| R37–39 | GET/POST/DELETE | `/photos[/:id]` | Memory photos |
+| R40 | POST | `/decor/buy` | Buy furniture with 小窝币 (never touches love points) |
+
+</details>
+
+---
+
+## Running it
+
+```bash
+git clone https://github.com/YapSeng98/Love-Points-Tracker.git
+cd Love-Points-Tracker
+python3 -m http.server 8000      # or just open index.html
+```
+
+Live at **[yapseng98.github.io/Love-Points-Tracker](https://yapseng98.github.io/Love-Points-Tracker/)** — pushes to `main` deploy automatically.
+
+**Pairing:** partner 1 registers as 他💙 and gets a 6-digit code; partner 2 registers
+as 她🩷 with that code. **Local Demo** on the login screen runs the whole app against
+`localStorage` with no account — everything except the shop and bag.
+
+---
+
+## Tests
+
+| Suite | What it covers |
+|---|---|
+| `servicenow/test-full-system-v2.sh` | **148 live checks** against the real instance — scoring, settle, shop, bag, letters, photos, claims, couple isolation, auth |
+| `servicenow/test-dates.sh` | **11 checks** — timezone regressions on every date-stamping path |
+| Browser suites (scratchpad) | **~545 checks** across 42 files — pet logic, coin economy, seasons, moon phase, weather, layout at 3 widths, contrast from rendered pixels, performance, full user journey |
+| `regression_reported.js` | **Every bug ever reported**, replayed. A red line here means it's back. |
+| `tools/season-check.js` | Runs monthly in CI: fails if the lunar table or the pre-drawn keepsake years are running out |
+
+Two habits worth knowing, both learned the hard way and written up in [CLAUDE.md](CLAUDE.md):
+
+- **Assert behaviour, not storage.** A batch of tests broke when the room blob was
+  compacted — they were checking the format, not the outcome.
+- **A green test is not proof.** The moon shipped rendered *inverted* with its test
+  passing, because the test asserted the implementation's own convention. Three of
+  the 21 hand-drawn furniture pieces had to be redrawn for looking wrong, and every
+  test passed on all three. Some things you have to look at.
+
+---
+
+## Notes for future changes
+
+- **Emoji in ServiceNow** — the DB is `utf8mb3`, so 4-byte emoji (🎯) corrupt.
+  Text fields go through `encodeForSN()` / `decodeFromSN()` as `\xCODEPOINT`.
+- **No scheduled jobs anywhere** — themes, seasons, the moon and shop stock are all
+  computed from the device clock. The only cron is a monthly CI content check.
+- **Bump `APP_VERSION` and `HTML_V` together** — `HTML_V` must equal the
+  `app-html-v` meta tag, or phones run new JS against cached HTML.
+- **Read [CLAUDE.md](CLAUDE.md) before changing anything.** Every rule in it exists
+  because something broke in production first.
