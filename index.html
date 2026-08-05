@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.04e">
+  <meta name="app-html-v" content="2026.08.05a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -28,7 +28,7 @@
       /* Small-text inks. Measured from real pixels: --blue at 10-13px on white
          is 2.1-3.0:1, well under AA. Fills keep --blue; small type uses these. */
       --blue-ink: #2E6DA6;
-      --sub-ink:  #4E5A6E;
+      --sub-ink:  #47525F;
       --nav-off:  #647285;
       --goal-ink: #1C5A2D;
       --red-ink:  #C0392F;   /* --red at 15px on white is 2.7:1 */
@@ -209,9 +209,19 @@
       display: flex; flex-direction: column; align-items: center; gap: 2px;
       cursor: default; transform-origin: center bottom;
     }
-    /* ── Body bounce (线条小狗 squash-and-stretch style) ── */
-    .char-wrap.pochacco { animation: char-idle 2.8s cubic-bezier(0.45,0,0.55,1) infinite; }
-    .char-wrap.adai     { animation: char-idle 2.8s cubic-bezier(0.45,0,0.55,1) infinite 0.9s; }
+    /* ── Body bounce (线条小狗 squash-and-stretch style) ──
+       Applied to the PORTRAIT only, never the whole column. On .char-wrap it
+       dragged the name and the score badge along, and because the two sides
+       are deliberately 0.9s out of phase the two "+51"s bobbed at visibly
+       different heights — it read as a layout bug rather than as charm. */
+    .char-wrap.pochacco .char-svg, .char-wrap.pochacco .char-img-custom {
+      animation: char-idle 2.8s cubic-bezier(0.45,0,0.55,1) infinite;
+      transform-origin: center bottom;
+    }
+    .char-wrap.adai .char-svg, .char-wrap.adai .char-img-custom {
+      animation: char-idle 2.8s cubic-bezier(0.45,0,0.55,1) infinite 0.9s;
+      transform-origin: center bottom;
+    }
     @keyframes char-idle {
       0%,100% { transform: translateY(0)     scaleX(1.04) scaleY(0.97); }   /* land — squash */
       10%     { transform: translateY(-2px)  scaleX(1.01) scaleY(1.00); }   /* just left ground */
@@ -852,6 +862,77 @@
     .together-banner-days  { font-size: 22px; font-weight: 900; color: #c05090; line-height: 1; }
     .together-banner-sub   { font-size: 12px; color: #a06080; font-weight: 600; }
     .together-banner-arrow { font-size: 16px; color: #c05090; opacity: 0.7; }
+    /* These rows were ~430px wide with the content hugging the left and a lone
+       chevron on the right — 270-280px of dead space. Put something worth
+       reading in it instead. */
+    /* ── hero: 在一起的时光 ── */
+    .together-hero {
+      background: linear-gradient(135deg, rgba(232,96,154,0.16), rgba(160,109,208,0.15));
+      border: 1.5px solid rgba(232,96,154,0.26);
+      border-radius: 20px; padding: 17px 18px 15px; margin: 0 0 12px;
+      text-align: center; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 3px 14px rgba(200,90,150,0.10);
+    }
+    .together-hero:active { transform: scale(0.985); }
+    .th-days {
+      font-size: 46px; font-weight: 900; color: #C2417A; line-height: 1;
+      letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    }
+    .th-label { font-size: 12.5px; font-weight: 700; color: #9E4E78; margin-top: 3px; }
+    .th-next:not(:empty) {
+      display: inline-block; margin-top: 10px;
+      font-size: 11.5px; font-weight: 700; color: #C2417A;
+      background: rgba(255,255,255,0.62); padding: 5px 13px; border-radius: 20px;
+    }
+    html[data-theme="dark"] .together-hero {
+      background: linear-gradient(135deg, rgba(232,96,154,0.20), rgba(160,109,208,0.18));
+      border-color: rgba(255,150,190,0.30);
+    }
+    html[data-theme="dark"] .th-days  { color: #FF9EC4; }
+    html[data-theme="dark"] .th-label { color: #E0A8C4; }
+    html[data-theme="dark"] .th-next:not(:empty) {
+      background: rgba(255,255,255,0.12); color: #FFB4D2;
+    }
+
+    /* ── the two progress tiles ── */
+    .home-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin: 0 0 12px; }
+    .home-duo > div { min-width: 0; }
+    .home-duo .pet-banner-box, .home-duo .pet-adopt,
+    .home-duo .goal-box, .home-duo .goal-empty {
+      margin: 0; height: 100%; flex-direction: column; align-items: stretch;
+      padding: 13px 13px 12px; gap: 0;
+    }
+    /* Pet as a tile: portrait beside the name so the two tiles share the same
+       head-row → bar → footnote rhythm rather than one being visibly airier. */
+    .home-duo .pet-banner-box { display: grid; grid-template-columns: 34px 1fr;
+                                grid-template-areas: 'a i' 'x i'; column-gap: 9px; align-content: start; }
+    .home-duo .pet-banner-avatar { grid-area: a; width: 34px; height: 40px; margin: 0; }
+    .home-duo .pet-banner-info   { grid-area: i; flex: none; }
+    .home-duo .tb-right          { grid-area: x; }
+    .home-duo .pet-banner-top    { flex-wrap: wrap; gap: 4px; }
+    .home-duo .pet-banner-lv,
+    .home-duo .pet-banner-say,
+    .home-duo .pet-banner-arrow,
+    .home-duo .pet-banner-moodtxt { display: none; }
+    .home-duo .pet-exp-track { margin: 7px 0 0; }
+    .home-duo .tb-right { margin-left: 0; margin-top: 6px; }
+    .home-duo .tb-next  { text-align: left; font-size: 11px; }
+    .home-duo .tb-next .tb-left { display: inline; margin-left: 5px; }
+    /* Goal is already a vertical stack; just let it breathe as a tile */
+    .home-duo .goal-head { gap: 6px; }
+    .home-duo .goal-title { font-size: 13.5px; }
+    .home-duo .goal-foot { font-size: 10.5px; }
+    .home-duo .goal-empty-sub { display: none; }
+
+    .tb-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .tb-next {
+      font-size: 11.5px; font-weight: 700; color: var(--sub-ink);
+      text-align: right; line-height: 1.35; white-space: nowrap;
+    }
+    .tb-next .tb-left { display: block; font-weight: 600; opacity: 0.75; font-size: 10.5px; }
+    .tb-next b { color: #C2417A; font-weight: 800; }
+    html[data-theme="dark"] .tb-next b { color: #FF9EC4; }
 
     /* Daily check-in banner */
     .checkin-banner {
@@ -1936,7 +2017,7 @@
       --cal-dot-off: #3A4763;
       --blue: #7CB2E8;
       --blue-ink: #93C4F2;
-      --sub-ink:  #A3B2C6;
+      --sub-ink:  #B6C4D6;
       --nav-off:  #A7B7CB;
       --goal-ink: #6FD98A;
       --red-ink:  #FF9A9A;
@@ -2384,7 +2465,9 @@
     /* ══════════════ 恋爱小窝 · 宠物 ══════════════ */
     #pet-banner:empty { display: none; }
     .pet-adopt, .pet-banner-box {
-      border-radius: 16px; padding: 11px 14px; margin: 0 0 14px;
+      /* 18px to match .together-banner / .letter-banner / .checkin-banner —
+         at 14px this row's contents sat visibly out of line with the stack. */
+      border-radius: 16px; padding: 11px 18px; margin: 0 0 14px;
       cursor: pointer; transition: transform 0.15s;
       display: flex; align-items: center; gap: 11px;
     }
@@ -2411,7 +2494,11 @@
       font-size: 10.5px; font-weight: 700; color: var(--lv-ink);
       background: var(--lv-bg); padding: 2px 7px; border-radius: 8px;
     }
-    .pet-banner-mood { margin-left: auto; font-size: 15px; }
+    /* The mood used to be pushed to the far right on its own, leaving ~200px
+       of gap mid-row; it belongs beside the name, and the right-hand slot now
+       carries EXP like every other row's trailing value. */
+    .pet-banner-mood { font-size: 15px; margin-left: 2px; }
+    .pet-banner-moodtxt { font-size: 11px; font-weight: 700; color: var(--sub-ink); }
     .pet-exp-track {
       height: 6px; border-radius: 4px; background: rgba(0,0,0,0.09);
       overflow: hidden; margin: 6px 0 4px;
@@ -3462,24 +3549,21 @@
   </div>
 
   <!-- Together banner -->
-  <div class="together-banner" id="together-banner" onclick="App.showLovePage()">
-    <div class="together-banner-left">
-      <span style="font-size:20px">💑</span>
-      <div>
-        <div class="together-banner-days" id="together-days">-- 天</div>
-        <div class="together-banner-sub">在一起的时光</div>
-      </div>
-    </div>
-    <div class="together-banner-arrow">›</div>
+  <!-- 在一起的时光 — the emotional centrepiece, so it gets the hero slot -->
+  <div class="together-hero" id="together-banner" onclick="App.showLovePage()">
+    <div class="th-days" id="together-days">--</div>
+    <div class="th-label">天在一起 💑</div>
+    <div class="th-next" id="together-next"></div>
   </div>
 
-  <!-- Pet (恋爱小窝) — filled by App.renderPetBanner() -->
-  <div id="pet-banner"></div>
-
-  <!-- Shared goal (共同目标) — filled by App.renderSharedGoal() -->
   <div id="season-card" class="hidden"></div>
   <div id="partner-wx" class="hidden"></div>
-  <div id="goal-card"></div>
+
+  <!-- 小窝 and 共同目标 are both progress, so they pair as two tiles -->
+  <div class="home-duo">
+    <div id="pet-banner"></div>
+    <div id="goal-card"></div>
+  </div>
 
   <!-- Letter banner (情书, private between the couple only) -->
   <div class="letter-banner" id="letter-banner" onclick="App.showLetters()">
@@ -3490,7 +3574,10 @@
         <div class="letter-banner-sub">写一封信给对方</div>
       </div>
     </div>
-    <div class="letter-banner-arrow">›</div>
+    <div class="tb-right">
+      <div class="tb-next" id="letter-count"></div>
+      <div class="letter-banner-arrow">›</div>
+    </div>
   </div>
 
   <!-- Daily check-in banner -->

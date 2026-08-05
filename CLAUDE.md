@@ -401,6 +401,32 @@ Two separate mistakes, both worth remembering:
 
 ---
 
+## 7.26 🏠 Home layout: hero + duo + rows
+
+The home cards were five identical full-width rows. Measured, each was ~430px
+with the content hugging the left and a lone `›` on the right — **270–283px of
+dead space per row**. Two things fixed that:
+
+1. **Fill the trailing slot with something worth reading.** 在一起 shows the
+   next milestone (every 100 days, every anniversary, plus 520 我爱你 and
+   1314 一生一世); 情书 shows unread/total; 小窝 shows EXP and the gap to the
+   next stage. A `›` alone does not justify a third of the row.
+2. **Not everything wants to be a row.** 在一起的时光 is the emotional centre,
+   so it is a hero (46px number). 小窝 and 共同目标 are both progress, so they
+   pair as two tiles in `.home-duo`. 情书 and 签到 keep rows because they carry
+   status text that would wrap in a half-width tile.
+
+Two alignment bugs found on the way, both invisible until measured:
+
+- `.pet-banner-box` had **26/15px** padding where every sibling row is 19/19.
+- The idle bounce sat on `.char-wrap`, so the **name and score badge bobbed
+  with the character** — and since the two sides are deliberately 0.9s out of
+  phase, the two "+51" badges sat at visibly different heights. It read as a
+  layout bug. The animation belongs on the portrait alone; `bounce_test.js`
+  asserts the labels drift 0px across a full cycle while the art travels 22px.
+
+---
+
 ## 7.3 ♿ Contrast, tap targets and motion
 
 Audited from **rendered pixels**, not computed styles. Three earlier attempts

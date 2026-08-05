@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.04-28';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.05-29';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2302,13 +2302,42 @@ const App = (() => {
     showToast('设置已保存 ✅');
   }
 
+  /* Milestones worth looking forward to. Every 100 days, every anniversary,
+     plus 520 (我爱你) and 1314 (一生一世) — the ones that actually mean
+     something to a couple rather than just round numbers. */
+  function nextMilestone(days) {
+    const marks = new Set([520, 1314, 3141]);
+    for (let i = 1; i <= 40; i++) marks.add(i * 100);      // 100, 200, 300…
+    for (let y = 1; y <= 20; y++) marks.add(Math.round(y * 365.25));   // 周年
+    const next = [...marks].sort((a, b) => a - b).find(m => m > days);
+    if (!next) return null;
+    const left = next - days;
+    const label = Math.abs(next - Math.round(next / 365.25) * 365.25) < 2
+      ? `${Math.round(next / 365.25)} 周年` : `${next} 天`;
+    return { at: next, left, label };
+  }
+
   function renderTogetherBanner() {
     const el = document.getElementById('together-days');
     if (!el) return;
-    if (!S.startDate) { el.textContent = '-- 天'; return; }
+    const tip = document.getElementById('together-next');
+    if (!S.startDate) {
+      el.textContent = '--';
+      if (tip) tip.textContent = '';
+      return;
+    }
     const start = new Date(S.startDate);
     const days  = Math.floor((Date.now() - start.getTime()) / 86400000);
-    el.textContent = days >= 0 ? `${days} 天` : '-- 天';
+    el.textContent = days >= 0 ? String(days) : '--';     // hero shows the bare number
+    // Fill the empty right-hand side of the row with something to look
+    // forward to, instead of 283px of nothing and a chevron.
+    if (tip) {
+      const m = days >= 0 ? nextMilestone(days) : null;
+      tip.innerHTML = m
+        ? (m.left === 0 ? `🎉 今天就是 ${m.label}`
+                        : `${m.label} · 还有 ${m.left} 天`)
+        : '';
+    }
   }
 
   function showLovePage() {
@@ -2800,7 +2829,22 @@ const App = (() => {
         S.photos  = photos  || [];
         _heavyStatsLoaded = true;
       }
+      renderLetterBanner();
     } catch (e) { /* best effort — badges just show what we do have */ }
+  }
+
+  // Right-hand side of the 情书 row: how many letters, and whether one of them
+  // is still sealed for you. Letters are already cached in S, so this is free.
+  function renderLetterBanner() {
+    const el = document.getElementById('letter-count');
+    if (!el) return;
+    const all = S.letters || [];
+    if (!all.length) { el.innerHTML = ''; return; }
+    const mine = S.activeChar === 'char2' ? 'char1' : 'char2';   // written BY them
+    const unread = all.filter(l => l.charId === mine && !l.opened).length;
+    el.innerHTML = unread
+      ? `<b>${unread} 封未拆 💌</b><span class="tb-left">共 ${all.length} 封</span>`
+      : `${all.length} 封<span class="tb-left">都读过啦</span>`;
   }
 
   /* ── 年度回顾 ── */
@@ -3650,11 +3694,16 @@ const App = (() => {
           <span class="pet-banner-name">${_escHtml(petName())}</span>
           <span class="pet-banner-lv">Lv.${st.stage.lv} ${st.stage.name}</span>
           <span class="pet-banner-mood">${face.emoji}</span>
+          <span class="pet-banner-moodtxt">${face.label}</span>
         </div>
         <div class="pet-exp-track"><div class="pet-exp-fill" style="width:${st.pct}%"></div></div>
         <div class="pet-banner-say">「${_escHtml(petSpeech())}」</div>
       </div>
-      <div class="pet-banner-arrow">›</div>
+      <div class="tb-right">
+        <div class="tb-next">EXP ${st.exp}<span class="tb-left">${
+          st.next ? `还差 ${st.toNext}` : '已圆满 👑'}</span></div>
+        <div class="pet-banner-arrow">›</div>
+      </div>
     </div>`;
   }
 
@@ -5055,6 +5104,8 @@ const App = (() => {
     _markLivelyTest: () => markLively(),
     _setLivelyTest: (ms) => { _lastLively = Date.now() - ms; },
     _busyEditTest: () => _roomBusyEditing(),
+    _nextMilestoneTest: (d) => nextMilestone(d),
+    _renderLetterBannerTest: () => renderLetterBanner(),
     _refreshWeatherTest: () => refreshWeather(),
     _coordsTest: () => guessCoords(),
     _moonSvgTest: (d) => moonSvg(d),
