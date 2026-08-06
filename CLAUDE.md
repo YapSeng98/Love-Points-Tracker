@@ -523,12 +523,28 @@ pieces behind every floor piece, break ties on placement order, and write the
 result into `z-index` so the DOM order never shuffles under the drag handlers
 (they key off `data-i`).
 
-Costs **nothing** to store — `y` is already in the blob. The ⬆️⬇️ buttons nudge
-`y` just past the neighbouring piece rather than editing a separate layer
-number, so there is one source of truth and the move is visible.
+Costs **nothing** to store — `y` is already in the blob.
 
 > Note `fishtank` is a **floor** piece despite usually being placed high; the
 > wall/floor rule alone would not have fixed the reported case. Depth-by-y did.
+
+### …but a MANUAL control may not move anything
+
+The ⬆️⬇️ buttons originally honoured "one source of truth" by nudging `y` just
+past the neighbouring piece. That is a defensible rule and a **user-visible
+bug**: pressing ⬇️ slid the table four percent up the floor, reported with two
+screenshots a minute apart. A control labelled 「放到最后面」 must change the
+stacking and *nothing else*.
+
+So automatic depth still comes from `y`, but a manual re-stack writes a small
+explicit `z` that sorts ahead of it. It is optional and defaults to 0, so it
+costs 2–3 characters and **only for pieces actually re-stacked** — a fully
+furnished room went 651 → 654 of the 1000 (§4.5).
+
+- `z` must be in `_roomSig()`, or a partner's re-stack never syncs.
+- `parseEquipped` defaults it to 0, so blobs saved before `z` existed load
+  unchanged — assert that, and assert the pose (`x/y/s`) is byte-identical
+  across a layer change. `regression_reported.js #14` is that guard.
 
 ## 7.246 🔔 A cached count has to be told when it changes
 

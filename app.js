@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.05-41';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.06-42';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -3716,7 +3716,10 @@ const App = (() => {
   function encodeEquipped(eq) {
     const it = (eq.items || []).map(o => {
       const sc = _r1(o.s);
+      const z  = Math.round(+o.z || 0);          // depth override, usually 0
       const base = `${_codeOf[o.i] || o.i},${_r1(o.x)},${_r1(o.y)}`;
+      // Only pieces the couple actually re-stacked pay for the extra field.
+      if (z) return `${base},${sc},${z}`;
       return sc === 1 ? base : `${base},${sc}`;
     });
     const out = { p: eq.paper || '', m: eq.mat || '', o: eq.outfit || '', it };
@@ -3746,13 +3749,14 @@ const App = (() => {
       let items = [];
       if (Array.isArray(e.it)) {                    // compact format
         items = e.it.map(str => {
-          const [i, x, y, sc] = String(str).split(',');
+          const [i, x, y, sc, z] = String(str).split(',');
           // Accept a code OR a bare id: rooms saved before codes existed still
           // carry full ids, and must keep loading exactly as they did.
           return { i: _byCode[i] || i || '',
                    x: Number.isFinite(+x)  ? +x  : 50,
                    y: Number.isFinite(+y)  ? +y  : 80,
-                   s: Number.isFinite(+sc) ? +sc : 1 };
+                   s: Number.isFinite(+sc) ? +sc : 1,
+                   z: Number.isFinite(+z)  ? +z  : 0 };
         }).filter(o => o.i);
         return { paper: e.p || '', mat: e.m || '', outfit: e.o || '',
                  sf: (+e.sf > 0) ? +e.sf : 0, items };
@@ -4092,7 +4096,8 @@ const App = (() => {
       .map((o, i) => ({ o, i, wall: DECOR[o.i]?.slot === 'wall' }))
       .sort((a, b) =>
         (a.wall !== b.wall) ? (a.wall ? -1 : 1)      // walls to the back
-        : ((+a.o.y || 0) - (+b.o.y || 0))            // higher up = further away
+        : ((+a.o.z || 0) - (+b.o.z || 0))            // explicit 置前/置后 wins
+        || ((+a.o.y || 0) - (+b.o.y || 0))           // higher up = further away
         || (a.i - b.i))                              // tie → placement order
       .map((x, seq) => ({ ...x, z: seq + 1 }));
 
@@ -4156,7 +4161,8 @@ const App = (() => {
   // Order-independent fingerprint of the shared room state
   function _roomSig(eq, name, species) {
     if (!eq) return '';
-    const items = (eq.items || []).map(o => `${o.i}:${_r1(o.x)},${_r1(o.y)},${_r1(o.s)}`).sort().join('|');
+    const items = (eq.items || []).map(o =>
+      `${o.i}:${_r1(o.x)},${_r1(o.y)},${_r1(o.s)},${Math.round(+o.z || 0)}`).sort().join('|');
     return [name || '', species || '', eq.paper || '', eq.mat || '', eq.outfit || '', items].join('~');
   }
   function _markRoomSynced() {
@@ -4244,8 +4250,8 @@ const App = (() => {
       <button class="dh-btn" onclick="App.resizeDecor(-1)" ${o.s <= DECOR_MIN_SCALE ? 'disabled' : ''}>➖</button>
       <span class="dh-size">${Math.round((o.s || 1) * 100)}%</span>
       <button class="dh-btn" onclick="App.resizeDecor(1)" ${o.s >= DECOR_MAX_SCALE ? 'disabled' : ''}>➕</button>
-      <button class="dh-btn" onclick="App.layerDecor(-1)" title="往后放">⬇️</button>
-      <button class="dh-btn" onclick="App.layerDecor(1)" title="往前放">⬆️</button>
+      <button class="dh-btn" onclick="App.layerDecor(-1)" title="放到最后面">⬇️</button>
+      <button class="dh-btn" onclick="App.layerDecor(1)" title="放到最前面">⬆️</button>
       <button class="dh-btn del" onclick="App.removeSelectedDecor()">🗑</button>
       <button class="dh-btn" onclick="App.selectDecor(null)">✕</button>`;
   }
@@ -4255,24 +4261,23 @@ const App = (() => {
     renderRoomItems();
   }
 
-  /* Nudge the selected piece past its nearest neighbour in depth. Because
-     depth is derived from y, "forward" means taking a y just past the piece
-     currently in front — a visible move of a pixel or two rather than a hidden
-     layer number. One source of truth, and nothing extra to store.          */
+  /* 置于最前 / 置于最后.
+     An earlier version did this by editing y, on the theory that depth should
+     have one source of truth. It made the button MOVE the furniture across the
+     room — press ⬇️ and the table jumped four percent up the floor. A control
+     labelled "send backward" must never relocate anything, so depth carries a
+     small explicit override instead. It costs two or three characters in the
+     blob and only for pieces that were actually re-stacked.                 */
   async function layerDecor(dir) {
     const items = S.equipped?.items || [];
     const me = items[S.decorSel];
     if (!me) return;
     const mine = DECOR[me.i]?.slot === 'wall';
-    const peers = items
-      .filter((o, i) => i !== S.decorSel && (DECOR[o.i]?.slot === 'wall') === mine)
-      .map(o => +o.y || 0)
-      .sort((a, b) => a - b);
-    const y = +me.y || 0;
-    const next = dir > 0 ? peers.find(p => p > y)
-                         : [...peers].reverse().find(p => p < y);
-    if (next === undefined) return;                     // already front/back
-    me.y = Math.max(0, Math.min(100, _r1(next + (dir > 0 ? 0.6 : -0.6))));
+    const peers = items.filter((o, i) =>
+      i !== S.decorSel && (DECOR[o.i]?.slot === 'wall') === mine);
+    if (!peers.length) return;
+    const zs = peers.map(o => +o.z || 0);
+    me.z = dir > 0 ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
     markLively();
     renderRoomItems();
     await saveEquipped();
@@ -5396,6 +5401,7 @@ const App = (() => {
     _scoreTest: () => ({ c1: S.char1Score, c2: S.char2Score }),
     _decorTest: () => DECOR,
     _lifetimeTest: () => lifetimeCombinedPoints(),
+    _petRawTest: () => petExpDerived(),      // pre-baseline, before u_pet_base
     _stageTest: (v) => { const st = petStageInfo(v); return { lv: st.stage.lv, name: st.stage.name, pct: st.pct, next: st.next ? st.next.name : null, toNext: st.toNext, scale: st.scale }; },
     _roomSigTest: () => _roomSig(S.equipped, S.petName, S.petSpecies),
     _renderRoomTest: () => renderRoomItems(),
@@ -5442,7 +5448,11 @@ const App = (() => {
     _coordsTest: () => guessCoords(),
     _wxModeTest: () => wxMode(),
     _flushWeatherTest: () => flushWeather(),
-    _fakeSessionTest: () => { S.usingSN = true; S.apiKey = 'test'; flushWeather(); },
+    // host lets a test point snFetch at a mockable origin — demo mode leaves
+    // snInstance as 'localhost (Demo)', which makes an unparseable URL, so
+    // fetch throws before the request is ever interceptable.
+    _fakeSessionTest: (host) => { S.usingSN = true; S.apiKey = 'test';
+      if (host) S.snInstance = host; flushWeather(); },
     _pendingWxTest: () => _wxPending,
     _lastPublishedTest: () => _lastPublished,
     _htmlVTest: () => HTML_V,
