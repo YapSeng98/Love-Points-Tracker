@@ -546,6 +546,43 @@ furnished room went 651 → 654 of the 1000 (§4.5).
   unchanged — assert that, and assert the pose (`x/y/s`) is byte-identical
   across a layer change. `regression_reported.js #14` is that guard.
 
+## 7.247 📐 Clamp the piece, not the anchor
+
+`DRAG_BOUNDS` pinned x to 8–92 — but the anchor is the bottom-**centre**
+(`translate(-50%,-100%)`), so that number says nothing about where the edges
+land. Three separate symptoms, one cause:
+
+- a bed dragged right and grown to 180% hung out of the room, and `.pet-room`
+  is `overflow:hidden`, so it was **sliced off** rather than merely overhanging;
+- `placeDecor` staggers new pieces on a fixed `14 + (n%5)*18` grid that knows
+  nothing about width, so a sofa bought into the x=14 slot was clipped the
+  moment it appeared;
+- the starter `sofa_blue` sat at x=84 and was clipped on a 390px phone from the
+  very first boot. Wide screens were fine, which is why nobody saw it.
+
+`_pieceBounds(idx)` measures the rendered element and derives per-piece limits;
+`_clampToRoom(idx)` nudges it back. Called from drag, from `resizeDecor` **after
+the render** (the new bound depends on the size it just became), and from
+`placeDecor`. It is also *more* generous than the flat margin: a narrow lamp may
+now sit closer to the wall than 8% allowed.
+
+> **Do not clamp on load.** Bounds are a share of the room, and the room is
+> 362px on a phone but 560px on a laptop — a load-time clamp would let whichever
+> device opened the room last quietly rewrite the other's layout. Clamping only
+> on a deliberate edit keeps it conservative in the safe direction: coordinates
+> that fit the narrowest screen that touched them fit everywhere.
+
+## 7.248 🚫 A control that cannot do anything must look like it
+
+置前/置后 stayed enabled for a lone piece, and for one already at the front of
+its group. Pressing them did nothing visible while still writing `z = max+1`,
+so the saved blob grew for no reason (§4.5 budget).
+
+`_stackOrder()` is now the single comparator shared by the renderer, the action
+and the buttons' `disabled` state. Three copies of that rule would drift, and a
+greyed button that still works — or a live one that does nothing — is worse than
+either behaviour on its own. `layerDecor` re-checks the rank as a backstop.
+
 ## 7.246 🔔 A cached count has to be told when it changes
 
 Opening a letter set `opened` on the in-memory object, re-rendered the letter

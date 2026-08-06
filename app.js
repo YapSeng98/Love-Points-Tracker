@@ -3684,7 +3684,10 @@ const App = (() => {
     return { paper:'', mat:'', outfit:'', sf:0, items:[
       { i:'pic_couple', x:16, y:30, s:1 },
       { i:'plant_pot',  x:16, y:87, s:1 },
-      { i:'sofa_blue',  x:84, y:87, s:1 },
+      // 78, not 84: the sofa is the widest starter (~38% of a 390px room), so
+      // at 84 its right arm was clipped by the room's overflow:hidden. Wider
+      // screens were fine, which is exactly why it went unnoticed.
+      { i:'sofa_blue',  x:78, y:87, s:1 },
     ]};
   }
   const _r1 = (n) => Math.round(n * 10) / 10;
@@ -4092,14 +4095,7 @@ const App = (() => {
        Costs nothing to store: y is already in the blob, and the array order
        is already the array order. z-index carries the result so the DOM order
        never shuffles under the drag handlers (they key off data-i).        */
-    const order = (eq.items || [])
-      .map((o, i) => ({ o, i, wall: DECOR[o.i]?.slot === 'wall' }))
-      .sort((a, b) =>
-        (a.wall !== b.wall) ? (a.wall ? -1 : 1)      // walls to the back
-        : ((+a.o.z || 0) - (+b.o.z || 0))            // explicit 置前/置后 wins
-        || ((+a.o.y || 0) - (+b.o.y || 0))           // higher up = further away
-        || (a.i - b.i))                              // tie → placement order
-      .map((x, seq) => ({ ...x, z: seq + 1 }));
+    const order = _stackOrder(eq.items).map((x, seq) => ({ ...x, z: seq + 1 }));
 
     layer.innerHTML = order.map(({ o, i, z }) => {
       const it = DECOR[o.i];
@@ -4247,6 +4243,30 @@ const App = (() => {
      the very thing that button must NOT do (§7.245). Two overlapping cards say
      "stacking" instead. `_DH_FILL` is the button's own background, so the near
      card genuinely occludes the far one.                                    */
+  /* Back-to-front order of the room. One comparator, shared by the renderer,
+     the 置前/置后 action and the buttons' disabled state — three copies of this
+     rule would eventually disagree, and a greyed-out button that still works
+     (or a live one that does nothing) is worse than either behaviour alone. */
+  function _stackOrder(items) {
+    return (items || [])
+      .map((o, i) => ({ o, i, wall: DECOR[o.i]?.slot === 'wall' }))
+      .sort((a, b) =>
+        (a.wall !== b.wall) ? (a.wall ? -1 : 1)      // walls to the back
+        : ((+a.o.z || 0) - (+b.o.z || 0))            // explicit 置前/置后 wins
+        || ((+a.o.y || 0) - (+b.o.y || 0))           // higher up = further away
+        || (a.i - b.i));                             // tie → placement order
+  }
+
+  // Where the selected piece sits within its own wall/floor group.
+  function _stackRank(idx) {
+    const items = S.equipped?.items || [];
+    const me = items[idx];
+    if (!me) return null;
+    const wall = DECOR[me.i]?.slot === 'wall';
+    const group = _stackOrder(items).filter(x => x.wall === wall);
+    return { pos: group.findIndex(x => x.i === idx), size: group.length };
+  }
+
   const _DH_FILL = '#48454F';
   function _dhIcon(k) {
     const s = (d, extra = '') => `<svg class="dh-i" viewBox="0 0 24 24" fill="none"
@@ -4277,6 +4297,9 @@ const App = (() => {
     const o = (S.equipped?.items || [])[S.decorSel];
     if (!o) { bar.classList.remove('show'); return; }
     const it = DECOR[o.i];
+    // A lone piece — or one already at the front/back of its group — has
+    // nowhere to go, so those buttons are greyed rather than silently inert.
+    const rank = _stackRank(S.decorSel);
     bar.classList.add('show');
     bar.innerHTML = `
       <span class="dh-name">${it ? _escHtml(it.name) : ''}</span>
@@ -4289,9 +4312,9 @@ const App = (() => {
       </span>
       <span class="dh-grp">
         <button class="dh-btn" onclick="App.layerDecor(-1)" aria-label="放到最后面"
-          title="放到最后面">${_dhIcon('back')}</button>
+          title="放到最后面" ${rank && rank.pos > 0 ? '' : 'disabled'}>${_dhIcon('back')}</button>
         <button class="dh-btn" onclick="App.layerDecor(1)" aria-label="放到最前面"
-          title="放到最前面">${_dhIcon('front')}</button>
+          title="放到最前面" ${rank && rank.pos < rank.size - 1 ? '' : 'disabled'}>${_dhIcon('front')}</button>
       </span>
       <button class="dh-btn del" onclick="App.removeSelectedDecor()" aria-label="删除这件">${_dhIcon('trash')}</button>
       <button class="dh-done" onclick="App.finishDecorEdit()">${_dhIcon('check')}完成</button>`;
@@ -4327,6 +4350,11 @@ const App = (() => {
     const peers = items.filter((o, i) =>
       i !== S.decorSel && (DECOR[o.i]?.slot === 'wall') === mine);
     if (!peers.length) return;
+    // Already at that end? Bumping z again would look like nothing happened
+    // while quietly inflating the number — and every digit costs blob budget
+    // (§4.5). The buttons are disabled in this state; this is the backstop.
+    const rank = _stackRank(S.decorSel);
+    if (rank && (dir > 0 ? rank.pos === rank.size - 1 : rank.pos === 0)) return;
     const zs = peers.map(o => +o.z || 0);
     me.z = dir > 0 ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
     markLively();
@@ -4339,6 +4367,9 @@ const App = (() => {
     if (!o) return;
     o.s = Math.min(DECOR_MAX_SCALE, Math.max(DECOR_MIN_SCALE, _r1((o.s || 1) + dir * 0.1)));
     renderRoomItems();
+    // Growing a piece can push it through the wall, so re-clamp AFTER the
+    // render — the new bounds depend on the size it just became.
+    if (_clampToRoom(S.decorSel)) renderRoomItems();
     await saveEquipped();
   }
 
@@ -4358,6 +4389,48 @@ const App = (() => {
   };
   let _dragSaveTimer = null;
 
+  /* The flat 8–92 above clamps the ANCHOR, and the anchor is the bottom-centre
+     (`translate(-50%,-100%)`) — so it says nothing about where the piece's
+     edges land. A bed dragged to the right and then grown to 180% hung 9px
+     out of the room, and further at the true limit. Measuring the rendered
+     element gives exact per-piece bounds, which is also more generous: a small
+     lamp may now sit closer to the wall than the fixed margin allowed. */
+  function _pieceBounds(idx) {
+    const items = S.equipped?.items || [];
+    const o = items[idx];
+    if (!o) return DRAG_BOUNDS.floor;
+    const kind = DECOR[o.i]?.slot === 'wall' ? 'wall' : 'floor';
+    const b = { ...DRAG_BOUNDS[kind] };
+    const room = document.getElementById('pet-room');
+    const el = document.querySelector(`#pet-decor-layer .decor-piece[data-i="${idx}"]`);
+    if (!room || !el) return b;
+    const rr = room.getBoundingClientRect(), er = el.getBoundingClientRect();
+    if (!rr.width || !rr.height) return b;
+    const halfW = (er.width / rr.width) * 50;          // % of room, either side
+    const tall  = (er.height / rr.height) * 100;       // grows upward from y
+    b.minX = Math.max(b.minX, halfW);
+    b.maxX = Math.min(b.maxX, 100 - halfW);
+    b.minY = Math.max(b.minY, tall);                   // keep the top in view
+    // A piece wider or taller than its own strip: centre it rather than
+    // inverting the range and flinging it to a corner.
+    if (b.minX > b.maxX) b.minX = b.maxX = 50;
+    if (b.minY > b.maxY) b.minY = b.maxY;
+    return b;
+  }
+
+  // Nudge a piece back inside after something changed its size. Returns true
+  // if it actually moved, so the caller can avoid a pointless re-render.
+  function _clampToRoom(idx) {
+    const o = (S.equipped?.items || [])[idx];
+    if (!o) return false;
+    const b = _pieceBounds(idx);
+    const x = _r1(Math.min(b.maxX, Math.max(b.minX, +o.x || 50)));
+    const y = _r1(Math.min(b.maxY, Math.max(b.minY, +o.y || 80)));
+    if (x === _r1(+o.x) && y === _r1(+o.y)) return false;
+    o.x = x; o.y = y;
+    return true;
+  }
+
   function attachDecorDrag(el) {
     el.addEventListener('pointerdown', (ev) => {
       const room = document.getElementById('pet-room');
@@ -4365,13 +4438,12 @@ const App = (() => {
       const idx = +el.dataset.i;
       const slot = (S.equipped?.items || [])[idx];
       if (!slot) return;
-      const kind = DECOR[slot.i]?.slot === 'wall' ? 'wall' : 'floor';
 
       ev.preventDefault();
       el.setPointerCapture(ev.pointerId);
       el.classList.add('dragging');
       const rect = room.getBoundingClientRect();
-      const b = DRAG_BOUNDS[kind];
+      const b = _pieceBounds(idx);
       let moved = false;
       const startX = ev.clientX, startY = ev.clientY;
 
@@ -4678,6 +4750,12 @@ const App = (() => {
       eq[it.slot] = id;
     }
     renderRoomItems();
+    // The stagger above is a fixed grid, so it has no idea how wide the piece
+    // is: a sofa landing on the x=14 slot started 5% off the left edge and the
+    // room's `overflow:hidden` simply sliced it. Clamp once it has been
+    // measured, then repaint if it actually moved.
+    const placed = eq.items ? eq.items.findIndex(o => o.i === id) : -1;
+    if (placed >= 0 && _clampToRoom(placed)) renderRoomItems();
     if (it.slot === 'outfit') renderPetHome();
     renderDecor();
     markLively();

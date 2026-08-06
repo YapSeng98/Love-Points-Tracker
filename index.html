@@ -2688,6 +2688,9 @@
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       box-shadow: 0 6px 20px rgba(0,0,0,0.34);
       border-radius: 22px; padding: 7px 8px 8px;
+      /* Tapping ➕ repeatedly would otherwise double-tap-select "180%" and
+         leave a blue highlight sitting in the toolbar. */
+      user-select: none; -webkit-user-select: none;
       /* An absolutely-positioned flex box shrink-to-fits to its widest ITEM
          once wrapping is allowed, which stacked the whole bar vertically.
          max-content sizes it to the row, so it wraps only when it must. */
