@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.06-42';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.06-43';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -416,7 +416,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.08.05b';
+  const HTML_V = '2026.08.06a';
 
   (function ensureFreshHtml() {
     try {
@@ -4238,6 +4238,39 @@ const App = (() => {
      Tap (a press that didn't turn into a drag) selects; the bar then edits
      that one piece. Buttons rather than pinch: pinch fights the page zoom on
      iOS and is far harder to hit accurately with furniture this small. */
+  /* Toolbar glyphs are SVG, never emoji.
+     ➖ and ➕ (U+2796/U+2795) are *emoji*: the platform paints them in its own
+     dark grey and ignores `color`, so on this near-black bar they were all but
+     invisible on iOS — reported as "the left and right are very hard to see".
+     Stroked SVG inherits currentColor and looks identical everywhere.
+     The depth pair used ⬇️⬆️, which read as "move the furniture down/up" —
+     the very thing that button must NOT do (§7.245). Two overlapping cards say
+     "stacking" instead. `_DH_FILL` is the button's own background, so the near
+     card genuinely occludes the far one.                                    */
+  const _DH_FILL = '#48454F';
+  function _dhIcon(k) {
+    const s = (d, extra = '') => `<svg class="dh-i" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">${extra}${d}</svg>`;
+    switch (k) {
+      case 'minus': return s('<path d="M5 12h14"/>');
+      case 'plus':  return s('<path d="M12 5v14M5 12h14"/>');
+      // Filled card = the piece you are moving. The other card is dimmed, so at
+      // 15px you read "which one is solid" instantly instead of comparing two
+      // near-identical outlines.
+      // The dimming is on the STROKE only: the near card's fill has to stay
+      // opaque or the solid card behind it bleeds through and the overlap reads
+      // as a smudge instead of one card in front of the other.
+      case 'back':  return s('<rect x="9.5" y="9.5" width="11" height="11" rx="2.5" fill="' + _DH_FILL + '" stroke-opacity=".62"/>',
+                             '<rect x="3.5" y="3.5" width="11" height="11" rx="2.5" fill="currentColor" stroke="none"/>');
+      case 'front': return s('<rect x="9.5" y="9.5" width="11" height="11" rx="2.5" fill="currentColor" stroke="none"/>',
+                             '<rect x="3.5" y="3.5" width="11" height="11" rx="2.5" fill="' + _DH_FILL + '" stroke-opacity=".62"/>');
+      case 'trash': return s('<path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5 7.6 20h8.8l1.1-13.5M10 10.5v6M14 10.5v6"/>');
+      case 'check': return s('<path d="M4.5 12.5 9.5 18 19.5 6.5"/>');
+      default: return '';
+    }
+  }
+
   function renderDecorHandle() {
     const bar = document.getElementById('decor-handle');
     if (!bar) return;
@@ -4247,13 +4280,31 @@ const App = (() => {
     bar.classList.add('show');
     bar.innerHTML = `
       <span class="dh-name">${it ? _escHtml(it.name) : ''}</span>
-      <button class="dh-btn" onclick="App.resizeDecor(-1)" ${o.s <= DECOR_MIN_SCALE ? 'disabled' : ''}>➖</button>
-      <span class="dh-size">${Math.round((o.s || 1) * 100)}%</span>
-      <button class="dh-btn" onclick="App.resizeDecor(1)" ${o.s >= DECOR_MAX_SCALE ? 'disabled' : ''}>➕</button>
-      <button class="dh-btn" onclick="App.layerDecor(-1)" title="放到最后面">⬇️</button>
-      <button class="dh-btn" onclick="App.layerDecor(1)" title="放到最前面">⬆️</button>
-      <button class="dh-btn del" onclick="App.removeSelectedDecor()">🗑</button>
-      <button class="dh-btn" onclick="App.selectDecor(null)">✕</button>`;
+      <span class="dh-grp">
+        <button class="dh-btn" onclick="App.resizeDecor(-1)" aria-label="缩小"
+          ${o.s <= DECOR_MIN_SCALE ? 'disabled' : ''}>${_dhIcon('minus')}</button>
+        <span class="dh-size">${Math.round((o.s || 1) * 100)}%</span>
+        <button class="dh-btn" onclick="App.resizeDecor(1)" aria-label="放大"
+          ${o.s >= DECOR_MAX_SCALE ? 'disabled' : ''}>${_dhIcon('plus')}</button>
+      </span>
+      <span class="dh-grp">
+        <button class="dh-btn" onclick="App.layerDecor(-1)" aria-label="放到最后面"
+          title="放到最后面">${_dhIcon('back')}</button>
+        <button class="dh-btn" onclick="App.layerDecor(1)" aria-label="放到最前面"
+          title="放到最前面">${_dhIcon('front')}</button>
+      </span>
+      <button class="dh-btn del" onclick="App.removeSelectedDecor()" aria-label="删除这件">${_dhIcon('trash')}</button>
+      <button class="dh-done" onclick="App.finishDecorEdit()">${_dhIcon('check')}完成</button>`;
+  }
+
+  /* 完成 — an explicit end to editing, rather than a bare ✕ that reads as
+     "dismiss". It also tells the SYNC you are finished: a partner's change is
+     held back behind a banner while a piece is selected (§7.24), so the moment
+     you are done it can simply land. */
+  async function finishDecorEdit() {
+    selectDecor(null);
+    const banner = document.getElementById('room-sync-banner');
+    if (banner?.classList.contains('show')) await refreshRoom(true);
   }
 
   function selectDecor(i) {
@@ -5394,7 +5445,7 @@ const App = (() => {
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,
-    selectDecor, resizeDecor, removeSelectedDecor, refreshRoom,
+    selectDecor, resizeDecor, removeSelectedDecor, refreshRoom, finishDecorEdit,
     _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
     _forceRoomBanner: () => showRoomUpdateBanner(),
     _coinTest: () => ({ exp: petExp(), earned: nestCoinsEarned(), spent: nestCoinsSpent(), balance: nestCoins() }),

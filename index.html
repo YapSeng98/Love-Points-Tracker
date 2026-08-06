@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.05b">
+  <meta name="app-html-v" content="2026.08.06a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2678,25 +2678,51 @@
     }
     .decor-piece.dragging { cursor: grabbing; filter: brightness(1.15); z-index: 4; }
     .decor-piece.selected { filter: drop-shadow(0 0 0 #A87CE0) drop-shadow(0 0 6px #A87CE0); }
+    /* The edit bar must never run off a narrow phone, so it wraps to a second
+       row instead of overflowing — hence flex-wrap + justify-content:center. */
     .decor-handle {
       position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%);
-      z-index: 6; display: none; align-items: center; gap: 6px;
-      background: rgba(20,16,32,0.88); border: 1.5px solid rgba(255,255,255,0.2);
+      z-index: 6; display: none; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 5px 6px;
+      background: rgba(20,16,32,0.92); border: 1.5px solid rgba(255,255,255,0.26);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-      border-radius: 30px; padding: 6px 8px; max-width: 94%;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.34);
+      border-radius: 22px; padding: 7px 8px 8px;
+      /* An absolutely-positioned flex box shrink-to-fits to its widest ITEM
+         once wrapping is allowed, which stacked the whole bar vertically.
+         max-content sizes it to the row, so it wraps only when it must. */
+      width: max-content; max-width: 96%;
     }
     .decor-handle.show { display: flex; }
-    .dh-name { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.85);
-               max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dh-size { font-size: 11px; font-weight: 800; color: white; min-width: 34px; text-align: center;
+    /* The controls alone need ~312px, so on a 360px phone the name cannot
+       share their row. It gets its own caption row deliberately — a fixed
+       two-row bar beats one that reflows differently on every handset. */
+    .dh-name { flex-basis: 100%; text-align: center; margin-bottom: -1px;
+               font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.92);
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* size and depth each read as one control, not four loose circles */
+    .dh-grp { display: flex; align-items: center; gap: 3px;
+              background: rgba(255,255,255,0.09); border-radius: 20px; padding: 3px; }
+    .dh-size { font-size: 11.5px; font-weight: 800; color: #fff; min-width: 36px; text-align: center;
                font-variant-numeric: tabular-nums; }
     .dh-btn {
-      border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
-      background: rgba(255,255,255,0.16); color: white; font-size: 12px;
-      display: flex; align-items: center; justify-content: center;
+      border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;
+      background: rgba(255,255,255,0.22); color: #fff; padding: 0;
+      display: flex; align-items: center; justify-content: center; flex: none;
     }
-    .dh-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-    .dh-btn.del { background: rgba(255,107,107,0.34); }
+    /* Glyphs are stroked SVG so they actually take `color` — emoji would be
+       painted by the platform in its own (dark) colour and vanish here. */
+    .dh-i { width: 15px; height: 15px; display: block; }
+    .dh-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+    .dh-btn.del { background: rgba(255,120,120,0.30); color: #FFC9C9; }
+    .dh-done {
+      display: flex; align-items: center; gap: 4px; flex: none;
+      height: 30px; padding: 0 13px 0 11px; border: none; border-radius: 20px;
+      cursor: pointer; font-size: 12.5px; font-weight: 800; letter-spacing: .3px;
+      background: linear-gradient(135deg, #9B7BE8, #7C5FD3); color: #fff;
+      box-shadow: 0 2px 8px rgba(124,95,211,0.5);
+    }
+    .dh-done .dh-i { width: 14px; height: 14px; }
     /* Narrow phones: shrink furniture a touch so it can't crowd the pet */
     @media (max-width: 380px) { .pet-room { --pet-h: 132px; } }
     .pet-rug {
