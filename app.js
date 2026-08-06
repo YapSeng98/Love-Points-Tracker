@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.08.06-43';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.08.06-44';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -200,7 +200,7 @@ const App = (() => {
       }
     }
     const kind = await refreshWeather();
-    showToast(kind ? `${WX_ICON[kind] || '🌤'} ${WX_LABEL[kind] || ''}` : '天气暂时取不到');
+    showToast(kind ? `${wxIcon(kind, _wxDay)} ${WX_LABEL[kind] || ''}` : '天气暂时取不到');
   }
 
   function guessCoords() {
@@ -266,6 +266,21 @@ const App = (() => {
                      snow:'下雪', fog:'有雾' };
   const WX_ICON  = { clear:'☀️', cloudy:'☁️', rain:'🌧', thunder:'⛈',
                      snow:'❄️', fog:'🌫' };
+  /* A weather condition is not a time of day — same trap as 夏's ☀️ particle
+     (§7.23). At 23:15 the card read 「你这边 ☀️ 晴」 while the whole app was in
+     its night palette. 晴 is still the right WORD at night (Chinese forecasts
+     say 晴 around the clock), so only the icon changes. Rain, fog, snow and
+     thunder read fine in the dark and are deliberately left alone; a cloud on
+     its own is time-neutral too, but a moon behind it says night far better. */
+  const WX_ICON_NIGHT = { clear:'🌙', cloudy:'☁️' };
+  function wxIcon(kind, day) {
+    if (day === false || day === 0) return WX_ICON_NIGHT[kind] || WX_ICON[kind] || '🌤';
+    return WX_ICON[kind] || '🌤';
+  }
+  // Open-Meteo reports is_day for the queried point, which beats guessing from
+  // a clock — it accounts for the real sunrise/sunset at that latitude.
+  let _wxDay = null;                       // null = unknown, fall back to hours
+  const _dayByHour = (h) => !(h >= 19 || h < 6);
   const WX_STALE = 3 * 60 * 60 * 1000;      // older than this = they're not around
 
   // Each partner writes ONLY their own slot (u_wx_1 / u_wx_2), so two phones
@@ -282,7 +297,11 @@ const App = (() => {
     if (!S.usingSN || !kind) return;
     _wxPending = '';
     const slot = S.activeChar === 'char2' ? 'wx2' : 'wx1';
-    const payload = JSON.stringify({ k: kind, h: new Date().getHours(), at: Date.now() });
+    // d = is it daylight THERE. Their hour alone would be a decent guess, but
+    // it is wrong near the poles and around DST, and Open-Meteo already knows.
+    const day = (_wxDay === null) ? _dayByHour(new Date().getHours()) : _wxDay;
+    const payload = JSON.stringify({ k: kind, h: new Date().getHours(),
+                                     at: Date.now(), d: day ? 1 : 0 });
     _lastPublished = { slot, payload };
     Data.saveConfig({ [slot]: payload }).catch(() => {});   // best effort, never blocks
   }
@@ -302,7 +321,11 @@ const App = (() => {
       const w = JSON.parse(raw);
       if (!w || !w.k || !w.at) return null;
       if (Date.now() - w.at > WX_STALE) return null;        // gone quiet — say nothing
-      return { kind: w.k, hour: w.h, label: WX_LABEL[w.k] || w.k, icon: WX_ICON[w.k] || '🌤' };
+      // Their night, not mine: partners can be in different time zones, and the
+      // payload carries their own daylight flag. Older payloads have no `d`, so
+      // fall back to the hour they published.
+      const day = ('d' in w) ? !!w.d : _dayByHour(Number(w.h));
+      return { kind: w.k, hour: w.h, label: WX_LABEL[w.k] || w.k, icon: wxIcon(w.k, day) };
     } catch { return null; }
   }
 
@@ -318,7 +341,7 @@ const App = (() => {
     el.classList.remove('hidden');
     const name = S.activeChar === 'char2' ? (S.charName1 || 'TA') : (S.charName2 || 'TA');
     const mineBit = mine
-      ? `<span class="pwx-ico">${WX_ICON[mine] || '🌤'}</span>
+      ? `<span class="pwx-ico">${wxIcon(mine, _wxDay)}</span>
          <span class="pwx-txt">你这边 ${WX_LABEL[mine] || ''}</span>` : '';
     if (!w) {
       el.innerHTML = mineBit +
@@ -338,16 +361,22 @@ const App = (() => {
     try {
       if (wxMode() === 'off') { applyWeather(''); return ''; }
       const c = JSON.parse(localStorage.getItem(WEATHER_KEY) || 'null');
-      if (c && Date.now() - c.at < WEATHER_TTL) { applyWeather(c.kind); publishWeather(c.kind); return c.kind; }
+      if (c && Date.now() - c.at < WEATHER_TTL) {
+        // A cached reading can outlive sunset, so never cache day/night with it.
+        _wxDay = _dayByHour(new Date().getHours());
+        applyWeather(c.kind); publishWeather(c.kind); return c.kind;
+      }
       if (wxMode() === 'off') { applyWeather(''); return ''; }
       const [lat, lon] = (wxMode() === 'precise' && await preciseCoords()) || guessCoords();
       const res = await fetch(`https://api.open-meteo.com/v1/forecast` +
-        `?latitude=${lat}&longitude=${lon}&current=weather_code,precipitation`,
+        `?latitude=${lat}&longitude=${lon}&current=weather_code,precipitation,is_day`,
         { cache: 'no-store' });
       if (!res.ok) throw new Error('weather ' + res.status);
       const j = await res.json();
       const cur  = (j && j.current) || {};
       const kind = weatherKind(cur.weather_code, cur.precipitation);
+      _wxDay = Number.isFinite(+cur.is_day) ? !!+cur.is_day
+                                            : _dayByHour(new Date().getHours());
       localStorage.setItem(WEATHER_KEY, JSON.stringify({ at: Date.now(), kind }));
       applyWeather(kind);
       publishWeather(kind);
@@ -5552,10 +5581,15 @@ const App = (() => {
     _particleTest: (d) => themeParticle(currentTheme(d), d),
     _periodTest: (d) => { const p = periodOf(d); return { id: p.id, name: p.name, hi: p.hi }; },
     _moonTest: (d) => moonInfo(d),
+    _wxIconTest: (k, day) => wxIcon(k, day),
+    _wxDayTest: () => _wxDay,
     _weatherKindTest: (c, mm) => weatherKind(c, mm),
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
+    // lets a test put a partner's reading in the other slot and re-render
+    _setPartnerWxTest: (raw) => { if (S.activeChar === 'char2') S.wx1 = raw; else S.wx2 = raw;
+      renderPartnerWeather(); },
     _isNewDecorTest: (id) => isNewDecor(id),
     _daysLeftTest: (id, d) => decorDaysLeft(DECOR[id], d),
     _renderSeasonTest: () => renderSeasonCard(),

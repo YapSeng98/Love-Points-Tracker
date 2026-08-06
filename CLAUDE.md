@@ -455,6 +455,31 @@ drizzled — which is what 设置 › 天气 › 用精确位置 is for.
 
 ---
 
+## 7.226 ☀️🌙 A weather condition is not a time of day either
+
+Reported at 23:15: 「你这边 ☀️ 晴」 with the whole app in its night palette.
+Checked against the source — Open-Meteo said `weather_code 0`, `cloud_cover
+17%`, so **晴 was faithful**; iOS said "Partly Cloudy" only because its provider
+labels 17% cloud differently. Providers disagreeing is §7.22, not a bug.
+
+The bug was the **icon**. Exactly the §7.23 trap one layer over: a sun means
+midday, and no weather code implies a time of day.
+
+- Only `clear` gets a night variant (🌙). Rain, thunder, snow and fog read fine
+  in the dark; a bare cloud is time-neutral. Don't invent variants you don't need.
+- The **word** stays 晴 — Chinese forecasts say 晴 around the clock. Change the
+  glyph, not the vocabulary.
+- Day/night comes from Open-Meteo's **`is_day`** for the queried point, which
+  beats a clock: it is right near the poles and across DST. Ask for it in the
+  same call — it is free.
+- **Never cache day/night with the reading.** The 20-minute weather cache
+  outlives sunset; a cached `is_day` would leave a sun up after dark.
+- The partner's icon uses **their** daylight, not yours. `u_wx_*` now carries
+  `d`, and payloads written before it fall back to the hour they published.
+  A couple in different time zones must be able to show 🌙 and ☀️ on one card.
+
+---
+
 ## 7.22 🌧 Weather accuracy is a user choice, not a default
 
 "It says raining but it isn't here" was **not** a bug — Open-Meteo genuinely
