@@ -798,6 +798,37 @@ need (e.g. `u_pet_equipped`) so the user isn't sent back a second time.
 
 ---
 
+## 8.4 💾 Backing up a free ServiceNow PDI
+
+`dev405150.service-now.com` is a free Personal Developer Instance — it can
+hibernate after a few idle days and, if left inactive long enough, be
+reclaimed outright with everything on it. There is no vendor backup. Years of
+entries, letters and photos exist ONLY on that instance until something else
+copies them out.
+
+`tools/backup.js` pulls every table through the same REST API the app uses —
+no new resources needed. One thing it had to learn that `app.js` already
+knew: three endpoints (`/categories`, `/punishments`, `/history`) come back
+**double-wrapped** as `{result:{result:[...]}}}`, the rest single. This is
+live platform behaviour, not a script bug — the fix mirrors `_snUnwrap`
+exactly, and skipping it silently turns those three arrays into `{result:
+[...]}` objects with a `.length` of `undefined`.
+
+- `node tools/backup.js login char1 <user> <pass>` — logs in once, keeps only
+  the returned `apiKey` (stable until someone resets it), never the password.
+- `node tools/backup.js` — writes `backups/<timestamp>.json`.
+- `tools/install-backup-schedule.sh` — macOS `launchd`, every 7 days,
+  `StartInterval` (not `StartCalendarInterval`) so a missed week while asleep
+  still fires on next wake instead of silently skipping.
+- **Both partners' keys are needed for a complete backup.** `/bag` and
+  `/bag/history` key off the caller's own `u_char_id` — one login only ever
+  sees that person's bag, never the couple's shared tables.
+- `backups/` and `tools/backup.local.json` are gitignored — this repo
+  deploys **publicly** on every push, and both contain a live API key plus
+  private content.
+
+---
+
 ## 8.5 🛠️ Maintenance mode
 
 `MAINTENANCE.on` at the top of `app.js` closes the app: the login form is

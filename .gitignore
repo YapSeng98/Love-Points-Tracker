@@ -7,3 +7,8 @@
 # Local-only Pages workflow. Pages deploys from the branch; committing this
 # would switch the site to an Actions-based deploy and risk breaking it.
 .github/workflows/deploy.yml
+
+# Backup script output + credentials — this repo deploys PUBLICLY on every
+# push, and these contain a live API key plus the couple's private data.
+tools/backup.local.json
+backups/

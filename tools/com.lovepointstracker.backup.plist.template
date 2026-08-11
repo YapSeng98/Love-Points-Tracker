@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template — install-backup-schedule.sh fills in __NODE__ and __SCRIPT__ and
+  installs the result to ~/Library/LaunchAgents. Don't load this file directly.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.lovepointstracker.backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__SCRIPT__</string>
+  </array>
+
+  <!-- 7 days, in seconds. If the Mac is asleep or off when this elapses,
+       launchd runs the job at the next wake instead of skipping it. -->
+  <key>StartInterval</key>
+  <integer>604800</integer>
+
+  <!-- Also run once immediately on install, so setup is verified on the spot
+       instead of waiting a week to find out it's broken. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG__</string>
+</dict>
+</plist>
