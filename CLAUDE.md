@@ -820,12 +820,35 @@ exactly, and skipping it silently turns those three arrays into `{result:
 - `tools/install-backup-schedule.sh` — macOS `launchd`, every 7 days,
   `StartInterval` (not `StartCalendarInterval`) so a missed week while asleep
   still fires on next wake instead of silently skipping.
-- **Both partners' keys are needed for a complete backup.** `/bag` and
-  `/bag/history` key off the caller's own `u_char_id` — one login only ever
-  sees that person's bag, never the couple's shared tables.
 - `backups/` and `tools/backup.local.json` are gitignored — this repo
   deploys **publicly** on every push, and both contain a live API key plus
   private content.
+
+**`/bag` and `/bag/history` key off the caller's own `u_char_id`** — one
+login only ever sees that person's bag, so a *complete* backup used to need
+both partners logging in separately. Asked to avoid that, twice: first "no
+second password", then explicitly "don't change the app" when the fix was
+editing `r29`/`r31` (the app's own resources) to add an opt-in `?both=1`.
+
+The actual answer was a **new, additive** resource instead of touching a
+live one — `r41_GET_backup_full.js`. Same auth as every other resource
+(Bearer apiKey → matchId), but its `bag` query skips the `u_char` filter on
+purpose, so either partner's *existing* login returns both partners' rows in
+one call. Nothing in `app.js` calls it; zero risk to the live app.
+
+- `u_love_auth` is never queried by anything backup-related — `r22` compares
+  `u_password` directly (no hashing), so it's stored in plaintext. Two
+  partners' plaintext credentials sitting in one portable JSON file makes the
+  real risk *worse*, not better. Accounts can be recreated; a backup is for
+  content, not logins.
+- **ServiceNow returns `401`, not `404`, for a resource path that doesn't
+  exist** under this Scripted REST API — so "r41 hasn't been pasted yet" and
+  "this apiKey is bad" look identical from the status code alone.
+  `tryFullBackup()` disambiguates by replaying the same key against `/config`
+  (guaranteed to exist): if that also 401s, the key is genuinely bad and it
+  throws for real; if `/config` is fine, `/backup/full`'s 401 just means r41
+  isn't deployed yet, and the script falls back to the older split-login path
+  — which still fully works today, just per-partner.
 
 ---
 
