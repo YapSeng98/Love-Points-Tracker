@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.08.06a">
+  <meta name="app-html-v" content="2026.09.03a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -640,17 +640,44 @@
     .nav-item.active .nav-label { color: var(--blue-ink); font-weight: 700; }
 
     /* ── Settle FAB ── */
-    .settle-fab {
+    /* Corner-anchored, not centered: a full-width-spanning centered pill sat
+       directly on top of .score-card-header's own full-width bar whenever a
+       normal amount of home-page content (hero + duo tiles + letter/checkin
+       rows) pushed the score card to land in this band on a standard-height
+       phone — reproducible on first paint, no scrolling needed, confirmed by
+       measuring both elements' rects (they overlapped by 10px vertically).
+       A bottom-right corner FAB is also the conventional modern placement
+       (Gmail, Notion, etc.) and naturally can't collide with a full-width bar
+       the way a centered one could. */
+    /* A plain `right: 16px` would anchor to the literal viewport edge, but
+       wide screens cap the whole app to a centered ≤406px column (matching
+       .bottom-nav's own width/max-width/centering, §7.25) — a viewport-edge
+       FAB would float off in empty space next to that column on a laptop.
+       .settle-fab-dock mirrors .bottom-nav's exact centering math so the
+       button's right edge always lines up with the nav's right edge, at any
+       width, the same way .bottom-nav already does it. The dock itself is
+       pointer-events:none so it doesn't create an invisible click-blocking
+       strip across the content behind it — only the button inside catches taps. */
+    .settle-fab-dock {
       position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%;
       transform: translateX(-50%);
-      z-index: 51;
+      width: calc(100% - 24px); max-width: 406px;
+      display: flex; justify-content: flex-end;
+      pointer-events: none; z-index: 51;
+    }
+    .settle-fab {
+      /* ::after (the shimmer sweep) is position:absolute and needs THIS as
+         its positioned ancestor — losing position:fixed here (moved to the
+         dock) would otherwise let it size against the fixed dock instead. */
+      position: relative;
+      pointer-events: auto;
       background: linear-gradient(135deg, #FFE234 0%, #FFB800 45%, #FF9500 100%);
       border: none; border-radius: 50px;
-      padding: 11px 26px;
+      padding: 11px 22px;
       display: flex; align-items: center; justify-content: center; gap: 7px;
       font-size: 14px; font-weight: 800; color: white;
       letter-spacing: 0.04em; cursor: pointer; white-space: nowrap;
-      overflow: hidden; position: fixed;
+      overflow: hidden;
       box-shadow:
         0 0 0 4px rgba(255,200,0,0.15),
         0 5px 22px rgba(255,165,0,0.55),
@@ -659,7 +686,7 @@
       animation: fab-glow 2.6s ease-in-out infinite;
       transition: transform 0.15s;
     }
-    .settle-fab:active { transform: translateX(-50%) scale(0.95); }
+    .settle-fab:active { transform: scale(0.95); }
     .settle-fab::after {
       content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
       border-radius: 50px;
@@ -4121,8 +4148,8 @@
   </div>
 </div>
 
-<!-- Monthly settle FAB (floats above nav) -->
-<button class="settle-fab" onclick="App.openSettleModal()">🎯 月末结算</button>
+<!-- Monthly settle FAB (floats above nav, docked to the nav's own right edge) -->
+<div class="settle-fab-dock"><button class="settle-fab" onclick="App.openSettleModal()">🎯 月末结算</button></div>
 
 <!-- Bottom nav (5 items, floating pill) -->
 <nav class="bottom-nav">
