@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.09.03a">
+  <meta name="app-html-v" content="2026.09.06a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2324,6 +2324,171 @@
       .sky-bg .star, .sky-bg .shooting-star { animation: none; }
     }
 
+    /* ── 节日效果：跨年/春节烟花、情人节爱心、中秋灯笼、圣诞彩灯、端午龙舟 ──
+       Scoped under .sky-bg throughout (§1.1) — never a bare .firework/
+       .lantern-accent/.boat/.fairy-light top-level rule. Presence is JS-driven
+       (renderHomeFestival only builds .home-fest-layer while a priority≥10
+       festival with an `effect` is active, torn down the instant it ends —
+       same dynamic build/teardown as the pet room's .pet-season-layer);
+       colour/variant here is driven by the data-festival attribute that
+       applyTheme() keeps live. */
+    .sky-bg .home-fest-layer { position: absolute; inset: 0; overflow: hidden; }
+    /* On a real festival day, its own effect owns the sky — the year-round
+       ambient clouds (daytime only, §1.1) drift through the exact same band
+       as the daytime heroes below (confetti, the dragon boats, the vday
+       heart) and a plain white rounded-rect cloud parked behind one reads as
+       a stray card, not weather. [data-festival] (not ="") only matches on
+       a real festival because applyTheme() removes the attribute entirely
+       on an ordinary day rather than setting it empty. */
+    html[data-festival] .clouds-bg { display: none; }
+
+    /* Falling particle (🧧💗🌾❄️🍃✨) — same technique as the pet room's
+       .pet-season-p (same season-fall keyframes), just re-scoped to the
+       full-screen sky. */
+    .sky-bg .fest-p {
+      position: absolute; top: -28px; left: var(--x, 50%); font-size: 16px; opacity: 0;
+      animation: season-fall var(--r, 11s) linear infinite;
+      animation-delay: var(--d, 0s);
+    }
+
+    /* 跨年 / 春节 — fireworks. Night only: real fireworks aren't visible in
+       daylight, and §7.15's rule is to gate sky art on data-period, never
+       data-theme, so this stays correct even in forced-light mode at night.
+       Day/dusk falls back to the particle drift above (🧧/✨). Six
+       box-shadow dots ringing a point, scaled and faded together, is the
+       same "one element, many painted copies" trick already used for
+       .sky-bg .sun::before's rays. */
+    .sky-bg .firework {
+      display: none;
+      position: absolute; top: var(--y, 20%); left: var(--x, 50%);
+      width: 7px; height: 7px; border-radius: 50%;
+      animation: firework-burst 2.6s ease-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    html[data-period="night"] .sky-bg .firework { display: block; }
+    html[data-festival="nye"] .sky-bg .firework {
+      box-shadow: 0 -30px 3px -1px #FFD75E, 26px -13px 3px -1px #FF7BA8, 26px 15px 3px -1px #7EC8FF,
+                  0 30px 3px -1px #B18CFF, -26px 15px 3px -1px #6BE0A6, -26px -13px 3px -1px #FF9E6B;
+    }
+    html[data-festival="cny"] .sky-bg .firework {
+      box-shadow: 0 -30px 3px -1px #FFD75E, 26px -13px 3px -1px #FF6B6B, 26px 15px 3px -1px #FFB25E,
+                  0 30px 3px -1px #FF6B6B, -26px 15px 3px -1px #FFD75E, -26px -13px 3px -1px #FF6B6B;
+    }
+    @keyframes firework-burst {
+      0%   { opacity: 0;   transform: scale(0.2); }
+      18%  { opacity: 1;   transform: scale(1); }
+      55%  { opacity: 0.7; transform: scale(1.5); }
+      100% { opacity: 0;   transform: scale(1.7); }
+    }
+    /* Confetti is 跨年/春节's DAYTIME hero — real fireworks don't read in
+       daylight, but confetti genuinely does, the same way summer's particle
+       is a sun by day and fireflies by night (themeParticle). Colors come
+       from an inline `background` per span (not CSS nth-of-type) — see the
+       lantern-accent note below for why sibling-position selectors are
+       worth avoiding here. */
+    .sky-bg .confetti {
+      display: none;
+      position: absolute; top: -16px; left: var(--x, 50%);
+      width: 7px; height: 12px; border-radius: 2px;
+      animation: confetti-fall 3.2s ease-in infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    html:not([data-period="night"]) .sky-bg .confetti { display: block; }
+    @keyframes confetti-fall {
+      0%   { opacity: 0;   transform: translateY(0) rotate(0deg); }
+      10%  { opacity: 1; }
+      88%  { opacity: 0.85; }
+      100% { opacity: 0;   transform: translateY(210px) rotate(340deg); }
+    }
+
+    /* 情人节 — a single large glowing heart as the hero (pulsing, not
+       bursting — romance and New Year shouldn't share the same energy),
+       plus the falling 💗 particle and a soft warm-pink wash. The wash lives
+       on the layer div itself, not .sky-bg::before/::after — both of those
+       already carry the weather fog wash and the hour-of-day wash, and an
+       element only ever paints one background at a time. */
+    html[data-festival="vday"] .sky-bg .home-fest-layer {
+      background: radial-gradient(circle at 82% 14%, rgba(255,138,178,0.20), transparent 55%);
+    }
+    .sky-bg .hero-heart {
+      position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+      font-size: 38px; filter: drop-shadow(0 0 16px rgba(255,138,178,0.75));
+      animation: hero-heart-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes hero-heart-pulse {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50%      { transform: translateX(-50%) scale(1.16); }
+    }
+
+    /* 中秋 — a warm halo on the real (phase-accurate) moon, plus a lantern
+       garland across the top. moonInfo()/moonSvg() are untouched; the halo
+       only layers a glow on top, so the lunar phase math (§7.15) stays the
+       single source of truth for the moon's shape. */
+    html[data-festival="midautumn"] .sky-bg .moon::after {
+      content: ''; position: absolute; inset: -16px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,214,140,0.38), transparent 70%);
+      animation: moon-glow 6s ease-in-out infinite;
+    }
+    .sky-bg .lantern-accent {
+      position: absolute; top: 12px; left: var(--x, 50%); font-size: 22px; opacity: 0.9;
+      animation: lantern-sway 4s ease-in-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    @keyframes lantern-sway {
+      0%, 100% { transform: rotate(-6deg); }
+      50%      { transform: rotate(6deg); }
+    }
+
+    /* 圣诞 — a fairy-light string along the top edge, not fake snow: real
+       weather already owns snow (§7.22/§7.225), and 圣诞 without local snow
+       shouldn't lie about the weather. A Santa silhouette actually crossing
+       the sky is the hero; the lights alone read as decoration, not an event. */
+    .sky-bg .fairy-light {
+      position: absolute; top: 4px; left: var(--x, 50%);
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #FFD75E; box-shadow: 0 0 6px rgba(255,215,94,0.9);
+      animation: twinkle 2.2s ease-in-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    .sky-bg .fairy-light:nth-of-type(3n+2) { background: #FF6B6B; box-shadow: 0 0 6px rgba(255,107,107,0.9); }
+    .sky-bg .fairy-light:nth-of-type(3n+3) { background: #6BE0A6; box-shadow: 0 0 6px rgba(107,224,166,0.9); }
+    .sky-bg .sleigh {
+      position: absolute; top: 16%; left: -60px; font-size: 24px;
+      animation: sleigh-fly 15s linear infinite; animation-delay: 2s;
+    }
+    @keyframes sleigh-fly {
+      0%   { transform: translate(0, 0); }
+      50%  { transform: translate(calc(50vw + 60px), -26px); }
+      100% { transform: translate(calc(100vw + 120px), 0); }
+    }
+
+    /* 端午 — three boats at different lanes/speeds/delays read as a race;
+       one lone boat (the original version) read as a stray decoration.
+       Custom props let each instance vary while sharing one rule. */
+    /* --b is a `top` offset, not `bottom`: .sky-bg is position:fixed behind
+       the WHOLE scrollable home page, so "near the bottom of the viewport"
+       is wherever the card stack happens to be, not open water — a boat
+       anchored there rendered invisibly behind a card for nearly its whole
+       crossing. Kept to the same open header band as the fireworks/confetti. */
+    /* Its own keyframe rather than reusing `drift`: a boat crossing in a
+       perfectly flat line reads as a rigid sticker sliding by, not something
+       actually racing on water. The gentle bob is the same "drawn, then
+       looked at" fix as the furniture art rules (§7.1) — no test catches
+       "looks stiff", only actually watching it move does. */
+    .sky-bg .boat {
+      position: absolute; top: var(--b, 10%); left: -60px; font-size: 22px;
+      animation: boat-drift var(--bd, 24s) ease-in-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    @keyframes boat-drift {
+      0%   { transform: translate(0, 0); }
+      20%  { transform: translate(calc(20vw + 40px), -5px); }
+      40%  { transform: translate(calc(40vw + 80px), 4px); }
+      60%  { transform: translate(calc(60vw + 120px), -4px); }
+      80%  { transform: translate(calc(80vw + 160px), 5px); }
+      100% { transform: translate(calc(100vw + 200px), 0); }
+    }
+
     /* ── 回忆相册 on the love page ── */
     .lp-memories {
       width: 100%; max-width: 310px;
@@ -3038,7 +3203,25 @@
       box-shadow: 0 0 20px rgba(255,150,190,0.9);
       animation: season-pop 2.4s ease-in-out infinite;
     }
+    /* 春节 shares the 'fireworks' window with 跨年 but reads red/gold, not
+       pink/multicolor — recolored via data-theme (already stamped on
+       #pet-room with the festival id), same orb element and animation. */
+    .pet-room[data-window="fireworks"][data-theme="cny"] .pet-window-orb {
+      background: radial-gradient(circle, #FFE9A8 0%, #FF6B4A 55%, rgba(255,107,74,0) 72%);
+      box-shadow: 0 0 20px rgba(255,140,90,0.9);
+    }
     @keyframes season-pop { 0%,100% { transform: scale(0.75); opacity: 0.75; } 50% { transform: scale(1.25); opacity: 1; } }
+    .pet-room[data-window="hearts"] .pet-window { background: linear-gradient(180deg, #4A2138, #6E3350); }
+    .pet-room[data-window="hearts"] .pet-window-orb {
+      background: radial-gradient(circle, #FFD6E4, #FF8AB2);
+      box-shadow: 0 0 18px rgba(255,138,178,0.85);
+      animation: season-pop 3.2s ease-in-out infinite;
+    }
+    .pet-room[data-window="lights"] .pet-window { background: linear-gradient(180deg, #1F3A34, #2E4A40); }
+    .pet-room[data-window="lights"] .pet-window-orb {
+      background: radial-gradient(circle, #FFE9A8, #FFD75E);
+      box-shadow: 0 0 16px rgba(255,215,94,0.85);
+    }
     /* Theme badge on the pet page header */
     .pet-season-chip {
       font-size: 11px; font-weight: 700; white-space: nowrap;
@@ -3248,6 +3431,27 @@
         scroll-behavior: auto !important;
       }
       .spinner { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
+      /* Firework/confetti/fest-p/lantern/fairy-light all fade to opacity 0
+         at their last keyframe, which the blanket rule above jumps to
+         almost instantly — reading as "the festival effect never appears"
+         rather than "no motion". Freeze them at a calm, visible static
+         frame instead. (.hero-heart is deliberately NOT in this group: its
+         pulse keyframe starts and ends at the same state, so it already
+         degrades fine on its own — forcing transform:none here would
+         actually break it, since its base rule uses translateX(-50%) to
+         stay centered, not just to animate.) */
+      .sky-bg .firework, .sky-bg .fest-p, .sky-bg .lantern-accent,
+      .sky-bg .fairy-light, .sky-bg .confetti {
+        opacity: .7 !important; transform: none !important;
+      }
+      /* .boat/.sleigh are different: their whole visual IS the drift/fly
+         animation carrying them in from off-screen (left:-60px). Freezing
+         transform:none like the group above would leave them sitting at
+         that off-screen starting position forever — invisible, not calm.
+         Give them a static, on-screen resting spot instead. */
+      .sky-bg .boat, .sky-bg .sleigh {
+        animation: none !important; left: 50% !important; transform: translateX(-50%) !important;
+      }
     }
   </style>
 </head>

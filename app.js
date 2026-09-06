@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.09.03-46';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.09.06-48';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -386,9 +386,15 @@ const App = (() => {
     }
   }
 
-  function applyTheme() {
+  // Set once the very first applyTheme() call has gotten past the boot-order
+  // hazard below, so the self-heal retry can never fire more than once.
+  let _themeBootRetried = false;
+
+  // Takes an optional date so festival ambiance is testable the same way
+  // currentTheme()/periodOf() already are, without touching the system clock.
+  function applyTheme(d) {
     const mode = themeMode();
-    const per  = periodOf();
+    const per  = periodOf(d);
     const dark = mode === 'dark'
       || (mode === 'time' && per.id === 'night')
       || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -396,6 +402,27 @@ const App = (() => {
     root.dataset.theme  = dark ? 'dark' : 'light';
     root.dataset.period = per.id;      // sky + accents follow the clock in EVERY mode
     renderMoon();
+    try {
+      // currentTheme()/THEMES/Music are all declared further down this same
+      // file. The very first applyTheme() call happens synchronously while
+      // this IIFE is still being evaluated, before any of that has run — a
+      // genuine temporal-dead-zone ReferenceError, not a bug in the festival
+      // logic. Every later call (ticks, theme toggle, tests) is fine, so
+      // this only ever needs to self-heal once, via a same-tick retry after
+      // the rest of the script has finished loading.
+      const fest = currentTheme(d);
+      // Remove rather than set to '' when there's no festival: CSS
+      // `[data-festival]` matches an empty-string value too, so a plain
+      // `= ''` would make "no festival" indistinguishable from "a festival
+      // with no id" for any selector that just checks presence (used below
+      // to hide the ambient clouds only on real festival days).
+      if (fest && fest.priority >= 10) root.dataset.festival = fest.id;
+      else delete root.dataset.festival;
+      renderHomeFestival(fest, d);
+      Music.syncFestivalTrack(fest);
+    } catch (e) {
+      if (!_themeBootRetried) { _themeBootRetried = true; setTimeout(() => applyTheme(d), 0); }
+    }
   }
   applyTheme();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -427,6 +454,11 @@ const App = (() => {
       try { renderTogetherBanner(); } catch (e) {}   // 天数 + 里程碑
       try { renderSeasonCard(); }      catch (e) {}   // 限定家具上架
       try { renderPetBanner(); }       catch (e) {}
+      // Festival windows are date-based (from/to, lunar span) and can flip
+      // exactly at midnight without the hour-band changing at all — the same
+      // class of bug as the two lines above, so applyTheme() needs the same
+      // day-tick, not just the period-tick further up.
+      try { applyTheme(); } catch (e) {}
     }
   }
   setInterval(_clockTick, 60000);
@@ -445,7 +477,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.09.03a';
+  const HTML_V = '2026.09.06a';
 
   (function ensureFreshHtml() {
     try {
@@ -589,8 +621,14 @@ const App = (() => {
     photos: [],
   };
 
-  /* ── Helpers ── */
-  const now = () => new Date();
+  /* ── Helpers ──
+     now() is a function declaration, not `const now = () => ...`, on purpose:
+     currentTheme(d = now()) uses it as a default-parameter value, and
+     applyTheme() (defined much earlier in this file) now calls currentTheme()
+     synchronously at module load — a `const` here would put that first call
+     in the temporal dead zone. A hoisted declaration has no such ordering
+     dependency. */
+  function now() { return new Date(); }
 
   // Compress an image File to a small base64 JPEG for SN storage
   function compressImage(file, maxDim = 150, quality = 0.6) {
@@ -3582,30 +3620,30 @@ const App = (() => {
   // are what actually feels real here.
   const THEMES = [
     { id:'cny', name:'新年', priority:10, lunar:'cny', span:[-2, 12], emoji:'🧧',
-      window:'fireworks', particle:'🧧', outfit:'scarf_red',
+      window:'fireworks', effect:'fireworks', particle:'🧧', outfit:'scarf_red',
       wall:['#5B2230','#4A1B27'], floorTone:'#6B2A2A',
       speech:['新年快乐呀！🧧', '今年也要一直在一起哦', '有红包吗…我也想要'] },
     // Priority 12, above 新年's 10: the CNY window runs 15 days and swallowed
     // 2/14 in 3 of the next 5 years (2027/2029/2030). For a couples app the
     // narrow, specific day has to win over the broad season.
     { id:'vday', name:'情人节', priority:12, from:'02-13', to:'02-15', emoji:'💐',
-      window:'day', particle:'💗', outfit:'',
+      window:'hearts', effect:'hearts', particle:'💗', outfit:'',
       wall:['#5A2740','#4B1F35'], floorTone:'#6E3350',
       speech:['今天是属于你们的日子 💕', '要好好说喜欢哦', '我也想要一朵花'] },
     { id:'dragon', name:'端午', priority:10, lunar:'dragon', span:[-1, 3], emoji:'🐲',
-      window:'day', particle:'🍃', outfit:'',
+      window:'day', effect:'boat', particle:'🍃', outfit:'',
       wall:['#24463A','#1E3B31'], floorTone:'#3A5140',
       speech:['粽子好香呀～', '要一起看龙舟吗？', '我也想吃一口粽子'] },
     { id:'midautumn', name:'中秋', priority:10, lunar:'midautumn', span:[-3, 3], emoji:'🥮',
-      window:'fullmoon', particle:'🌾', outfit:'',
+      window:'fullmoon', effect:'lanterns', particle:'🌾', outfit:'',
       wall:['#4A3320','#3D2A1B'], floorTone:'#5C4028',
       speech:['今晚月亮好圆呀，一起看嘛？', '月饼…我也想吃一口 🥮', '团团圆圆最好了'] },
     { id:'xmas', name:'圣诞', priority:10, from:'12-18', to:'12-27', emoji:'🎄',
-      window:'snow', particle:'❄️', outfit:'hat_party',
+      window:'lights', effect:'lights', particle:'❄️', outfit:'hat_party',
       wall:['#1F3A34','#18302B'], floorTone:'#2E4A40',
       speech:['圣诞快乐！🎄', '有礼物吗？我很乖的', '一起听圣诞歌吧'] },
     { id:'nye', name:'跨年', priority:10, from:'12-29', to:'01-02', emoji:'🎆',
-      window:'fireworks', particle:'✨', outfit:'hat_party',
+      window:'fireworks', effect:'fireworks', particle:'✨', outfit:'hat_party',
       wall:['#232A55','#1C2246'], floorTone:'#333A66',
       speech:['新的一年也请多指教！', '一起倒数好不好 🎆', '今年过得开心吗？'] },
     // Ambient seasons — subtle, no auto outfit
@@ -4534,6 +4572,89 @@ const App = (() => {
       `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${themeParticle(th)}</span>`
     ).join('');
     room.appendChild(layer);
+  }
+
+  /* Home-screen festival ambiance — fireworks / hearts / lanterns / lights /
+     boat, layered into .sky-bg. Same dynamic build/teardown pattern as
+     renderThemeParticles() above: only priority-10+ festivals with a defined
+     `effect` get a layer, torn down the instant the festival ends, so the
+     home page's DOM stays exactly as light as it is the other 11 months.
+     Ambient seasons (priority 1) deliberately get nothing here — the point
+     is that this signals "special day", not year-round decoration. */
+  function renderHomeFestival(th, d) {
+    const sky = document.querySelector('.sky-bg');
+    if (!sky) return;
+    let layer = sky.querySelector('.home-fest-layer');
+    const active = (th && th.priority >= 10 && th.effect) ? th : null;
+    if (!active) { layer?.remove(); return; }
+    if (layer && layer.dataset.for === active.id) return;   // already correct
+    layer?.remove();
+    layer = document.createElement('div');
+    layer.className = 'home-fest-layer';
+    layer.dataset.for = active.id;
+    layer.setAttribute('aria-hidden', 'true');
+
+    const particles = Array.from({ length: 6 }, (_, i) =>
+      `<span class="fest-p" style="--x:${6 + i * 16}%;--d:${(i * 2.1).toFixed(1)}s;--r:${11 + (i % 4) * 3}s">${themeParticle(active, d)}</span>`
+    ).join('');
+
+    // Every festival gets an actual centerpiece here, not just a recolored
+    // particle — matched in ambition to the fireworks rather than an
+    // afterthought next to them. Positions/colors are inline (not CSS
+    // nth-of-type — see the lantern note below for why that bit us once
+    // already), kept to the top ~20% of the screen: the home page's cards
+    // start below that and are opaque, so anything placed lower renders
+    // invisibly behind one (found by actually looking at it, §7.1's rule).
+    let hero = '';
+    if (active.effect === 'fireworks') {
+      // Real fireworks only at night (§7.15: gate sky art on data-period,
+      // never data-theme) — CSS shows/hides .firework by data-period, so
+      // this keeps updating live as the clock crosses into/out of night.
+      // Daytime is not left bare, though: confetti is genuinely visible in
+      // daylight, so it becomes the day-side hero, the same way summer's
+      // particle is a sun by day and fireflies by night (themeParticle).
+      const fireworks = Array.from({ length: 5 }, (_, i) =>
+        `<span class="firework" style="--x:${14 + i * 18}%;--y:${5 + (i % 3) * 7}%;--fd:${(i * 0.7).toFixed(1)}s"></span>`
+      ).join('');
+      const palette = active.id === 'cny'
+        ? ['#FFD75E', '#FF6B6B', '#FFB25E']
+        : ['#FFD75E', '#FF7BA8', '#7EC8FF', '#B18CFF', '#6BE0A6'];
+      const confetti = Array.from({ length: 9 }, (_, i) =>
+        `<span class="confetti" style="--x:${4 + i * 11}%;--fd:${(i * 0.9).toFixed(1)}s;background:${palette[i % palette.length]}"></span>`
+      ).join('');
+      hero = fireworks + confetti;
+    } else if (active.effect === 'hearts') {
+      // A single large glowing heart earns its place next to the fireworks
+      // — pulsing rather than bursting, since romance and New Year should
+      // not share the same energy, but both need to actually be noticed.
+      hero = `<span class="hero-heart">💖</span>`;
+    } else if (active.effect === 'lanterns') {
+      // A full garland across the top, not two lonely lanterns — same
+      // silhouette as the fairy-light string below, different festival.
+      hero = Array.from({ length: 6 }, (_, i) =>
+        `<span class="lantern-accent" style="--x:${8 + i * 16}%;--fd:${(i * 0.5).toFixed(1)}s">🏮</span>`
+      ).join('');
+    } else if (active.effect === 'lights') {
+      const lights = Array.from({ length: 8 }, (_, i) =>
+        `<span class="fairy-light" style="--x:${4 + i * 12}%;--fd:${(i * 0.3).toFixed(1)}s"></span>`
+      ).join('');
+      // One Santa silhouette actually crossing the sky reads as an event;
+      // eight static twinkling dots alone did not.
+      hero = lights + `<span class="sleigh">🎅🛷</span>`;
+    } else if (active.effect === 'boat') {
+      // Three boats at different lanes/speeds/delays read as a race —
+      // one lone boat drifting by read as a stray decoration. Lanes are
+      // --b (a `top` offset, see the CSS) kept inside the same open header
+      // band as the fireworks, not spread toward the bottom of the screen —
+      // the sky-bg sits behind the WHOLE scrollable home page, so "near the
+      // bottom" is behind the card stack for most of a boat's crossing.
+      hero = [0, 1, 2].map(i =>
+        `<span class="boat" style="--b:${8 + i * 6}%;--bd:${20 + i * 5}s;--fd:${i * 4}s">${active.emoji}</span>`
+      ).join('');
+    }
+
+    layer.innerHTML = particles + hero;
+    sky.appendChild(layer);
   }
 
   function renderPetHome() {
@@ -5637,7 +5758,8 @@ const App = (() => {
     _htmlVTest: () => HTML_V,
     setWeatherMode,
     _moonSvgTest: (d) => moonSvg(d),
-    _applyThemeTest: () => applyTheme(),   // seasons take a date so they're testable
+    _applyThemeTest: (d) => applyTheme(d),   // seasons take a date so they're testable
+    _festivalTest: (d) => currentTheme(d)?.effect,
     showAchievements, showYearReview, closeYearReview, playYearMemories,
     showShop, closeShop, shopTabSwitch,
     openBuySheet, closeBuySheet, confirmBuy,
@@ -5676,12 +5798,27 @@ function startApp() {
 
 /* ── Background music (local MP3) ── */
 const Music = (() => {
-  let audio   = null;
-  let playing = false;
+  // Festival id -> filename in the repo root. Empty for now — fill in as
+  // tracks are added. Any festival with no entry here (or whose file 404s)
+  // just keeps playing DEFAULT_SRC; a missing/unlicensed track degrades to
+  // "plays the normal track", never to silence or a broken player.
+  const FESTIVAL_TRACKS = {
+    // nye: 'countdown.mp3', cny: 'cny.mp3', vday: 'vday.mp3', ...
+  };
+  const DEFAULT_SRC = 'Right Here Waiting (Piano Version).mp3';
+
+  let audio        = null;
+  let playing      = false;
+  let baseVolume   = 0.35;
+  let currentTrack = 'default';   // 'default' or a FESTIVAL_TRACKS key
 
   function _initAudio() {
     audio = document.getElementById('bg-audio');
-    if (audio) audio.volume = 0.35;
+    if (audio) {
+      audio.volume = baseVolume;
+      audio.addEventListener('error', _onTrackError);
+    }
+    syncFestivalTrack();
     if (localStorage.getItem('music_on') === 'true') _play();
   }
   if (document.readyState === 'loading') {
@@ -5715,8 +5852,57 @@ const Music = (() => {
     else         { btn.classList.remove('playing'); icon.textContent = '🔇'; }
   }
 
+  // A track that hasn't been added to the repo yet (or any other load
+  // failure) falls back to the always-present default rather than leaving
+  // the player silently broken.
+  function _onTrackError() {
+    if (currentTrack === 'default') return;   // default itself is broken — nothing left to fall back to
+    currentTrack = 'default';
+    audio.src = DEFAULT_SRC;
+    if (playing) audio.play().catch(() => {});
+  }
+
+  // Short volume dip across the swap so a festival boundary crossed while
+  // the app sits open doesn't hard-cut the audio.
+  function _fadeToSrc(src) {
+    const steps = 8, stepMs = 60;
+    let i = 0;
+    const fadeOut = setInterval(() => {
+      i++;
+      audio.volume = Math.max(0, baseVolume * (1 - i / steps));
+      if (i < steps) return;
+      clearInterval(fadeOut);
+      audio.src = src;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      let j = 0;
+      const fadeIn = setInterval(() => {
+        j++;
+        audio.volume = Math.min(baseVolume, baseVolume * (j / steps));
+        if (j >= steps) clearInterval(fadeIn);
+      }, stepMs);
+    }, stepMs);
+  }
+
+  // Called from App's applyTheme() — same live-update hook that keeps
+  // data-theme/data-period/data-festival current. `fest` is the theme object
+  // from currentTheme(); omit it to ask App for the current one directly
+  // (used on boot, before applyTheme has run once).
+  function syncFestivalTrack(fest) {
+    if (!audio) return;
+    if (fest === undefined) { try { fest = App._themeTest(); } catch (e) { fest = null; } }
+    const id  = (fest && fest.priority >= 10) ? fest.id : null;
+    const has = id && FESTIVAL_TRACKS[id];
+    const key = has ? id : 'default';
+    if (key === currentTrack) return;
+    currentTrack = key;
+    const src = has ? FESTIVAL_TRACKS[id] : DEFAULT_SRC;
+    if (playing) _fadeToSrc(src); else audio.src = src;
+  }
+
   return {
     toggle() { playing ? _pause() : _play(); },
-    setVolume(v) { if (audio) audio.volume = v / 100; },
+    setVolume(v) { baseVolume = v / 100; if (audio) audio.volume = baseVolume; },
+    syncFestivalTrack,
   };
 })();

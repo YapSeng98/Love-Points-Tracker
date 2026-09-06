@@ -63,6 +63,30 @@ if (!yearList.length) {
     `keepsakes pre-drawn through ${lastYear} (${runway} year${runway === 1 ? '' : 's'} of runway) — ${detail}`);
 }
 
+// ── 1c. every real festival has a home-ambiance effect ──
+// Fireworks/hearts/lanterns/lights/boat are keyed off THEMES[i].effect
+// (renderHomeFestival() in app.js). A festival added later without one would
+// ship silently plain — the same "fails quiet" shape as the two checks
+// above, so it gets the same treatment here.
+const themesBlock = /const THEMES = \[([\s\S]*?)\n  \];/.exec(src);
+if (!themesBlock) broken.push('Could not find the THEMES table in app.js — has it been renamed?');
+else {
+  const entries = themesBlock[1].split(/(?=\{\s*id:)/).filter(s => /id:/.test(s));
+  const missing = [];
+  for (const e of entries) {
+    const idM = /id:'(\w+)'/.exec(e);
+    const prioM = /priority:(\d+)/.exec(e);
+    if (!idM || !prioM || +prioM[1] < 10) continue;   // ambient seasons don't need a hero effect
+    (/effect:'[^']+'/.test(e) ? notes : missing).push(idM[1]);
+  }
+  if (missing.length) {
+    broken.push(`festival(s) with no home-ambiance effect: ${missing.join(', ')} — ` +
+      `give it an \`effect\` in THEMES (app.js) matching one of renderHomeFestival()'s cases`);
+  } else {
+    notes.push('every priority≥10 festival has a home-ambiance effect');
+  }
+}
+
 // ── 2. every festival has enough furniture ──
 const counts = {};
 for (const m of src.matchAll(/season:'([^']+)'/g)) counts[m[1]] = (counts[m[1]] || 0) + 1;
