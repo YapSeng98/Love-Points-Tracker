@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.09.06-48';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.09.06-49';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -3615,6 +3615,16 @@ const App = (() => {
     dragon:    { 2026:'06-19', 2027:'06-09', 2028:'05-28', 2029:'06-16', 2030:'06-05' },
   };
 
+  // 生肖 — a clean 12-year cycle, so unlike LUNAR it never runs out and needs
+  // no maintenance. Anchored on 2020 = 鼠 (Rat); verified against three known
+  // years: 2024 = 龙, 2025 = 蛇, 2026 = 马. Deliberately NOT used for 端午
+  // (`dragon` theme) — 龙舟 (dragon boats) are shaped like dragons every
+  // single year regardless of the zodiac (dragons were water deities in the
+  // legend, nothing to do with which year it is). The zodiac genuinely
+  // rolls over at 春节, so that's the only festival it belongs to.
+  const ZODIAC = ['🐭', '🐮', '🐯', '🐰', '🐲', '🐍', '🐴', '🐐', '🐵', '🐔', '🐶', '🐷'];
+  function zodiacEmoji(year) { return ZODIAC[((year - 2020) % 12 + 12) % 12]; }
+
   // priority 10 = festival (overrides), 1 = ambient season.
   // Written for a tropical climate: the four seasons are mood only, festivals
   // are what actually feels real here.
@@ -3680,9 +3690,13 @@ const App = (() => {
   }
 
   // Some particles only make sense in daylight. Takes the date so it is
-  // testable without waiting for nightfall.
-  function themeParticle(th, d) {
+  // testable without waiting for nightfall. `i` is which particle span this
+  // is (0, 1, 2…) — 春节 alternates red packets with that year's zodiac
+  // animal so the same falling-particle mechanism every festival already
+  // uses quietly reflects which year it actually is, with zero extra UI.
+  function themeParticle(th, d, i = 0) {
     if (!th) return '';
+    if (th.id === 'cny' && i % 2 === 1) return zodiacEmoji((d || now()).getFullYear());
     return (periodOf(d).id === 'night' && th.nightParticle) ? th.nightParticle : th.particle;
   }
 
@@ -4563,13 +4577,18 @@ const App = (() => {
     if (!room) return;
     let layer = room.querySelector('.pet-season-layer');
     if (!th || !th.particle) { layer?.remove(); return; }
-    if (layer && layer.dataset.for === th.id) return;   // already correct
+    // Keyed on year too, not just th.id: 春节's particle mix depends on the
+    // year (生肖), so "still cny" isn't enough to know the layer is still
+    // correct — without this, a couple who leave the app open across a
+    // Chinese New Year rollover would keep seeing last year's zodiac animal.
+    const key = `${th.id}:${now().getFullYear()}`;
+    if (layer && layer.dataset.for === key) return;   // already correct
     layer?.remove();
     layer = document.createElement('div');
     layer.className = 'pet-season-layer';
-    layer.dataset.for = th.id;
+    layer.dataset.for = key;
     layer.innerHTML = Array.from({ length: 7 }, (_, i) =>
-      `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${themeParticle(th)}</span>`
+      `<span class="pet-season-p" style="--x:${8 + i * 13}%;--d:${(i * 1.7).toFixed(1)}s;--r:${9 + (i % 4) * 3}s">${themeParticle(th, undefined, i)}</span>`
     ).join('');
     room.appendChild(layer);
   }
@@ -4587,15 +4606,17 @@ const App = (() => {
     let layer = sky.querySelector('.home-fest-layer');
     const active = (th && th.priority >= 10 && th.effect) ? th : null;
     if (!active) { layer?.remove(); return; }
-    if (layer && layer.dataset.for === active.id) return;   // already correct
+    // Keyed on year too — see the matching note in renderThemeParticles().
+    const key = `${active.id}:${(d || now()).getFullYear()}`;
+    if (layer && layer.dataset.for === key) return;   // already correct
     layer?.remove();
     layer = document.createElement('div');
     layer.className = 'home-fest-layer';
-    layer.dataset.for = active.id;
+    layer.dataset.for = key;
     layer.setAttribute('aria-hidden', 'true');
 
     const particles = Array.from({ length: 6 }, (_, i) =>
-      `<span class="fest-p" style="--x:${6 + i * 16}%;--d:${(i * 2.1).toFixed(1)}s;--r:${11 + (i % 4) * 3}s">${themeParticle(active, d)}</span>`
+      `<span class="fest-p" style="--x:${6 + i * 16}%;--d:${(i * 2.1).toFixed(1)}s;--r:${11 + (i % 4) * 3}s">${themeParticle(active, d, i)}</span>`
     ).join('');
 
     // Every festival gets an actual centerpiece here, not just a recolored
@@ -5715,7 +5736,8 @@ const App = (() => {
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
     _themeTest: (d) => currentTheme(d),
-    _particleTest: (d) => themeParticle(currentTheme(d), d),
+    _particleTest: (d, i) => themeParticle(currentTheme(d), d, i),
+    _zodiacTest: (y) => zodiacEmoji(y),
     _periodTest: (d) => { const p = periodOf(d); return { id: p.id, name: p.name, hi: p.hi }; },
     _moonTest: (d) => moonInfo(d),
     _wxIconTest: (k, day) => wxIcon(k, day),
