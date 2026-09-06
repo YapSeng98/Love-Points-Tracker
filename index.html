@@ -2429,8 +2429,12 @@
       background: radial-gradient(circle, rgba(255,214,140,0.38), transparent 70%);
       animation: moon-glow 6s ease-in-out infinite;
     }
+    /* --y varies per lantern so the garland hangs in a natural sag (like a
+       real string under its own weight) instead of a rigid, perfectly level
+       row — a straight line reads right for the fairy-light string below
+       (that's a taut wire), but not for lanterns. */
     .sky-bg .lantern-accent {
-      position: absolute; top: 12px; left: var(--x, 50%); font-size: 22px; opacity: 0.9;
+      position: absolute; top: var(--y, 12px); left: var(--x, 50%); font-size: 22px; opacity: 0.9;
       animation: lantern-sway 4s ease-in-out infinite;
       animation-delay: var(--fd, 0s);
     }

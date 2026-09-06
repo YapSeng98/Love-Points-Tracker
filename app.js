@@ -4652,8 +4652,12 @@ const App = (() => {
     } else if (active.effect === 'lanterns') {
       // A full garland across the top, not two lonely lanterns — same
       // silhouette as the fairy-light string below, different festival.
+      // --y sags toward the middle two lanterns (a real string hangs lower
+      // at its center under its own weight) rather than sitting dead level —
+      // a perfectly straight row read as rigid, not a garland.
+      const sag = [0, 12, 20, 20, 12, 0];
       hero = Array.from({ length: 6 }, (_, i) =>
-        `<span class="lantern-accent" style="--x:${8 + i * 16}%;--fd:${(i * 0.5).toFixed(1)}s">🏮</span>`
+        `<span class="lantern-accent" style="--x:${8 + i * 16}%;--y:${8 + sag[i]}px;--fd:${(i * 0.5).toFixed(1)}s">🏮</span>`
       ).join('');
     } else if (active.effect === 'lights') {
       const lights = Array.from({ length: 8 }, (_, i) =>
