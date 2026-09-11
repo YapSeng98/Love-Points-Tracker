@@ -6,6 +6,55 @@ cheaper than shipping the same bug twice.
 
 ---
 
+## 0.0 🗄 The backend is Supabase (migrated 2026-09-11)
+
+The app ran on a free ServiceNow PDI until 2026-09-11. It now runs on
+**Supabase** — Postgres, Auth, Storage, Edge Functions. Everything under
+`servicenow/` is **history**: the resource scripts there are the source the
+port was made from, and are no longer deployed or called by anything. Don't
+edit them, and don't take their field names as current.
+
+```
+app.js ── HTTPS ──► yvllstktmjoedfsgojgs.supabase.co
+                     ├── /functions/v1/*   27 Edge Functions (supabase/functions/)
+                     ├── Postgres          12 tables, RLS on all of them
+                     ├── Auth              hashed passwords, JWT + refresh
+                     └── Storage           "photos" bucket, private
+```
+
+**Table names dropped the `u_` prefix and the `u_love_` table prefix**:
+`u_love_entry` → `entries`, `u_love_bag` → `bag`, `u_love_auth` → split into
+Supabase `auth.users` + a `profiles` row. Columns likewise: `u_pts_cost` →
+`pts_cost`. Two renames are not mechanical: `u_desc` → `description`
+(`desc` is a reserved SQL keyword), and `bag.u_shop_item` split into
+`shop_item_id` (uuid FK) and `decor_item_id` (text catalog id) because
+furniture stores a catalog id where a purchase stores a row id.
+
+**The JSON contract did not change.** Every function returns the same shape
+its ServiceNow resource did — that is why `app.js` kept all ~30 call sites.
+`snFetch` translates the old paths onto function slugs (`/entries/{id}` →
+`entries-id?id=…`). If you add an endpoint, add the translation too.
+
+Things that are now true and were not before:
+
+- **Writes only happen inside Edge Functions.** RLS is `SELECT`-only for
+  clients on every table, so a session token cannot write to Postgres
+  directly. Functions use the service-role key and bypass RLS — which means
+  **the function is the only thing enforcing a business rule**. There is no
+  second line of defence; if a check is missing there, it is missing.
+- **Access tokens expire** (~1h) where the ServiceNow key never did.
+  `snFetch` refreshes once on a 401 and retries. Anything else talking to
+  the API needs the same, or it dies after an hour.
+- **Changing a password revokes every session.** Any endpoint that changes
+  one must hand back a fresh session, or the caller is logged out by its own
+  success. See `auth-password`.
+- **Usernames match case-insensitively** — GlideRecord did, Postgres `=`
+  does not, and a lowercase login started reporting "账号不存在". Look up
+  with `ilike`, and build the synthetic Auth email from the **stored**
+  username, never the typed one.
+
+---
+
 ## 0. The two questions to ask before writing code
 
 1. **Is this logically correct for BOTH partners?** This is a two-account app.
@@ -60,14 +109,21 @@ an explicit higher `z-index` inline.
 
 ## 2. 📅 Dates are client-authoritative — never compute them server-side
 
-The ServiceNow instance runs in a timezone **behind** the users (UTC+8), so
-`new GlideDateTime().getLocalDate()` is *yesterday* for most of their day.
+The ServiceNow instance ran in a timezone **behind** the users (UTC+8), so
+`new GlideDateTime().getLocalDate()` was *yesterday* for most of their day.
 This shipped a bug where purchases were dated one day early.
 
+Supabase runs in UTC, which is the same hazard wearing a different hat: an
+entry logged at 01:00 in Singapore is still "yesterday" to the server. The
+rule did not change with the backend and must not be relaxed because the
+new one "looks" more correct.
+
 **Rule:** the app sends its own local `date`/`month` in the request body;
-resources only fall back to the server clock when the client omits it.
-Applies to: entries (05), shop buy (28), bag use (30), claim (32), letters
-(34), photos (38).
+the function only falls back to the server clock when the client omits it.
+`clientDate()` in `supabase/functions/_shared/util.ts` is the one
+implementation — use it rather than writing the check again. Applies to:
+`entries`, `shop-buy`, `bag-use`, `bag-claim`, `letters`, `photos`,
+`decor-buy`.
 
 Use `todayStr()` / `monthKey()` in `app.js`. **Never** `toISOString()` — it's
 UTC and rolls a day early for UTC+8 users.
@@ -84,9 +140,12 @@ entries became invisible and the score silently reset to 0 — the user thought
 their data had been deleted.
 
 **Rules:**
-- `GET /entries` (04) returns everything with `u_monthly` empty. No month filter.
-- Score-sum queries in `/shop/buy` (28) and `/bag/claim` (32) must match, or a
-  purchase the UI shows as affordable gets rejected as "insufficient points".
+- `entries` (GET) returns everything with `monthly_id` NULL. No month filter.
+  The partial index `entries_unsettled_idx` is built for exactly that query.
+- Score-sum queries in `shop-buy` and `bag-claim` must match, or a purchase
+  the UI shows as affordable gets rejected as "insufficient points". Both now
+  call the single shared `unsettledScore()` in `_shared/util.ts` — it was
+  made shared *because* two copies of this rule are what drift apart.
 - Settling stays per-month: the frontend groups entries by their own `u_month`
   and calls settle once per group, so a missed month becomes its own history row.
 - **Never auto-settle the current, still-running month.** Past months are swept
@@ -98,7 +157,7 @@ their data had been deleted.
 ## 4. 🐣 Derived-state rules (badges, recap, pet)
 
 Prefer **deriving** state from existing data over storing it — it can't drift,
-and it needs no ServiceNow migration. But watch these traps:
+and it needs no schema migration. But watch these traps:
 
 1. **Monotonic values need a stored floor.** Pet EXP is derived, but
    punishment-mode settlements archive negative totals and deleting a photo
@@ -158,13 +217,20 @@ into silent truncation. Codes took the same room to **651/1000**.
 - `parseEquipped` accepts a code *or* a bare id, so rooms saved before codes
   existed keep loading; they convert on the next save.
 - An unknown code is preserved verbatim, never guessed at.
-- Ids stay untouched because the ServiceNow bag rows reference them.
+- Ids stay untouched because the `bag` rows reference them (`decor_item_id`).
 
 ---
 
-## 4.5 🗄 Fixed-size ServiceNow fields vs. unbounded user content
+## 4.5 🗄 Fixed-size fields vs. unbounded user content
 
-`u_pet_equipped` is `String(1000)`. It was sized when the room had fixed slots
+> **The constraint is gone; the lesson is not.** Postgres `text` is unbounded,
+> so none of the specific limits below still apply. Kept because the failure
+> mode — content that grows without bound written into storage that has a
+> ceiling — recurs anywhere there is a cap, and because it explains why the
+> room is still encoded compactly (§4.6) and why `saveEquipped` still
+> validates. Read it as "why the code looks like this", not "what to check".
+
+`u_pet_equipped` was `String(1000)`. It was sized when the room had fixed slots
 and the design doc promised "<200 chars, safe". Then free placement added
 `x/y/scale` per piece and the catalog grew every season — the verbose encoding
 hit the ceiling at **21 items**, and ServiceNow **truncates silently**, which
@@ -779,76 +845,73 @@ zero nodes. If a change pushes any of these materially, find out why.
 
 ```
 □ node --check app.js
-□ Bump APP_VERSION in app.js (and app-html-v in index.html if HTML changed)
+□ Bump APP_VERSION in app.js (and app-html-v in index.html if HTML changed —
+  BOTH, matching: HTML_V in app.js must equal the meta. See §7.27)
+□ Deploy any changed function:  npx supabase functions deploy <slug>
 □ Drive the real flow in a browser — don't trust that it "should" work
 □ Check BOTH light and dark
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
-□ Re-run: servicenow/test-full-system-v2.sh   (server, 134 checks)
+□ Re-run: node supabase/test-full.mjs         (backend, 91 checks)
 □ Re-run the pet logic audit                  (client invariants, 23 checks)
-□ If a resource script changed → tell the user EXACTLY which files to
-  re-paste in ServiceNow, and which table fields to add (type + max length)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
 
-**Deployment reality:** the frontend deploys on push, but ServiceNow scripts
-are pasted **by hand**. So: minimise resource changes, batch table fields into
-one request, and prefer hanging new fields on the existing `u_love_config` row
-over creating new tables. Always add fields that a planned next phase will
-need (e.g. `u_pet_equipped`) so the user isn't sent back a second time.
+**Deployment reality:** both halves now deploy by command — the frontend on
+push, functions via the CLI. Nothing is pasted by hand any more, so the old
+advice to batch up schema requests no longer applies; a column is
+`alter table … add column` and a function is one deploy.
+
+Two things that are still true:
+- **A function is deployed independently of the frontend.** Deploy the
+  function first when a change spans both, or the pushed app calls an
+  endpoint that doesn't answer yet.
+- **The service-role key lives only in the function runtime.** It must never
+  reach `app.js`, which ships publicly. The client gets the publishable key,
+  which is safe precisely because RLS is `SELECT`-only.
 
 ---
 
-## 8.4 💾 Backing up a free ServiceNow PDI
+## 8.4 💾 Backups
 
-`dev405150.service-now.com` is a free Personal Developer Instance — it can
-hibernate after a few idle days and, if left inactive long enough, be
-reclaimed outright with everything on it. There is no vendor backup. Years of
-entries, letters and photos exist ONLY on that instance until something else
-copies them out.
+A managed database is not a backup. Supabase removes the "the instance may be
+reclaimed" risk that the old free PDI carried, but an accidental delete, a bad
+migration or a closed account still lose everything just as completely. Weekly
+runs are load-bearing, not optional.
 
-`tools/backup.js` pulls every table through the same REST API the app uses —
-no new resources needed. One thing it had to learn that `app.js` already
-knew: three endpoints (`/categories`, `/punishments`, `/history`) come back
-**double-wrapped** as `{result:{result:[...]}}}`, the rest single. This is
-live platform behaviour, not a script bug — the fix mirrors `_snUnwrap`
-exactly, and skipping it silently turns those three arrays into `{result:
-[...]}` objects with a `.length` of `undefined`.
-
-- `node tools/backup.js login char1 <user> <pass>` — logs in once, keeps only
-  the returned `apiKey` (stable until someone resets it), never the password.
-- `node tools/backup.js` — writes `backups/<timestamp>.json`.
+- `node tools/backup.js` — writes `backups/<timestamp>.json`: every table,
+  plus each photo's **bytes** embedded as base64.
 - `tools/install-backup-schedule.sh` — macOS `launchd`, every 7 days,
-  `StartInterval` (not `StartCalendarInterval`) so a missed week while asleep
-  still fires on next wake instead of silently skipping.
-- `backups/` and `tools/backup.local.json` are gitignored — this repo
-  deploys **publicly** on every push, and both contain a live API key plus
-  private content.
+  `StartInterval` (not `StartCalendarInterval`) so a week missed while asleep
+  fires on next wake instead of silently skipping.
+- `backups/` and `tools/backup.local*.json` are gitignored — this repo
+  deploys **publicly** on every push, and they hold a live key plus the
+  couple's private letters and photos.
 
-**`/bag` and `/bag/history` key off the caller's own `u_char_id`** — one
-login only ever sees that person's bag, so a *complete* backup used to need
-both partners logging in separately. Asked to avoid that, twice: first "no
-second password", then explicitly "don't change the app" when the fix was
-editing `r29`/`r31` (the app's own resources) to add an opt-in `?both=1`.
+**It authenticates with a service key, deliberately not a login.** The first
+version signed in as a partner and that was wrong three ways: it needed
+somebody's password to set up, the session expired while the job runs weekly,
+and Supabase revokes every session when a password changes — so the backup
+would have silently stopped the next time either of them changed theirs. A
+backup that quietly stops is worse than none, because you believe you have
+one. The key also bypasses RLS, which is what lets one run capture **both**
+partners' bags.
 
-The actual answer was a **new, additive** resource instead of touching a
-live one — `r41_GET_backup_full.js`. Same auth as every other resource
-(Bearer apiKey → matchId), but its `bag` query skips the `u_char` filter on
-purpose, so either partner's *existing* login returns both partners' rows in
-one call. Nothing in `app.js` calls it; zero risk to the live app.
+That last point was a real gap, not a hypothetical: ServiceNow's `/bag`
+filtered to the caller's own rows, so every backup ever taken silently omitted
+whichever partner wasn't logged in — and at migration time YY's seven
+unredeemed items had to be read off a screenshot because nothing had them.
+An `r41` resource was written to fix it and never deployed. If you ever add a
+per-person endpoint, ask what the backup sees.
 
-- `u_love_auth` is never queried by anything backup-related — `r22` compares
-  `u_password` directly (no hashing), so it's stored in plaintext. Two
-  partners' plaintext credentials sitting in one portable JSON file makes the
-  real risk *worse*, not better. Accounts can be recreated; a backup is for
-  content, not logins.
-- **ServiceNow returns `401`, not `404`, for a resource path that doesn't
-  exist** under this Scripted REST API — so "r41 hasn't been pasted yet" and
-  "this apiKey is bad" look identical from the status code alone.
-  `tryFullBackup()` disambiguates by replaying the same key against `/config`
-  (guaranteed to exist): if that also 401s, the key is genuinely bad and it
-  throws for real; if `/config` is fine, `/backup/full`'s 401 just means r41
-  isn't deployed yet, and the script falls back to the older split-login path
-  — which still fully works today, just per-partner.
+Two details worth keeping:
+- **PostgREST caps a response at 1000 rows.** This couple is past 500 entries
+  already, so the read pages explicitly. A cap that silently truncates an
+  archive at a round number is the same class of bug as §4.5.
+- **Photo bytes, not URLs.** Storage hands back signed URLs that expire; an
+  archive full of dead links is not an archive.
+
+The ServiceNow credential is parked at `tools/backup.local.servicenow.json`
+for the rollback window and can be deleted once that instance is retired.
 
 ---
 
@@ -871,12 +934,21 @@ whoever was already signed in keeps using a half-updated build).
 
 | Suite | Covers |
 |---|---|
-| `servicenow/test-full-system-v2.sh` | 148 live checks against the real instance: scoring, settle, shop, bag, letters, photos, claims, isolation, auth, goal+pet config, couple parity |
-| `servicenow/test-dates.sh` | Timezone regression (purchase/use/claim dates) |
+| `node supabase/test-full.mjs` | 91 live checks against the real backend: auth + pairing, scoring, settle, shop, buy, bag, claims, decor, letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
+| `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
 | Browser tests (scratchpad) | Pet invariants, settle UI, layout sweep, art sheet |
+| `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
 
-The suite registers throwaway couples each run and leaves a seeded review
-account — safe to re-run any time.
+The suites register throwaway couples each run — safe to re-run any time.
+They do not clean up after themselves, so delete the leftovers when done
+(usernames are prefixed `t…` / `f…` and are easy to spot in `profiles`).
+
+**Isolation is tested by attacking, not by reading config.** The suite makes
+a third couple and has them try to edit, delete, buy and claim against the
+first couple's rows, then re-reads those rows to confirm nothing moved. It
+also uses a *genuine logged-in session* to PATCH Postgres directly — which
+answers `204`, looking like success, while changing nothing. Assert the value
+afterwards; the status code alone would have told you the opposite.
 
 **When a bug is found: add a test that reproduces it before fixing.** Sections
 24 (missed settle) and 26 (couple parity) exist because of real reported bugs.
@@ -906,6 +978,30 @@ this as a run that *failed with zero jobs*, and shows the workflow's **filename
 instead of its `name:`** — that pair is the tell. Never build multi-line text
 inside a workflow; emit it from a script (`season-plan.js --issue`) and pass
 `--body-file`. Validate with `yaml.safe_load` before pushing.
+
+### 9.06 Four things the migration only found by testing
+
+All four passed review and failed a test. Recorded because each is a shape
+that recurs, not a one-off.
+
+1. **A CHECK constraint can quietly outlaw real data.** `bag.source_type`
+   allowed `purchase` and `reward` — but furniture writes `decor`. Every
+   piece the couple owns, including year-locked keepsakes that cannot be
+   re-bought, would have been rejected at insert. When porting an enum,
+   enumerate from the *writers*, not from memory.
+2. **Being stricter than the old system is still a regression.** ServiceNow
+   never blocked deleting a shop item that bag rows referenced; a real FK
+   does. Deleting a bought item started failing. `ON DELETE SET NULL` — the
+   bag already snapshots name and icon, so history survives without the link.
+3. **The command line is not a browser.** Everything passed with `curl` and
+   then the app could not log in at all: a browser preflights any request
+   with a custom header, and the functions answered `OPTIONS` with 405. Test
+   at least one real request from a real page origin.
+4. **Success can revoke your own session.** Changing a password invalidates
+   every token, so the next call 401s and the app reports the *successful*
+   change as a wrong password. Anything that rotates a credential must hand
+   back a new session, and a "wrong password" must not share a status code
+   with "no valid session" (403 vs 401).
 
 ### 9.1 Writing tests that don't rot
 
