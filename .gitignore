@@ -10,7 +10,7 @@
 
 # Backup script output + credentials — this repo deploys PUBLICLY on every
 # push, and these contain a live API key plus the couple's private data.
-tools/backup.local.json
+tools/backup.local*.json
 backups/
 
 # Supabase CLI local link/cache state — not meant to be committed.

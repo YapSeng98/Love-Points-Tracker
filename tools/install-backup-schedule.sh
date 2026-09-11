@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installs a macOS launchd job that runs tools/backup.js every 7 days,
 # whether or not anyone remembers to. See tools/backup.js for why this
-# matters (free ServiceNow PDI, no vendor backup).
+# matters (a managed database is still not a backup).
 #
 # Safe to re-run — unloads any previous copy first.
 set -euo pipefail
@@ -20,8 +20,8 @@ fi
 if [ ! -f "$ROOT/tools/backup.local.json" ]; then
   echo "⚠️  tools/backup.local.json doesn't exist yet — the scheduled job will"
   echo "   fail until you run:"
-  echo "     node tools/backup.js login char1 <username> <password>"
-  echo "     node tools/backup.js login char2 <username> <password>"
+  echo "     node tools/backup.js login <username> <password>"
+  echo "   Either partner's login is enough — /backup-full returns both bags."
   echo "   Installing the schedule anyway; it'll start working once that's done."
 fi
 
