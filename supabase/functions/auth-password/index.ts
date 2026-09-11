@@ -25,15 +25,26 @@ serve(async (req) => {
 
   // Re-authenticate before allowing the change, so a stolen session token
   // alone cannot lock the real owner out of their account.
+  const email = emailForUsername(profile.username);
   const anon = createClient(SUPABASE_URL, ANON_KEY);
-  const { error: pwErr } = await anon.auth.signInWithPassword({
-    email: emailForUsername(profile.username),
-    password: currentPassword,
-  });
-  if (pwErr) return json({ error: "当前密码错误" }, 401);
+  const { error: pwErr } = await anon.auth.signInWithPassword({ email, password: currentPassword });
+  // 403, not 401: the caller IS authenticated, they just gave the wrong
+  // current password. Keeping 401 to mean "no valid session" lets the client
+  // tell a bad password apart from an expired one.
+  if (pwErr) return json({ error: "当前密码错误" }, 403);
 
   const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
   if (error) return json({ error: error.message }, 500);
 
-  return json({ success: true });
+  // Changing the password revokes every existing session, so the token the
+  // caller is holding is already dead. Without handing back a fresh one the
+  // app would 401 on its very next request and look broken right after a
+  // change that actually succeeded.
+  const { data: fresh } = await anon.auth.signInWithPassword({ email, password: newPassword });
+  return json({
+    success: true,
+    accessToken: fresh?.session?.access_token || "",
+    refreshToken: fresh?.session?.refresh_token || "",
+    apiKey: fresh?.session?.access_token || "",
+  });
 });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.09.06a">
+  <meta name="app-html-v" content="2026.09.11a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2653,6 +2653,14 @@
       font-size: 12px; font-weight: 700; color: var(--sub);
       text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px;
     }
+    /* Reserves its line even when empty, so the button doesn't jump when a
+       message appears. */
+    .cfg-pw-msg {
+      font-size: 12.5px; font-weight: 600; min-height: 17px;
+      color: var(--sub-ink, var(--sub));
+    }
+    .cfg-pw-msg.err { color: #C94A4A; }
+    .cfg-pw-msg.ok  { color: #2E9E6B; }
     .cfg-danger-btn {
       width: 100%; text-align: left; cursor: pointer;
       background: #FFF6F6; border: 1.5px solid rgba(255,107,107,0.28);
@@ -4546,6 +4554,25 @@
     <div class="modal-actions">
       <button class="btn-secondary" onclick="App.closeModal('modal-settings')">取消</button>
       <button class="btn-primary" onclick="App.saveConfig()" style="flex:1">保存 ✅</button>
+    </div>
+
+    <!-- Account. Cloud-only: demo mode has no account to change a password on. -->
+    <div class="cfg-danger-zone" id="cfg-account-zone">
+      <div class="cfg-danger-title">账号</div>
+      <div class="modal-field">
+        <label for="cfg-pw-current">当前密码</label>
+        <input id="cfg-pw-current" type="password" autocomplete="current-password" placeholder="输入现在的密码"/>
+      </div>
+      <div class="modal-field">
+        <label for="cfg-pw-new">新密码</label>
+        <input id="cfg-pw-new" type="password" autocomplete="new-password" placeholder="至少 6 位"/>
+      </div>
+      <div class="modal-field">
+        <label for="cfg-pw-confirm">确认新密码</label>
+        <input id="cfg-pw-confirm" type="password" autocomplete="new-password" placeholder="再输入一次"/>
+      </div>
+      <div class="cfg-pw-msg" id="cfg-pw-msg" role="status"></div>
+      <button class="btn-primary" id="cfg-pw-btn" onclick="App.changePassword()" style="width:100%">🔑 修改密码</button>
     </div>
 
     <!-- Maintenance: pet reset always available; demo wipe only in demo mode -->

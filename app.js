@@ -477,7 +477,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.09.06a';
+  const HTML_V = '2026.09.11a';
 
   (function ensureFreshHtml() {
     try {
@@ -2582,6 +2582,14 @@ const App = (() => {
     if (wxSel) wxSel.value = wxMode();
     const demoBtn = document.getElementById('cfg-clear-demo');
     if (demoBtn) demoBtn.style.display = S.usingSN ? 'none' : 'flex';
+    // demo mode has no account, so nothing to change a password on
+    const acctZone = document.getElementById('cfg-account-zone');
+    if (acctZone) acctZone.style.display = S.usingSN ? 'flex' : 'none';
+    const pwMsg = document.getElementById('cfg-pw-msg');
+    if (pwMsg) { pwMsg.textContent = ''; pwMsg.className = 'cfg-pw-msg'; }
+    ['cfg-pw-current','cfg-pw-new','cfg-pw-confirm'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
     document.getElementById('cfg-reward-target').value    = S.rewardTarget;
     document.getElementById('cfg-punish-threshold').value = S.punishThreshold;
     document.getElementById('cfg-name1').value = S.charName1 || 'Pochacco';
@@ -2589,6 +2597,56 @@ const App = (() => {
     document.getElementById('cfg-start-date').value = S.startDate || '';
     _refreshSettingsPreview();
     openModal('modal-settings');
+  }
+
+  /* ServiceNow had no way to change a password — accounts were created once
+     and the value in u_love_auth never moved. Supabase Auth does, and the
+     migration hands out temporary passwords, so this is the screen that lets
+     them actually be replaced. */
+  async function changePassword() {
+    const elCur = document.getElementById('cfg-pw-current');
+    const elNew = document.getElementById('cfg-pw-new');
+    const elCfm = document.getElementById('cfg-pw-confirm');
+    const msg   = document.getElementById('cfg-pw-msg');
+    const btn   = document.getElementById('cfg-pw-btn');
+    const say = (text, cls) => { msg.textContent = text; msg.className = 'cfg-pw-msg ' + (cls || ''); };
+
+    const cur = elCur.value, next = elNew.value, confirm = elCfm.value;
+    if (!cur || !next)       return say('请输入当前密码和新密码', 'err');
+    if (next.length < 6)     return say('新密码至少 6 位', 'err');
+    if (next !== confirm)    return say('两次输入的新密码不一样', 'err');
+    if (next === cur)        return say('新密码和当前密码一样', 'err');
+
+    say('');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = '修改中…';
+    try {
+      const res = await snFetch('/auth/password', {
+        method: 'PUT',
+        body: JSON.stringify({ currentPassword: cur, newPassword: next }),
+      });
+      /* Changing the password revokes the session this request was made with,
+         so adopt the fresh one the server hands back — otherwise the very
+         next request 401s and the app looks broken right after succeeding. */
+      if (res && res.accessToken) {
+        S.apiKey = res.accessToken;
+        localStorage.setItem('sn_api_key', res.accessToken);
+        if (res.refreshToken) localStorage.setItem('sn_refresh', res.refreshToken);
+      }
+      elCur.value = elNew.value = elCfm.value = '';
+      say('');
+      closeModal('modal-settings');
+      showToast('密码已更新 ✅');
+    } catch (err) {
+      // 403 = wrong current password; 401 = the session itself is no longer valid
+      if (/\b403\b/.test(err.message))      say('当前密码不对', 'err');
+      else if (/\b401\b/.test(err.message)) say('登录已过期，请重新登录', 'err');
+      else                                  say('修改失败，请再试一次', 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
   }
 
   async function saveConfig() {
@@ -5762,7 +5820,7 @@ const App = (() => {
     toggleMode, selectChar,
     quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
-    nav, showTables, showHistory, showSettings, saveConfig, logout,
+    nav, showTables, showHistory, showSettings, saveConfig, changePassword, logout,
     clearDemoData, resetPet,
     setTheme,
     claimReward,
