@@ -1,6 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { serve, json, emailForUsername } from "../_shared/util.ts";
+import { serve, json, emailForUsername, usernamePattern } from "../_shared/util.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -18,11 +18,14 @@ serve(async (req) => {
   const { data: profile } = await admin
     .from("profiles")
     .select("id, match_id, char_id, username")
-    .eq("username", username)
+    .ilike("username", usernamePattern(username))
     .maybeSingle();
   if (!profile) return json({ error: "账号不存在，请先注册" }, 404);
 
-  const email = emailForUsername(username);
+  // Build the address from the STORED username, never what was typed — the
+  // synthetic email encodes the username, so "cs" and "CS" would otherwise
+  // hash to two different addresses and the password check would fail.
+  const email = emailForUsername(profile.username);
   const anon = createClient(SUPABASE_URL, ANON_KEY);
   const { data: signIn, error: signInErr } = await anon.auth.signInWithPassword({ email, password });
   if (signInErr || !signIn.session) return json({ error: "密码错误" }, 401);

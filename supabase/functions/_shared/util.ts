@@ -42,6 +42,14 @@ export function randomPairCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// ServiceNow's GlideRecord string queries were case-insensitive, so "cs"
+// logged in as "CS" for years. Postgres `=` is not, which silently turned a
+// lowercase login into "账号不存在". Matching with ilike restores the old
+// behaviour; the wildcards are escaped so a username can't act as a pattern.
+export function usernamePattern(username: string): string {
+  return username.replace(/([\\%_])/g, "\\$1");
+}
+
 export function adminClient(): SupabaseClient {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 }

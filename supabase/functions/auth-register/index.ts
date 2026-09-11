@@ -1,6 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { serve, json, emailForUsername, randomPairCode } from "../_shared/util.ts";
+import { serve, json, emailForUsername, randomPairCode, usernamePattern } from "../_shared/util.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,7 +20,8 @@ serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  const { data: existing } = await admin.from("profiles").select("id").eq("username", username).maybeSingle();
+  // case-insensitive, so "cs" cannot be registered alongside an existing "CS"
+  const { data: existing } = await admin.from("profiles").select("id").ilike("username", usernamePattern(username)).maybeSingle();
   if (existing) return json({ error: "账号已存在，请直接登录" }, 409);
 
   let matchId: string;

@@ -10,7 +10,7 @@ import postgres from "npm:postgres@3";
 const MIGRATIONS = [
   `delete from auth.users where id in (
      select id from profiles
-      where username ~ '^(t|f|pwui|pwtest)[_0-9]' or username like 'e2e_test_%')`,
+      where username ~ '^(t|f|pwui|pwtest)[_0-9]' or username like 'e2e_test_%' or username like 'CaseTest%')`,
   `delete from config where match_id not in (select distinct match_id from profiles where match_id is not null)`,
   `delete from entries where match_id not in (select distinct match_id from profiles where match_id is not null)`,
   `delete from categories where match_id not in (select distinct match_id from profiles where match_id is not null)`,
