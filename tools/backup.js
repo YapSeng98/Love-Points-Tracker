@@ -1,29 +1,29 @@
 #!/usr/bin/env node
 /**
- * Pulls everything this couple owns out of Supabase and writes one
- * timestamped JSON snapshot to backups/.
+ * Pulls everything out of Supabase and writes one timestamped JSON snapshot
+ * to backups/.
  *
  * WHY THIS EXISTS: the app's data used to live on a free ServiceNow PDI that
  * could be reclaimed without warning, and this script was the only copy.
  * Supabase is a sturdier home, but a managed database is still not a backup:
- * an accidental delete, a bad migration or a closed account all lose data
- * just as completely. Treat weekly runs as load-bearing, not optional.
+ * an accidental delete, a bad migration or a closed account lose data just as
+ * completely. Treat weekly runs as load-bearing, not optional.
  *
- * SETUP (once — no password is ever written to disk):
- *   node tools/backup.js login <username> <password>
- * That's the same app login you already use. It keeps only the refresh
- * token, which is swapped for a short-lived access token on each run.
+ * AUTH: a service key in tools/backup.local.json (gitignored, chmod 600), or
+ * SUPABASE_SECRET_KEY in the environment. Deliberately NOT a user login —
+ * a scheduled job should not be authenticating as a person:
+ *   · it would need someone's password to set up,
+ *   · sessions expire, and this runs weekly,
+ *   · and Supabase revokes every session when a password changes, so the
+ *     backup would silently stop the next time either partner changed theirs.
+ * The key also bypasses RLS, which is what lets one run capture BOTH
+ * partners' bags — the old ServiceNow /bag returned only the caller's own
+ * rows, so backups silently dropped whoever wasn't logged in.
  *
  * RUN:
  *   node tools/backup.js
  * Writes backups/<timestamp>.json — gitignored, since it holds private
  * letters and photos.
- *
- * ONE CALL, BOTH BAGS: this reads /backup-full, which deliberately does not
- * filter the bag by character. The old ServiceNow /bag returned only the
- * caller's own rows, so a backup silently missed whichever partner wasn't
- * logged in — that gap is why YY's items had to be re-entered by hand during
- * the migration. Either partner's login now backs up both.
  *
  * WEEKLY, WITHOUT REMEMBERING: tools/install-backup-schedule.sh installs a
  * macOS launchd job that runs this every 7 days while the Mac is on.
@@ -34,94 +34,88 @@ const path = require('path');
 const ROOT        = path.join(__dirname, '..');
 const CONFIG_FILE = path.join(__dirname, 'backup.local.json');
 const BACKUP_DIR  = path.join(ROOT, 'backups');
+const SB_URL      = 'https://yvllstktmjoedfsgojgs.supabase.co';
+const BUCKET      = 'photos';
 
-const SB_URL = 'https://yvllstktmjoedfsgojgs.supabase.co';
-const SB_KEY = process.env.SUPABASE_PUBLISHABLE_KEY
-  || 'sb_publishable_YEULeHekm3gNb3zGHI90mw_36KV7XLB';
+// Every table the couple's data lives in. Order is irrelevant for a read,
+// but this doubles as the checklist of what a complete snapshot contains —
+// if a table is ever added to the schema, add it here too.
+const TABLES = [
+  'matches', 'profiles', 'config', 'categories', 'rewards', 'punishments',
+  'shop', 'monthly', 'entries', 'letters', 'photos', 'bag',
+];
 
-function loadConfig() {
-  if (!fs.existsSync(CONFIG_FILE)) return {};
-  return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+function serviceKey() {
+  if (process.env.SUPABASE_SECRET_KEY) return process.env.SUPABASE_SECRET_KEY;
+  if (fs.existsSync(CONFIG_FILE)) {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    if (cfg.serviceKey) return cfg.serviceKey;
+  }
+  throw new Error(
+    'no service key found.\n' +
+    '     Put one in tools/backup.local.json as {"serviceKey":"…"}, or set\n' +
+    '     SUPABASE_SECRET_KEY. Get it from the Supabase dashboard under\n' +
+    '     Project Settings → API Keys, or: npx supabase projects api-keys'
+  );
 }
-function saveConfig(cfg) {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2) + '\n');
-  fs.chmodSync(CONFIG_FILE, 0o600);
+
+async function table(name, key) {
+  // PostgREST caps a response at 1000 rows by default, and this couple is
+  // already past 500 entries — page explicitly rather than silently truncate
+  // the archive at a round number.
+  const PAGE = 1000;
+  let from = 0, out = [];
+  for (;;) {
+    const res = await fetch(`${SB_URL}/rest/v1/${name}?select=*`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Range: `${from}-${from + PAGE - 1}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) throw new Error(`${name} → ${res.status}: ${await res.text()}`);
+    const rows = await res.json();
+    out = out.concat(rows);
+    if (rows.length < PAGE) return out;
+    from += PAGE;
+  }
 }
 
-async function fn(pathname, token) {
-  const res = await fetch(`${SB_URL}/functions/v1${pathname}`, {
-    headers: { apikey: SB_KEY, Authorization: `Bearer ${token}`, Accept: 'application/json' },
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`${pathname} → ${res.status}: ${JSON.stringify(body)}`);
-  return body;
-}
-
-/* ── auth ───────────────────────────────────────────────────────────────
-   Access tokens last about an hour, which is useless to a weekly job, so
-   only the refresh token is kept. Supabase rotates it on every use, so the
-   replacement is written back immediately — losing it means logging in
-   again, which is recoverable but annoying at 3am on a schedule.          */
-async function accessTokenFromRefresh(refreshToken) {
-  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+async function signedUrls(paths, key) {
+  if (!paths.length) return {};
+  const res = await fetch(`${SB_URL}/storage/v1/object/sign/${BUCKET}`, {
     method: 'POST',
-    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 1800, paths }),
   });
-  const d = await res.json().catch(() => null);
-  if (!res.ok || !d || !d.access_token) {
-    throw new Error('refresh token rejected — run: node tools/backup.js login <username> <password>');
-  }
-  return d;
+  if (!res.ok) throw new Error(`sign → ${res.status}: ${await res.text()}`);
+  const list = await res.json();
+  return Object.fromEntries(list.map((s) => [s.path, s.signedURL || s.signedUrl]));
 }
 
-async function runLogin(username, password) {
-  if (!username || !password) {
-    console.error('  usage: node tools/backup.js login <username> <password>');
-    process.exit(1);
-  }
-  console.log(`  logging in as ${username}…`);
-  const res = await fetch(`${SB_URL}/functions/v1/auth-login`, {
-    method: 'POST',
-    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok || !body || !body.refreshToken) {
-    throw new Error((body && body.error) || `login failed: HTTP ${res.status}`);
-  }
-  saveConfig({ username: body.username, charId: body.charId, refreshToken: body.refreshToken });
-  console.log(`  ✅ saved ${body.username} (${body.charId}) to ${path.relative(ROOT, CONFIG_FILE)}`);
-  console.log('     the password was not written to disk — only a refresh token.');
-}
+async function run() {
+  const key = serviceKey();
 
-/* ── backup ─────────────────────────────────────────────────────────── */
-async function runBackup() {
-  const cfg = loadConfig();
-  if (!cfg.refreshToken) {
-    console.error('  Not logged in yet. Run this once:');
-    console.error('    node tools/backup.js login <username> <password>');
-    process.exit(1);
+  console.log('  pulling every table…');
+  const data = {};
+  for (const t of TABLES) {
+    data[t] = await table(t, key);
+    process.stdout.write(`\r    ${t}: ${data[t].length}          `);
   }
+  console.log('\r' + ' '.repeat(40));
 
-  console.log('  refreshing session…');
-  const session = await accessTokenFromRefresh(cfg.refreshToken);
-  if (session.refresh_token && session.refresh_token !== cfg.refreshToken) {
-    saveConfig({ ...cfg, refreshToken: session.refresh_token });
-  }
-
-  console.log('  pulling everything…');
-  const snap = await fn('/backup-full', session.access_token);
-
-  // Signed URLs expire, so pull the actual bytes into the snapshot —
-  // otherwise the backup degrades into a list of dead links.
-  const photos = snap.photos || [];
-  if (photos.length) {
-    console.log(`  downloading ${photos.length} photos…`);
+  // Photos live in Storage, so pull the actual bytes into the snapshot.
+  // An archive full of signed URLs expires into uselessness.
+  if (data.photos.length) {
+    console.log(`  downloading ${data.photos.length} photos…`);
+    const urls = await signedUrls(data.photos.map((p) => p.storage_path).filter(Boolean), key);
     let ok = 0;
-    for (const p of photos) {
+    for (const p of data.photos) {
       try {
-        const r = await fetch(p.downloadUrl);
+        const u = urls[p.storage_path];
+        if (!u) throw new Error('no signed url');
+        const r = await fetch(u.startsWith('http') ? u : `${SB_URL}/storage/v1${u}`);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const buf = Buffer.from(await r.arrayBuffer());
         p.imageBase64 = `data:${r.headers.get('content-type') || 'image/jpeg'};base64,${buf.toString('base64')}`;
@@ -130,10 +124,22 @@ async function runBackup() {
         p.imageBase64 = '';
         console.warn(`    ⚠️  photo ${p.id} failed: ${e.message}`);
       }
-      delete p.downloadUrl;   // expires anyway; keep it out of the archive
     }
-    console.log(`  ${ok}/${photos.length} photo files embedded`);
+    console.log(`  ${ok}/${data.photos.length} photo files embedded`);
+    if (ok < data.photos.length) {
+      console.warn('  ⚠️  some photos did not download — this snapshot is incomplete.');
+    }
   }
+
+  const snap = {
+    meta: {
+      generatedAt: new Date().toISOString(),
+      source: 'supabase',
+      project: SB_URL,
+      tables: TABLES,
+    },
+    ...data,
+  };
 
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
   const stamp = snap.meta.generatedAt.replace(/[:.]/g, '-');
@@ -141,35 +147,20 @@ async function runBackup() {
   fs.writeFileSync(file, JSON.stringify(snap, null, 2));
   const kb = (fs.statSync(file).size / 1024).toFixed(0);
 
-  const bagByChar = (snap.bag || []).reduce((m, b) => ((m[b.char] = (m[b.char] || 0) + 1), m), {});
+  const bagByChar = data.bag.reduce((m, b) => ((m[b.char] = (m[b.char] || 0) + 1), m), {});
   console.log(`\n  ✅ wrote ${path.relative(ROOT, file)}  (${kb} KB)`);
-  console.log(`     entries ${(snap.entries || []).length} · letters ${(snap.letters || []).length}` +
-              ` · photos ${photos.length} · settled months ${(snap.monthly || []).length}`);
-  console.log(`     categories ${(snap.categories || []).length} · rewards ${(snap.rewards || []).length}` +
-              ` · punishments ${(snap.punishments || []).length} · shop ${(snap.shop || []).length}`);
-  console.log(`     bag rows ${(snap.bag || []).length} — ` +
-              Object.entries(bagByChar).map(([c, n]) => `${c}: ${n}`).join(', ') || '(none)');
+  console.log(`     entries ${data.entries.length} · letters ${data.letters.length}` +
+              ` · photos ${data.photos.length} · settled months ${data.monthly.length}`);
+  console.log(`     categories ${data.categories.length} · rewards ${data.rewards.length}` +
+              ` · punishments ${data.punishments.length} · shop ${data.shop.length}`);
+  console.log(`     bag ${data.bag.length} — ` +
+              (Object.entries(bagByChar).map(([c, n]) => `${c}: ${n}`).join(', ') || '(none)'));
 
   // Both partners present is the signal that the old split-bag gap is gone
-  const chars = new Set((snap.profiles || []).map((p) => p.char_id));
-  if (chars.size < 2) {
+  if (new Set(data.profiles.map((p) => p.char_id)).size < 2) {
     console.warn('     ⚠️  only one partner profile found — expected both.');
   }
   return file;
 }
 
-(async () => {
-  const [cmd, ...rest] = process.argv.slice(2);
-  try {
-    if (cmd === 'login') await runLogin(rest[0], rest[1]);
-    else if (!cmd)       await runBackup();
-    else {
-      console.error(`  unknown command "${cmd}"`);
-      console.error('  usage: node tools/backup.js [login <username> <password>]');
-      process.exit(1);
-    }
-  } catch (e) {
-    console.error('\n  ✖', e.message);
-    process.exit(1);
-  }
-})();
+run().catch((e) => { console.error('\n  ✖', e.message); process.exit(1); });
