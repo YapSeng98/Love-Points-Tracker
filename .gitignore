@@ -22,3 +22,6 @@ supabase/.temp/
 .migration-secret
 .migration-credentials.txt
 .migration-preview.json
+
+# YY bag export — private content, and this repo deploys publicly.
+supabase/yy-bag.csv
