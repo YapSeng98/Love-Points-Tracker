@@ -1,0 +1,4 @@
+char,item_name,item_icon,pts_spent,source_type,decor_item_id,month,acquired_date,used_date,status
+char2,奶茶,🧋,0,reward,,2026-08,2026-08-14,,active
+char2,电影票,🍿,30,purchase,,2026-07,2026-07-02,2026-07-20,used
+char2,月饼盒,🥮,60,decor,mooncake_box_27,2026-09,2026-09-05,,active

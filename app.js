@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.09.06-49';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.09.11-50';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -732,21 +732,84 @@ const App = (() => {
     throw last;
   }
 
+  /* ── Supabase backend ──
+     ServiceNow exposed one REST resource per path+method; Supabase Edge
+     Functions are one function per slug. Translating the old paths here
+     means every call site below keeps calling '/entries/{id}' and friends
+     exactly as before — the transport is the only thing that moved.      */
+  const SB_URL = 'https://yvllstktmjoedfsgojgs.supabase.co';
+  const SB_KEY = 'sb_publishable_YEULeHekm3gNb3zGHI90mw_36KV7XLB';
+
+  function _sbUrl(path) {
+    const [raw, qs] = path.split('?');
+    const seg = raw.split('/').filter(Boolean);
+    const [a, b, c] = seg;
+    const extra = qs ? '&' + qs : '';
+    const withId = (slug, id) => `${slug}?id=${encodeURIComponent(id)}${extra}`;
+
+    let fn;
+    if (a === 'auth')                        fn = `auth-${b}`;              // /auth/login
+    else if (a === 'monthly')                fn = 'monthly-settle';
+    else if (a === 'decor')                  fn = 'decor-buy';
+    else if (a === 'shop' && b === 'buy')    fn = withId('shop-buy', c);
+    else if (a === 'bag'  && b === 'use')    fn = withId('bag-use', c);
+    else if (a === 'bag'  && b === 'history') fn = 'bag-history';
+    else if (a === 'bag'  && b === 'claim')  fn = 'bag-claim';
+    else if (b)                              fn = withId(`${a}-id`, b);     // /entries/{id}
+    else                                     fn = a;                        // /entries
+    if (!fn.includes('?') && qs) fn += `?${qs}`;
+    return `${SB_URL}/functions/v1/${fn}`;
+  }
+
+  /* ServiceNow's apiKey never expired; a Supabase access token lasts about an
+     hour. Without this the app would start 401-ing mid-session and look
+     logged out. Refresh once, silently, then retry the original request.   */
+  async function _sbRefresh() {
+    const rt = localStorage.getItem('sn_refresh');
+    if (!rt) return false;
+    try {
+      const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!res.ok) return false;
+      const d = await res.json();
+      if (!d.access_token) return false;
+      S.apiKey = d.access_token;
+      localStorage.setItem('sn_api_key', d.access_token);
+      if (d.refresh_token) localStorage.setItem('sn_refresh', d.refresh_token);
+      return true;
+    } catch { return false; }
+  }
+
   async function snFetch(path, opts = {}) {
-    const url = `https://${S.snInstance}${SN_API_PATH}${path}`;
-    const res = await _fetchWithRetry(url, {
-      headers: { 'Authorization': 'Bearer ' + S.apiKey, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    const url = _sbUrl(path);
+    const send = () => _fetchWithRetry(url, {
       ...opts,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + S.apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(opts.headers || {}),
+      },
     });
+    let res = await send();
+    if (res.status === 401 && await _sbRefresh()) res = await send();
     if (!res.ok) throw new Error(`SN ${res.status}: ${await res.text()}`);
     return _snUnwrap(await res.json());
   }
 
   async function snPublicFetch(path, opts = {}) {
-    const url = `https://${S.snInstance}${SN_API_PATH}${path}`;
-    const res = await _fetchWithRetry(url, {
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    const res = await _fetchWithRetry(_sbUrl(path), {
       ...opts,
+      headers: {
+        'apikey': SB_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(opts.headers || {}),
+      },
     });
     if (!res.ok) throw new Error(`SN ${res.status}: ${await res.text()}`);
     return _snUnwrap(await res.json());
@@ -1828,6 +1891,9 @@ const App = (() => {
       }
 
       localStorage.setItem('sn_api_key',   S.apiKey);
+      // access tokens expire; without the refresh token a resumed
+      // session would be dead on arrival an hour later
+      if (result.refreshToken) localStorage.setItem('sn_refresh', result.refreshToken);
       localStorage.setItem('sn_username',  username);
       localStorage.setItem('sn_char',      S.activeChar);
       localStorage.setItem('sn_match',     S.matchId);
@@ -1895,6 +1961,9 @@ const App = (() => {
       }
 
       localStorage.setItem('sn_api_key',   S.apiKey);
+      // access tokens expire; without the refresh token a resumed
+      // session would be dead on arrival an hour later
+      if (result.refreshToken) localStorage.setItem('sn_refresh', result.refreshToken);
       localStorage.setItem('sn_username',  username);
       localStorage.setItem('sn_char',      S.activeChar);
       localStorage.setItem('sn_match',     S.matchId);
@@ -5019,6 +5088,7 @@ const App = (() => {
 
   function logout() {
     localStorage.removeItem('sn_api_key');
+    localStorage.removeItem('sn_refresh');
     localStorage.removeItem('sn_username');
     localStorage.removeItem('sn_char');
     localStorage.removeItem('sn_match');
@@ -5636,6 +5706,7 @@ const App = (() => {
       } catch (err) {
         S.usingSN = false;
         localStorage.removeItem('sn_api_key');
+        localStorage.removeItem('sn_refresh');
         localStorage.removeItem('sn_username');
         localStorage.removeItem('sn_char');
         localStorage.removeItem('sn_match');

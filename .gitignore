@@ -12,3 +12,13 @@
 # push, and these contain a live API key plus the couple's private data.
 tools/backup.local.json
 backups/
+
+# Supabase CLI local link/cache state — not meant to be committed.
+# supabase/functions and supabase/config.toml (once created) DO get committed.
+supabase/.temp/
+
+# Shared secret gating the one-off migration endpoint, and the credentials
+# the migration prints. Both are deleted once the cutover is done.
+.migration-secret
+.migration-credentials.txt
+.migration-preview.json
