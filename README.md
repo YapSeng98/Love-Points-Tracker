@@ -7,7 +7,7 @@ into a shared goal, into a pet that grows, into a room you decorate together.
 Built as **vanilla JS + HTML + CSS** against a **ServiceNow Scripted REST API**.
 No framework, no bundler, no build step. `index.html` is the app.
 
-📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** · 🐣 **[小窝设计文档](docs/PET_GAME_DESIGN.md)** · 🛠 **[Engineering rules](CLAUDE.md)**
+📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** · 🐣 **[小窝设计文档](docs/PET_GAME_DESIGN.md)** · 🛠 **[Engineering rules](CLAUDE.md)** · 📋 **[Changelog](docs/CHANGELOG.md)**
 
 ---
 
@@ -48,19 +48,31 @@ No framework, no bundler, no build step. `index.html` is the app.
 
 ```
   iPhone / laptop browser
-  ├── index.html   all markup + CSS (4.3k lines)
-  └── app.js       all logic — state, render, API, SVG art (5.4k lines)
+  ├── index.html   all markup + CSS (4.7k lines)
+  └── app.js       all logic — state, render, API, SVG art (6.1k lines)
           │
-          │  HTTPS · Authorization: Bearer <apiKey>
+          │  HTTPS · apikey + Authorization: Bearer <access token>
           ▼
-  ServiceNow  dev405150.service-now.com
-  └── Scripted REST API   /api/x_887486_love_app/love_score/*
-        └── 40 resources → 12 scoped tables
+  Supabase  yvllstktmjoedfsgojgs.supabase.co
+  ├── /functions/v1/*   27 Edge Functions — every business rule
+  ├── Postgres          12 tables, row-level security on all of them
+  ├── Auth              hashed passwords, JWT + refresh
+  └── Storage           private "photos" bucket, served as signed URLs
 ```
 
-Deployment is deliberately lopsided: **the frontend auto-deploys** from `main` via
-GitHub Pages, while **ServiceNow scripts are pasted by hand**. So resource changes
-are batched and rare, and new state prefers an existing field over a new table.
+**Only a function may write.** RLS is `SELECT`-only for clients, so a session token
+alone cannot change a row; functions hold the service-role key and bypass RLS. The
+upside is that every rule lives in one place. The cost is that there is no second
+line of defence behind it — a missing check in a function is simply missing.
+
+No build step: `node --check app.js` is the whole toolchain. The frontend
+auto-deploys from `main` via GitHub Pages; functions deploy with
+`npx supabase functions deploy <slug>`. Deploy the function first when a change
+spans both, or the pushed app calls an endpoint that doesn't answer yet.
+
+> Ran on a free ServiceNow PDI until 2026-09-11. `servicenow/` is kept as history
+> — those scripts are the source this was ported from and are no longer deployed.
+> See [the changelog](docs/CHANGELOG.md).
 
 ---
 
@@ -220,10 +232,16 @@ erDiagram
 
 ## API
 
-**Base** `https://dev405150.service-now.com/api/x_887486_love_app/love_score`
-**Auth** `Authorization: Bearer <apiKey>` on everything except register/login.
+**Base** `https://yvllstktmjoedfsgojgs.supabase.co/functions/v1`
+**Auth** `apikey:` on everything, plus `Authorization: Bearer <access token>` on
+everything except register/login. Tokens expire hourly; the client refreshes once
+on a 401 and retries.
 
-<details><summary><b>40 resources</b></summary>
+The table below lists the original ServiceNow resources and the paths `app.js`
+still calls. `snFetch` rewrites each onto a function slug — `/entries/:id` becomes
+`entries-id?id=…` — which is why no call site changed during the migration.
+
+<details><summary><b>the endpoints</b></summary>
 
 | # | Method | Path | Description |
 |---|---|---|---|
@@ -278,8 +296,10 @@ as 她🩷 with that code. **Local Demo** on the login screen runs the whole app
 
 | Suite | What it covers |
 |---|---|
-| `servicenow/test-full-system-v2.sh` | **148 live checks** against the real instance — scoring, settle, shop, bag, letters, photos, claims, couple isolation, auth |
-| `servicenow/test-dates.sh` | **11 checks** — timezone regressions on every date-stamping path |
+| `node supabase/test-full.mjs` | **91 live checks** against the real backend — auth + pairing, scoring, settle, shop, buy, bag, claims, decor, letters, photos, avatars, couple isolation, unauthenticated refusal |
+| `node supabase/test-api.mjs` | **47 checks** — a narrower slice, plus direct-to-Postgres bypass attempts |
+| `node supabase/cleanup-test-accounts.mjs` | Removes the throwaway couples the suites leave behind. Dry-run by default |
+| `servicenow/test-*.sh` | **Historical** — tests the ServiceNow backend, which nothing uses |
 | Browser suites (scratchpad) | **~545 checks** across 42 files — pet logic, coin economy, seasons, moon phase, weather, layout at 3 widths, contrast from rendered pixels, performance, full user journey |
 | `regression_reported.js` | **Every bug ever reported**, replayed. A red line here means it's back. |
 | `tools/season-check.js` | Runs monthly in CI: fails if the lunar table or the pre-drawn keepsake years are running out |
@@ -297,7 +317,7 @@ Two habits worth knowing, both learned the hard way and written up in [CLAUDE.md
 
 ## Notes for future changes
 
-- **Emoji in ServiceNow** — the DB is `utf8mb3`, so 4-byte emoji (🎯) corrupt.
+- **Emoji encoding** — a ServiceNow-era workaround: its DB was `utf8mb3`, so 4-byte emoji (🎯) corrupted. Postgres stores them fine, but the encode/decode pair stays so rows written before the migration still read back correctly.
   Text fields go through `encodeForSN()` / `decodeFromSN()` as `\xCODEPOINT`.
 - **No scheduled jobs anywhere** — themes, seasons, the moon and shop stock are all
   computed from the device clock. The only cron is a monthly CI content check.
