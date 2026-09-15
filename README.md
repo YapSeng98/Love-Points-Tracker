@@ -80,143 +80,151 @@ spans both, or the pushed app calls an endpoint that doesn't answer yet.
 
 ## Data model
 
-Everything shared is scoped by `u_match` (the couple). Anything personal is also
-scoped by `u_char`. Cross-couple reads return empty; cross-couple writes 404.
+Everything shared is scoped by `match_id` (the couple). `bag` is also scoped by
+`char`, because an unredeemed reward belongs to one partner. Row-level security
+enforces both in the database: a cross-couple read returns empty, a cross-couple
+write 404s.
 
 ```mermaid
 erDiagram
-    MATCH ||--|| CONFIG : "one per couple"
-    MATCH ||--o{ AUTH : "exactly 2 partners"
-    MATCH ||--o{ CATEGORY : ""
-    MATCH ||--o{ ENTRY : ""
-    MATCH ||--o{ REWARD : ""
-    MATCH ||--o{ PUNISHMENT : ""
-    MATCH ||--o{ MONTHLY : ""
-    MATCH ||--o{ SHOP : ""
-    MATCH ||--o{ BAG : ""
-    MATCH ||--o{ LETTER : ""
-    MATCH ||--o{ PHOTO : ""
+    MATCHES  ||--|| CONFIG   : "one per couple"
+    MATCHES  ||--o{ PROFILES : "exactly 2 partners"
+    MATCHES  ||--o{ CATEGORIES : ""
+    MATCHES  ||--o{ ENTRIES  : ""
+    MATCHES  ||--o{ REWARDS  : ""
+    MATCHES  ||--o{ PUNISHMENTS : ""
+    MATCHES  ||--o{ MONTHLY  : ""
+    MATCHES  ||--o{ SHOP     : ""
+    MATCHES  ||--o{ BAG      : ""
+    MATCHES  ||--o{ LETTERS  : ""
+    MATCHES  ||--o{ PHOTOS   : ""
 
-    CATEGORY ||--o{ ENTRY : "scored as"
-    MONTHLY  ||--o{ ENTRY : "archives"
-    SHOP     ||--o{ BAG : "bought as"
-    AUTH     ||--o{ ENTRY : "logged by"
-    AUTH     ||--o{ BAG : "owned by"
-    AUTH     ||--o{ LETTER : "written by"
-    AUTH     ||--o{ PHOTO : "added by"
+    CATEGORIES ||--o{ ENTRIES : "scored as"
+    MONTHLY    ||--o{ ENTRIES : "archives"
+    SHOP       ||--o{ BAG     : "bought as"
 
-    MATCH {
-        string u_match PK "couple id"
-        string u_couple_name
-        string u_pair_code "6 digits, used once to pair"
+    MATCHES {
+        uuid   id PK
+        text   pair_code "6 digits, shared once to pair"
+        text   couple_name
     }
-    AUTH {
-        string u_username PK
-        string u_password
-        string u_api_key "bearer token"
-        string u_char_id "char1 or char2"
-        string u_match FK
-        string u_profile_picture "base64"
-        string u_last_login
+    PROFILES {
+        uuid   id PK "= auth.users.id"
+        uuid   match_id FK
+        text   char_id "char1 or char2"
+        text   username "matched case-insensitively"
+        text   profile_picture "base64 avatar"
+        ts     last_login
     }
     CONFIG {
-        string u_match FK
-        string u_mode "reward or punish"
-        int    u_reward_target
-        int    u_punish_threshold
-        string u_start_date "在一起的日子"
-        string u_char1_name
-        string u_char2_name
-        string u_goal_name "共同目标"
-        string u_goal_icon
-        int    u_goal_target
-        string u_pet_species "empty until adopted"
-        string u_pet_name
-        int    u_pet_exp "high-water, never lowered"
-        int    u_pet_base "snapshot at adoption"
-        string u_pet_equipped "room layout JSON, String(1000)"
-        string u_wx_1 "char1 weather"
-        string u_wx_2 "char2 weather"
+        uuid   match_id PK "1:1 with the couple"
+        text   mode "reward or punishment"
+        int    reward_target
+        int    punish_threshold
+        date   start_date "在一起的日子"
+        text   char1_name
+        text   char2_name
+        text   goal_name "共同目标"
+        text   goal_icon
+        int    goal_target
+        text   pet_species "empty until adopted"
+        text   pet_name
+        int    pet_exp "high-water, never lowered"
+        int    pet_base "snapshot at adoption"
+        text   pet_equipped "room layout, compact codes"
+        text   wx_1 "one weather slot per partner"
+        text   wx_2
     }
-    CATEGORY {
-        string u_match FK
-        string u_name
-        string u_emoji
-        int    u_points "may be negative"
-        bool   u_active
+    CATEGORIES {
+        uuid   id PK
+        uuid   match_id FK
+        text   name
+        text   emoji
+        int    points "may be negative"
+        bool   active
     }
-    ENTRY {
-        string u_match FK
-        string u_char "char1 or char2"
-        string u_category FK
-        string u_category_name "snapshot"
-        int    u_category_pts "snapshot"
-        int    u_points
-        string u_icon
-        string u_note
-        string u_date "client local"
-        string u_month "label, NOT a filter"
-        string u_monthly FK "empty = unsettled"
+    ENTRIES {
+        uuid   id PK
+        uuid   match_id FK
+        text   char "char1 or char2"
+        uuid   category_id FK "SET NULL if deleted"
+        text   category_name "snapshot"
+        int    category_pts "snapshot"
+        int    points
+        text   note
+        date   date "the phone's local date"
+        text   month "a label, NOT a filter"
+        uuid   monthly_id FK "NULL = unsettled"
     }
     MONTHLY {
-        string u_match FK
-        string u_month
-        int    u_char1_pts
-        int    u_char2_pts
-        string u_mode
-        string u_result_1 "reward or punishment won"
-        string u_result_2
-        string u_settled_at
-        bool   u_claimed_1 "per person"
-        bool   u_claimed_2
+        uuid   id PK
+        uuid   match_id FK
+        text   month
+        int    char1_pts
+        int    char2_pts
+        text   mode
+        text   result_1 "what each partner won"
+        text   result_2
+        ts     settled_at
     }
-    REWARD {
-        string u_match FK
-        string u_name
-        string u_emoji
-        string u_desc
-        int    u_points "tier threshold"
+    REWARDS {
+        uuid   id PK
+        uuid   match_id FK
+        text   name
+        text   emoji
+        text   description
+        int    points "tier threshold"
+        bool   claimed_1 "per person, reset on settle"
+        bool   claimed_2
+        text   claimed_date_1
+        text   claimed_date_2
     }
-    PUNISHMENT {
-        string u_match FK
-        string u_name
-        string u_emoji
-        string u_desc
-        int    u_points
+    PUNISHMENTS {
+        uuid   id PK
+        uuid   match_id FK
+        text   name
+        text   emoji
+        text   description
+        int    points
     }
     SHOP {
-        string u_match FK
-        string u_name
-        string u_icon
-        string u_desc
-        int    u_pts_cost
-        bool   u_active
+        uuid   id PK
+        uuid   match_id FK
+        text   name
+        text   icon
+        text   description
+        int    pts_cost
+        bool   active
     }
     BAG {
-        string u_match FK
-        string u_char "owner — personal, not shared"
-        string u_shop_item FK
-        string u_item_name "snapshot"
-        string u_item_icon
-        int    u_pts_spent
-        string u_source_type "shop, claim or decor"
-        string u_status "active or used"
-        string u_acquired_date
-        string u_used_date
+        uuid   id PK
+        uuid   match_id FK
+        text   char "owner — personal, except decor"
+        uuid   shop_item_id FK "purchases only"
+        text   decor_item_id "furniture: a catalog id"
+        text   item_name "snapshot"
+        text   item_icon
+        int    pts_spent
+        text   source_type "purchase, reward or decor"
+        text   status "active or used"
+        date   acquired_date
+        date   used_date
     }
-    LETTER {
-        string u_match FK
-        string u_char "author"
-        string u_text
-        string u_date
-        bool   u_opened "sealed until read"
+    LETTERS {
+        uuid   id PK
+        uuid   match_id FK
+        text   char "author"
+        text   text
+        text   date "client ISO string, stored verbatim"
+        bool   opened "sealed until read"
     }
-    PHOTO {
-        string u_match FK
-        string u_char
-        string u_image "compressed base64"
-        string u_caption
-        string u_date
+    PHOTOS {
+        uuid   id PK
+        uuid   match_id FK
+        text   char
+        text   storage_path "→ the photos bucket"
+        text   caption
+        text   date
     }
 ```
 
@@ -224,14 +232,14 @@ erDiagram
 
 | | |
 |---|---|
-| **`u_month` is a label, not a filter** | `GET /entries` returns everything with `u_monthly` empty. Filtering by month once made an entire month vanish when it rolled over unsettled. |
-| **Furniture lives in `u_love_bag`** | with `u_source_type='decor'`, so no new table was needed. Decor is couple-pooled; shop purchases are personal. |
-| **The room is one JSON blob** | `u_pet_equipped` is `String(1000)` and stores 2-letter codes, not ids — ids cost 349 of the 1000 characters and truncation silently wiped rooms. |
-| **Weather is one slot per partner** | Two fields, never one shared blob, so simultaneous writes can't lose each other. |
-| **Dates come from the client** | The instance runs behind UTC+8, so a server-side date is *yesterday* for most of the users' day. |
+| **`month` is a label, not a filter** | `entries` returns everything with `monthly_id` NULL. Filtering by month once made an entire month vanish when it rolled over unsettled, and the score silently read zero. A partial index is built for that exact query. |
+| **Furniture lives in `bag`** | with `source_type='decor'`, so no extra table. Decor is couple-pooled; purchases and claimed rewards are personal. It is also the one row whose foreign key points two ways: `shop_item_id` for a purchase, `decor_item_id` — a text catalog id — for furniture. |
+| **Snapshots outlive their source** | `entries` copies the category's name and points, `bag` copies the item's name and icon. Deleting a category or shop item clears the link (`ON DELETE SET NULL`) without erasing history. |
+| **Weather is one slot per partner** | Two columns, never one shared blob, so simultaneous writes can't lose each other. |
+| **Dates come from the client** | The server is UTC, so a server-side date is *yesterday* for much of a UTC+8 day. Every write takes `date`/`month` from the request. |
+| **Only a function writes** | RLS is `SELECT`-only for clients. Every rule lives in an Edge Function holding the service-role key — and nothing sits behind it as a backstop. |
 
 ---
-
 ## API
 
 **Base** `https://yvllstktmjoedfsgojgs.supabase.co/functions/v1`
