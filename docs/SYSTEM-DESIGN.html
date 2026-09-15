@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恋爱积分簿 System Design</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;600&display=swap">
+<style>
+  :root{
+    --ground:#F6F7F9; --surface:#FFFFFF; --surface-sunk:#EDEFF3;
+    --ink:#141A2A; --ink-soft:#4A5364; --ink-faint:#767F8E;
+    --rule:#E3E6EC; --rule-strong:#CBD1DB;
+    --new:#2F9E68; --new-soft:#E6F3EC;
+    --old:#A9702C; --old-soft:#F6EEE1;
+    --serif:"IBM Plex Serif",Georgia,serif;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0F131C;--surface:#161B27;--surface-sunk:#1D2331;
+      --ink:#E9ECF2;--ink-soft:#A8B1C0;--ink-faint:#7B8494;
+      --rule:#252C3A;--rule-strong:#333C4D;
+      --new:#54C88C;--new-soft:#16301F;
+      --old:#D4A05C;--old-soft:#2C2317;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0F131C;--surface:#161B27;--surface-sunk:#1D2331;
+    --ink:#E9ECF2;--ink-soft:#A8B1C0;--ink-faint:#7B8494;
+    --rule:#252C3A;--rule-strong:#333C4D;
+    --new:#54C88C;--new-soft:#16301F;
+    --old:#D4A05C;--old-soft:#2C2317;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);
+       font-size:16px;line-height:1.62;margin:0;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin-inline:auto;padding-inline:20px;padding-block:0 88px}
+  h1,h2,h3{font-family:var(--serif);text-wrap:balance;margin:0}
+  p{margin:0}
+  code{font-family:var(--mono);font-size:.87em;background:var(--surface-sunk);padding:.1em .38em;border-radius:3px}
+
+  header{border-bottom:2px solid var(--ink);padding-block:56px 20px;margin-bottom:34px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px}
+  h1{font-size:clamp(32px,5.5vw,48px);line-height:1.08;font-weight:600;letter-spacing:-.015em}
+  .standfirst{margin-top:14px;font-size:18px;color:var(--ink-soft);max-width:62ch}
+
+  .figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:44px}
+  .fig{background:var(--surface);padding:15px 15px 13px}
+  .fig .n{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .fig .l{font-size:11.5px;color:var(--ink-faint);margin-top:4px;line-height:1.35}
+
+  section{margin-bottom:56px}
+  h2{font-size:25px;font-weight:600;letter-spacing:-.01em;margin-bottom:6px}
+  h3{font-size:17.5px;font-weight:600;margin:30px 0 8px}
+  .sec-note{color:var(--ink-faint);font-size:14px;margin-bottom:20px}
+  section > p + p{margin-top:14px}
+
+  figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--rule);padding:20px 18px 14px}
+  figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink)}
+  figcaption{font-size:13.5px;color:var(--ink-faint);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule);line-height:1.5}
+
+  .tbl{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);margin-top:20px}
+  table{border-collapse:collapse;width:100%;min-width:560px}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule);font-size:14px;vertical-align:top}
+  thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;background:var(--surface-sunk);border-bottom:1px solid var(--rule-strong)}
+  tbody tr:last-child td{border-bottom:none}
+  td.m,th.m{font-family:var(--mono);font-size:12.5px}
+  td.nw{white-space:nowrap}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .tag{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:3px;white-space:nowrap}
+  .tag.shared{background:var(--new-soft);color:var(--new)}
+  .tag.person{background:var(--old-soft);color:var(--old)}
+
+  .note{border-left:3px solid var(--new);background:var(--new-soft);padding:15px 17px;margin-top:20px;font-size:14.5px;color:var(--ink-soft)}
+  .note strong{color:var(--ink)}
+  .warn{border-left:3px solid var(--old);background:var(--old-soft);padding:15px 17px;margin-top:20px;font-size:14.5px;color:var(--ink-soft)}
+  .warn strong{color:var(--ink)}
+
+  ul.plain{margin:14px 0 0;padding-left:19px;color:var(--ink-soft)}
+  ul.plain li{margin-bottom:8px}
+  ul.plain li strong{color:var(--ink);font-weight:600}
+
+  ol.steps{margin:18px 0 0;padding-left:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;display:grid;grid-template-columns:auto 1fr;gap:0 16px;padding-block:12px;border-top:1px solid var(--rule);color:var(--ink-soft);font-size:15px}
+  ol.steps li:last-child{border-bottom:1px solid var(--rule)}
+  ol.steps li::before{content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--new);padding-top:4px}
+  ol.steps b{color:var(--ink);font-weight:600}
+
+  footer{border-top:1px solid var(--rule);padding-top:20px;color:var(--ink-faint);font-size:13px;font-family:var(--mono);line-height:1.7}
+  @media (max-width:620px){ header{padding-block:36px 18px} figure{padding:14px 10px 10px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">System design · live on Supabase · 14 September 2026</div>
+  <h1>How 恋爱积分簿 is built</h1>
+  <p class="standfirst">A two-person scoring app, end to end: a 6,000-line single-file frontend, 27 Edge Functions, 12 Postgres tables, and one rule that shapes all of it — the client may read, but only a function may write.</p>
+</header>
+<div class="note" style="margin-bottom:30px"><strong>Public copy.</strong> Personal details — names, the pet, the shared goal and current scores — are redacted here because this repository deploys publicly. Row counts are kept, since they describe the system rather than the couple.</div>
+
+<div class="figures">
+  <div class="fig"><div class="n">12</div><div class="l">tables</div></div>
+  <div class="fig"><div class="n">27</div><div class="l">Edge Functions</div></div>
+  <div class="fig"><div class="n">605</div><div class="l">score entries</div></div>
+  <div class="fig"><div class="n">64</div><div class="l">bag rows</div></div>
+  <div class="fig"><div class="n">26</div><div class="l">letters</div></div>
+  <div class="fig"><div class="n">10</div><div class="l">photos</div></div>
+  <div class="fig"><div class="n">528K</div><div class="l">frontend, 2 files</div></div>
+</div>
+
+<section>
+  <h2>The stack, in one breath</h2>
+  <p>There is no build step, no framework, and no server the couple owns. <code>index.html</code> carries every style and every screen's markup; <code>app.js</code> carries all 6,000 lines of behaviour. GitHub Pages serves both as static files. Everything dynamic happens in two places: Supabase Edge Functions (Deno) holding the business rules, and Postgres holding the data.</p>
+  <p>That shape is deliberate for a couple's app that must outlive the enthusiasm of whoever maintains it. There is nothing to keep running, nothing to patch, and no dependency that can rot: open the repo in five years, and <code>node --check app.js</code> is the entire toolchain.</p>
+</section>
+
+<section>
+  <h2>How a request travels</h2>
+  <p class="sec-note">The security model is a shape, not a checklist. This is that shape.</p>
+
+  <p>There are two ways out of the browser and into the database, and they are deliberately not equal. Both carry the same public key and the same user session; what differs is what each is permitted to do at the far end.</p>
+
+  <figure>
+    <svg viewBox="0 0 900 400" role="img" aria-label="Request paths from the app to Postgres: writes go through Edge Functions using the service role and bypass row-level security, while the direct PostgREST path is restricted by RLS to SELECT only.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#2F9E68"/>
+        </marker>
+      </defs>
+
+      <rect x="14" y="150" width="104" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <text x="66" y="175" font-size="13" text-anchor="middle" fill="currentColor" font-family="system-ui">partner A 📱</text>
+      <rect x="14" y="198" width="104" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <text x="66" y="223" font-size="13" text-anchor="middle" fill="currentColor" font-family="system-ui">partner B 📱</text>
+
+      <rect x="152" y="150" width="128" height="88" rx="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="216" y="178" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600" font-family="system-ui">app.js</text>
+      <text x="216" y="198" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".72" font-family="ui-monospace,monospace">snFetch()</text>
+      <text x="216" y="215" font-size="10" text-anchor="middle" fill="currentColor" opacity=".6" font-family="system-ui">path rewrite</text>
+      <text x="216" y="229" font-size="10" text-anchor="middle" fill="currentColor" opacity=".6" font-family="system-ui">401 → refresh → retry</text>
+
+      <line x1="118" y1="170" x2="148" y2="182" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+      <line x1="118" y1="218" x2="148" y2="206" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+
+      <rect x="330" y="86" width="184" height="74" rx="6" fill="none" stroke="#2F9E68" stroke-width="2"/>
+      <text x="422" y="112" font-size="13" text-anchor="middle" fill="#2F9E68" font-weight="600" font-family="system-ui">Edge Functions ×27</text>
+      <text x="422" y="130" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75" font-family="system-ui">all business rules live here</text>
+      <text x="422" y="146" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75" font-family="ui-monospace,monospace">service-role key</text>
+
+      <rect x="330" y="268" width="184" height="60" rx="6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text x="422" y="292" font-size="13" text-anchor="middle" fill="currentColor" font-family="system-ui">PostgREST (direct)</text>
+      <text x="422" y="311" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">the session token alone</text>
+
+      <path d="M282 178 C306 172 306 130 326 123" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+      <path d="M282 210 C306 218 306 290 326 297" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="292" y="96" font-size="10" fill="currentColor" opacity=".62" font-family="system-ui">publishable key + user JWT</text>
+
+      <rect x="556" y="270" width="96" height="56" rx="6" fill="none" stroke="#A9702C" stroke-width="1.6"/>
+      <text x="604" y="292" font-size="11.5" text-anchor="middle" fill="currentColor" font-weight="600" font-family="system-ui">RLS</text>
+      <text x="604" y="310" font-size="10" text-anchor="middle" fill="currentColor" opacity=".75" font-family="system-ui">SELECT only</text>
+      <line x1="514" y1="298" x2="552" y2="298" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <rect x="700" y="150" width="184" height="88" rx="6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="792" y="180" font-size="14" text-anchor="middle" fill="currentColor" font-weight="600" font-family="system-ui">Postgres</text>
+      <text x="792" y="200" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75" font-family="system-ui">12 tables</text>
+      <text x="792" y="217" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75" font-family="system-ui">RLS on every one</text>
+
+      <path d="M514 123 C600 123 640 150 696 172" fill="none" stroke="#2F9E68" stroke-width="2" marker-end="url(#arg)"/>
+      <text x="588" y="142" font-size="10.5" fill="#2F9E68" font-weight="600" font-family="system-ui">reads + ALL writes</text>
+      <text x="588" y="156" font-size="9.5" fill="currentColor" opacity=".62" font-family="system-ui">bypasses RLS</text>
+
+      <path d="M652 294 C676 294 686 258 700 232" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+
+      <rect x="700" y="26" width="184" height="62" rx="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <text x="792" y="50" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600" font-family="system-ui">Storage · photos</text>
+      <text x="792" y="69" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75" font-family="system-ui">private bucket</text>
+      <path d="M470 86 C520 52 620 44 696 54" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar)"/>
+      <text x="512" y="38" font-size="10" fill="currentColor" opacity=".62" font-family="system-ui">upload · sign</text>
+      <text x="792" y="104" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".62" font-family="system-ui">browser fetches bytes direct, 4h signed URL</text>
+
+      <text x="14" y="374" font-size="11" fill="currentColor" opacity=".72" font-family="system-ui">
+        <tspan font-weight="600">Solid green</tspan> = the only path that can change data.
+        <tspan font-weight="600">Dashed</tspan> = reachable with a stolen session, and read-only by policy.
+      </text>
+    </svg>
+    <figcaption>Two routes into the same database. Writes exist only on the green path, so every business rule sits in one place; the dashed path is what an attacker with a valid session token gets, and RLS restricts it to <code>SELECT</code>.</figcaption>
+  </figure>
+
+  <p>This was tested by attack rather than by reading the policy. A genuine signed-in session was used to <code>PATCH</code> a row directly: the request answers <code>HTTP 204</code>, which looks like success, and changes nothing. Reading the value back afterwards is the only way to tell.</p>
+
+  <div class="warn"><strong>The trade this makes.</strong> Because functions hold the service-role key and bypass RLS, <em>the function is the only thing enforcing a rule</em>. There is no second line of defence behind it. A missing check in <code>shop-buy</code> is a missing check, full stop — which is why the score-sum logic lives in one shared helper that both <code>shop-buy</code> and <code>bag-claim</code> call, rather than being written twice.</div>
+</section>
+
+<section>
+  <h2>One write, traced end to end</h2>
+  <p class="sec-note">partner A taps 说早安 +5. Here is everything that happens, in order.</p>
+
+  <ol class="steps">
+    <li><b>The tap.</b> A category button calls <code>Data.addEntry()</code>. The client computes <code>todayStr()</code> and <code>monthKey()</code> from the <em>device</em> clock — never <code>toISOString()</code>, which is UTC and rolls a day early for a UTC+8 couple.</li>
+    <li><b>Path translation.</b> <code>snFetch('/entries', {method:'POST'})</code> rewrites the ServiceNow-era path onto a function slug: <code>…/functions/v1/entries</code>. Thirty such translations exist so none of the call sites had to change during the migration.</li>
+    <li><b>Headers.</b> The publishable key identifies the project; <code>Authorization: Bearer</code> carries the user's access token. Both are needed — the key alone gets you an anonymous session that RLS shows nothing to.</li>
+    <li><b>Preflight.</b> Because <code>apikey</code> is a custom header, the browser sends <code>OPTIONS</code> first. Every function answers it through a shared wrapper; when that was missing, every request failed with nothing but "Failed to fetch".</li>
+    <li><b>Identity.</b> Inside the function, <code>getCaller()</code> validates the JWT and reads <code>profiles</code> for the caller's <code>match_id</code> and <code>char_id</code>. No <code>match_id</code> ever arrives from the client — it is derived, so a forged one is not a thing that exists.</li>
+    <li><b>The insert.</b> The service-role client writes the row with <code>match_id</code> from step 5 and the date from step 1, plus a snapshot of the category's name, icon and point value. The snapshot is why deleting a category later doesn't corrupt the history.</li>
+    <li><b>The response.</b> <code>{id, success:true}</code> — the identical shape the ServiceNow resource returned, which is the reason <code>app.js</code> needed no change here at all.</li>
+    <li><b>The other phone.</b> Nothing is pushed. partner B's app sees it on its next poll, and if partner B is in the pet room right now that is within four seconds.</li>
+  </ol>
+
+  <div class="note"><strong>Step 1 is the one people get wrong.</strong> It looks like a detail and it is a class of bug: the server is in UTC, so an entry logged at 01:00 in Singapore belongs to <em>yesterday</em> as far as it's concerned. ServiceNow had the same hazard from a different timezone, and shipped purchases dated a day early before it was caught. Every date in this system is decided by the phone and merely stored by the server.</div>
+</section>
+
+<section>
+  <h2>The data model</h2>
+  <p class="sec-note">Twelve tables. One couple. Two people who must see the same numbers — except where they must not.</p>
+
+  <figure>
+    <svg viewBox="0 0 960 600" role="img" aria-label="Entity diagram: matches is the couple and every other table carries match_id. Entries link to categories and to monthly settlements. Bag links to shop for purchases but stores a text catalog id for furniture. Photos point at objects in a Storage bucket.">
+      <defs>
+        <marker id="fk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- auth.users sits outside the couple boundary -->
+      <rect x="34" y="14" width="160" height="44" rx="5" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".72"/>
+      <text x="114" y="33" font-size="12" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">auth.users</text>
+      <text x="114" y="49" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">hashed password</text>
+
+      <!-- the couple boundary -->
+      <rect x="10" y="76" width="740" height="428" rx="10" fill="none" stroke="#2F9E68" stroke-width="1.4" stroke-dasharray="6 5" opacity=".75"/>
+      <text x="26" y="96" font-size="10.5" fill="#2F9E68" font-weight="600" font-family="ui-monospace,monospace">every row inside carries match_id — the boundary RLS enforces</text>
+
+      <!-- identity row -->
+      <rect x="34" y="112" width="170" height="58" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="119" y="133" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600" font-family="ui-monospace,monospace">profiles</text>
+      <text x="119" y="149" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">char_id · username</text>
+      <text x="119" y="162" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">2 rows: char1, char2</text>
+
+      <rect x="248" y="112" width="150" height="58" rx="5" fill="none" stroke="#2F9E68" stroke-width="2"/>
+      <text x="323" y="133" font-size="12.5" text-anchor="middle" fill="#2F9E68" font-weight="600" font-family="ui-monospace,monospace">matches</text>
+      <text x="323" y="149" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">the couple</text>
+      <text x="323" y="162" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">pair_code</text>
+
+      <rect x="442" y="112" width="200" height="58" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="542" y="133" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600" font-family="ui-monospace,monospace">config</text>
+      <text x="542" y="149" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">1:1 · the pet lives here</text>
+      <text x="542" y="162" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="system-ui">goal · targets · weather</text>
+
+      <line x1="114" y1="60" x2="114" y2="108" stroke="currentColor" stroke-width="1.2" opacity=".7" marker-end="url(#fk)"/>
+      <text x="122" y="88" font-size="9" fill="currentColor" opacity=".6" font-family="system-ui">1:1</text>
+      <line x1="204" y1="141" x2="244" y2="141" stroke="currentColor" stroke-width="1.3" marker-end="url(#fk)"/>
+      <line x1="442" y1="141" x2="402" y2="141" stroke="currentColor" stroke-width="1.3" marker-end="url(#fk)"/>
+
+      <!-- definitions row -->
+      <text x="34" y="200" font-size="10" fill="currentColor" opacity=".6" font-weight="600" font-family="system-ui">WHAT THE COUPLE DEFINES</text>
+      <rect x="34" y="210" width="146" height="46" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="107" y="229" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">categories</text>
+      <text x="107" y="245" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">18 · ways to score</text>
+
+      <rect x="196" y="210" width="146" height="46" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="269" y="229" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">rewards</text>
+      <text x="269" y="245" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">4 · claimed per person</text>
+
+      <rect x="358" y="210" width="146" height="46" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="431" y="229" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">punishments</text>
+      <text x="431" y="245" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">0 · thresholds</text>
+
+      <rect x="560" y="210" width="146" height="46" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="633" y="229" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">shop</text>
+      <text x="633" y="245" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">5 · costs points</text>
+
+      <!-- ledger row -->
+      <text x="34" y="288" font-size="10" fill="currentColor" opacity=".6" font-weight="600" font-family="system-ui">THE LEDGER</text>
+      <rect x="34" y="298" width="210" height="80" rx="5" fill="none" stroke="#2F9E68" stroke-width="2"/>
+      <text x="139" y="320" font-size="12.5" text-anchor="middle" fill="#2F9E68" font-weight="600" font-family="ui-monospace,monospace">entries</text>
+      <text x="139" y="337" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".72" font-family="system-ui">605 rows · char · points · date</text>
+      <text x="139" y="352" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".72" font-family="ui-monospace,monospace">monthly_id NULL = unsettled</text>
+      <text x="139" y="368" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".72" font-family="system-ui">116 live · 489 archived</text>
+
+      <rect x="292" y="310" width="158" height="56" rx="5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <text x="371" y="331" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">monthly</text>
+      <text x="371" y="348" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">2 settled months</text>
+
+      <line x1="107" y1="294" x2="107" y2="260" stroke="currentColor" stroke-width="1.2" marker-end="url(#fk)"/>
+      <text x="114" y="282" font-size="9" fill="currentColor" opacity=".62" font-family="ui-monospace,monospace">category_id</text>
+      <line x1="244" y1="338" x2="288" y2="338" stroke="currentColor" stroke-width="1.3" marker-end="url(#fk)"/>
+      <text x="248" y="331" font-size="8.5" fill="currentColor" opacity=".62" font-family="system-ui">settling stamps it</text>
+
+      <!-- accumulated row -->
+      <text x="34" y="410" font-size="10" fill="currentColor" opacity=".6" font-weight="600" font-family="system-ui">WHAT THEY ACCUMULATE</text>
+      <rect x="34" y="420" width="160" height="62" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="114" y="441" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">letters</text>
+      <text x="114" y="457" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">26 · 情书</text>
+      <text x="114" y="471" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">opened flag</text>
+
+      <rect x="224" y="420" width="160" height="62" rx="5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="304" y="441" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="ui-monospace,monospace">photos</text>
+      <text x="304" y="457" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">10 · caption · date</text>
+      <text x="304" y="471" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="ui-monospace,monospace">storage_path</text>
+
+      <rect x="560" y="420" width="146" height="62" rx="5" fill="none" stroke="#A9702C" stroke-width="1.8"/>
+      <text x="633" y="441" font-size="12" text-anchor="middle" fill="currentColor" font-weight="600" font-family="ui-monospace,monospace">bag</text>
+      <text x="633" y="456" font-size="9" text-anchor="middle" fill="currentColor" opacity=".72" font-family="system-ui">64 · 35 buy · 13 reward · 16 decor</text>
+      <text x="633" y="471" font-size="9" text-anchor="middle" fill="#A9702C" font-family="system-ui">the one PER-PERSON table</text>
+
+      <!-- bag → shop: clean vertical, nothing in this column -->
+      <line x1="633" y1="416" x2="633" y2="260" stroke="currentColor" stroke-width="1.3" marker-end="url(#fk)"/>
+      <text x="642" y="330" font-size="9" fill="currentColor" opacity=".62" font-family="ui-monospace,monospace">shop_item_id</text>
+      <text x="642" y="343" font-size="9" fill="currentColor" opacity=".62" font-family="system-ui">purchases only</text>
+      <text x="642" y="362" font-size="9" fill="#A9702C" font-family="system-ui">furniture instead carries</text>
+      <text x="642" y="375" font-size="9" fill="#A9702C" font-family="ui-monospace,monospace">decor_item_id</text>
+      <text x="642" y="388" font-size="9" fill="#A9702C" opacity=".85" font-family="system-ui">a text catalog id</text>
+
+      <!-- storage, outside the boundary -->
+      <rect x="540" y="524" width="210" height="58" rx="5" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".8"/>
+      <text x="645" y="546" font-size="11.5" text-anchor="middle" fill="currentColor" font-family="system-ui">Storage bucket</text>
+      <text x="645" y="563" font-size="9.5" text-anchor="middle" fill="currentColor" opacity=".65" font-family="system-ui">the actual image bytes</text>
+      <path d="M330 484 C420 520 470 540 536 549" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#fk)"/>
+      <text x="360" y="516" font-size="9" fill="currentColor" opacity=".62" font-family="system-ui">one object per row</text>
+    </svg>
+    <figcaption>Everything hangs off <code>matches</code>, and RLS scopes every read to the caller's own couple. <code>bag</code> is the single table also scoped per person — your unredeemed reward is yours, not the couple's — and the only one whose foreign key points two different ways depending on what kind of thing the row is.</figcaption>
+  </figure>
+
+  <h3>Shared or personal — the distinction the whole app turns on</h3>
+  <p>Two people must see byte-identical numbers, or the app is lying to one of them. But a handful of things are genuinely individual, and getting that wrong in either direction is a bug: share a bag and one partner spends the other's reward; split the pet and they are no longer raising it together.</p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Table</th><th class="m">Rows</th><th>Scope</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td class="m nw">entries</td><td class="n">605</td><td><span class="tag shared">couple</span></td><td>Both see every entry; each row's <code>char</code> says whose score it moves</td></tr>
+        <tr><td class="m nw">config</td><td class="n">1</td><td><span class="tag shared">couple</span></td><td>Targets, goal, and the pet — one shared row, hence one shared pet</td></tr>
+        <tr><td class="m nw">categories / shop<br>rewards / punishments</td><td class="n">18/5<br>4/0</td><td><span class="tag shared">couple</span></td><td>Either partner edits; both see the change immediately</td></tr>
+        <tr><td class="m nw">monthly</td><td class="n">2</td><td><span class="tag shared">couple</span></td><td>Settled history, with each partner's total on the row</td></tr>
+        <tr><td class="m nw">letters / photos</td><td class="n">26/10</td><td><span class="tag shared">couple</span></td><td>Written by one, read by both</td></tr>
+        <tr><td class="m nw">bag</td><td class="n">64</td><td><span class="tag person">per person</span></td><td>Your unredeemed rewards are yours — the partner must not be able to spend them</td></tr>
+        <tr><td class="m nw">bag <em>where</em><br>source_type = decor</td><td class="n">16</td><td><span class="tag shared">couple</span></td><td>The exception to the exception: the room is shared, so a sofa one partner bought must be placeable by the other</td></tr>
+        <tr><td class="m nw">rewards<br>claimed_1 / _2</td><td class="n">—</td><td><span class="tag person">per person</span></td><td>Each claims each reward once per round; settling reopens both</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><strong>That <code>bag</code> row is where the migration hurt.</strong> The old ServiceNow <code>/bag</code> endpoint filtered to the caller's own rows — correct for the app, quietly wrong for a backup, which therefore never captured the other partner's items. At cutover, partner B's seven unredeemed rewards had to be read off a screenshot because no export contained them. The backup now uses a service key and bypasses RLS precisely so one run sees both.</div>
+</section>
+
+<section>
+  <h2>The frontend</h2>
+  <p class="sec-note">6,063 lines of <code>app.js</code>, 4,665 of <code>index.html</code>, no build step.</p>
+
+  <p>All state lives in one object, <code>S</code>. All server access goes through one object, <code>Data</code>, which has a ServiceNow-era shape the migration deliberately preserved — and a localStorage twin behind the same methods, which is what Demo mode runs on. Every screen is markup already present in <code>index.html</code>, shown and hidden rather than constructed.</p>
+
+  <h3>What is cached, and why that matters</h3>
+  <p><code>GET /photos</code> used to return full base64 images, so pulling it on every home refresh re-downloaded megabytes on mobile data. The rule that came out of that is still in force even though photos are now signed URLs:</p>
+  <ul class="plain">
+    <li><strong>History and summaries</strong> may refetch freely — they are small.</li>
+    <li><strong>Letters and photos</strong> load once per session and live in <code>S</code>. Only views that report exact counts force a reload.</li>
+    <li><strong>The cache is invalidated in <code>Data.init()</code></strong>, because <code>boot()</code> runs a refresh <em>before</em> login — which would otherwise latch the cache onto an empty dataset for the whole session.</li>
+    <li><strong>A cached count must be told when it changes.</strong> Opening a letter updates the in-memory object, so the letters list re-renders — but the home card's 「1 封未拆」 badge does not, unless the open path explicitly re-renders it too. Nothing refetches to correct it.</li>
+  </ul>
+
+  <h3>Two versions, because HTML caches and JS does not</h3>
+  <p><code>app.js</code> is always fetched fresh; <code>index.html</code> — which carries every style and all the markup — can sit in a phone's cache for days. Running new JS against old HTML produces unstyled elements and invisible layouts. So <code>HTML_V</code> in <code>app.js</code> must equal the <code>app-html-v</code> meta in <code>index.html</code>; the app compares them on boot and reloads once, cache-busted, when they differ. The retry flag is keyed by version, or one stale flag would block every future release.</p>
+</section>
+
+<section>
+  <h2>Live sync between two phones</h2>
+  <p class="sec-note">There is no websocket. There is a poll that knows when to care.</p>
+
+  <p>Measured against the real backend, a config poll is small but takes about a second, so "instant" does not exist here — a couple of seconds is the floor. Rather than poll fast all the time, the gap adapts to whether anything is happening:</p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>When</th><th class="m">Gap</th><th>Reasoning</th></tr></thead>
+      <tbody>
+        <tr><td>Within 60s of any change</td><td class="m">4s</td><td>You are both in there right now — this is when latency is felt</td></tr>
+        <tr><td>Next 3 minutes</td><td class="m">12s</td><td>Someone is still around, but it has gone quiet</td></tr>
+        <tr><td>Idle after that</td><td class="m">30s</td><td>A quiet hour costs about 120 requests — fewer than a fixed 20s poll</td></tr>
+        <tr><td>Tab in the background</td><td class="m">—</td><td>Does not poll at all; returning polls immediately rather than waiting out the gap</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>It is a self-rescheduling <code>setTimeout</code>, not <code>setInterval</code>, so the gap can change between ticks without tearing the timer down. Change detection is an order-independent fingerprint of the room — <code>_roomSig()</code> — rather than a timestamp, so two phones that disagree about the clock still agree about whether anything moved.</p>
+
+  <div class="note"><strong>The bigger win was not the interval.</strong> Detecting a change used to raise a banner the user had to notice and tap, so the <em>perceived</em> delay was however long that took. It now applies silently while you are merely looking, and only asks when you could lose work — a piece selected, or the shop open. Pulling the room out from under someone mid-arrangement would be hostile; doing it while they watch is the part that feels like magic.</div>
+</section>
+
+<section>
+  <h2>Identity and pairing</h2>
+  <p class="sec-note">Two accounts, one couple, and a six-digit code that exists for about a minute.</p>
+
+  <ol class="steps">
+    <li><b>Partner one registers.</b> A <code>matches</code> row is created with a random six-digit <code>pair_code</code>, an <code>auth.users</code> record with a hashed password, and a <code>profiles</code> row claiming <code>char1</code>.</li>
+    <li><b>They share the code.</b> Out of band — spoken, messaged, whatever.</li>
+    <li><b>Partner two registers with it.</b> The code resolves to the existing match, so the second <code>profiles</code> row joins it as <code>char2</code>. A <code>unique (match_id, char_id)</code> constraint means the slot cannot be taken twice.</li>
+    <li><b>From then on, identity is derived.</b> Every request carries only a session token; the function looks up <code>match_id</code> and <code>char_id</code> from <code>profiles</code>. The client never sends them, so it cannot lie about them.</li>
+  </ol>
+
+  <p>Supabase Auth requires an email address and these usernames are not emails, so one is synthesised deterministically from the username. That detail caused the migration's last bug: it must be derived from the <em>stored</em> username, because <code>cs</code> and <code>partner A</code> hash to different addresses — and ServiceNow's queries had been case-insensitive for years, so a lowercase login that had always worked started reporting "account does not exist".</p>
+</section>
+
+<section>
+  <h2>Settlement — the one destructive operation</h2>
+  <p class="sec-note">Everything else adds. This is the only thing that sweeps the board.</p>
+
+  <p>A 月末结算 archives a month: it writes a <code>monthly</code> row holding each partner's total and outcome, stamps <code>monthly_id</code> onto exactly the entries it counted, and clears every reward's claim flags so both partners can claim again next round. Afterwards those entries no longer appear in the live score — they are history.</p>
+
+  <ul class="plain">
+    <li><strong>It guards on "is there anything to settle", not "has this month been settled".</strong> That lets a couple settle several rounds inside one calendar month, while a partner's duplicate tap still safely no-ops — once the entries are archived there is nothing left to find.</li>
+    <li><strong>It settles per month, but the client groups first.</strong> The frontend takes whatever <code>/entries</code> returns, groups by each entry's own <code>month</code>, and settles once per group — so a month that was missed becomes its own history row instead of being merged into today.</li>
+    <li><strong>The current month is never swept automatically.</strong> Past months settle on their own; the running one is opt-in, defaulting to off when older months are pending.</li>
+    <li><strong>The annual recap needs the archive.</strong> Settling hides entries from the normal call, so <code>?year=YYYY</code> exists to return everything for a year, settled included — otherwise 年度回顾 would only ever see the current unsettled month.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>The endpoints</h2>
+  <p class="sec-note">27 functions. ServiceNow needed 41 resources for the same surface, because it wanted one per path <em>and</em> method.</p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Area</th><th class="m">Functions</th><th>Carries</th></tr></thead>
+      <tbody>
+        <tr><td class="nw">Identity</td><td class="m">auth-register · auth-login<br>auth-password · auth-charimg</td><td>Pairing by six-digit code, case-insensitive usernames, session rotation on password change</td></tr>
+        <tr><td class="nw">Settings</td><td class="m">config</td><td>GET and PUT on one function; holds the monotonic pet-EXP floor</td></tr>
+        <tr><td class="nw">Scoring</td><td class="m">entries · entries-id</td><td>Unsettled-only by default; <code>?year=</code> for the annual recap</td></tr>
+        <tr><td class="nw">Catalogs</td><td class="m">categories · categories-id<br>rewards · rewards-id<br>punishments · punishments-id<br>shop · shop-id</td><td>CRUD, with ownership re-checked against <code>match_id</code> before every mutation — a row from another couple answers 404, never an error that confirms it exists</td></tr>
+        <tr><td class="nw">Economy</td><td class="m">shop-buy · bag · bag-use<br>bag-history · bag-claim · decor-buy</td><td>Score checks, per-person ownership, and the coin ledger furniture spends from</td></tr>
+        <tr><td class="nw">Settlement</td><td class="m">monthly-settle · history</td><td>Archives entries and reopens reward claims for both partners</td></tr>
+        <tr><td class="nw">Content</td><td class="m">letters · letters-id<br>photos · photos-id</td><td>Photos upload to Storage and come back as signed URLs</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Rules the design encodes</h2>
+  <p class="sec-note">Each of these is in the schema or the function layout because forgetting it once caused a real bug.</p>
+  <ul class="plain">
+    <li><strong>Unsettled, never "this month".</strong> <code>entries.monthly_id IS NULL</code> is the live score — not a date filter. A month filter once hid a whole month of entries the instant the calendar rolled over without a settlement, and the score silently read zero; the couple thought their data had been deleted. A partial index is built for exactly this query.</li>
+    <li><strong>Dates come from the phone.</strong> The server is UTC. Every function takes <code>date</code>/<code>month</code> from the request and only falls back to its own clock if absent.</li>
+    <li><strong>The pet can only grow.</strong> <code>pet_exp</code> is a high-water mark the server refuses to lower, because EXP is derived from activity that can shrink — deleting a photo, or settling a negative month. Adoption is the one legal reset, signalled by <code>pet_base</code> arriving alongside it.</li>
+    <li><strong>Snapshots outlive their source.</strong> <code>bag</code> keeps the item's name and icon; <code>entries</code> keeps the category's name and points, copied at write time. Deleting a shop item or category clears the link (<code>ON DELETE SET NULL</code>) without erasing history — which is also why Postgres had to be taught to allow that delete at all, since ServiceNow never blocked it.</li>
+    <li><strong>One implementation per rule.</strong> The unsettled-score sum is a single shared function called by both <code>shop-buy</code> and <code>bag-claim</code>, because when those two drifted apart the UI showed a purchase as affordable and the server rejected it as insufficient.</li>
+    <li><strong>Derive rather than store, but watch the floors.</strong> Badges, moods and levels are computed from existing data so they cannot drift. The exceptions are values that must never go backwards, and anything that needs a baseline — the pet stores one at adoption so it doesn't hatch at max level from months of prior history.</li>
+  </ul>
+</section>
+
+<footer>
+  恋爱积分簿 · Supabase · Postgres 17 · 27 Edge Functions · 12 tables<br>
+  frontend: app.js 6,063 lines · index.html 4,665 lines · no build step<br>
+  figures read live from the database, 14 September 2026<br>
+  figures redacted for the public repo
+</footer>
+
+</div>
+</body>
+</html>

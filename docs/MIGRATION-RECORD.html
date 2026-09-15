@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恋爱积分簿 Migration Record</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;600&display=swap">
+<style>
+  :root{
+    --ground:#F6F7F9;
+    --surface:#FFFFFF;
+    --surface-sunk:#EDEFF3;
+    --ink:#141A2A;
+    --ink-soft:#4A5364;
+    --ink-faint:#767F8E;
+    --rule:#E3E6EC;
+    --rule-strong:#CBD1DB;
+    --new:#2F9E68;
+    --new-soft:#E6F3EC;
+    --old:#A9702C;
+    --old-soft:#F6EEE1;
+    --alert:#B03A3A;
+    --serif:"IBM Plex Serif",Georgia,serif;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0F131C;--surface:#161B27;--surface-sunk:#1D2331;
+      --ink:#E9ECF2;--ink-soft:#A8B1C0;--ink-faint:#7B8494;
+      --rule:#252C3A;--rule-strong:#333C4D;
+      --new:#54C88C;--new-soft:#16301F;
+      --old:#D4A05C;--old-soft:#2C2317;
+      --alert:#E07B7B;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0F131C;--surface:#161B27;--surface-sunk:#1D2331;
+    --ink:#E9ECF2;--ink-soft:#A8B1C0;--ink-faint:#7B8494;
+    --rule:#252C3A;--rule-strong:#333C4D;
+    --new:#54C88C;--new-soft:#16301F;
+    --old:#D4A05C;--old-soft:#2C2317;
+    --alert:#E07B7B;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground);color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.62;
+    margin:0;padding-block:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px;margin-inline:auto;padding-inline:20px;padding-block:0 88px}
+  h1,h2,h3{font-family:var(--serif);text-wrap:balance;margin:0}
+  p{margin:0}
+  code,.m{font-family:var(--mono);font-size:.87em;font-variant-ligatures:none}
+  code{background:var(--surface-sunk);padding:.1em .38em;border-radius:3px}
+  a{color:var(--new)}
+
+  /* ── masthead ── */
+  header{border-bottom:2px solid var(--ink);padding-block:56px 20px;margin-bottom:38px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:18px}
+  h1{font-size:clamp(34px,6vw,52px);line-height:1.08;font-weight:600;letter-spacing:-.015em}
+  .standfirst{margin-top:16px;font-size:18px;color:var(--ink-soft);max-width:62ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:24px;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  .meta b{color:var(--ink);font-weight:500}
+
+  /* ── headline figures ── */
+  .figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:44px}
+  .fig{background:var(--surface);padding:18px 18px 16px}
+  .fig .n{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .fig .l{font-size:12.5px;color:var(--ink-faint);margin-top:5px;line-height:1.35}
+  .fig.ok .n{color:var(--new)}
+
+  section{margin-bottom:52px}
+  h2{font-size:25px;font-weight:600;letter-spacing:-.01em;margin-bottom:6px}
+  .sec-note{color:var(--ink-faint);font-size:14px;margin-bottom:22px}
+  section > p + p{margin-top:14px}
+  h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+
+  /* ── phases: a real ordered sequence ── */
+  .phase{display:grid;grid-template-columns:auto 1fr;gap:0 22px;padding-block:20px;border-top:1px solid var(--rule)}
+  .phase:last-child{border-bottom:1px solid var(--rule)}
+  .pnum{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--new);padding-top:4px;letter-spacing:.04em}
+  .ptitle{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:6px}
+  .phase p{color:var(--ink-soft);font-size:15px}
+  .phase ul{margin:10px 0 0;padding-left:18px;color:var(--ink-soft);font-size:15px}
+  .phase li{margin-bottom:4px}
+  .phase.done .pnum::after{content:" ✓";color:var(--new)}
+  .phase.pending .pnum{color:var(--old)}
+
+  /* ── the parity ledger: spine of the document ── */
+  .ledger-wrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:560px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:14.5px;vertical-align:top}
+  thead th{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;background:var(--surface-sunk);border-bottom:1px solid var(--rule-strong)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .match{color:var(--new);font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+  .field{font-weight:500}
+  .sub{display:block;color:var(--ink-faint);font-size:12.5px;font-weight:400;margin-top:2px}
+
+  /* ── before/after ── */
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule)}
+  .ba > div{background:var(--surface);padding:18px}
+  .ba h4{margin:0 0 12px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+  .ba .was h4{color:var(--old)}
+  .ba .now h4{color:var(--new)}
+  .ba dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:14px}
+  .ba dt{color:var(--ink-faint);font-family:var(--mono);font-size:11.5px;padding-top:2px}
+  .ba dd{margin:0;color:var(--ink-soft)}
+
+  /* ── bug notes: the house style is to record why ── */
+  .bug{border-left:3px solid var(--old);background:var(--old-soft);padding:16px 18px;margin-top:18px}
+  .bug .cap{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--old);margin-bottom:7px}
+  .bug .what{font-weight:600;margin-bottom:7px;font-family:var(--serif);font-size:16.5px}
+  .bug p{font-size:14.5px;color:var(--ink-soft)}
+  .bug p + p{margin-top:9px}
+
+  .note{border-left:3px solid var(--new);background:var(--new-soft);padding:16px 18px;margin-top:20px;font-size:14.5px;color:var(--ink-soft)}
+  .note strong{color:var(--ink)}
+
+  ul.plain{margin:14px 0 0;padding-left:19px;color:var(--ink-soft)}
+  ul.plain li{margin-bottom:7px}
+  ul.plain li strong{color:var(--ink);font-weight:600}
+
+  .todo{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:baseline;margin-top:16px}
+  .todo .box{font-family:var(--mono);font-size:13px;color:var(--old)}
+  .todo .txt{color:var(--ink-soft);font-size:15px}
+  .todo .txt strong{color:var(--ink)}
+
+  footer{border-top:1px solid var(--rule);padding-top:20px;color:var(--ink-faint);font-size:13px;font-family:var(--mono);line-height:1.7}
+
+  @media (max-width:620px){
+    .ba{grid-template-columns:1fr}
+    .phase{grid-template-columns:1fr;gap:4px}
+    .pnum{padding-top:0}
+    header{padding-block:36px 18px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Migration record · 11 September 2026 · complete</div>
+  <h1>恋爱积分簿 moved off ServiceNow</h1>
+  <p class="standfirst">All 41 REST resources ported to Supabase Edge Functions over Postgres, every row copied and checked against the original, and the app switched over live. The ServiceNow instance was never written to.</p>
+  <div class="meta">
+    <span>from <b>dev405150.service-now.com</b></span>
+    <span>to <b>yvllstktmjoedfsgojgs.supabase.co</b></span>
+    <span>couple <b>the couple</b> · since <b>2024-12-24</b></span>
+  </div>
+</header>
+<div class="note" style="margin-bottom:30px"><strong>Public copy.</strong> Personal details — names, the pet, the shared goal and current scores — are redacted here because this repository deploys publicly. Row counts are kept, since they describe the system rather than the couple.</div>
+
+<div class="figures">
+  <div class="fig ok"><div class="n">41/41</div><div class="l">resources ported</div></div>
+  <div class="fig ok"><div class="n">593</div><div class="l">entries migrated</div></div>
+  <div class="fig ok"><div class="n">170</div><div class="l">automated checks passing</div></div>
+  <div class="fig ok"><div class="n">0</div><div class="l">rows lost</div></div>
+  <div class="fig"><div class="n">0</div><div class="l">ServiceNow writes</div></div>
+</div>
+
+<section>
+  <h2>Why move at all</h2>
+  <p class="sec-note">The trigger was not a feature. It was where the data was sitting.</p>
+  <p>Everything — 593 score entries, 25 letters, 10 photos, two settled months, the pet and its furniture — lived on a <strong>free ServiceNow Personal Developer Instance</strong>. A PDI hibernates after a few idle days and, left inactive long enough, is reclaimed outright with everything on it. There is no vendor backup. <code>tools/backup.js</code> existed precisely because that risk was understood, but a backup script is a mitigation, not a fix.</p>
+  <p>Postgres also removes a whole class of problems the ServiceNow schema forced. Fixed-width string fields were a live hazard: <code>u_pet_equipped</code> is <code>String(1000)</code> and silently truncates, which is why the room layout had to be compacted into two-letter codes to fit. On Postgres <code>text</code> is unbounded and that entire constraint disappears.</p>
+</section>
+
+<section>
+  <h2>What the architecture became</h2>
+  <p class="sec-note">The contract was held fixed on purpose, so the frontend barely moved.</p>
+  <div class="ba">
+    <div class="was">
+      <h4>Was</h4>
+      <dl>
+        <dt>API</dt><dd>41 Scripted REST resources, pasted into ServiceNow by hand</dd>
+        <dt>Data</dt><dd>12 <code>u_love_*</code> tables, fixed-width string fields</dd>
+        <dt>Auth</dt><dd>Custom bearer key; passwords stored in plaintext in <code>u_love_auth</code></dd>
+        <dt>Photos</dt><dd>base64 in a <code>String(200000)</code> column</dd>
+        <dt>Access</dt><dd>Each resource re-checked <code>u_match</code> by hand in script</dd>
+      </dl>
+    </div>
+    <div class="now">
+      <h4>Now</h4>
+      <dl>
+        <dt>API</dt><dd>30 Edge Functions, deployed by CLI in one command</dd>
+        <dt>Data</dt><dd>12 Postgres tables, unbounded <code>text</code>, real foreign keys</dd>
+        <dt>Auth</dt><dd>Supabase Auth — hashed passwords, JWT sessions, refresh tokens</dd>
+        <dt>Photos</dt><dd>Storage bucket, served as signed URLs</dd>
+        <dt>Access</dt><dd>Row-level security, enforced by the database itself</dd>
+      </dl>
+    </div>
+  </div>
+  <p style="margin-top:18px">The 41 ServiceNow resources collapse into 29 functions (plus <code>backup-full</code>) because ServiceNow needed a separate resource record per HTTP method on the same path, while one function can branch on <code>req.method</code>. <code>GET /config</code> and <code>PUT /config</code> are now a single <code>config</code> function.</p>
+  <div class="note"><strong>The frontend change is deliberately tiny.</strong> Every call in <code>app.js</code> already funnelled through two functions, <code>snFetch</code> and <code>snPublicFetch</code>. Those two now rewrite the old ServiceNow-style path onto a function slug — <code>/entries/{id}</code> becomes <code>entries-id?id=…</code>, <code>/shop/buy/{id}</code> becomes <code>shop-buy?id=…</code> — so all ~30 call sites are untouched. All 30 translations are unit-checked.</div>
+</section>
+
+<section>
+  <h2>How it was done</h2>
+  <p class="sec-note">Seven phases, in order. Each one had to pass before the next began.</p>
+
+  <div class="phase done">
+    <div class="pnum">01</div>
+    <div>
+      <div class="ptitle">Schema and storage</div>
+      <p>12 Postgres tables mirroring the ServiceNow ones, plus indexes matching the queries that actually run — including a partial index on <code>entries(match_id) where monthly_id is null</code>, which is the exact shape of the "unsettled entries" query the app leans on. A private <code>photos</code> bucket, 5 MB cap, <code>image/*</code> only.</p>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">02</div>
+    <div>
+      <div class="ptitle">Lock the database down, then prove it</div>
+      <p>The first RLS pass was too permissive and was caught on review before any data existed. Details in the security section below. The corrected policies were then tested by attacking them with a real signed-in session, not by reading the config.</p>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">03</div>
+    <div>
+      <div class="ptitle">Vertical slice before volume</div>
+      <p>Auth, pairing and the <code>config</code> resource were built and tested end to end first — register, pair by code, read and write config, confirm the partner sees the same row — before the remaining 38 resources were written against the same pattern. Finding a structural mistake in one function is cheap; finding it in 29 is not.</p>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">04</div>
+    <div>
+      <div class="ptitle">Port the remaining resources</div>
+      <p>Entries, categories, rewards, punishments, settle, history, shop, bag, claims, letters, photos, furniture, avatars. The business rules that CLAUDE.md records as having broken before were carried across verbatim and given their own tests:</p>
+      <ul>
+        <li>entries scoped by <em>unsettled</em>, never by calendar month</li>
+        <li>the monotonic pet-EXP floor, with adoption as the one legal reset</li>
+        <li>client-authoritative dates — the server clock is never trusted</li>
+        <li>per-character reward claims; settling re-opens them for both</li>
+        <li>furniture pooled across the couple, while the reward bag stays personal</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">05</div>
+    <div>
+      <div class="ptitle">Trial migration and verification</div>
+      <p>A read-only pull from ServiceNow, imported into Supabase, then compared field by field against the live original — 58 checks, covering totals, per-person scores, claim flags, timestamps, furniture ids and photo bytes. Re-runnable: the importer can wipe and replay the whole couple.</p>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">06</div>
+    <div>
+      <div class="ptitle">Cutover</div>
+      <p>A final read-only pull at 12:56, re-imported over a clean wipe, re-verified against live ServiceNow, then the branch merged to <code>main</code> and pushed. GitHub Pages rebuilt and both phones moved across. Confirmed by logging into the real site and checking scores, the pet, 情书, 签到, the 中秋 drop and both partners' weather.</p>
+      <p>partner B's seven unredeemed bag items came off a screenshot rather than an export — <code>/bag</code> only ever returned the caller's own rows, so they were unreadable remotely. That gap is now closed permanently; see phase 07.</p>
+    </div>
+  </div>
+
+  <div class="phase done">
+    <div class="pnum">07</div>
+    <div>
+      <div class="ptitle">Repoint the backups</div>
+      <p>The weekly job was still reading ServiceNow, which had taken no writes since the cutover — faithfully archiving a frozen copy while the live data accumulated unbacked. Since "the instance could be reclaimed" was the entire reason for moving, that undid most of the point.</p>
+      <p>It now reads a new <code>backup-full</code> endpoint, which is the Supabase counterpart of the ServiceNow <code>r41</code> resource that was written but never deployed. Its bag query deliberately omits the character filter, so <em>either</em> partner's login captures both bags — the gap that forced partner B's items to be re-typed. Photo bytes are pulled into the snapshot rather than left as signed URLs, which expire.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The parity ledger</h2>
+  <p class="sec-note">Every figure read from both systems at the same moment of cutover and compared. This is the evidence for "nothing was lost".</p>
+  <div class="ledger-wrap">
+    <table>
+      <thead>
+        <tr><th>What</th><th>ServiceNow</th><th>Supabase</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="field">Entries, all time<span class="sub">settled and unsettled</span></td><td class="num">593</td><td class="num">593</td><td class="match">exact multiset</td></tr>
+        <tr><td class="field">Lifetime points</td><td class="num">2094</td><td class="num">2094</td><td class="match">match</td></tr>
+        <tr><td class="field">Current score · partner A</td><td class="num">206</td><td class="num">206</td><td class="match">match</td></tr>
+        <tr><td class="field">Current score · partner B</td><td class="num">228</td><td class="num">228</td><td class="match">match</td></tr>
+        <tr><td class="field">Settled months<span class="sub">2026-07, 2026-08 with results</span></td><td class="num">2</td><td class="num">2</td><td class="match">pts + results</td></tr>
+        <tr><td class="field">Letters<span class="sub">text, sender, opened, timestamp</span></td><td class="num">25</td><td class="num">25</td><td class="match">no tz shift</td></tr>
+        <tr><td class="field">Photos<span class="sub">base64 → Storage objects</span></td><td class="num">10</td><td class="num">10</td><td class="match">all download</td></tr>
+        <tr><td class="field">Furniture<span class="sub">incl. year-locked keepsakes</span></td><td class="num">16</td><td class="num">16</td><td class="match">ids preserved</td></tr>
+        <tr><td class="field">小窝币 spent<span class="sub">the coin ledger</span></td><td class="num">800</td><td class="num">800</td><td class="match">match</td></tr>
+        <tr><td class="field">Pet the pet<span class="sub">species, EXP, baseline</span></td><td class="num">dog · 1862 · 1382</td><td class="num">dog · 1862 · 1382</td><td class="match">match</td></tr>
+        <tr><td class="field">Room layout<span class="sub"><code>pet_equipped</code> blob</span></td><td class="num">12 pieces</td><td class="num">12 pieces</td><td class="match">byte-identical</td></tr>
+        <tr><td class="field">Categories / shop / rewards</td><td class="num">18 / 5 / 4</td><td class="num">18 / 5 / 4</td><td class="match">values + flags</td></tr>
+        <tr><td class="field">partner B's unredeemed bag<span class="sub">unreadable remotely — see below</span></td><td class="num">7</td><td class="num">7</td><td class="match">dates match</td></tr>
+        <tr><td class="field">Goal the shared goal</td><td class="num">8000</td><td class="num">8000</td><td class="match">match</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><strong>One check failed and was worth the trouble.</strong> 167 entries looked "missing" — but ServiceNow returns <code>null</code> for an empty note where Postgres returns <code>""</code>. The data was identical; the comparison was wrong. It was asserting the storage encoding instead of the meaning, which is the exact mistake CLAUDE.md §9.1 warns about. The comparison now normalises both and counts entries as a multiset, because the same person legitimately logs the same category twice in one day.</div>
+</section>
+
+<section>
+  <h2>Five bugs the tests caught</h2>
+  <p class="sec-note">Three were found before any real data moved; two surfaced after the switch. Recorded here in the same spirit as CLAUDE.md — what broke, and why it was possible.</p>
+
+  <div class="bug">
+    <div class="cap">Schema · would have dropped all furniture</div>
+    <div class="what">Nothing could have been stored as <code>decor</code></div>
+    <p>The <code>bag.source_type</code> check constraint allowed only <code>purchase</code> and <code>reward</code>. But furniture is a third kind, written by <code>r40</code> as <code>decor</code>. Every piece the couple owns — including the year-locked 2026 中秋 keepsakes that cannot be re-bought once the year passes — would have been rejected at insert.</p>
+    <p>Worse, the two kinds do not even store the same thing: a purchase points at a shop row, while furniture stores a <em>text catalog id</em> like <code>mooncake_box_27</code>. One <code>uuid</code> column could never have held both, so they are now separate columns, coalesced back into the single <code>itemId</code> the API has always returned.</p>
+  </div>
+
+  <div class="bug">
+    <div class="cap">Behaviour · deleting a bought item started failing</div>
+    <div class="what">Postgres was stricter than ServiceNow, and that was a bug</div>
+    <p>ServiceNow reference fields never blocked a delete; a shop item could be removed while bag rows still pointed at it, leaving a dangling reference nobody noticed. Real foreign keys refuse that delete instead — so deleting a shop item the couple had already bought began returning an error where it used to work.</p>
+    <p>Fixed with <code>ON DELETE SET NULL</code> rather than by dropping the constraint. Bag rows already snapshot the item's name and icon at purchase time, so the history survives intact and only the link clears. The same applied to deleting a category that had entries against it.</p>
+  </div>
+
+  <div class="bug">
+    <div class="cap">Transport · every request blocked in the browser</div>
+    <div class="what">CORS preflight answered <code>405</code></div>
+    <p>Everything passed from the command line and then the app could not log in at all, reporting only "Failed to fetch". A browser preflights any cross-origin request carrying a custom header — and <code>apikey</code> is one — but the functions answered <code>OPTIONS</code> with "Method not allowed", so the real request was never sent.</p>
+    <p>Every function now runs through one wrapper that answers the preflight. This is the same class of problem as the CORS rule ServiceNow needed; it just had to be solved again on the new side.</p>
+  </div>
+
+  <div class="bug">
+    <div class="cap">Post-cutover · changing a password threw you out</div>
+    <div class="what">The session dies at the exact moment the change succeeds</div>
+    <p>Supabase revokes every existing session when a password changes — so the token the request was made with is dead the instant it works. The next call answered <code>401</code>, the refresh token had been revoked too, and the app reported <em>当前密码不对</em>: a successful change presenting itself as a typo. Changing a password twice in a row was impossible.</p>
+    <p>The endpoint now signs back in server-side and returns a fresh session for the client to adopt. A wrong current password answers <code>403</code> rather than <code>401</code>, so "you mistyped it" and "your session is gone" stop being indistinguishable.</p>
+  </div>
+
+  <div class="bug">
+    <div class="cap">Post-cutover · reported from a laptop login</div>
+    <div class="what">A lowercase username became "account does not exist"</div>
+    <p>GlideRecord string queries ignore case, so <code>cs</code> had logged in as <code>partner A</code> for as long as the app existed. Postgres <code>=</code> does not. After the switch a lowercase username answered <em>账号不存在，请先注册</em> — the account looked deleted rather than mistyped.</p>
+    <p>Matching case-insensitively is only half of it, and the second half is the one that bites: the synthetic email Supabase Auth needs is <em>derived from the username</em>, so <code>cs</code> and <code>partner A</code> hash to two different addresses and the password check fails even once the profile is found. The address is now always built from the stored spelling — which is also why the app still displays <b>partner A</b> whatever you type.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Security: what actually changed</h2>
+  <p class="sec-note">The move was an opportunity to close two real holes, and the review found a third that the migration itself had introduced.</p>
+  <ul class="plain">
+    <li><strong>Plaintext passwords are gone.</strong> <code>u_love_auth.u_password</code> stored the password as typed. Supabase Auth hashes them, and issues expiring JWTs instead of a permanent bearer key.</li>
+    <li><strong>Writes are impossible from a browser session.</strong> The first RLS pass gave every table a <code>FOR ALL</code> policy scoped by couple. That would have let anyone with a valid session token skip the Edge Functions entirely and write straight to Postgres — forging a score, maxing pet EXP, marking every reward claimed, rewriting settled history. Policies are now <code>SELECT</code>-only; all writes go through functions holding the service-role key.</li>
+    <li><strong>A user could have walked into another couple's data.</strong> The <code>profiles</code> update policy only checked <code>id = auth.uid()</code> — "it's your own row" — which did not stop someone changing their <em>own</em> <code>match_id</code> to another couple's and inheriting read access to everything in it. That bypassed the 6-digit pair code entirely. Both write policies on <code>profiles</code> were removed.</li>
+  </ul>
+  <div class="note">These were verified by attack, not by inspection: a genuine logged-in session was used to <code>PATCH</code> a row directly. It returned <code>HTTP 204</code>, which looks like success — and changed nothing. The value was re-read afterwards to confirm.</div>
+</section>
+
+<section>
+  <h2>What deliberately did not change</h2>
+  <ul class="plain">
+    <li><strong>ServiceNow.</strong> Not one script, table or record was modified — every call the migration made to it was a <code>GET</code>. It is still live and intact, now frozen at the cutover moment and serving as the rollback.</li>
+    <li><strong>The JSON contract.</strong> Every endpoint returns the same shape as before, which is why the frontend diff is confined to the transport layer.</li>
+    <li><strong>Seasonal content.</strong> The festival themes, the lunar table through 2030 and the keepsake catalogue all live in <code>app.js</code> and read the device clock. They never touched the backend and are unaffected. What <em>did</em> have to survive is the record of which pieces were bought — verified above, all 16.</li>
+    <li><strong>Every rule in CLAUDE.md that is backend-agnostic.</strong> Ported line for line and given tests.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What is left</h2>
+  <p class="sec-note">The migration is done and live. These are the tail-end items.</p>
+  <div class="todo">
+    <div class="box">[ ]</div><div class="txt"><strong>Rewrite CLAUDE.md.</strong> It is the file that stops old bugs coming back, and it still documents ServiceNow tables, resource numbers and field limits as current. Anyone reading it — including a future session — would be working from a wrong map.</div>
+    <div class="box">[ ]</div><div class="txt"><strong>Delete the migration-only functions.</strong> <code>db-migrate</code> and <code>migrate-import</code> exist for this job alone. They are gated behind a secret, but they should not outlive their purpose.</div>
+    <div class="box">[ ]</div><div class="txt"><strong>Decommission ServiceNow</strong> once the rollback window closes — roughly two weeks. The credential for it is kept meanwhile at <code>tools/backup.local.servicenow.json</code>.</div>
+    <div class="box">[ ]</div><div class="txt"><strong>Retire the ServiceNow test suites.</strong> <code>test-full-system-v2.sh</code> and its siblings now exercise a backend nothing uses.</div>
+  </div>
+
+  <h3>If it goes wrong</h3>
+  <p>Rollback is one revert and a push. But ServiceNow stopped receiving writes at 12:56 on 11 September, so it is a snapshot that ages: reverting tomorrow costs a day of entries, reverting in a fortnight costs a fortnight. The realistic window is short, and after that it is an archive rather than a fallback.</p>
+</section>
+
+<footer>
+  恋爱积分簿 · app v2026.09.11-50 · live at <span class="m">yapseng98.github.io/Love-Points-Tracker</span><br>
+  170 automated checks green: 91 backend behaviour · 58 migration parity · 21 backup<br>
+  ServiceNow dev405150 — unmodified, frozen at cutover, kept as rollback
+</footer>
+
+</div>
+</body>
+</html>

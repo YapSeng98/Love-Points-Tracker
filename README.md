@@ -7,7 +7,9 @@ into a shared goal, into a pet that grows, into a room you decorate together.
 Built as **vanilla JS + HTML + CSS** against a **ServiceNow Scripted REST API**.
 No framework, no bundler, no build step. `index.html` is the app.
 
-📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** · 🐣 **[小窝设计文档](docs/PET_GAME_DESIGN.md)** · 🛠 **[Engineering rules](CLAUDE.md)** · 📋 **[Changelog](docs/CHANGELOG.md)**
+📖 **[用户使用指南 (User Guide)](USER_GUIDE.md)** · 🐣 **[小窝设计文档](docs/PET_GAME_DESIGN.md)** · 🛠 **[Engineering rules](CLAUDE.md)**
+
+📋 **[Changelog](docs/CHANGELOG.md)** · 🏗 **[System design](https://yapseng98.github.io/Love-Points-Tracker/docs/SYSTEM-DESIGN.html)** · 🗂 **[Migration record](https://yapseng98.github.io/Love-Points-Tracker/docs/MIGRATION-RECORD.html)**
 
 ---
 
