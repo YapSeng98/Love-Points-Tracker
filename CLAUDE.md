@@ -132,9 +132,9 @@ UTC and rolls a day early for UTC+8 users.
 
 ## 3. 🗓 Entries are scoped by "unsettled", NEVER by calendar month
 
-`u_month` is a *label*, not a filter.
+`month` is a *label*, not a filter.
 
-The original `GET /entries` filtered `u_month == current month`. The moment
+The original `GET /entries` filtered `month == current month`. The moment
 the real-world month rolled over without a 月末结算, an entire month of
 entries became invisible and the score silently reset to 0 — the user thought
 their data had been deleted.
@@ -146,7 +146,7 @@ their data had been deleted.
   the UI shows as affordable gets rejected as "insufficient points". Both now
   call the single shared `unsettledScore()` in `_shared/util.ts` — it was
   made shared *because* two copies of this rule are what drift apart.
-- Settling stays per-month: the frontend groups entries by their own `u_month`
+- Settling stays per-month: the frontend groups entries by their own `month`
   and calls settle once per group, so a missed month becomes its own history row.
 - **Never auto-settle the current, still-running month.** Past months are swept
   automatically; the current month is opt-in via a checkbox, default OFF when
@@ -164,7 +164,7 @@ and it needs no schema migration. But watch these traps:
    claws back its EXP — both would shrink the pet. Solution: store a
    high-water mark that the server refuses to lower.
 2. **A "starts from zero" feature needs a baseline snapshot.** The pet stores
-   `u_pet_base` at adoption so it doesn't inherit months of history and hatch
+   `pet_base` at adoption so it doesn't inherit months of history and hatch
    at max level.
 3. **Settlement empties `/entries`.** Anything derived from recent entries
    (e.g. pet mood) collapses the instant a month is settled. Mood counts a
@@ -172,7 +172,7 @@ and it needs no schema migration. But watch these traps:
 4. **A "sad/empty" state must be reachable.** Pet mood had a baseline of 30
    but the sad threshold was 20 — the entire come-back-and-play mechanic was
    dead. Check that every state in a state machine can actually occur.
-5. **Rebase EVERY value derived from a number you rebase.** `u_pet_base` made
+5. **Rebase EVERY value derived from a number you rebase.** `pet_base` made
    pet EXP start at 0, but 小窝币 was still computed from the *raw* lifetime
    score — so the screen showed `EXP 0` and `🪙 691` side by side. When you
    introduce a baseline, grep for every reader of the pre-baseline value.
@@ -206,7 +206,7 @@ watches `LUNAR`: fewer than 2 years pre-drawn *fails* the monthly job.
 
 ## 4.6 🔑 The saved room stores CODES, not ids
 
-`u_pet_equipped` holds a two-letter `k` per piece, never the id. Ids are
+`pet_equipped` holds a two-letter `k` per piece, never the id. Ids are
 readable (`mooncake_box_27`) but average 11 characters, and at 32 pieces they
 alone cost **349 of the 1000** the field allows — a fully furnished room hit
 **939/1000, 6% spare**, which two more years of keepsakes would have pushed
@@ -300,12 +300,12 @@ Classify every piece of data explicitly:
 | Shared — must be byte-identical for both | Per-person — must differ |
 |---|---|
 | config, mode, targets, names | bag / bag history |
-| entries ledger, categories | milestone claim flags (`u_claimed_1/2`) |
+| entries ledger, categories | milestone claim flags (`claimed_1/2`) |
 | rewards & punishments lists | the character you're scoring for |
 | history, shop, letters, photos | |
 | shared goal, pet (name/species/EXP) | |
 
-Anything shared is scoped by `u_match`; anything per-person also by `u_char`.
+Anything shared is scoped by `match_id`; anything per-person also by `char`.
 Cross-couple access must return 404 or an empty list — never another couple's
 data. Section 26 of the test suite enforces all of this.
 
@@ -402,7 +402,7 @@ festival can pass unnoticed.
 
 ## 7.17 🌦 Sharing weather between partners
 
-`u_wx_1` / `u_wx_2` — **one slot per partner**, each phone writing only its
+`wx_1` / `wx_2` — **one slot per partner**, each phone writing only its
 own. A single shared blob would let two simultaneous writes lose each other.
 Payload is `{"k":kind,"h":localHour,"at":epochMs}`; entries older than 3h are
 ignored so a partner who hasn't opened the app shows nothing rather than
@@ -540,7 +540,7 @@ midday, and no weather code implies a time of day.
   same call — it is free.
 - **Never cache day/night with the reading.** The 20-minute weather cache
   outlives sunset; a cached `is_day` would leave a sun up after dark.
-- The partner's icon uses **their** daylight, not yours. `u_wx_*` now carries
+- The partner's icon uses **their** daylight, not yours. `wx_*` now carries
   `d`, and payloads written before it fall back to the hour they published.
   A couple in different time zones must be able to show 🌙 and ☀️ on one card.
 

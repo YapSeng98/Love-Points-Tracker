@@ -270,7 +270,7 @@ still calls. `snFetch` rewrites each onto a function slug — `/entries/:id` bec
 | R15–17 | POST/PUT/DELETE | `/rewards[/:id]` | Reward CRUD |
 | R18–20 | POST/PUT/DELETE | `/punishments[/:id]` | Punishment CRUD |
 | R21 | POST | `/auth/register` | Register, or pair with a code |
-| R22 | POST | `/auth/login` | Login → apiKey + partner name |
+| R22 | POST | `/auth/login` | Login → access + refresh token, partner name |
 | R23 | PUT | `/auth/charimg` | Upload avatar |
 | R24–27 | GET/POST/PUT/DELETE | `/shop[/:id]` | Shop CRUD |
 | R28 | POST | `/shop/buy/:id` | Redeem points |
