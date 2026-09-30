@@ -3700,13 +3700,16 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       if (after) after.after(card); else pg.appendChild(card);
     }
     const other = charDisplayName(S.activeChar === 'char2' ? 'char1' : 'char2');
+    let delivered = '';
     if (today) {
-      // Today's note has already opened — it is being delivered, not written.
-      card.classList.remove('anw-glow');
-      card.innerHTML = `<div class="anw-top"><span class="anw-ic">💌</span><div><b>周年悄悄话</b>
-        <small>今天${esc(today.label)}，写好的悄悄话已经送到 ${esc(other)} 的小电影里啦</small></div></div>`;
-      return;
+      // A note sealed for today has opened — it is being delivered, not
+      // written. Only say so if one actually was; otherwise offer the next.
+      let t = null;
+      try { t = await Data.getAnnivNote(today.key); } catch (e) {}
+      if (!document.getElementById('anw-card')) return;
+      if (t && t.sealed) delivered = `今天${esc(today.label)}，你写的悄悄话已经送到 ${esc(other)} 的小电影里啦 💌`;
     }
+    if (!occ) { card.remove(); return; }
     const when = `${occ.date.getMonth() + 1}月${occ.date.getDate()}日`;
     card.innerHTML = `<div class="anw-top"><span class="anw-ic">💌</span><div><b>周年悄悄话</b>
       <small>写一句话，${when} ${esc(occ.label)}那天送到 ${esc(other)} 的小电影里</small></div></div>
@@ -3715,8 +3718,8 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     try { note = await Data.getAnnivNote(occ.key); } catch (e) {}
     if (!document.getElementById('anw-card')) return;
     _anwState = { occ, sealed: !!note?.sealed, mine: note?.mine || '', when, other };
-    card.classList.toggle('anw-glow', !note?.sealed);
-    card.innerHTML = `<div class="anw-top"><span class="anw-ic">${note?.sealed ? '🔒' : '💌'}</span><div><b>周年悄悄话</b>
+    card.classList.toggle('anw-glow', !note?.sealed && !delivered);
+    card.innerHTML = (delivered ? `<div class="anw-top" style="margin-bottom:8px"><small>${delivered}</small></div>` : '') + `<div class="anw-top"><span class="anw-ic">${note?.sealed ? '🔒' : '💌'}</span><div><b>周年悄悄话</b>
       <small>${note?.sealed
         ? `已封好 · ${when} 送到 ${esc(other)} 的小电影里`
         : `写一句话，${when} ${esc(occ.label)}那天送到 ${esc(other)} 的小电影里`}</small></div></div>

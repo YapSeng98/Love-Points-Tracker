@@ -33,6 +33,7 @@ serve(async (req) => {
   const { matchId, charId, admin } = caller;
   if (!matchId || !charId) return json({ error: "not paired" }, 400);
   const partner = charId === "char1" ? "char2" : "char1";
+  if (req.method !== "GET" && req.method !== "PUT") return json({ error: "Method not allowed" }, 405);
 
   const body = req.method === "PUT" ? await req.json().catch(() => ({})) : {};
   const openOn = String(

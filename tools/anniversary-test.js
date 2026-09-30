@@ -329,7 +329,15 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
     const { p, ctx } = await page(browser, '2026-12-24T12:00:00+08:00', { data: withNote(), extraLS: { 'anniv_seen_2026-12-24': '1' } });
     await p.evaluate(() => App.showLovePage()); await sleep(700);
     const t = await p.textContent('#anw-card');
-    ok(t.includes('已经送到 YY 的小电影里') && !(await p.$('.anw-btn')), '「今天两周年，已经送到」，没有改的按钮');
+    ok(t.includes('你写的悄悄话已经送到 YY 的小电影里'), '「今天两周年，你写的已经送到」');
+    ok(t.includes('第 1000 天') && t.includes('写一句'), '同时可以给下一个（第 1000 天）写一句');
+    await ctx.close();
+  }
+  {
+    const { p, ctx } = await page(browser, '2026-12-24T12:00:00+08:00', { char: 'char2', extraLS: { 'anniv_seen_2026-12-24': '1' } });
+    await p.evaluate(() => App.showLovePage()); await sleep(700);
+    const t = await p.textContent('#anw-card');
+    ok(!t.includes('已经送到') && t.includes('写一句'), '当天没写过的人：不说「已经送到」，邀请给下一个写');
     await ctx.close();
   }
 

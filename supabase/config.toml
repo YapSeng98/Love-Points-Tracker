@@ -339,3 +339,9 @@ entrypoint = "./functions/backup-full/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/backup-full/*.html" ]
+
+[functions.anniv-note]
+enabled = true
+verify_jwt = false
+import_map = "./functions/anniv-note/deno.json"
+entrypoint = "./functions/anniv-note/index.ts"
