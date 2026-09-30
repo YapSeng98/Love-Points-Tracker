@@ -12,6 +12,17 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-09-30 — 周年小电影
+
+On each anniversary of the start date the first open on each phone shows a
+sealed envelope; opening it plays a one-minute film: the date, the day count,
+that year's photos, what the year held, a line from the partner's first
+letter, the pet in a party hat, and both names. It is dormant until 12-24.
+
+Also fixed on the way: an app opened in the last minute before midnight never
+noticed the date change, because the clock latched "today" on its first tick
+— which already fell after midnight.
+
 ## 2026-09-14 — Test accounts stopped piling up
 
 The test suites run with only the publishable key, exactly like the app does,

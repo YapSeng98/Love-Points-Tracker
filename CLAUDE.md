@@ -772,6 +772,37 @@ Two bugs in one line, both reported:
 `daysTogether()` builds a **local** midnight from the Y-M-D parts and diffs
 whole calendar days, `+1`. Any future "days since" figure must do the same.
 
+
+## 7.257 🎬 The anniversary film opens on the DAY, once per phone
+
+On each anniversary of `start_date` (and every 1000th day) the first open
+shows a sealed envelope; opening it plays a ~50s film built from that year's
+photos, counts, a line the partner wrote, and the pet. `annivOccasion(d)` is
+the single source of "is today the day" — the home tip, the trigger and the
+tests all read it.
+
+- **The device date decides** (§2). 00:30 in Singapore is already 12-24.
+- **Only after the couple is in the app.** Not over the splash (`#start-page`),
+  not over the login card. A resumed session boots *behind* the splash, so
+  the real showing comes from `connect()` after 「继续」.
+- **Seen is per device and not synced** (`anniv_seen_<date>`), so whoever
+  opens first can't use it up for the other. 「稍后再看」 only snoozes for the
+  session; the home tip always replays it.
+- **Two-account:** the envelope carries your own name, and the quote is the
+  *other* partner's line.
+- **Signed photo URLs die after 4h** — the film re-signs them on start, and
+  a dead image falls back to a colour card instead of a broken icon.
+- Styles are injected from app.js (`anv-*`), so a stale cached index.html
+  can't leave it unstyled (§7.27).
+
+Found while building it: `_lastDay` was latched on the first clock tick, so
+an app opened at 23:59:30 latched the *new* day at 00:00:30 and never saw
+midnight — no day count, no new stock, no envelope. `boot()` now sets it.
+
+`tools/anniversary-test.js` (66 checks, faked clock, demo data) covers the
+dates, both phones, snooze, midnight, missing photos/pet, expired photos and
+wide screens. **Run it before every 12-24.**
+
 ---
 
 ## 7.26 🏠 Home layout: hero + duo + rows

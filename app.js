@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.09.11-50';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.09.30-51';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -431,9 +431,12 @@ const App = (() => {
   // Roll into 黄昏/夜晚 while the app is left open. Cheap, and it means a phone
   // sitting on the table at 18:59 still looks right at 19:01.
   let _lastPeriod = periodOf().id;
-  // Set on the first tick, NOT here: todayStr() is a const declared further
-  // down the file, so calling it at this point hits the temporal dead zone and
-  // takes the whole boot with it.
+  // NOT set here: todayStr() is a const declared further down the file, so
+  // calling it at this point hits the temporal dead zone and takes the whole
+  // boot with it. boot() sets it once everything exists. Leaving it to the
+  // first tick instead meant an app opened at 23:59:30 latched the NEW day on
+  // its first tick at 00:00:30 and never saw midnight pass — no day count, no
+  // new-season stock, no anniversary envelope until the next reopen.
   let _lastDay = null;
 
   // One tick handles both boundaries the app can cross while sitting open:
@@ -459,6 +462,7 @@ const App = (() => {
       // class of bug as the two lines above, so applyTheme() needs the same
       // day-tick, not just the period-tick further up.
       try { applyTheme(); } catch (e) {}
+      if (document.visibilityState === 'visible') maybeShowAnniversary();
     }
   }
   setInterval(_clockTick, 60000);
@@ -1915,6 +1919,7 @@ const App = (() => {
         showToast('欢迎！请先设置游戏规则 ⚙️');
       } else {
         showToast('✅ 欢迎回来，' + username + '！');
+        maybeShowAnniversary();
       }
     } catch (err) {
       S.usingSN = false;
@@ -2051,6 +2056,7 @@ const App = (() => {
     await Data.init();
     await refresh();
     showToast('📱 本地 Demo 模式');
+    maybeShowAnniversary();
   }
 
   function selectChar(charId) {
@@ -2714,6 +2720,15 @@ const App = (() => {
     el.textContent = days === null ? '--' : String(days);   // hero shows the bare number
     // Fill the empty right-hand side of the row with something to look
     // forward to, instead of 283px of nothing and a chevron.
+    // On the day itself the tip becomes the way back into the film — after
+    // 「稍后再看」, or for watching it again.
+    const occ = annivOccasion();
+    if (tip && occ) {
+      _anvStyle();
+      tip.innerHTML = `<span class="th-anniv" role="button" tabindex="0"
+        onclick="event.stopPropagation();App.playAnniversary()">🎬 今天${_escHtml(occ.label)} · 看小电影 ›</span>`;
+      return;
+    }
     if (tip) {
       const m = days === null ? null : nextMilestone(days);
       tip.innerHTML = m
@@ -3380,6 +3395,522 @@ const App = (() => {
     setTimeout(restore, 500);
   }
 
+  /* ══════════════ 周年小电影 ══════════════
+     On each anniversary of start_date (and every 1000th day together) the
+     first open on each phone shows a sealed envelope; opening it plays a
+     one-minute film built from the couple's own photos, counts and letters.
+
+     - The date is the DEVICE's (§2). Nothing is computed or stored server-side.
+     - "Seen" is per device and deliberately not synced, like decor_seen
+       (§7.16): each partner gets their own first viewing, and whoever opens
+       the app first can't use it up for the other.
+     - Raised only once a session exists, from BOTH login paths (§7.215), and
+       again on coming back to the app or at midnight for a phone left open.
+     - All DOM is built on open and removed on close (§7.4 DOM plateau), and
+       the styles are injected from here so a cached index.html can't leave
+       the film unstyled (§7.27). Class names are anv-* scoped (§1.1). */
+
+  const _ANV_CARD = ['', '一', '两', '三', '四', '五', '六', '七', '八', '九', '十'];
+  const _ANV_ORD  = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
+  const _anvLeap  = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+  // What today is, if anything. Takes the date so it is testable without
+  // touching the clock, the same way currentTheme()/periodOf() are.
+  function annivOccasion(d = now()) {
+    if (!S.startDate) return null;
+    const [y, m, dd] = String(S.startDate).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !dd) return null;
+    const days = daysTogether(S.startDate, d);
+    if (!days) return null;
+    const yrs = d.getFullYear() - y;
+    // A 2/29 couple celebrates on 2/28 in the three years that have no 2/29.
+    const annDay = (m === 2 && dd === 29 && !_anvLeap(d.getFullYear())) ? 28 : dd;
+    const key = todayStr(d);
+    if (yrs >= 1 && d.getMonth() + 1 === m && d.getDate() === annDay) {
+      return { kind: 'year', n: yrs, days, key,
+               label: _ANV_CARD[yrs] ? `${_ANV_CARD[yrs]}周年` : `${yrs} 周年`,
+               next:  _ANV_ORD[yrs + 1] ? `第${_ANV_ORD[yrs + 1]}年` : `第 ${yrs + 1} 年` };
+    }
+    if (days % 1000 === 0) {
+      return { kind: 'days', n: days, days, key, label: `第 ${days} 天`, next: '下一个一千天' };
+    }
+    return null;
+  }
+
+  // The most recent occasion, for replaying on an ordinary day.
+  function _annivLatest() {
+    if (!S.startDate) return null;
+    const [y] = String(S.startDate).slice(0, 10).split('-').map(Number);
+    const t = now();
+    for (let back = 0; back < 400; back++) {
+      const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() - back);
+      const o = annivOccasion(d);
+      if (o) return o;
+      if (d.getFullYear() < y) break;
+    }
+    return null;
+  }
+
+  const _anvSeenKey = (occ) => 'anniv_seen_' + occ.key;
+  function _anvSeen(occ) { try { return !!localStorage.getItem(_anvSeenKey(occ)); } catch (e) { return false; } }
+  function _anvMarkSeen(occ) { try { localStorage.setItem(_anvSeenKey(occ), '1'); } catch (e) {} }
+
+  let _anvSnoozed = '';     // 「稍后再看」 — don't re-raise it for the rest of this session
+
+  function maybeShowAnniversary() {
+    try {
+      if (document.getElementById('anv-root')) return;
+      // Never over the splash or the login / pairing / maintenance card:
+      // only once a couple is actually in the app. A resumed session boots
+      // behind the splash, so its call lands here and the real showing comes
+      // from connect() after 「继续」.
+      if (document.getElementById('start-page')) return;
+      if (!document.getElementById('setup-overlay')?.classList.contains('hidden')) return;
+      if (S.needsSetup) return;
+      const occ = annivOccasion();
+      if (!occ || _anvSnoozed === occ.key || _anvSeen(occ)) return;
+      openAnniversary(occ, true);
+    } catch (e) { /* a decoration must never break the app */ }
+  }
+
+  function _anvStyle() {
+    if (document.getElementById('anv-style')) return;
+    const st = document.createElement('style');
+    st.id = 'anv-style';
+    st.textContent = `
+.th-anniv{display:inline-block;margin-top:2px;padding:3px 11px;border-radius:99px;background:linear-gradient(135deg,#F6D98E,#E9B04B);color:#5A3A08;font-weight:700;cursor:pointer}
+.anv-root{position:fixed;inset:0;z-index:300;background:radial-gradient(120% 80% at 50% 0%,#2A1D3A 0%,#120D1A 60%,#0B0810 100%);color:#F6EEF4;font-family:'Songti SC','Noto Serif SC','STSong',serif;overflow:hidden;animation:anv-in .6s ease;-webkit-user-select:none;user-select:none}
+@keyframes anv-in{from{opacity:0}}
+.anv-root.anv-out{opacity:0;transition:opacity .5s ease}
+.anv-snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.anv-scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(48px + env(safe-area-inset-top,0px)) 28px calc(48px + env(safe-area-inset-bottom,0px));gap:14px;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.anv-scene.anv-on{opacity:1;pointer-events:auto;transition:opacity .9s ease .4s}
+.anv-paused *{animation-play-state:paused!important}
+.anv-fu{opacity:0;transform:translateY(10px);animation:anv-fu 1.2s ease forwards}
+@keyframes anv-fu{to{opacity:1;transform:none}}
+.anv-d1{animation-delay:.5s}.anv-d2{animation-delay:1.6s}.anv-d3{animation-delay:2.8s}.anv-d4{animation-delay:3.8s}
+.anv-env{width:190px;height:128px;position:relative;margin-bottom:10px;border:0;padding:0;background:none;cursor:pointer;animation:anv-pl 2.2s ease-in-out infinite}
+@keyframes anv-pl{50%{transform:scale(1.06)}}
+.anv-env-body{position:absolute;inset:0;background:linear-gradient(160deg,#F7D9E2,#EDB8C8);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.anv-env-flap{position:absolute;left:0;right:0;top:0;height:74px;background:linear-gradient(180deg,#F3C6D4,#E7A9BD);clip-path:polygon(0 0,100% 0,50% 100%);border-radius:8px 8px 0 0}
+.anv-env-seal{position:absolute;left:50%;top:56px;width:40px;height:40px;margin-left:-20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#E0536F,#A8263F);display:grid;place-items:center;color:#FFE3EA;font-size:18px;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.anv-hand{font-family:'Ma Shan Zheng','Kaiti SC','STKaiti','KaiTi',cursive}
+.anv-env-to{font-size:28px;color:#FBE3EA}
+.anv-cap{font:500 13px/1.6 -apple-system,'PingFang SC',sans-serif;letter-spacing:.3em;color:rgba(255,255,255,.62)}
+.anv-hint{font:500 12px -apple-system,'PingFang SC',sans-serif;letter-spacing:.1em;color:rgba(255,255,255,.62)}
+.anv-later{margin-top:18px;font:500 13px -apple-system,'PingFang SC',sans-serif;color:rgba(255,255,255,.55);background:none;border:0;padding:10px 16px;cursor:pointer}
+.anv-date{font-size:40px;font-weight:900;letter-spacing:.06em;font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap;border-right:2px solid rgba(255,255,255,.7);width:0;animation:anv-typ 1.6s steps(10) .3s forwards,anv-car .8s step-end infinite}
+@keyframes anv-typ{to{width:10ch}} @keyframes anv-car{50%{border-color:transparent}}
+.anv-line{font-size:20px;font-weight:500;line-height:1.5}
+.anv-count{font-size:88px;font-weight:900;line-height:1;background:linear-gradient(180deg,#FFF3F7,#F29BB5);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.anv-pol{position:absolute;left:50%;top:46%;width:min(66vw,280px);background:#FDFBF7;padding:10px 10px 50px;border-radius:3px;box-shadow:0 18px 40px rgba(0,0,0,.5);transform:translate(-50%,-50%) rotate(var(--r,0deg));opacity:0;transition:opacity .8s ease}
+.anv-pol.anv-on{opacity:1}
+.anv-ph{aspect-ratio:4/5;overflow:hidden;position:relative;background:linear-gradient(160deg,#F7D9E2,#C9B1FF)}
+.anv-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.anv-pol.anv-on img{animation:anv-kb 3.6s ease-out forwards}
+@keyframes anv-kb{from{transform:scale(1.02)}to{transform:scale(1.14) translate(var(--kx,2%),var(--ky,-2%))}}
+.anv-pcap{position:absolute;left:8px;right:8px;bottom:6px;text-align:center;color:#4B3A44;line-height:1.15}
+.anv-pcap b{display:block;font-size:22px;font-weight:400}
+.anv-pcap small{display:block;font:12px -apple-system,'PingFang SC',sans-serif;color:#8A7A84;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anv-dots{position:absolute;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;justify-content:center;gap:5px}
+.anv-dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25)}
+.anv-dots i.anv-on{background:#F29BB5}
+.anv-yr{position:absolute;top:calc(56px + env(safe-area-inset-top,0px));left:0;right:0}
+.anv-stat{display:flex;align-items:baseline;gap:8px;justify-content:center;font-size:17px}
+.anv-stat b{font-size:34px;font-weight:900;color:#F7C0D0;font-variant-numeric:tabular-nums}
+.anv-quote{font-size:28px;line-height:1.5;color:#FFEAF0;max-width:11em}
+.anv-pet{width:150px}
+.anv-pet svg{width:100%;height:auto;display:block}
+.anv-hop{animation:anv-hop 1.1s ease-in-out infinite}
+@keyframes anv-hop{50%{transform:translateY(-10px)}}
+.anv-sign{position:relative;z-index:1;font-size:30px;color:#3A2A30;background:#FFF4E6;padding:4px 18px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.35);transform:rotate(-3deg)}
+.anv-float{position:absolute;bottom:18%;font-size:18px;animation:anv-up 3.2s ease-in infinite;opacity:0;pointer-events:none}
+@keyframes anv-up{0%{opacity:0;transform:translateY(0)}15%{opacity:1}100%{opacity:0;transform:translateY(-240px)}}
+.anv-names{font-size:34px;font-weight:900;letter-spacing:.08em}
+.anv-names span{color:#F29BB5;margin:0 10px}
+.anv-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:230px;margin-top:10px}
+.anv-btns button{font:600 14px -apple-system,'PingFang SC',sans-serif;padding:12px;border-radius:99px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#F6EEF4;cursor:pointer}
+.anv-btns button.anv-primary{background:#E0667F;border-color:#E0667F}
+.anv-skip{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:3;font:600 12px -apple-system,'PingFang SC',sans-serif;color:rgba(255,255,255,.62);background:none;border:0;cursor:pointer;padding:10px}
+.anv-pausemark{position:absolute;top:calc(20px + env(safe-area-inset-top,0px));left:18px;z-index:3;font:600 12px -apple-system,sans-serif;color:rgba(255,255,255,.62);pointer-events:none}
+.anv-prog{position:absolute;left:22px;right:22px;bottom:calc(22px + env(safe-area-inset-bottom,0px));height:3px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden;pointer-events:none}
+.anv-prog i{display:block;height:100%;width:0;background:#F29BB5}
+.anv-root button:focus-visible{outline:2px solid #F29BB5;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+  .anv-root *{animation-duration:.01ms!important;animation-iteration-count:1!important}
+  .anv-date{width:10ch;border:0}.anv-fu{opacity:1;transform:none}.anv-float{display:none}
+}`;
+    document.head.appendChild(st);
+  }
+
+  // First real sentence of a letter: skip salutations like 「亲爱的YY：」 and
+  // anything too short to carry meaning, and keep it to one line on a phone.
+  function _anvQuote(text) {
+    const parts = String(text || '').match(/[^。！？!?\n]+[。！？!?]?/g) || [];
+    for (const raw of parts) {
+      const s = raw.trim();
+      if (!s || /[：:，,]$/.test(s)) continue;
+      const bare = s.replace(/[。！？!?]+$/, '');
+      if ([...bare].length < 5) continue;
+      const chars = [...s];
+      return chars.length > 30 ? chars.slice(0, 29).join('') + '…' : s.replace(/。$/, '');
+    }
+    return '';
+  }
+
+  // Everything the film shows after the first ten seconds. Fetched while the
+  // date and day-count scenes play, so nobody waits on a spinner (§5: the
+  // photo/letter caches are reused, never force-refetched).
+  async function _anvGather(occ) {
+    await _loadStatsSources().catch(() => {});
+    // Photos are signed Storage URLs that die after 4h, and a phone can have
+    // had S.photos cached since the morning. Re-sign them for the film: the
+    // list is small JSON now, and this runs a few times a year (§5).
+    if (S.usingSN) {
+      try { const fresh = await Data.getPhotos(); if (fresh) S.photos = fresh; } catch (e) {}
+    }
+    const t = now();
+    const since = occ.kind === 'year'
+      ? new Date(t.getFullYear() - 1, t.getMonth(), t.getDate())
+      : (() => { const [y, m, d] = String(S.startDate).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d - 1); })();
+    const sinceStr = todayStr(since), todayS = todayStr(t);
+    const inWin = (s) => { const x = String(s || '').slice(0, 10); return x > sinceStr && x <= todayS; };
+
+    let photos = (S.photos || []).filter(p => p.image && inWin(p.date));
+    if (photos.length < 3) photos = (S.photos || []).filter(p => p.image);
+    photos = photos.slice(-12);
+
+    const years = [];
+    for (let y = since.getFullYear(); y <= t.getFullYear(); y++) years.push(y);
+    const lists = await Promise.all(years.map(y => Data.getEntriesOfYear(y).catch(() => [])));
+    const things = lists.flat().filter(e => inWin(e.date) && e.catName !== CHECKIN_CAT).length;
+    const letters = (S.letters || []).filter(l => inWin(todayStr(new Date(l.date)))).length;
+
+    const other = S.activeChar === 'char2' ? 'char1' : 'char2';
+    const theirs = (S.letters || [])
+      .filter(l => (l.charId || 'char1') === other && l.text)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    let quote = '';
+    for (const l of theirs) { quote = _anvQuote(l.text); if (quote) break; }
+
+    return { photos, things, letters, quote };
+  }
+
+  // Handwriting face, subset to exactly the characters on screen — a few KB,
+  // fetched only on the day. Falls back to Kaiti where it can't load.
+  function _anvFont(text) {
+    try {
+      if (document.getElementById('anv-font')) return;
+      const chars = [...new Set([...String(text).replace(/\s/g, '')])].join('');
+      if (!chars) return;
+      const l = document.createElement('link');
+      l.id = 'anv-font'; l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap&text=' + encodeURIComponent(chars);
+      document.head.appendChild(l);
+    } catch (e) {}
+  }
+
+  let _anv = null;   // the running film, or null
+
+  function openAnniversary(occ, auto) {
+    occ = occ || annivOccasion() || _annivLatest();
+    if (!occ || document.getElementById('anv-root')) return;
+    _anvStyle();
+    const me = charDisplayName(S.activeChar);
+    const other = charDisplayName(S.activeChar === 'char2' ? 'char1' : 'char2');
+    const root = document.createElement('div');
+    root.id = 'anv-root';
+    root.className = 'anv-root';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-label', occ.label + '小电影');
+    root.innerHTML = `
+      <canvas class="anv-snow"></canvas>
+      <button type="button" class="anv-skip" hidden>跳过 ›</button>
+      <div class="anv-pausemark" hidden>❚❚ 已暂停</div>
+      <div class="anv-scene anv-on" data-s="env">
+        <button type="button" class="anv-env" aria-label="打开信封">
+          <span class="anv-env-body"></span><span class="anv-env-flap"></span><span class="anv-env-seal">♥</span>
+        </button>
+        <div class="anv-env-to anv-hand">给 ${_escHtml(me)} 的</div>
+        <div class="anv-hint">${_escHtml(occ.label)}快乐 · 轻点打开</div>
+        ${auto ? '<button type="button" class="anv-later">稍后再看</button>' : ''}
+      </div>
+      <div class="anv-prog" hidden><i></i></div>`;
+    document.body.appendChild(root);
+    _anvFont(`给${me}的周年快乐${occ.label}`);
+
+    const st = _anv = {
+      occ, root, me, other, auto, plan: [], t: 0, playing: false, started: false,
+      cur: null, curPhoto: -1, last: 0, raf: 0, data: null, flakes: [],
+      gather: _anvGather(occ).catch(() => ({ photos: [], things: 0, letters: 0, quote: '' })),
+    };
+    st.gather.then(d => {
+      st.data = d;
+      d.photos.forEach(p => { const im = new Image(); im.src = p.image; });   // warm the cache
+      _anvFont(`${d.quote}周年快乐${d.photos.map(p => p.caption || '').join('')}月日0123456789`);
+    });
+
+    root.querySelector('.anv-env').onclick = (e) => { e.stopPropagation(); _anvStart(); };
+    const later = root.querySelector('.anv-later');
+    if (later) later.onclick = (e) => { e.stopPropagation(); _anvSnoozed = occ.key; closeAnniversary(); };
+    root.querySelector('.anv-skip').onclick = (e) => {
+      e.stopPropagation();
+      if (!st.data) return;                                   // nothing to skip to yet
+      _anvSeek(st.plan[st.plan.length - 1].start);
+      _anvPlay();
+    };
+    root.addEventListener('click', (e) => {
+      if (!st.started || e.target.closest('button')) return;
+      if (st.t >= st.total) return;
+      st.playing ? _anvPause() : _anvPlay();
+    });
+    _anvSizeSnow();
+    st.raf = requestAnimationFrame(_anvLoop);
+  }
+
+  function _anvStart() {
+    const st = _anv;
+    if (!st || st.started) return;
+    _anvMarkSeen(st.occ);             // opening it counts, even if they skip
+    try { if (typeof Music !== 'undefined') Music.startFilm(); } catch (e) {}
+    const occ = st.occ;
+    const [sy, sm, sd] = String(S.startDate).slice(0, 10).split('-');
+    const esc = _escHtml;
+    const root = st.root;
+    const add = (id, html) => {
+      const el = document.createElement('div');
+      el.className = 'anv-scene'; el.dataset.s = id; el.innerHTML = html;
+      root.insertBefore(el, root.querySelector('.anv-prog'));
+      return el;
+    };
+    add('date', `
+      <div class="anv-cap anv-fu">${occ.kind === 'year' ? esc(occ.label) : '那一天'}</div>
+      <div class="anv-date">${sy}.${sm}.${sd}</div>
+      <div class="anv-line anv-fu anv-d3">那天，我们开始了</div>`);
+    add('count', `
+      <div class="anv-cap anv-fu">从那天起</div>
+      <div class="anv-count">1</div>
+      <div class="anv-line anv-fu anv-d2">是我们在一起的第 ${occ.days} 天</div>`);
+    st.plan = [{ id: 'date', d: 5 }, { id: 'count', d: 5 }];
+    _anvReplan();
+    root.querySelector('.anv-skip').hidden = false;
+    root.querySelector('.anv-prog').hidden = false;
+    st.started = true;
+    _anvSeek(0);
+    _anvPlay();
+    st.gather.then(d => _anvBuildRest(d));
+  }
+
+  function _anvBuildRest(d) {
+    const st = _anv;
+    if (!st || st.built) return;
+    st.built = true;
+    const esc = _escHtml, occ = st.occ, root = st.root;
+    const add = (id, html) => {
+      const el = document.createElement('div');
+      el.className = 'anv-scene'; el.dataset.s = id; el.innerHTML = html;
+      root.insertBefore(el, root.querySelector('.anv-prog'));
+      return el;
+    };
+    const plan = [];
+
+    // Fewer than three photos is a slideshow of nothing; skip straight on.
+    if (d.photos.length >= 3) {
+      const cap = occ.kind === 'year'
+        ? (_ANV_ORD[occ.n] ? `我们的第${_ANV_ORD[occ.n]}年` : `我们的第 ${occ.n} 年`)
+        : `我们的 ${occ.n} 天`;
+      add('photos', `<div class="anv-yr anv-cap">${esc(cap)}</div>` +
+        d.photos.map((p, i) => {
+          const [, pm, pd] = String(p.date || '').split('-').map(Number);
+          const when = pm && pd ? `${pm}月${pd}日` : '';
+          return `<div class="anv-pol" style="--r:${i % 2 ? 2.5 : -2.5}deg">
+            <div class="anv-ph"><img alt="" onerror="this.remove()" src="${esc(p.image)}" style="--kx:${i % 2 ? -3 : 3}%;--ky:${i % 3 ? -2 : 2}%"></div>
+            <div class="anv-pcap"><b class="anv-hand">${esc(when)}</b>${p.caption ? `<small>${esc(p.caption)}</small>` : ''}</div>
+          </div>`;
+        }).join('') +
+        `<div class="anv-dots">${d.photos.map(() => '<i></i>').join('')}</div>`);
+      plan.push({ id: 'photos', d: d.photos.length * 3.2, n: d.photos.length });
+    }
+
+    const lead = occ.kind === 'year' ? '这一年，我们一起' : `这 ${occ.n} 天，我们一起`;
+    const rows = [
+      d.things  ? `<div class="anv-stat anv-fu anv-d1">记下 <b>${d.things}</b> 件小事</div>` : '',
+      d.letters ? `<div class="anv-stat anv-fu anv-d2">写了 <b>${d.letters}</b> 封信</div>` : '',
+      (S.photos || []).length ? `<div class="anv-stat anv-fu anv-d3">存下 <b>${S.photos.length}</b> 张照片</div>` : '',
+    ].join('');
+    if (rows) {
+      add('things', `<div class="anv-cap anv-fu">${esc(lead)}</div>${rows}` +
+        (S.petSpecies ? `<div class="anv-line anv-fu anv-d4" style="font-size:16px;opacity:.85">还养大了一只${esc(petName())}</div>` : ''));
+      plan.push({ id: 'things', d: 7 });
+    }
+
+    if (d.quote) {
+      add('letter', `
+        <div class="anv-hint anv-fu">${esc(st.other)} 写给你的第一封信里说</div>
+        <div class="anv-quote anv-hand anv-fu anv-d1">「${esc(d.quote)}」</div>`);
+      plan.push({ id: 'letter', d: 6.5 });
+    }
+
+    if (S.petSpecies) {
+      let art = '';
+      try { art = petSvg(petStageInfo().idx, petSpecies(), 'hat_party'); } catch (e) {}
+      if (art) {
+        add('pet', `
+          <div class="anv-pet anv-hop">${art}</div>
+          <div class="anv-sign anv-hand anv-fu anv-d1">${occ.kind === 'year' ? '周年快乐！' : esc(occ.label) + '快乐！'}</div>
+          <div class="anv-line anv-fu anv-d2" style="font-size:15px;opacity:.85">${esc(petName())}说：${esc(occ.next)}也要一起养我哦</div>
+          ${['💗','💕','✨','💖','💗','💕'].map((h, i) => `<span class="anv-float" style="left:${12 + i * 14}%;animation-delay:${i * .5}s">${h}</span>`).join('')}`);
+        plan.push({ id: 'pet', d: 6 });
+      }
+    }
+
+    add('end', `
+      <div class="anv-cap anv-fu">${esc(occ.label)}</div>
+      <div class="anv-names anv-fu anv-d1">${esc(st.me)}<span>♥</span>${esc(st.other)}</div>
+      <div class="anv-line anv-fu anv-d2">${esc(occ.next)}，也请多多指教</div>
+      <div class="anv-btns anv-fu anv-d3">
+        <button type="button" class="anv-primary" data-a="write">写一封${occ.kind === 'year' ? '周年' : ''}情书</button>
+        <button type="button" data-a="again">再看一次</button>
+        <button type="button" data-a="close">进入小本子</button>
+      </div>`).addEventListener('click', (e) => {
+        const a = e.target.closest('button')?.dataset.a;
+        if (a === 'again') { _anvSeek(0); _anvPlay(); }
+        else if (a === 'close') closeAnniversary();
+        else if (a === 'write') {
+          closeAnniversary();
+          showLetters().then(() => openComposeLetter()).catch(() => {});
+        }
+      });
+    plan.push({ id: 'end', d: 6 });
+
+    st.plan = st.plan.concat(plan);
+    _anvReplan();
+    _anvRender();
+  }
+
+  function _anvReplan() {
+    const st = _anv;
+    let acc = 0;
+    st.plan.forEach(p => { p.start = acc; acc += p.d; });
+    st.total = acc;
+  }
+
+  function _anvScene(x) {
+    const plan = _anv.plan;
+    for (let i = plan.length - 1; i >= 0; i--) if (x >= plan[i].start) return plan[i];
+    return plan[0];
+  }
+
+  function _anvShow(id) {
+    const root = _anv.root;
+    root.querySelectorAll('.anv-scene').forEach(s => s.classList.remove('anv-on'));
+    const el = root.querySelector(`.anv-scene[data-s="${id}"]`);
+    if (!el) return;
+    // Restart the scene's entrance animations every time it is shown.
+    el.querySelectorAll('.anv-fu,.anv-date').forEach(n => { n.style.animation = 'none'; void n.offsetWidth; n.style.animation = ''; });
+    el.classList.add('anv-on');
+  }
+
+  function _anvRender() {
+    const st = _anv;
+    if (!st || !st.started) return;
+    const p = _anvScene(Math.min(st.t, st.total - 0.001));
+    if (st.cur !== p) { st.cur = p; st.curPhoto = -1; _anvShow(p.id); }
+    const local = st.t - p.start;
+    if (p.id === 'count') {
+      const k = Math.min(1, local / 3.4);
+      const el = st.root.querySelector('.anv-count');
+      if (el) el.textContent = Math.max(1, Math.round((1 - Math.pow(1 - k, 3)) * st.occ.days));
+    }
+    if (p.id === 'photos') {
+      const i = Math.min(p.n - 1, Math.floor(local / 3.2));
+      if (i !== st.curPhoto) {
+        st.curPhoto = i;
+        const pols = st.root.querySelectorAll('.anv-pol');
+        pols.forEach((e, j) => {
+          if (j === i) { const im = e.querySelector('img'); if (im) { im.style.animation = 'none'; void im.offsetWidth; im.style.animation = ''; } }
+          e.classList.toggle('anv-on', j === i);
+        });
+        st.root.querySelectorAll('.anv-dots i').forEach((e, j) => e.classList.toggle('anv-on', j === i));
+      }
+    }
+    const bar = st.root.querySelector('.anv-prog i');
+    // Until the rest has loaded the total is only 10s — don't let the bar
+    // race to full and then jump back.
+    if (bar) bar.style.width = st.built ? (Math.min(st.t, st.total) / st.total * 100) + '%' : '0%';
+  }
+
+  function _anvLoop(ts) {
+    const st = _anv;
+    if (!st) return;
+    const dt = st.last ? Math.min(0.1, (ts - st.last) / 1000) : 0;
+    st.last = ts;
+    if (st.playing) {
+      st.t += dt;
+      // Data still on its way: hold on the day count rather than ending.
+      if (!st.built && st.t > st.total - 0.05) st.t = st.total - 0.05;
+      if (st.built && st.t >= st.total) { st.t = st.total; st.playing = false; _anvSyncPause(); }
+      _anvRender();
+    }
+    _anvSnow(dt);
+    st.raf = requestAnimationFrame(_anvLoop);
+  }
+
+  function _anvSyncPause() {
+    const st = _anv;
+    const paused = st.started && !st.playing && st.t < st.total;
+    st.root.classList.toggle('anv-paused', paused);
+    st.root.querySelector('.anv-pausemark').hidden = !paused;
+  }
+  function _anvPlay()  { const st = _anv; if (!st) return; if (st.built && st.t >= st.total) _anvSeek(0); st.playing = true; _anvSyncPause(); _anvRender(); }
+  function _anvPause() { const st = _anv; if (!st) return; st.playing = false; _anvSyncPause(); }
+  function _anvSeek(x) { const st = _anv; st.t = x; st.cur = null; _anvRender(); _anvSyncPause(); }
+
+  function _anvSizeSnow() {
+    const st = _anv, cv = st.root.querySelector('.anv-snow');
+    const w = st.root.clientWidth, h = st.root.clientHeight, dpr = window.devicePixelRatio || 1;
+    cv.width = w * dpr; cv.height = h * dpr;
+    st.ctx = cv.getContext('2d');
+    st.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    st.w = w; st.h = h;
+    st.flakes = Array.from({ length: 46 }, () => ({ x: Math.random() * w, y: Math.random() * h,
+      r: .6 + Math.random() * 1.8, v: 10 + Math.random() * 22, ph: Math.random() * 6.28 }));
+  }
+
+  function _anvSnow(dt) {
+    const st = _anv;
+    if (!st.ctx) return;
+    st.ctx.clearRect(0, 0, st.w, st.h);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = st.cur ? st.cur.id : 'env';
+    if (!['env', 'date', 'count', 'things', 'end'].includes(id)) return;
+    const moving = st.playing || !st.started;
+    st.ctx.fillStyle = 'rgba(255,255,255,.75)';
+    for (const f of st.flakes) {
+      if (moving) { f.y += f.v * dt; f.ph += dt; f.x += Math.sin(f.ph) * .25; }
+      if (f.y > st.h) { f.y = -4; f.x = Math.random() * st.w; }
+      st.ctx.beginPath(); st.ctx.arc(f.x, f.y, f.r, 0, 6.283); st.ctx.fill();
+    }
+  }
+
+  function closeAnniversary() {
+    const st = _anv;
+    if (!st) return;
+    _anv = null;
+    cancelAnimationFrame(st.raf);
+    if (st.started) { try { if (typeof Music !== 'undefined') Music.endFilm(); } catch (e) {} }
+    st.root.classList.add('anv-out');
+    setTimeout(() => st.root.remove(), 500);
+    renderTogetherBanner();
+  }
+
+  window.addEventListener('resize', () => { if (_anv) _anvSizeSnow(); });
+  // A phone left open overnight, or brought back from the background on the
+  // day: raise it then too, not only at login.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') maybeShowAnniversary();
+  });
+
   /* ══════════════ 恋爱小窝 · 宠物养成 (Phase 1) ══════════════
      Level and mood are DERIVED from the couple's real activity, never stored
      — same approach as the badges, so they can't drift out of sync and there
@@ -4039,7 +4570,7 @@ const App = (() => {
      render as the same featureless snowman. */
   let _svgUid = 0;
 
-  function petSvg(stageIdx, sp = petSpecies()) {
+  function petSvg(stageIdx, sp = petSpecies(), outfitOverride = '') {
     const uid = 'pg' + (++_svgUid);
     const grad = `
       <defs>
@@ -4146,7 +4677,7 @@ const App = (() => {
     // — the pet scales with its level and an overlay would drift off it.
     // Player choice wins; the theme only dresses the pet if they haven't.
     const _th = currentTheme();
-    const outfitId = (S.equipped && S.equipped.outfit) || (_th && _th.outfit) || '';
+    const outfitId = outfitOverride || (S.equipped && S.equipped.outfit) || (_th && _th.outfit) || '';
     const outfitArt = outfitArtFor(DECOR[outfitId]?.draw, headTop, headY, headR);
 
     return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
@@ -5727,6 +6258,7 @@ const App = (() => {
 
   /* ── Boot ── */
   async function boot() {
+    _lastDay = todayStr();
     console.log('%c恋爱积分簿 ' + APP_VERSION, 'color:#5B9BD5;font-weight:bold');
     const vTag = document.getElementById('app-version-tag');
     if (vTag) vTag.textContent = '版本 ' + APP_VERSION;
@@ -5761,6 +6293,7 @@ const App = (() => {
         await Data.init();
         await refresh();
         flushWeather();
+        maybeShowAnniversary();
       } catch (err) {
         S.usingSN = false;
         localStorage.removeItem('sn_api_key');
@@ -5817,6 +6350,7 @@ const App = (() => {
 
   return {
     connect, register, switchTab, onRegCharChange, demoMode,
+    playAnniversary: () => openAnniversary(null, false), closeAnniversary,
     toggleMode, selectChar,
     quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
@@ -5865,6 +6399,12 @@ const App = (() => {
     _codesTest: () => ({ byId: _codeOf, byCode: _byCode }),
     _saveEqTest: () => saveEquipped(),
     _maintTest: () => MAINTENANCE,
+    _annivTest: (d, start) => { const keep = S.startDate; if (start !== undefined) S.startDate = start;
+      try { return annivOccasion(d); } finally { S.startDate = keep; } },
+    _annivQuoteTest: (t) => _anvQuote(t),
+    _annivMaybeTest: () => maybeShowAnniversary(),
+    _annivStateTest: () => _anv && { t: _anv.t, total: _anv.total, built: !!_anv.built, playing: _anv.playing,
+      scene: _anv.cur && _anv.cur.id, plan: _anv.plan.map(p => p.id), data: _anv.data },
     _bootTest: () => boot(),
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
@@ -6055,7 +6595,27 @@ const Music = (() => {
     if (playing) _fadeToSrc(src); else audio.src = src;
   }
 
+  // The anniversary film plays the default piano track from the top, then
+  // leaves the player as it found it. It never touches the saved music_on
+  // preference: watching a film is not a vote to have music on every day.
+  let _filmWasPlaying = false;
+  function startFilm() {
+    if (!audio) return;
+    _filmWasPlaying = playing;
+    if (currentTrack !== 'default') { currentTrack = 'default'; audio.src = DEFAULT_SRC; }
+    try { audio.currentTime = 0; } catch (e) {}
+    audio.volume = Math.max(baseVolume, 0.5);
+    audio.play().then(() => { playing = true; _updateBtn(); }).catch(() => {});
+  }
+  function endFilm() {
+    if (!audio) return;
+    audio.volume = baseVolume;
+    if (!_filmWasPlaying) { audio.pause(); playing = false; _updateBtn(); }
+    syncFestivalTrack();
+  }
+
   return {
+    startFilm, endFilm,
     toggle() { playing ? _pause() : _play(); },
     setVolume(v) { baseVolume = v / 100; if (audio) audio.volume = baseVolume; },
     syncFestivalTrack,
