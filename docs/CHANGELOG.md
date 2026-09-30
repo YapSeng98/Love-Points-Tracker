@@ -19,6 +19,16 @@ sealed envelope; opening it plays a one-minute film: the date, the day count,
 that year's photos, what the year held, a line from the partner's first
 letter, the pet in a party hat, and both names. It is dormant until 12-24.
 
+**周年悄悄话.** Each partner can seal a line for the next anniversary; on the
+day it appears in the other's film. The server holds it and decides when it
+opens — midnight on the day in the writer's time zone — so changing a phone's
+date reveals nothing. The table has no client policies at all, so a session
+token can't read it directly either.
+
+The film plays *A Thousand Years* (piano and cello). Whether that file exists
+is checked while the envelope is showing, because a phone only allows sound
+inside the tap and a missing file reports its error too late to fall back.
+
 Also fixed on the way: an app opened in the last minute before midnight never
 noticed the date change, because the clock latched "today" on its first tick
 — which already fell after midnight.

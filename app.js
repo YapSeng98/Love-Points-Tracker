@@ -1117,6 +1117,30 @@ const App = (() => {
       LS.save(d);
     },
 
+    /* ── 周年悄悄话 (sealed until the day — the SERVER decides, §7.258) ── */
+    async getAnnivNote(openOn) {
+      if (S.usingSN) return snFetch(`/anniv-note?openOn=${encodeURIComponent(openOn)}`);
+      // Demo keeps the same shape and the same opening rule, so the UI is
+      // exercised exactly as it will be against the real backend.
+      const d = LS.load(), list = d.annivNotes || [];
+      const me = S.activeChar, other = me === 'char2' ? 'char1' : 'char2';
+      const mine = list.find(n => n.char === me && n.openOn === openOn);
+      const their = list.find(n => n.char === other && n.openOn === openOn);
+      const open = !!their && Date.now() >= Date.parse(`${openOn}T00:00:00Z`) - their.tz * 60000;
+      return { openOn, mine: mine?.text || '', sealed: !!mine, theirs: open ? their.text : '', released: open };
+    },
+
+    async saveAnnivNote(openOn, text) {
+      const tz = -new Date().getTimezoneOffset();
+      if (S.usingSN) return snFetch('/anniv-note', { method: 'PUT', body: JSON.stringify({ openOn, text, tz }) });
+      const d = LS.load();
+      d.annivNotes = (d.annivNotes || []).filter(n => !(n.char === S.activeChar && n.openOn === openOn));
+      const t = [...String(text || '').trim()].slice(0, 200).join('');
+      if (t) d.annivNotes.push({ char: S.activeChar, openOn, tz, text: t });
+      LS.save(d);
+      return { success: true, text: t };
+    },
+
     /* ── 回忆相册 (memory photos, couple-private) ── */
     async getPhotos() {
       let list;
@@ -2766,6 +2790,7 @@ const App = (() => {
     }
     pg.classList.add('open');
     loadMemories();   // async fill of the 回忆相册 strip
+    renderWhisperCard();
   }
 
   function closeLovePage() {
@@ -3519,6 +3544,34 @@ const App = (() => {
 .anv-stat{display:flex;align-items:baseline;gap:8px;justify-content:center;font-size:17px}
 .anv-stat b{font-size:34px;font-weight:900;color:#F7C0D0;font-variant-numeric:tabular-nums}
 .anv-quote{font-size:28px;line-height:1.5;color:#FFEAF0;max-width:11em}
+.anv-whisper{display:flex;flex-direction:column;gap:4px;line-height:1.55;color:#FFEAF0;max-width:15em}
+.anv-whisper span{text-wrap:balance}
+.anw-card{margin:0 0 12px;width:100%;max-width:310px;box-sizing:border-box;padding:14px 20px;border-radius:22px;position:relative;z-index:1;background:linear-gradient(135deg,rgba(255,214,228,.26),rgba(255,156,178,.18));border:1px solid rgba(255,190,210,.55);color:#fff;font-family:-apple-system,'PingFang SC',sans-serif}
+.anw-card.anw-glow{animation:anw-glow 2.6s ease-in-out infinite}
+@keyframes anw-glow{50%{box-shadow:0 0 18px 2px rgba(255,156,178,.35)}}
+.anw-top{display:flex;gap:10px;align-items:flex-start}
+.anw-ic{font-size:22px;line-height:1;min-width:24px}
+.anw-top b{display:block;font-size:14px}
+.anw-top small{display:block;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,.82)}
+.anw-foot{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:8px}
+.anw-chip{font-size:11px;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.16);white-space:nowrap}
+.anw-btn{font:700 12.5px -apple-system,'PingFang SC',sans-serif;border:0;border-radius:99px;padding:7px 15px;background:linear-gradient(135deg,#FF9CB2,#EC5C8D);color:#fff;cursor:pointer}
+.anw-veil{position:fixed;inset:0;z-index:120;background:rgba(10,0,20,.55);display:flex;align-items:flex-end;justify-content:center;animation:anv-in .25s ease}
+.anw-sheet{width:100%;max-width:480px;box-sizing:border-box;background:#FFF8FB;color:#3A2A33;border-radius:22px 22px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:9px;font-family:-apple-system,'PingFang SC',sans-serif;animation:anw-up .3s cubic-bezier(.22,1,.36,1)}
+@keyframes anw-up{from{transform:translateY(40px);opacity:0}}
+.anw-bar{width:36px;height:4px;border-radius:4px;background:#E8D5DD;align-self:center}
+.anw-title{font:700 16px 'Songti SC','Noto Serif SC',serif;text-align:center}
+.anw-sub{font-size:12px;color:#7A5E6C;text-align:center;line-height:1.5}
+.anw-ta{width:100%;box-sizing:border-box;min-height:150px;resize:none;border:1.5px solid #F2C6D4;border-radius:14px;padding:10px 12px;font:19px/1.55 'Ma Shan Zheng','Kaiti SC','STKaiti',cursive;color:#4B2E3C;background:#fff}
+.anw-ta:focus{outline:2px solid #EC5C8D;outline-offset:1px}
+.anw-count{font-size:11px;color:#7A5E6C;text-align:right;font-variant-numeric:tabular-nums}
+.anw-seal{border:0;border-radius:99px;padding:12px;font:700 14px -apple-system,'PingFang SC',sans-serif;background:linear-gradient(135deg,#FF9CB2,#EC5C8D);color:#fff;cursor:pointer}
+.anw-seal:disabled{opacity:.6}
+.anw-cancel{border:0;background:none;font:500 13px -apple-system,'PingFang SC',sans-serif;color:#7A5E6C;cursor:pointer;padding:6px}
+html[data-theme="dark"] .anw-sheet{background:#241B28;color:#F3E6EC}
+html[data-theme="dark"] .anw-sub,html[data-theme="dark"] .anw-count,html[data-theme="dark"] .anw-cancel{color:#C9B3BF}
+html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5A3A4A}
+@media (prefers-reduced-motion:reduce){.anw-card.anw-glow{animation:none}}
 .anv-pet{width:150px}
 .anv-pet svg{width:100%;height:auto;display:block}
 .anv-hop{animation:anv-hop 1.1s ease-in-out infinite}
@@ -3593,21 +3646,126 @@ const App = (() => {
     let quote = '';
     for (const l of theirs) { quote = _anvQuote(l.text); if (quote) break; }
 
-    return { photos, things, letters, quote };
+    // A 悄悄话 the partner sealed for today beats a line lifted from a letter.
+    let whisper = '';
+    try { whisper = String((await Data.getAnnivNote(occ.key))?.theirs || '').trim(); } catch (e) {}
+
+    return { photos, things, letters, quote, whisper };
   }
 
   // Handwriting face, subset to exactly the characters on screen — a few KB,
   // fetched only on the day. Falls back to Kaiti where it can't load.
-  function _anvFont(text) {
+  // Handwriting face. Google serves CJK families in unicode-range slices, so
+  // only the glyphs actually on screen download. (A text= subset looked
+  // smaller but couldn't grow once the note arrived, and phones without
+  // Kaiti then drew the note in plain type.)
+  function _anvFont() {
     try {
       if (document.getElementById('anv-font')) return;
-      const chars = [...new Set([...String(text).replace(/\s/g, '')])].join('');
-      if (!chars) return;
       const l = document.createElement('link');
       l.id = 'anv-font'; l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap&text=' + encodeURIComponent(chars);
+      l.href = 'https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap';
       document.head.appendChild(l);
     } catch (e) {}
+  }
+
+  // The next day a note can be written for: today counts only until it has
+  // begun (it can't — a note for today has already opened), so start at
+  // tomorrow. 1100 days always reaches the next anniversary or 1000th day.
+  function nextAnnivOccasion(from = now()) {
+    for (let i = 1; i <= 1100; i++) {
+      const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
+      const o = annivOccasion(d);
+      if (o) return { ...o, date: d, inDays: i };
+    }
+    return null;
+  }
+
+  let _anwState = null;   // { occ, sealed, mine } for the card and sheet
+
+  async function renderWhisperCard() {
+    const esc = _escHtml;
+    const pg = document.getElementById('love-page');
+    if (!pg) return;
+    let card = document.getElementById('anw-card');
+    const today = annivOccasion();
+    const occ = nextAnnivOccasion();
+    if (!S.startDate || (!today && !occ)) { card?.remove(); return; }
+    _anvStyle();
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'anw-card';
+      card.className = 'anw-card';
+      const after = pg.querySelector('.love-since-card');
+      if (after) after.after(card); else pg.appendChild(card);
+    }
+    const other = charDisplayName(S.activeChar === 'char2' ? 'char1' : 'char2');
+    if (today) {
+      // Today's note has already opened — it is being delivered, not written.
+      card.classList.remove('anw-glow');
+      card.innerHTML = `<div class="anw-top"><span class="anw-ic">💌</span><div><b>周年悄悄话</b>
+        <small>今天${esc(today.label)}，写好的悄悄话已经送到 ${esc(other)} 的小电影里啦</small></div></div>`;
+      return;
+    }
+    const when = `${occ.date.getMonth() + 1}月${occ.date.getDate()}日`;
+    card.innerHTML = `<div class="anw-top"><span class="anw-ic">💌</span><div><b>周年悄悄话</b>
+      <small>写一句话，${when} ${esc(occ.label)}那天送到 ${esc(other)} 的小电影里</small></div></div>
+      <div class="anw-foot"><span class="anw-chip">还有 ${occ.inDays} 天</span></div>`;
+    let note = null;
+    try { note = await Data.getAnnivNote(occ.key); } catch (e) {}
+    if (!document.getElementById('anw-card')) return;
+    _anwState = { occ, sealed: !!note?.sealed, mine: note?.mine || '', when, other };
+    card.classList.toggle('anw-glow', !note?.sealed);
+    card.innerHTML = `<div class="anw-top"><span class="anw-ic">${note?.sealed ? '🔒' : '💌'}</span><div><b>周年悄悄话</b>
+      <small>${note?.sealed
+        ? `已封好 · ${when} 送到 ${esc(other)} 的小电影里`
+        : `写一句话，${when} ${esc(occ.label)}那天送到 ${esc(other)} 的小电影里`}</small></div></div>
+      <div class="anw-foot"><span class="anw-chip">还有 ${occ.inDays} 天</span>
+      <button type="button" class="anw-btn" onclick="App.openWhisper()">${note?.sealed ? '改一改' : '写一句'}</button></div>`;
+    if (!note) card.querySelector('.anw-foot').insertAdjacentHTML('beforeend',
+      `<small style="font-size:11px;opacity:.8">暂时连不上</small>`);
+  }
+
+  function openWhisper() {
+    const esc = _escHtml;
+    const st = _anwState;
+    if (!st || document.getElementById('anw-veil')) return;
+    _anvStyle(); _anvFont();
+    const veil = document.createElement('div');
+    veil.id = 'anw-veil';
+    veil.className = 'anw-veil';
+    veil.innerHTML = `<div class="anw-sheet" role="dialog" aria-label="周年悄悄话">
+      <div class="anw-bar"></div>
+      <div class="anw-title">写给 ${esc(st.other)} 的${esc(st.occ.label)}悄悄话</div>
+      <div class="anw-sub">${st.when} ${esc(st.occ.label)}当天，出现在 ${esc(st.other)} 的小电影里。在那之前谁都看不到。</div>
+      <textarea class="anw-ta" id="anw-ta" maxlength="200" placeholder="想对 ${esc(st.other)} 说的话…"></textarea>
+      <div class="anw-count"><span id="anw-n">0</span>/200 · 当天之前随时可以改</div>
+      <button type="button" class="anw-seal" id="anw-seal">${st.sealed ? '改好了，重新封好 💌' : '封好 💌'}</button>
+      <button type="button" class="anw-cancel" id="anw-cancel">取消</button>
+    </div>`;
+    document.body.appendChild(veil);
+    const ta = veil.querySelector('#anw-ta');
+    ta.value = st.mine;
+    const count = () => { veil.querySelector('#anw-n').textContent = [...ta.value.trim()].length; };
+    ta.addEventListener('input', count); count();
+    const close = () => veil.remove();
+    veil.addEventListener('click', (e) => { if (e.target === veil) close(); });
+    veil.querySelector('#anw-cancel').onclick = close;
+    veil.querySelector('#anw-seal').onclick = async () => {
+      const btn = veil.querySelector('#anw-seal');
+      btn.disabled = true;
+      try {
+        const r = await Data.saveAnnivNote(st.occ.key, ta.value);
+        close();
+        showToast(r && r.text ? `💌 封好啦，${st.when}送到` : '已经拿掉了');
+      } catch (err) {
+        btn.disabled = false;
+        showToast(/409/.test(String(err && err.message)) ? '已经送出了，不能再改啦 💌' : '没封上，再试一次？');
+        return;
+      }
+      renderWhisperCard();
+    };
+    setTimeout(() => ta.focus(), 50);
   }
 
   let _anv = null;   // the running film, or null
@@ -3637,17 +3795,17 @@ const App = (() => {
       </div>
       <div class="anv-prog" hidden><i></i></div>`;
     document.body.appendChild(root);
-    _anvFont(`给${me}的周年快乐${occ.label}`);
+    _anvFont();
+    try { if (typeof Music !== 'undefined') Music.prepareFilm(); } catch (e) {}
 
     const st = _anv = {
       occ, root, me, other, auto, plan: [], t: 0, playing: false, started: false,
       cur: null, curPhoto: -1, last: 0, raf: 0, data: null, flakes: [],
-      gather: _anvGather(occ).catch(() => ({ photos: [], things: 0, letters: 0, quote: '' })),
+      gather: _anvGather(occ).catch(() => ({ photos: [], things: 0, letters: 0, quote: '', whisper: '' })),
     };
     st.gather.then(d => {
       st.data = d;
       d.photos.forEach(p => { const im = new Image(); im.src = p.image; });   // warm the cache
-      _anvFont(`${d.quote}周年快乐${d.photos.map(p => p.caption || '').join('')}月日0123456789`);
     });
 
     root.querySelector('.anv-env').onclick = (e) => { e.stopPropagation(); _anvStart(); };
@@ -3744,7 +3902,18 @@ const App = (() => {
       plan.push({ id: 'things', d: 7 });
     }
 
-    if (d.quote) {
+    if (d.whisper) {
+      // One sentence at a time, sized so 200 characters still fit a phone,
+      // and held long enough to actually be read.
+      const len = [...d.whisper].length;
+      const fs = len <= 24 ? 28 : len <= 60 ? 23 : len <= 110 ? 20 : 17;
+      const lines = d.whisper.match(/[^。！？!?\n]+[。！？!?]*/g) || [d.whisper];
+      add('letter', `
+        <div class="anv-hint anv-fu">${esc(st.other)} 想对你说</div>
+        <div class="anv-whisper anv-hand" style="font-size:${fs}px">${lines.map((l, i) =>
+          `<span class="anv-fu" style="animation-delay:${(0.6 + i * 0.9).toFixed(1)}s">${esc(l.trim())}</span>`).join('')}</div>`);
+      plan.push({ id: 'letter', d: Math.min(18, Math.max(7, 2 + lines.length * 0.9 + len * 0.08)) });
+    } else if (d.quote) {
       add('letter', `
         <div class="anv-hint anv-fu">${esc(st.other)} 写给你的第一封信里说</div>
         <div class="anv-quote anv-hand anv-fu anv-d1">「${esc(d.quote)}」</div>`);
@@ -6350,7 +6519,7 @@ const App = (() => {
 
   return {
     connect, register, switchTab, onRegCharChange, demoMode,
-    playAnniversary: () => openAnniversary(null, false), closeAnniversary,
+    playAnniversary: () => openAnniversary(null, false), closeAnniversary, openWhisper,
     toggleMode, selectChar,
     quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
@@ -6403,8 +6572,11 @@ const App = (() => {
       try { return annivOccasion(d); } finally { S.startDate = keep; } },
     _annivQuoteTest: (t) => _anvQuote(t),
     _annivMaybeTest: () => maybeShowAnniversary(),
+    _annivNoteTest: (k) => Data.getAnnivNote(k),
+    _annivNextTest: (d) => { const o = nextAnnivOccasion(d); return o && { key: o.key, label: o.label, inDays: o.inDays }; },
     _annivStateTest: () => _anv && { t: _anv.t, total: _anv.total, built: !!_anv.built, playing: _anv.playing,
-      scene: _anv.cur && _anv.cur.id, plan: _anv.plan.map(p => p.id), data: _anv.data },
+      scene: _anv.cur && _anv.cur.id, plan: _anv.plan.map(p => p.id), data: _anv.data,
+      letterSecs: (_anv.plan.find(p => p.id === 'letter') || {}).d },
     _bootTest: () => boot(),
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
@@ -6501,6 +6673,9 @@ const Music = (() => {
     // nye: 'countdown.mp3', cny: 'cny.mp3', vday: 'vday.mp3', ...
   };
   const DEFAULT_SRC = 'Right Here Waiting (Piano Version).mp3';
+  // The anniversary film's own song. Until this file is in the repo root the
+  // error handler below falls straight back to DEFAULT_SRC — never silence.
+  const FILM_SRC = 'A Thousand Years (Piano).mp3';
 
   let audio        = null;
   let playing      = false;
@@ -6595,15 +6770,27 @@ const Music = (() => {
     if (playing) _fadeToSrc(src); else audio.src = src;
   }
 
-  // The anniversary film plays the default piano track from the top, then
+  // The anniversary film plays its own song from the top, then
   // leaves the player as it found it. It never touches the saved music_on
   // preference: watching a film is not a vote to have music on every day.
   let _filmWasPlaying = false;
+  let _filmSrcOk = null;              // null = not checked yet
+  // Asked while the envelope is showing. Phones only allow sound inside the
+  // tap itself, and a missing file only reports its error AFTER play() — by
+  // then the tap is spent and the fallback would be silent. So decide the
+  // song before the tap, not after it.
+  function prepareFilm() {
+    if (_filmSrcOk !== null) return;
+    fetch(encodeURI(FILM_SRC), { method: 'HEAD', cache: 'no-store' })
+      .then(r => { _filmSrcOk = r.ok && /audio|mpeg|octet/.test(r.headers.get('content-type') || 'audio'); })
+      .catch(() => { _filmSrcOk = false; });
+  }
   function startFilm() {
     if (!audio) return;
     _filmWasPlaying = playing;
-    if (currentTrack !== 'default') { currentTrack = 'default'; audio.src = DEFAULT_SRC; }
-    try { audio.currentTime = 0; } catch (e) {}
+    const own = _filmSrcOk === true;
+    currentTrack = own ? 'film' : 'default';   // 'film' ≠ default, so a late error still falls back
+    audio.src = own ? FILM_SRC : DEFAULT_SRC;
     audio.volume = Math.max(baseVolume, 0.5);
     audio.play().then(() => { playing = true; _updateBtn(); }).catch(() => {});
   }
@@ -6615,7 +6802,7 @@ const Music = (() => {
   }
 
   return {
-    startFilm, endFilm,
+    startFilm, endFilm, prepareFilm,
     toggle() { playing ? _pause() : _play(); },
     setVolume(v) { baseVolume = v / 100; if (audio) audio.volume = baseVolume; },
     syncFestivalTrack,

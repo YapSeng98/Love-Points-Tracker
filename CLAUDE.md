@@ -16,8 +16,8 @@ edit them, and don't take their field names as current.
 
 ```
 app.js ── HTTPS ──► yvllstktmjoedfsgojgs.supabase.co
-                     ├── /functions/v1/*   27 Edge Functions (supabase/functions/)
-                     ├── Postgres          12 tables, RLS on all of them
+                     ├── /functions/v1/*   28 Edge Functions (supabase/functions/)
+                     ├── Postgres          13 tables, RLS on all of them
                      ├── Auth              hashed passwords, JWT + refresh
                      └── Storage           "photos" bucket, private
 ```
@@ -117,6 +117,8 @@ Supabase runs in UTC, which is the same hazard wearing a different hat: an
 entry logged at 01:00 in Singapore is still "yesterday" to the server. The
 rule did not change with the backend and must not be relaxed because the
 new one "looks" more correct.
+
+(The one deliberate exception is the sealed 周年悄悄话 — §7.258.)
 
 **Rule:** the app sends its own local `date`/`month` in the request body;
 the function only falls back to the server clock when the client omits it.
@@ -799,9 +801,36 @@ Found while building it: `_lastDay` was latched on the first clock tick, so
 an app opened at 23:59:30 latched the *new* day at 00:00:30 and never saw
 midnight — no day count, no new stock, no envelope. `boot()` now sets it.
 
-`tools/anniversary-test.js` (66 checks, faked clock, demo data) covers the
-dates, both phones, snooze, midnight, missing photos/pet, expired photos and
-wide screens. **Run it before every 12-24.**
+`tools/anniversary-test.js` (faked clock, demo data) covers the dates, both
+phones, snooze, midnight, missing photos/pet, expired photos, wide screens,
+the 悄悄话 card and sheet, and the song choice. **Run it before every 12-24.**
+
+**The song is decided BEFORE the tap.** Phones only allow sound inside the
+tap itself, and a missing mp3 only reports its error after `play()` — by
+then the tap is spent and the fallback is silent. `Music.prepareFilm()` HEADs
+the film's song while the envelope is showing; the tap then plays whichever
+exists (`A Thousand Years (Piano).mp3`, else the default).
+
+## 7.258 💌 周年悄悄话: the one date the SERVER decides
+
+Each partner can seal a line (≤200 chars) for the next anniversary from
+「我们的时光」; on the day it replaces the letter quote in the *other*
+partner's film. Table `anniv_notes`, function `anniv-note`.
+
+- **This is the exception to §2.** Everywhere else the client date wins; here
+  the client date is exactly what a curious partner would change. The note
+  opens at 00:00 on its day **in the writer's time zone** (`tz_min`, stored
+  when sealed). Not "the earliest zone on Earth" — that would open a
+  Singapore couple's note at 18:00 the evening before.
+- **RLS on, no policies at all.** A direct `SELECT` with a session token
+  would hand the partner the note early, so only the function can read it.
+- The GET never says whether the partner *has* written one — `sealed` is
+  about your own.
+- Once your note has opened it is delivered: a PUT answers **409**, like a
+  posted letter. A note can't be written for a day that has already begun.
+- It is in `tools/backup.js`'s table list. `supabase/test-anniv.mjs` attacks
+  it live: early read, spoofed date, partner overwrite, third couple, direct
+  Postgres read/write, rewrite after delivery.
 
 ---
 
@@ -966,6 +995,8 @@ whoever was already signed in keeps using a half-updated build).
 | Suite | Covers |
 |---|---|
 | `node supabase/test-full.mjs` | 91 live checks against the real backend: auth + pairing, scoring, settle, shop, buy, bag, claims, decor, letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
+| `node supabase/test-anniv.mjs` | 周年悄悄话: sealing, the server-side date lock, and every way round it |
+| `node tools/anniversary-test.js` | 周年小电影 + 悄悄话 UI in a browser, faked clock (serve the repo on :8765 first) |
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
 | Browser tests (scratchpad) | Pet invariants, settle UI, layout sweep, art sheet |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |

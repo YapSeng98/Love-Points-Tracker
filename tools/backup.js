@@ -42,7 +42,7 @@ const BUCKET      = 'photos';
 // if a table is ever added to the schema, add it here too.
 const TABLES = [
   'matches', 'profiles', 'config', 'categories', 'rewards', 'punishments',
-  'shop', 'monthly', 'entries', 'letters', 'photos', 'bag',
+  'shop', 'monthly', 'entries', 'letters', 'photos', 'bag', 'anniv_notes',
 ];
 
 function serviceKey() {

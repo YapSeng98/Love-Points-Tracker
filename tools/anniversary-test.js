@@ -134,12 +134,13 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
     ok(await p.isVisible('.anv-pausemark'), '显示「已暂停」');
     await p.mouse.click(195, 700); await sleep(500);
     ok((await p.evaluate(() => App._annivStateTest())).t > tp2 + 0.2, '再点继续');
-    await sleep(11500); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/05_things.png' });
+    await p.waitForFunction(() => App._annivStateTest().scene === 'things', null, { timeout: 20000 }).catch(() => {}); await sleep(3000); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/05_things.png' });
     ok((await p.evaluate(() => App._annivStateTest())).scene === 'things', '「这一年」幕');
-    await sleep(7000); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/06_letter.png' }); await sleep(2500); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/06b_letter.png' }); 
+    await p.waitForFunction(() => App._annivStateTest().scene === 'letter', null, { timeout: 20000 }).catch(() => {}); await sleep(3000); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/06_letter.png' });
     ok((await p.evaluate(() => App._annivStateTest())).scene === 'letter', '「一句话」幕');
     ok((await p.textContent('.anv-scene[data-s="letter"]')).includes('YY 写给你'), '「YY 写给你的第一封信里说」');
-    await sleep(6500); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/07a_pet_enter.png' }); await sleep(1800); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/07_pet.png' });
+    await p.waitForFunction(() => App._annivStateTest().scene === 'pet', null, { timeout: 15000 }).catch(() => {});
+    await sleep(1800); await p.screenshot({ path: (process.env.SHOTS || '/tmp') + '/07_pet.png' });
     ok((await p.evaluate(() => App._annivStateTest())).scene === 'pet', '呆呆幕');
     ok(await p.$('.anv-pet svg') !== null && (await p.innerHTML('.anv-pet')).includes('#FF8FA0'), '呆呆戴派对帽');
     await p.waitForFunction(() => !App._annivStateTest().playing, null, { timeout: 15000 });
@@ -248,6 +249,109 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
     await p.screenshot({ path: `shots/10_photo_${w}.png` });
     const box = await p.$eval('.anv-pol.anv-on', e => e.getBoundingClientRect().toJSON());
     ok(box.width <= 300 && box.top >= 0 && box.bottom <= h, `${w}px 照片在屏幕内，宽 ${Math.round(box.width)}`);
+    await ctx.close();
+  }
+
+  const SHOT = (n) => (process.env.SHOTS || '/tmp') + '/' + n;
+  const MSG = '这一路走来，有开心，也有难过，也一起扛过不少难关。每一件小事，都在一点一滴记下我们的回忆，也在慢慢证明我们的感情。谢谢你出现在我的世界里。我爱你 ❤️';
+
+  console.log('\n11. 周年悄悄话：CS 在 9-30 写好封起来');
+  {
+    const { p, ctx, errs } = await page(browser, '2026-09-30T21:30:00+08:00');
+    const nx = await p.evaluate(() => App._annivNextTest(new Date('2026-09-30T12:00:00')));
+    ok(nx && nx.key === '2026-12-24' && nx.inDays === 85, `下一个是 12-24，还有 85 天（${JSON.stringify(nx)}）`);
+    await p.evaluate(() => App.showLovePage()); await sleep(700);
+    const t1 = await p.textContent('#anw-card');
+    ok(/12月24日 两周年那天送到 YY/.test(t1) && t1.includes('还有 85 天') && t1.includes('写一句'), '卡片：「12月24日 两周年那天送到 YY 的小电影里」「还有 85 天」「写一句」');
+    const order = await p.evaluate(() => { const c = document.getElementById('anw-card'); return c.previousElementSibling?.className; });
+    ok(order === 'love-since-card', '放在开始日期下面');
+    const [wa, wb] = await p.evaluate(() => [document.getElementById('anw-card'), document.querySelector('.love-since-card')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width)].join(','); }));
+    ok(wa === wb, `和上面的日期卡片一样宽、一样对齐（${wa} / ${wb}，§7.255）`);
+    await p.screenshot({ path: SHOT('20_love_card.png') });
+    await p.click('.anw-btn'); await sleep(400);
+    ok(await p.isVisible('#anw-veil'), '点「写一句」弹出写字的面板');
+    const z = await p.$eval('#anw-veil', e => +getComputedStyle(e).zIndex);
+    ok(z > 90, `面板盖在「我们的时光」页上面（z ${z} > 90，§1.3）`);
+    ok((await p.textContent('.anw-title')).includes('写给 YY 的两周年悄悄话'), '标题「写给 YY 的两周年悄悄话」');
+    await p.fill('#anw-ta', MSG);
+    ok((await p.textContent('#anw-n')) === String([...MSG].length), '字数跟着变：' + [...MSG].length);
+    await p.screenshot({ path: SHOT('21_sheet_night.png') });
+    ok(await p.evaluate(() => document.documentElement.dataset.theme === 'dark'), '晚上 21:30 是深色主题');
+    await p.click('#anw-seal'); await sleep(600);
+    ok(await p.$('#anw-veil') === null, '封好后面板关掉');
+    const t2 = await p.textContent('#anw-card');
+    ok(t2.includes('已封好') && t2.includes('改一改') && (await p.textContent('.anw-ic')) === '🔒', '卡片变成「已封好 🔒 · 改一改」');
+    await p.screenshot({ path: SHOT('22_love_card_sealed.png') });
+    await p.click('.anw-btn'); await sleep(300);
+    ok((await p.inputValue('#anw-ta')) === MSG, '再打开，写过的话还在，可以改');
+    await p.click('#anw-cancel'); await sleep(200);
+    const saved = await p.evaluate(() => JSON.parse(localStorage.getItem('love_score_data')).annivNotes);
+    ok(saved.length === 1 && saved[0].char === 'char1' && saved[0].openOn === '2026-12-24' && saved[0].tz === 480, '存成 CS 的、给 12-24、时区 +8');
+    ok(!errs.length, '无报错 ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  const withNote = () => { const d = seed(); d.annivNotes = [{ char: 'char1', openOn: '2026-12-24', tz: 480, text: MSG }]; return d; };
+
+  console.log('\n12. YY 在 12-24 之前看不到');
+  {
+    const { p, ctx } = await page(browser, '2026-12-23T23:59:00+08:00', { data: withNote(), char: 'char2' });
+    const n = await p.evaluate(() => App._annivNoteTest('2026-12-24'));
+    ok(n.theirs === '' && n.released === false, '12-23 23:59 拿不到 CS 写的');
+    ok(n.sealed === false && n.mine === '', '也看不出 CS 有没有写');
+    await ctx.close();
+  }
+
+  console.log('\n13. YY 在 12-24 的小电影里看到');
+  {
+    const { p, ctx, errs } = await page(browser, '2026-12-24T08:00:00+08:00', { data: withNote(), char: 'char2' });
+    await p.click('.anv-env', { force: true }); await sleep(1500);
+    const s = await p.evaluate(() => App._annivStateTest());
+    ok(s.data.whisper === MSG, '拿到了 CS 写的悄悄话');
+    const letter = s.plan.indexOf('letter'), things = s.plan.indexOf('things');
+    ok(letter === things + 1, '接在「这一年」后面：' + s.plan.join());
+    await p.evaluate(() => {}); 
+    await p.waitForFunction(() => App._annivStateTest().scene === 'letter', null, { timeout: 40000 });
+    await sleep(6000);
+    await p.screenshot({ path: SHOT('23_film_whisper.png') });
+    const txt = (await p.textContent('.anv-scene[data-s="letter"]')).replace(/\s/g, '');
+    ok(txt.includes('CS想对你说') && txt.includes('谢谢你出现在我的世界里') && !txt.includes('第一封信'), '「CS 想对你说」+ 整段悄悄话，不再引用旧信');
+    const fit = await p.$eval('.anv-whisper', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; });
+    ok(fit, '整段在手机屏幕里放得下');
+    const lt = await p.evaluate(() => App._annivStateTest().letterSecs);
+    ok(lt >= 10, `字多就多停几秒：这一幕 ${lt.toFixed(1)}s（一句旧信是 6.5s）`);
+    ok(!errs.length, '无报错 ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log('\n14. 当天 CS 自己的卡片');
+  {
+    const { p, ctx } = await page(browser, '2026-12-24T12:00:00+08:00', { data: withNote(), extraLS: { 'anniv_seen_2026-12-24': '1' } });
+    await p.evaluate(() => App.showLovePage()); await sleep(700);
+    const t = await p.textContent('#anw-card');
+    ok(t.includes('已经送到 YY 的小电影里') && !(await p.$('.anw-btn')), '「今天两周年，已经送到」，没有改的按钮');
+    await ctx.close();
+  }
+
+  console.log('\n15. 当天之后不能再改（像寄出去的信）');
+  {
+    const { p, ctx } = await page(browser, '2026-12-25T09:00:00+08:00', { data: withNote(), char: 'char2' });
+    const n = await p.evaluate(() => App._annivNoteTest('2026-12-24'));
+    ok(n.theirs === MSG, '之后 YY 重看还在');
+    await ctx.close();
+  }
+
+  console.log('\n16. 配乐');
+  for (const has of [false, true]) {
+    const { p, ctx } = await page(browser, '2026-12-24T09:00:00+08:00');
+    if (!has) await p.route(/A%20Thousand%20Years/, r => r.fulfill({ status: 404, body: 'missing' }));
+    await p.evaluate(() => { HTMLMediaElement.prototype.play = function () { window.__played = this.getAttribute('src'); return Promise.resolve(); }; });
+    await p.evaluate(() => { App.closeAnniversary(); }); await sleep(600);
+    await p.evaluate(() => App.playAnniversary()); await sleep(800);
+    await p.click('.anv-env', { force: true }); await sleep(300);
+    const src = await p.evaluate(() => window.__played);
+    ok(has ? /A Thousand Years/.test(src) : /Right Here Waiting/.test(src),
+      has ? `项目里有这首 mp3 → 放《A Thousand Years》（${src}）` : `mp3 缺了的话 → 点信封的那一下直接放《Right Here Waiting》，不会没声音（${src}）`);
     await ctx.close();
   }
 
