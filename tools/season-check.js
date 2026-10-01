@@ -95,6 +95,39 @@ for (const [season, n] of Object.entries(counts)) {
   (n < MIN_PER_SEASON ? thin : notes).push(`${season}: ${n} piece${n === 1 ? '' : 's'}`);
 }
 
+// ── 3. stretches with NOTHING limited in the shop ──
+// 中秋 left the shop on 10-05 and 圣诞 arrived 12-05; for two months there
+// was nothing new to buy and no check noticed, because every season that did
+// exist was fully stocked. Walk the next year a day at a time and report any
+// long stretch with no limited piece on sale (a backlog, never a failure).
+const GAP_DAYS = 30;
+{
+  const pieces = [];
+  const decor = /const DECOR = \{([\s\S]*?)\n  \};/.exec(src);
+  for (const m of decor ? decor[1].matchAll(/(\w+):\s*\{([^}]*?)\}/g) : []) {
+    const b = m[2], g = (k) => (new RegExp(k + ":\\s*'([^']*)'").exec(b) || [, ''])[1];
+    if (g('season') && g('from') && g('to')) pieces.push({ from: g('from'), to: g('to'), year: +((/year:\s*(\d{4})/.exec(b) || [, 0])[1]) });
+  }
+  const md = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const onSale = (d) => pieces.some(p => {
+    if (p.year && p.year !== d.getFullYear() && !(p.from > p.to && p.year === d.getFullYear() - 1 && md(d) <= p.to)) return false;
+    const x = md(d);
+    return p.from <= p.to ? (x >= p.from && x <= p.to) : (x >= p.from || x <= p.to);
+  });
+  const t0 = new Date(); t0.setHours(12, 0, 0, 0);
+  let run = null;
+  const gaps = [];
+  for (let i = 0; i <= 366; i++) {
+    const d = new Date(t0.getTime() + i * 86400000);
+    if (!onSale(d)) { if (!run) run = { from: d, n: 0 }; run.n++; run.to = d; }
+    else if (run) { gaps.push(run); run = null; }
+  }
+  if (run) gaps.push(run);
+  for (const g of gaps) {
+    (g.n >= GAP_DAYS ? thin : notes).push(`shop has no limited stock ${md(g.from)} → ${md(g.to)} (${g.n} days)`);
+  }
+}
+
 const out = [];
 out.push(`### 恋爱小窝 季节检查 — ${new Date().toISOString().slice(0, 10)}`, '');
 if (broken.length) {
@@ -103,7 +136,7 @@ if (broken.length) {
 if (thin.length) {
   out.push('**🎨 内容偏少 / Could use more furniture:**',
            ...thin.map(p => `- ${p}`),
-           '', '_这些节日只有一件家具，到了当天房间会显得空。_', '');
+           '', '_家具太少的节日到了当天房间会显得空；长时间没有限定家具，商店就一直是老样子。_', '');
 }
 out.push('<details><summary>全部状态</summary>', '', ...notes.map(n => `- ✅ ${n}`), '</details>');
 const report = out.join('\n');

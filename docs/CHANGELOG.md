@@ -12,6 +12,25 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-02 — 秋 and 万圣节
+
+The shop had nothing new between 中秋 closing (10-05) and 圣诞 opening
+(12-05). Now:
+
+- **秋** (10-06 → 11-30): 柿柿如意篮, 枫叶挂画, 毛线篮.
+- **万圣节** (10-12 → 11-02): 南瓜灯, 小幽灵, 蝙蝠彩旗, 魔法小锅, the
+  **2026 南瓜小屋** (this year only), and a 小巫师帽 for the pet.
+- **万圣节 week** (10-26 → 11-01): purple room, an orange moon with a bat in
+  the window, candy drifting down, the pet in a witch hat unless you've
+  dressed it yourself, a pumpkin garland across the home sky — and, from dusk,
+  two bats flying across it.
+
+Also: the "new stock" card names the newest drop rather than the first one
+in the catalog; the pet page header no longer wraps on phones during
+three-character festivals; the season planner reports real windows; and the
+season check now flags long stretches with nothing limited in the shop
+(next: summer).
+
 ## 2026-10-02 — 月末结算 counts what you saw, and only that
 
 **Reported:** entries dated 9/30 but logged on 10/1 were left out of

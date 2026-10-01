@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.02-52';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.02-53';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -486,7 +486,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.09.11a';
+  const HTML_V = '2026.10.02a';
 
   (function ensureFreshHtml() {
     try {
@@ -4294,6 +4294,14 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
                  <circle cx="60" cy="${headTop-28}" r="4.5" fill="#FFD24A"/>`,
       redScarf: `<path d="M ${60-16} ${headY+headR*0.74} q 16 11 32 0 l 4 9 q -20 12 -40 0 z" fill="#E8556B"/>
                  <path d="M ${60+11} ${headY+headR*0.82+6} l 10 15 l -9 3 l -6 -14 z" fill="#E8556B"/>`,
+      // 万圣节: a soft purple hat whose tip flops over — a stiff cone read as
+      // a dunce cap. Brim drawn last so it sits ON the head, not behind it.
+      witchHat: `<path d="M ${60-12} ${headTop+3} Q ${60-7} ${headTop-13} ${60+1} ${headTop-22}
+                       Q ${60+7} ${headTop-29} ${60+15} ${headTop-24} Q ${60+8} ${headTop-21} ${60+6} ${headTop-13}
+                       L ${60+12} ${headTop+3} Z" fill="#7B5DB4" stroke="#4A3478" stroke-width="1.5" stroke-linejoin="round"/>
+                 <path d="M ${60-11} ${headTop-1} Q 60 ${headTop+2.5} ${60+11} ${headTop-1}" stroke="#F5A23C" stroke-width="3.4" fill="none"/>
+                 <path d="M ${60-2} ${headTop-12} l 1.4 2.8 3 .4 -2.2 2.1 .5 3 -2.7-1.4 -2.7 1.4 .5-3 -2.2-2.1 3-.4z" fill="#FFD24A"/>
+                 <ellipse cx="60" cy="${headTop+4}" rx="21" ry="4.6" fill="#6B4FA0" stroke="#4A3478" stroke-width="1.5"/>`,
     }[draw] || '';
   }
 
@@ -4429,6 +4437,15 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   const _ds = (inner) => `<svg class="decor-svg" viewBox="0 0 100 100">${inner}</svg>`;
   const _hi = (x, y, rx, ry) =>
     `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff" opacity="0.28"/>`;
+  // A small bat, drawn once and reused (garland, keepsake). Wings spread,
+  // scalloped trailing edge, two amber eyes so it reads cute, not creepy.
+  // Dusky purple rather than black: a near-black bat vanished on the night
+  // room (checked on the art sheet), and this one reads on both themes.
+  const _bat = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})">
+    <path d="M0 -1C-3 -6 -9 -8 -15 -5C-13 -2 -12.5 1 -11 3.5C-9 2 -7 2 -6 4.5C-4.5 2.5 -2 2.5 0 4.5C2 2.5 4.5 2.5 6 4.5C7 2 9 2 11 3.5C12.5 1 13 -2 15 -5C9 -8 3 -6 0 -1Z" fill="#6A5A86" stroke="#382C4C" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M-2.8 -2.2L-2.3 -6.4L-0.5 -3.3ZM2.8 -2.2L2.3 -6.4L0.5 -3.3Z" fill="#6A5A86" stroke="#382C4C" stroke-width="1" stroke-linejoin="round"/>
+    <ellipse cx="0" cy="0.6" rx="3.4" ry="4.4" fill="#7A6A96" stroke="#382C4C" stroke-width="1.2"/>
+    <circle cx="-1.3" cy="-0.3" r="0.85" fill="#FFD24A"/><circle cx="1.3" cy="-0.3" r="0.85" fill="#FFD24A"/></g>`;
 
   const DECOR = {
     // ── floor furniture ──
@@ -4552,6 +4569,39 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     butterfly_chime:{ k:'a9', name:'蝴蝶风铃', art:'🦋', slot:'wall', ratio:0.42, price:50,
                    from:'03-01', to:'04-30', season:'春',
                    svg:_ds(`<path d="M18 16h64" stroke="#8A6137" stroke-width="3.2" stroke-linecap="round"/> <line x1="32" y1="32" x2="32" y2="48" stroke="#6B4A2A" stroke-width="1.6" stroke-linecap="round"/> <ellipse cx="26" cy="36" rx="6" ry="7" transform="rotate(-25 26 36)" fill="#F5A9C4" stroke="#C4738F" stroke-width="1.4"/> <ellipse cx="28" cy="45" rx="4" ry="4.5" transform="rotate(-15 28 45)" fill="#F5A9C4" stroke="#C4738F" stroke-width="1.3"/> <ellipse cx="38" cy="36" rx="6" ry="7" transform="rotate(25 38 36)" fill="#F5A9C4" stroke="#C4738F" stroke-width="1.4"/> <ellipse cx="36" cy="45" rx="4" ry="4.5" transform="rotate(15 36 45)" fill="#F5A9C4" stroke="#C4738F" stroke-width="1.3"/> <path d="M30 32q-2-3-4-3M34 32q2-3 4-3" stroke="#6B4A2A" stroke-width="1.1" fill="none" stroke-linecap="round"/> <line x1="50" y1="26.6" x2="50" y2="39.4" stroke="#6B4A2A" stroke-width="1.3" stroke-linecap="round"/> <ellipse cx="45.2" cy="29.8" rx="4.8" ry="5.8" transform="rotate(-25 45.2 29.8)" fill="#F2D68A" stroke="#B08D2C" stroke-width="1.4"/> <ellipse cx="46.8" cy="37" rx="3.2" ry="3.7" transform="rotate(-15 46.8 37)" fill="#F2D68A" stroke="#B08D2C" stroke-width="1.3"/> <ellipse cx="54.8" cy="29.8" rx="4.8" ry="5.8" transform="rotate(25 54.8 29.8)" fill="#F2D68A" stroke="#B08D2C" stroke-width="1.4"/> <ellipse cx="53.2" cy="37" rx="3.2" ry="3.7" transform="rotate(15 53.2 37)" fill="#F2D68A" stroke="#B08D2C" stroke-width="1.3"/> <path d="M48 26.6q-2-3-4-3M52 26.6q2-3 4-3" stroke="#6B4A2A" stroke-width="1.1" fill="none" stroke-linecap="round"/> <line x1="68" y1="37.2" x2="68" y2="54.8" stroke="#6B4A2A" stroke-width="1.8" stroke-linecap="round"/> <ellipse cx="61.4" cy="41.6" rx="6.6" ry="7.6" transform="rotate(-25 61.4 41.6)" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="1.4"/> <ellipse cx="63.6" cy="51.5" rx="4.4" ry="4.9" transform="rotate(-15 63.6 51.5)" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="1.3"/> <ellipse cx="74.6" cy="41.6" rx="6.6" ry="7.6" transform="rotate(25 74.6 41.6)" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="1.4"/> <ellipse cx="72.4" cy="51.5" rx="4.4" ry="4.9" transform="rotate(15 72.4 51.5)" fill="#9AC6E8" stroke="#4B7EA8" stroke-width="1.3"/> <path d="M66 37.2q-2-3-4-3M70 37.2q2-3 4-3" stroke="#6B4A2A" stroke-width="1.1" fill="none" stroke-linecap="round"/>${_hi(45,30,10,6)}`) },
+    // ── 秋 · 万圣节 (added 2026-10) ──
+    // The shop had nothing new between 中秋 closing (10-05) and 圣诞 opening
+    // (12-05) — two months of the same stock. 秋 opens the day 中秋 closes;
+    // 万圣节 a week later, so October gets two "new drop" moments, and both
+    // are named after their own season on the home card (§7.16).
+    persimmon_basket:{ k:'ba', name:'柿柿如意篮', art:'🧺', slot:'floor', ratio:0.42, price:45,
+                   from:'10-06', to:'11-30', season:'秋',
+                   svg:_ds(`<path d="M24 58Q50 6 76 58" fill="none" stroke="#9A6A3A" stroke-width="4" stroke-linecap="round"/> <ellipse cx="36" cy="48" rx="13" ry="10.5" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.4"/> <ellipse cx="64" cy="48" rx="13" ry="10.5" fill="#F09535" stroke="#B85E17" stroke-width="2.4"/> <path d="M36 38.5l-4-3.5 4 1 1-3.5 1.5 3.5 4-1-3.5 3.5z M64 38.5l-4-3.5 4 1 1-3.5 1.5 3.5 4-1-3.5 3.5z" fill="#6E9B45" stroke="#4C7230" stroke-width="1.2" stroke-linejoin="round"/> <ellipse cx="50" cy="53" rx="15" ry="12" fill="#F49A3A" stroke="#B85E17" stroke-width="2.6"/> <path d="M50 42l-5-4.5 5 1.4 1.4-4.4 1.8 4.4 5-1.4-4.5 4.5z" fill="#79A84E" stroke="#4C7230" stroke-width="1.3" stroke-linejoin="round"/> <path d="M18 60h64l-6 24a6 6 0 0 1-6 5H30a6 6 0 0 1-6-5z" fill="#D9A066" stroke="#9A6A3A" stroke-width="2.6" stroke-linejoin="round"/> <path d="M22 70h56M24 79h52" stroke="#B8834C" stroke-width="2" opacity="0.8"/> <path d="M34 61v26M50 61v27M66 61v26" stroke="#B8834C" stroke-width="2" opacity="0.6"/> <rect x="14" y="55" width="72" height="9" rx="4.5" fill="#E6B37A" stroke="#9A6A3A" stroke-width="2.4"/>${_hi(44,49,5,3)}`) },
+    maple_frame: { k:'bb', name:'枫叶挂画', art:'🍁', slot:'wall', ratio:0.44, price:50,
+                   from:'10-06', to:'11-30', season:'秋',
+                   svg:_ds(`<rect x="16" y="16" width="68" height="68" rx="6" fill="#B9824F" stroke="#7E5530" stroke-width="3"/> <rect x="23" y="23" width="54" height="54" rx="3" fill="#FBF3E4"/> <path d="M48 52v17" stroke="#A83A22" stroke-width="2.4" stroke-linecap="round"/> <path d="M48.0 23.0L50.6 30.4L52.5 28.8L52.9 38.8L60.8 35.5L60.3 37.7L67.5 36.6L62.6 42.0L64.7 42.8L55.2 47.3L58.3 50.4L57.0 50.8L59.8 54.4L55.4 53.4L55.5 54.8L48.0 53.2L40.5 54.8L40.6 53.4L36.2 54.4L39.0 50.8L37.7 50.4L40.8 47.3L31.3 42.8L33.4 42.0L28.5 36.6L35.7 37.7L35.2 35.5L43.1 38.8L43.5 28.8L45.4 30.4Z" fill="#E0583A" stroke="#A83A22" stroke-width="2" stroke-linejoin="round"/> <path d="M48 52V28M48 46L64 38M48 46L32 38M48 50L58 54M48 50L38 54" stroke="#B5432A" stroke-width="1.2" opacity="0.55"/> <g transform="translate(66 64) rotate(28)"><path d="M0.0 -12.0L1.3 -8.3L2.3 -9.1L2.5 -4.1L6.4 -5.8L6.2 -4.7L9.7 -5.2L7.3 -2.5L8.4 -2.1L3.6 0.1L5.2 1.7L4.5 1.9L5.9 3.7L3.7 3.2L3.8 3.9L0.0 3.1L-3.8 3.9L-3.7 3.2L-5.9 3.7L-4.5 1.9L-5.2 1.7L-3.6 0.1L-8.4 -2.1L-7.3 -2.5L-9.7 -5.2L-6.2 -4.7L-6.4 -5.8L-2.5 -4.1L-2.3 -9.1L-1.3 -8.3Z" fill="#F2A03D" stroke="#B9701E" stroke-width="1.4" stroke-linejoin="round"/></g>${_hi(40,36,5,3)}`) },
+    knit_basket: { k:'bc', name:'毛线篮',   art:'🧶', slot:'floor', ratio:0.38, price:40,
+                   from:'10-06', to:'11-30', season:'秋',
+                   svg:_ds(`<path d="M30 60L20 24M44 58L58 22" stroke="#8A7B6B" stroke-width="2.6" stroke-linecap="round"/> <circle cx="20" cy="23" r="3" fill="#E8758A" stroke="#B44A62" stroke-width="1.4"/><circle cx="58.5" cy="21" r="3" fill="#F2C14E" stroke="#BE9022" stroke-width="1.4"/> <circle cx="38" cy="50" r="15" fill="#E8758A" stroke="#B44A62" stroke-width="2.4"/> <path d="M26 44q12 6 24 0M24 52q14 8 28 0M30 39q8 14 4 25" fill="none" stroke="#C85A72" stroke-width="1.6" opacity="0.8"/> <circle cx="63" cy="53" r="12" fill="#F2C14E" stroke="#BE9022" stroke-width="2.4"/> <path d="M53 50q10 5 20 0M55 57q8 4 16 0M60 42q-4 10 2 22" fill="none" stroke="#D2A12E" stroke-width="1.5" opacity="0.85"/> <path d="M16 62h68l-5 22a6 6 0 0 1-6 5H27a6 6 0 0 1-6-5z" fill="#C99A6B" stroke="#8A6137" stroke-width="2.6" stroke-linejoin="round"/> <path d="M20 72h60M22 80h56" stroke="#A97B4C" stroke-width="2" opacity="0.8"/> <rect x="13" y="57" width="74" height="9" rx="4.5" fill="#DDB083" stroke="#8A6137" stroke-width="2.4"/> <path d="M70 61q8 8 3 22" fill="none" stroke="#F2C14E" stroke-width="2.4" stroke-linecap="round"/>${_hi(32,44,5,3.5)}`) },
+    jack_lantern:{ k:'bd', name:'南瓜灯',   art:'🎃', slot:'floor', ratio:0.46, price:55,
+                   from:'10-12', to:'11-02', season:'万圣节',
+                   svg:_ds(`<path d="M47 41q0-10 6-15l4 3q-4 4-4 12z" fill="#6E8B3D" stroke="#4C6528" stroke-width="2" stroke-linejoin="round"/> <path d="M57 32q10-7 15 1" fill="none" stroke="#6E8B3D" stroke-width="2.2" stroke-linecap="round"/> <ellipse cx="34" cy="64" rx="18" ry="22" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="66" cy="64" rx="18" ry="22" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="50" cy="63" rx="18" ry="24" fill="#F49A3A" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="50" cy="66" rx="17" ry="12" fill="#FFE9A6" opacity="0.28"/> <path d="M37 59l6-9 6 9zM51 59l6-9 6 9z" fill="#FFD84A" stroke="#B85E17" stroke-width="1.6" stroke-linejoin="round"/> <path d="M47.5 66l2.5-4 2.5 4z" fill="#FFD84A" stroke="#B85E17" stroke-width="1.3" stroke-linejoin="round"/> <path d="M34 70q16 13 32 0l-3.5 4.5-3.5-2.5-3.5 4.5-5.5-3-5.5 3-3.5-4.5-3.5 2.5z" fill="#FFD84A" stroke="#B85E17" stroke-width="1.6" stroke-linejoin="round"/>${_hi(29,54,4,7)}`) },
+    ghost_plush: { k:'be', name:'小幽灵',   art:'👻', slot:'floor', ratio:0.50, price:60,
+                   from:'10-12', to:'11-02', season:'万圣节',
+                   svg:_ds(`<ellipse cx="22" cy="57" rx="7" ry="4.5" transform="rotate(-35 22 57)" fill="#FBFAFF" stroke="#ABA3CF" stroke-width="2.4"/> <ellipse cx="78" cy="57" rx="7" ry="4.5" transform="rotate(35 78 57)" fill="#FBFAFF" stroke="#ABA3CF" stroke-width="2.4"/> <path d="M26 56C26 33 36 18 50 18S74 33 74 56V80Q68 74 62 80T50 80T38 80T26 80Z" fill="#FBFAFF" stroke="#ABA3CF" stroke-width="2.6" stroke-linejoin="round"/> <ellipse cx="42" cy="44" rx="3.3" ry="4.2" fill="#3A2A3A"/><ellipse cx="58" cy="44" rx="3.3" ry="4.2" fill="#3A2A3A"/> <circle cx="43.2" cy="42.4" r="1.1" fill="#fff"/><circle cx="59.2" cy="42.4" r="1.1" fill="#fff"/> <ellipse cx="50" cy="54" rx="3.2" ry="3.8" fill="#6B3E52"/> <circle cx="35" cy="51" r="4.2" fill="#F7C9D8" opacity="0.85"/><circle cx="65" cy="51" r="4.2" fill="#F7C9D8" opacity="0.85"/>${_hi(40,29,7,4)}`) },
+    // First drawing was a thin strip with tiny near-black bats — a smudge at
+    // its real 62px. Wider (0.5), a deeper sag, and three big bats.
+    bat_garland: { k:'bf', name:'蝙蝠彩旗', art:'🦇', slot:'wall', ratio:0.50, price:40,
+                   from:'10-12', to:'11-02', season:'万圣节',
+                   svg:_ds(`<path d="M4 22Q50 58 96 22" fill="none" stroke="#6B5A4A" stroke-width="2.6" stroke-linecap="round"/> <path d="M6 23.5L19 30.5 10 45Z" fill="#8A6BC2" stroke="#5E4594" stroke-width="1.8" stroke-linejoin="round"/> <path d="M37 37.5L49 40 43 55Z" fill="#F28C28" stroke="#B85E17" stroke-width="1.8" stroke-linejoin="round"/> <path d="M51 40L63 37.5 57 55Z" fill="#F28C28" stroke="#B85E17" stroke-width="1.8" stroke-linejoin="round"/> <path d="M81 30.5L94 23.5 90 45Z" fill="#8A6BC2" stroke="#5E4594" stroke-width="1.8" stroke-linejoin="round"/> <path d="M26 33v5M74 33v5" stroke="#6B5A4A" stroke-width="1.8"/> ${_bat(26, 46, 1.05)} ${_bat(74, 46, 1.05)} ${_bat(50, 66, 1.25)} <path d="M50 40v19" stroke="#6B5A4A" stroke-width="1.8"/>`) },
+    cauldron:    { k:'bg', name:'魔法小锅', art:'🧪', slot:'floor', ratio:0.48, price:60,
+                   from:'10-12', to:'11-02', season:'万圣节',
+                   svg:_ds(`<path d="M30 80l-5 10M70 80l5 10" stroke="#2C2836" stroke-width="4.5" stroke-linecap="round"/> <circle cx="17" cy="57" r="4.5" fill="none" stroke="#2C2836" stroke-width="2.8"/><circle cx="83" cy="57" r="4.5" fill="none" stroke="#2C2836" stroke-width="2.8"/> <path d="M19 50h62c0 23-12 37-31 37S19 73 19 50z" fill="#4A4458" stroke="#2C2836" stroke-width="2.8" stroke-linejoin="round"/> <ellipse cx="50" cy="50" rx="33" ry="7.5" fill="#5C566C" stroke="#2C2836" stroke-width="2.6"/> <ellipse cx="50" cy="50" rx="27" ry="4.8" fill="#7FD66B"/> <ellipse cx="50" cy="45" rx="22" ry="8" fill="#A6E58F" opacity="0.25"/> <path d="M66 52q2.5 8-0.5 10.5q-3-2-1.5-10.5z" fill="#7FD66B" stroke="#5FA84E" stroke-width="1.2"/> <circle cx="41" cy="39" r="5" fill="#A6E58F" stroke="#5FA84E" stroke-width="1.6"/> <circle cx="56" cy="32" r="4" fill="#A6E58F" stroke="#5FA84E" stroke-width="1.6"/> <circle cx="47" cy="23" r="2.8" fill="#A6E58F" stroke="#5FA84E" stroke-width="1.4"/> <circle cx="60" cy="19" r="2" fill="none" stroke="#5FA84E" stroke-width="1.2"/>${_hi(31,62,4.5,8)}`) },
+    pumpkin_cottage_26:{ k:'bh', name:'2026 南瓜小屋', art:'🏠', slot:'floor', ratio:0.58, price:75,
+                   from:'10-12', to:'11-02', season:'万圣节', year:2026,
+                   svg:_ds(`<ellipse cx="50" cy="89" rx="27" ry="5.5" fill="#C9B79A" stroke="#9C8B72" stroke-width="2.2"/> <ellipse cx="32" cy="62" rx="19" ry="25" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="68" cy="62" rx="19" ry="25" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="50" cy="61" rx="20" ry="27" fill="#F49A3A" stroke="#B85E17" stroke-width="2.6"/> <path d="M48 35q0-9 4-14l3.5 2q-3 4-3 12z" fill="#6E8B3D" stroke="#4C6528" stroke-width="1.8" stroke-linejoin="round"/> <path d="M27 38Q50 20 74 35Q52 44 27 38Z" fill="#7FB863" stroke="#3F7038" stroke-width="2.4" stroke-linejoin="round"/> <path d="M31 37.5Q50 30 70 35" fill="none" stroke="#3F7038" stroke-width="1.4" opacity="0.6"/> <circle cx="32" cy="60" r="6" fill="#FFE08A" stroke="#B85E17" stroke-width="2"/> <path d="M32 54v12M26 60h12" stroke="#B85E17" stroke-width="1.5"/> <circle cx="68" cy="60" r="6" fill="#FFE08A" stroke="#B85E17" stroke-width="2"/> <path d="M68 54v12M62 60h12" stroke="#B85E17" stroke-width="1.5"/> <path d="M42 87V73a8 8 0 0 1 16 0V87Z" fill="#8A5A34" stroke="#5E3A1E" stroke-width="2.2" stroke-linejoin="round"/> <circle cx="54" cy="80" r="1.6" fill="#FFD24A"/>${_bat(74, 24, 0.85)}${_hi(26,52,3.5,7)}`) },
+    hat_witch:   { name:'小巫师帽', slot:'outfit', price:25, draw:'witchHat',
+                   from:'10-12', to:'11-02', season:'万圣节' },
   };
 
   // No placement cap: the couple can put out everything they own.
@@ -4615,6 +4665,15 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       window:'fireworks', effect:'fireworks', particle:'✨', outfit:'hat_party',
       wall:['#232A55','#1C2246'], floorTone:'#333A66',
       speech:['新的一年也请多指教！', '一起倒数好不好 🎆', '今年过得开心吗？'] },
+    // 万圣节 — a week, not a day: the parties happen the weekend before, and
+    // a one-day theme is easy to miss entirely. Nothing else is near it (the
+    // latest 中秋 window in the table ends 10-06). Candy falls rather than
+    // bats: a bat tumbling and spinning down the room reads as a dead bat,
+    // so the bats fly across the home sky instead, and only after dusk.
+    { id:'halloween', name:'万圣节', priority:10, from:'10-26', to:'11-01', emoji:'🎃',
+      window:'spooky', effect:'pumpkins', particle:'🍬', outfit:'hat_witch',
+      wall:['#3B2A4C','#30223F'], floorTone:'#4A3552',
+      speech:['不给糖就捣蛋！🍬', '我是最可爱的小南瓜 🎃', '有小幽灵的话…要抱紧我哦'] },
     // Ambient seasons — subtle, no auto outfit
     { id:'spring', name:'春', priority:1, from:'03-01', to:'05-31', emoji:'🌸',
       window:'day', particle:'🌸', speech:['风好舒服呀～', '想出去走走'] },
@@ -4792,9 +4851,12 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   function salvageEquipped(raw) {
     if (!raw || raw.length < 20) return null;
     const items = [];
-    const re = /"([a-z0-9_]+),([\d.]+),([\d.]+)(?:,([\d.]+))?"/g;
+    // The optional 5th field is the manual layer (§7.245) and can be negative
+    // — a pattern without it silently dropped every piece the couple had
+    // re-stacked, which is exactly the rescue this exists to perform.
+    const re = /"([a-z0-9_]+),([\d.]+),([\d.]+)(?:,([\d.]+)(?:,(-?\d+))?)?"/g;
     let m;
-    while ((m = re.exec(raw))) items.push({ i: _byCode[m[1]] || m[1], x:+m[2], y:+m[3], s:m[4] ? +m[4] : 1 });
+    while ((m = re.exec(raw))) items.push({ i: _byCode[m[1]] || m[1], x:+m[2], y:+m[3], s:m[4] ? +m[4] : 1, z:m[5] ? +m[5] : 0 });
     if (!items.length) return null;
     const g = (k) => (new RegExp(`"${k}":"([^"]*)"`).exec(raw) || ['', ''])[1];
     return { paper: g('p') || g('paper'), mat: g('m') || g('mat'),
@@ -5625,6 +5687,16 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       // One Santa silhouette actually crossing the sky reads as an event;
       // eight static twinkling dots alone did not.
       hero = lights + `<span class="sleigh">🎅🛷</span>`;
+    } else if (active.effect === 'pumpkins') {
+      // A pumpkin garland in daylight (same sagging string as the 中秋
+      // lanterns), and after dusk two bats crossing the sky — bats imply
+      // night, so CSS only shows them in the dusk/night period (§7.23).
+      const sag = [0, 10, 16, 16, 10, 0];
+      hero = Array.from({ length: 6 }, (_, i) =>
+        `<span class="pumpkin-accent" style="--x:${8 + i * 16}%;--y:${8 + sag[i]}px;--fd:${(i * 0.6).toFixed(1)}s">🎃</span>`
+      ).join('') + [0, 1].map(i =>
+        `<span class="night-bat" style="--b:${12 + i * 7}%;--bd:${14 + i * 5}s;--fd:${i * 6}s">🦇</span>`
+      ).join('');
     } else if (active.effect === 'boat') {
       // Three boats at different lanes/speeds/delays read as a race —
       // one lone boat drifting by read as a stray decoration. Lanes are
@@ -5669,8 +5741,8 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     document.getElementById('pet-speech').textContent = petSpeech();
     const th = currentTheme();
     document.getElementById('pet-mood-chip').innerHTML =
-      (th ? `<span class="pet-season-chip">${th.emoji} ${th.name}</span> ` : '') +
-      `${face.emoji} ${face.label} · ${mood}`;
+      (th ? `<span class="pet-season-chip">${th.emoji} ${th.name}</span>` : '') +
+      `<span class="pet-mood-txt">${face.emoji} ${face.label} · ${mood}</span>`;
 
     document.getElementById('pet-exp-bar').innerHTML =
       `<div class="pet-exp-track big"><div class="pet-exp-fill" style="width:${st.pct}%"></div></div>
@@ -5759,6 +5831,15 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   function inSeasonIds() {
     return Object.keys(DECOR).filter(id => DECOR[id].season && decorInSeason(DECOR[id]));
   }
+  // Days since a limited piece's window last opened (0 = it opened today).
+  function _daysSinceOpen(it, d) {
+    if (!it || !it.from) return 9999;
+    const now0 = d || now();
+    const [fm, fd] = it.from.split('-').map(Number);
+    let start = new Date(now0.getFullYear(), fm - 1, fd);
+    if (start > now0) start = new Date(now0.getFullYear() - 1, fm - 1, fd);
+    return Math.floor((now0 - start) / 86400000);
+  }
   // Days until a limited piece leaves the shop (null = not limited).
   function decorDaysLeft(it, d) {
     if (!it || !it.to) return null;
@@ -5780,7 +5861,14 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     // Nothing new to say, or already said it for this exact stock list.
     if (!stock.length || !fresh.length || seen === tag) { card.classList.add('hidden'); return; }
 
-    const it   = DECOR[fresh[0]] || DECOR[stock[0]];
+    // Lead with the NEWEST drop. 秋 opens 10-06 and 万圣节 10-12; if the shop
+    // wasn't opened in between, both are still new on the 12th, and naming
+    // the card after whichever came first in the catalog announced the
+    // Halloween drop as 「秋限定上架」. Count and list only that drop.
+    const since = (id) => _daysSinceOpen(DECOR[id]);
+    const lead  = fresh.slice().sort((a, b) => since(a) - since(b))[0];
+    const drop  = fresh.filter(id => DECOR[id].season === DECOR[lead].season);
+    const it   = DECOR[lead] || DECOR[stock[0]];
     const left = decorDaysLeft(it);
     // Name the card after the FURNITURE's season, not the current theme:
     // 中秋 stock opens 09-05 but the 中秋 theme only starts 09-21, so for two
@@ -5789,14 +5877,15 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     const emoji = (it.season && th && th.name === it.season) ? th.emoji
                 : it.season === '中秋' ? '🥮' : it.season === '圣诞' ? '🎄'
                 : it.season === '新年' ? '🧧' : it.season === '端午' ? '🐲'
-                : it.season === '情人节' ? '💐' : th ? th.emoji : '🎁';
+                : it.season === '情人节' ? '💐' : it.season === '万圣节' ? '🎃'
+                : it.season === '秋' ? '🍂' : th ? th.emoji : '🎁';
     card.classList.remove('hidden');
     card.innerHTML = `
       <span class="sc-emoji">${emoji}</span>
       <div class="sc-body" onclick="App.openDecorFromSeason()">
-        <div class="sc-title">${label ? label + '限定上架' : '新家具上架'} · ${fresh.length} 件</div>
-        <div class="sc-sub">${fresh.slice(0,3).map(i => DECOR[i].name).join('、')}${
-          fresh.length > 3 ? ' 等' : ''}${left != null ? ` · 还有 ${left} 天下架` : ''}</div>
+        <div class="sc-title">${label ? label + '限定上架' : '新家具上架'} · ${drop.length} 件</div>
+        <div class="sc-sub">${drop.slice(0,3).map(i => DECOR[i].name).join('、')}${
+          drop.length > 3 ? ' 等' : ''}${left != null ? ` · 还有 ${left} 天下架` : ''}</div>
       </div>
       <button class="sc-close" onclick="event.stopPropagation();App.dismissSeasonCard()"
               aria-label="知道了">✕</button>`;

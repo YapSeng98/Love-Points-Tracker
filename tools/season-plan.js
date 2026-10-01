@@ -27,35 +27,56 @@ if (decor) {
     if (!season) continue;
     items.push({ id: m[1], name: g('name'), season,
                  from: g('from'), to: g('to'), slot: g('slot'),
+                 year: +((/year:\s*(\d{4})/.exec(body) || [, 0])[1]),
                  price: +((/price:\s*(\d+)/.exec(body) || [, 0])[1]) });
   }
 }
 
 // ── when does each season's shop window next open? ──
+// Per PIECE, then grouped: a season's window is the union of its pieces'
+// (圣诞's fireplace opens 12-05, its tree 12-10 — taking the first piece's
+// dates reported 12-10). A year-locked keepsake only counts toward the
+// occurrence in its own year, or 中秋 2026 looked like 7 pieces when 5 were
+// on sale. A season that is open today says so instead of "338 days".
 const now = new Date();
+const DAY = 86400000;
+const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+function windowOf(it) {           // the window containing today, else the next one
+  const [fm, fd] = it.from.split('-').map(Number), [tm, td] = it.to.split('-').map(Number);
+  for (let y = today.getFullYear() - 1; y <= today.getFullYear() + 3; y++) {
+    const start = new Date(y, fm - 1, fd);
+    let end = new Date(y, tm - 1, td);
+    if (end < start) end = new Date(y + 1, tm - 1, td);        // wraps the new year
+    if (end >= today && (!it.year || it.year === y)) return { start, end };
+  }
+  return null;                    // a keepsake whose year has passed
+}
+const md = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const seasons = {};
 for (const it of items) {
-  const s = (seasons[it.season] ||= { season: it.season, items: [], from: it.from, to: it.to });
-  s.items.push(it);
+  const w = it.from && it.to ? windowOf(it) : null;
+  if (w) (seasons[it.season] ||= { season: it.season, pieces: [] }).pieces.push({ ...it, ...w });
 }
-const daysUntil = (md) => {
-  if (!md) return null;
-  const [m, d] = md.split('-').map(Number);
-  let when = new Date(now.getFullYear(), m - 1, d);
-  if (when < now) when = new Date(now.getFullYear() + 1, m - 1, d);
-  return Math.ceil((when - now) / 86400000);
-};
+const plan = Object.values(seasons).map(s => {
+  const first = Math.min(...s.pieces.map(p => p.start));
+  // pieces of THIS occurrence: opening within ~2 months of the earliest one
+  const cur = s.pieces.filter(p => p.start - first < 60 * DAY);
+  const start = new Date(first), end = new Date(Math.max(...cur.map(p => p.end)));
+  const open = start <= today;
+  return {
+    season: s.season,
+    have: cur.length,
+    open,
+    opensIn: open ? 0 : Math.round((start - today) / DAY),
+    leftDays: Math.round((end - today) / DAY) + 1,
+    window: `${md(start)} → ${md(end)}`,
+    slots: [...new Set(cur.map(i => i.slot))],
+    priceRange: [Math.min(...cur.map(i => i.price)), Math.max(...cur.map(i => i.price))],
+    existing: cur.map(i => i.name),
+  };
+}).sort((a, b) => a.opensIn - b.opensIn);
 
-const plan = Object.values(seasons).map(s => ({
-  season: s.season,
-  have: s.items.length,
-  opensIn: daysUntil(s.from),
-  window: `${s.from} → ${s.to}`,
-  slots: [...new Set(s.items.map(i => i.slot))],
-  priceRange: [Math.min(...s.items.map(i => i.price)), Math.max(...s.items.map(i => i.price))],
-  existing: s.items.map(i => i.name),
-})).sort((a, b) => a.opensIn - b.opensIn);
-
+const when = (p) => p.open ? `在售中，还剩 ${String(p.leftDays).padStart(3)} 天` : `${String(p.opensIn).padStart(4)} 天后上架    `;
 const due = plan.filter(p => p.opensIn <= LEAD_DAYS && p.have < MIN_PER_SEASON);
 
 const out = {
@@ -73,11 +94,11 @@ if (process.argv.includes('--issue')) {
   const j = out.due[0];
   if (!j) { console.log('都够用。'); process.exit(0); }
   console.log(
-`**${j.season}** 的商店窗口 ${j.opensIn} 天后就开（${j.window}），现在只有 ${j.have} 件限定家具 —
+`**${j.season}** 的商店窗口${j.open ? '已经开了' : ` ${j.opensIn} 天后就开`}（${j.window}），现在只有 ${j.have} 件限定家具 —
 到时候房间会显得空。
 
 \`\`\`
-${plan.map(x => `${x.season.padEnd(4)} ${String(x.have).padStart(2)} 件  ${String(x.opensIn).padStart(4)} 天后上架  ${x.window}`).join('\n')}
+${plan.map(x => `${x.season.padEnd(4)} ${String(x.have).padStart(2)} 件  ${when(x)}  ${x.window}`).join('\n')}
 \`\`\`
 
 ---
@@ -98,7 +119,7 @@ if (process.argv.includes('--json')) {
   console.log(`季节家具计划 — ${out.checkedAt} (未来 ${LEAD_DAYS} 天)\n`);
   for (const p of plan) {
     const flag = due.includes(p) ? '  ⚠️ 需要补货' : '';
-    console.log(`  ${p.season.padEnd(4)} ${String(p.have).padStart(2)} 件  ${String(p.opensIn).padStart(4)} 天后上架  ${p.window}${flag}`);
+    console.log(`  ${p.season.padEnd(4)} ${String(p.have).padStart(2)} 件  ${when(p)}  ${p.window}${flag}`);
   }
   console.log(due.length ? `\n${due.length} 个季节需要新家具。` : '\n都够用。');
 }

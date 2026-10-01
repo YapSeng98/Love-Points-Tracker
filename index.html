@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.09.11a">
+  <meta name="app-html-v" content="2026.10.02a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2493,6 +2493,36 @@
       100% { transform: translate(calc(100vw + 200px), 0); }
     }
 
+    /* 万圣节 — a pumpkin garland that sways like the 中秋 lanterns (day and
+       night), and two bats crossing the sky only from dusk on: a bat implies
+       night, the same reason summer's sun turns into fireflies (§7.23). */
+    .sky-bg .pumpkin-accent {
+      position: absolute; top: var(--y, 10px); left: var(--x, 50%); font-size: 20px; opacity: 0.92;
+      animation: lantern-sway 4.6s ease-in-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    .sky-bg .night-bat {
+      display: none;
+      position: absolute; top: var(--b, 14%); left: -40px; font-size: 18px;
+      animation: bat-fly var(--bd, 14s) linear infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    html[data-period="dusk"] .sky-bg .night-bat,
+    html[data-period="night"] .sky-bg .night-bat { display: block; }
+    @keyframes bat-fly {
+      0%   { transform: translate(0, 0); }
+      25%  { transform: translate(calc(25vw + 20px), -16px); }
+      50%  { transform: translate(calc(50vw + 40px), 4px); }
+      75%  { transform: translate(calc(75vw + 60px), -12px); }
+      100% { transform: translate(calc(100vw + 80px), 0); }
+    }
+    /* the real moon gets an orange halo that week, like 中秋's warm one */
+    html[data-festival="halloween"] .sky-bg .moon::after {
+      content: ''; position: absolute; inset: -16px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,160,70,0.36), transparent 70%);
+      animation: moon-glow 6s ease-in-out infinite;
+    }
+
     /* ── 回忆相册 on the love page ── */
     .lp-memories {
       width: 100%; max-width: 310px;
@@ -2751,10 +2781,16 @@
     .pet-title-wrap { flex: 1; text-align: center; cursor: pointer; }
     .pet-page-name { font-size: 17px; font-weight: 800; color: var(--dark); }
     .pet-page-lv { font-size: 11.5px; color: #8A5FD0; font-weight: 700; margin-top: 1px; }
+    /* Season on top, mood below. As one long pill it took ~180px of a 390px
+       phone, and the title beside it wrapped — 「Lv.5 · 圆满期」 broke onto two
+       lines in every 3-character festival (情人节, 万圣节) and a 5-character pet
+       name wrapped on ordinary days. Stacked, it is ~105px and loses nothing. */
     .pet-mood-chip {
       font-size: 11px; font-weight: 700; color: var(--sub); white-space: nowrap;
-      background: rgba(255,255,255,0.6); border-radius: 20px; padding: 5px 10px;
+      background: rgba(255,255,255,0.6); border-radius: 14px; padding: 5px 9px;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
     }
+    .pet-mood-chip .pet-season-chip { padding: 2px 8px; }
 
     /* The room: a simple 2.5D box — back wall + floor with perspective */
     .pet-room {
@@ -3234,6 +3270,23 @@
       background: radial-gradient(circle, #FFE9A8, #FFD75E);
       box-shadow: 0 0 16px rgba(255,215,94,0.85);
     }
+    /* 万圣节 — a purple night with an orange moon, and one bat drifting past
+       it. ::before is free on .pet-window (::after draws the window bars);
+       decorative, so it must never take a tap (§1.2). */
+    .pet-room[data-window="spooky"] .pet-window { background: linear-gradient(180deg, #2B1B47, #4B2A5E); }
+    .pet-room[data-window="spooky"] .pet-window-orb {
+      background: radial-gradient(circle, #FFE3A3, #F59A3C);
+      box-shadow: 0 0 20px rgba(245,154,60,0.85);
+    }
+    .pet-room[data-window="spooky"] .pet-window::before {
+      content: '🦇'; position: absolute; top: 20px; left: 34px; z-index: 1;
+      font-size: 13px; pointer-events: none;
+      animation: spooky-bat 5s ease-in-out infinite;
+    }
+    @keyframes spooky-bat {
+      0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+      50%      { transform: translate(14px, -6px) rotate(8deg); }
+    }
     /* Theme badge on the pet page header */
     .pet-season-chip {
       font-size: 11px; font-weight: 700; white-space: nowrap;
@@ -3453,7 +3506,7 @@
          actually break it, since its base rule uses translateX(-50%) to
          stay centered, not just to animate.) */
       .sky-bg .firework, .sky-bg .fest-p, .sky-bg .lantern-accent,
-      .sky-bg .fairy-light, .sky-bg .confetti {
+      .sky-bg .fairy-light, .sky-bg .confetti, .sky-bg .pumpkin-accent {
         opacity: .7 !important; transform: none !important;
       }
       /* .boat/.sleigh are different: their whole visual IS the drift/fly
@@ -3461,7 +3514,7 @@
          transform:none like the group above would leave them sitting at
          that off-screen starting position forever — invisible, not calm.
          Give them a static, on-screen resting spot instead. */
-      .sky-bg .boat, .sky-bg .sleigh {
+      .sky-bg .boat, .sky-bg .sleigh, .sky-bg .night-bat {
         animation: none !important; left: 50% !important; transform: translateX(-50%) !important;
       }
     }

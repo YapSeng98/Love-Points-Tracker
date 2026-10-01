@@ -518,6 +518,40 @@ rather than only against the ambient seasons.
 
 ---
 
+## 7.28 🎃 秋 · 万圣节 — and what drawing it turned up
+
+Added 2026-10-02 because the shop had **nothing limited for two months**:
+中秋 left on 10-05 and 圣诞 arrived 12-05, and no check noticed, because every
+season that existed was fully stocked. Now 秋 (10-06 → 11-30, 3 pieces) and
+万圣节 (10-12 → 11-02, 5 pieces + the 2026 南瓜小屋 keepsake + 小巫师帽), with
+a 万圣节 theme for 10-26 → 11-01.
+
+- **`season-check.js` now reports stretches with no limited stock** (≥30 days,
+  backlog only). Next one: **06-26 → 09-04** — summer needs a set before June.
+- **Name the drop card after the NEWEST drop, and count only it.** Two drops a
+  week apart are both "new" if the shop wasn't opened in between, and the
+  card announced the Halloween drop as 「秋限定上架 · 9 件」.
+- **Bats imply night** (§7.23 again): they fly across the home sky only at
+  dusk/night. The falling particle is candy — a bat tumbling and spinning down
+  the room reads as a dead bat.
+- **The art sheet caught one drawing**, as it always does: the bat garland was
+  a smudge at its real 62px, and near-black bats vanished on the night room.
+  Widened to 0.5, bigger bats, dusky purple `_bat()`.
+- **A 3-character festival broke the pet header.** The mood chip took ~180px
+  of a 390px phone, so 「Lv.5 · 圆满期」 wrapped during 情人节/万圣节 and a
+  5-character pet name wrapped every day. The chip now stacks season over mood
+  (~105px).
+- `season-plan.js` reported 圣诞 as 12-10 (first piece's window, not the
+  union), counted future years' keepsakes as stock, and called an open season
+  "338 days away". All three fixed.
+- `salvageEquipped` dropped every re-stacked piece: its pattern had no slot
+  for the signed 5th field (`z`, §7.245).
+
+`tools/artsheet.js` renders the catalog (big + true in-room size, both themes),
+a furnished room at day/dusk/night, and the shop tabs. `tools/season-test.js`
+walks the calendar: 38 theme boundaries through 2030, the stock calendar, the
+drop cards replayed visit by visit, and every festival rendered without errors.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -952,7 +986,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 113 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, anniversary-test.js — serve the repo on :8765 first)
+  (settle-test.js, season-test.js, anniversary-test.js — serve the repo on :8765 first)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
@@ -1039,6 +1073,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node supabase/test-anniv.mjs` | 周年悄悄话: sealing, the server-side date lock, and every way round it |
 | `node tools/anniversary-test.js` | 周年小电影 + 悄悄话 UI in a browser, faked clock (serve the repo on :8765 first) |
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
+| `node tools/season-test.js` | Seasons by faked clock: every theme boundary through 2030, the limited-stock calendar, the drop cards, each festival's home sky / room / pet / outfit, reduced motion, keepsakes that expire |
+| `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
