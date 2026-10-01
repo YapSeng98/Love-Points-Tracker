@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.02-54';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.02-55';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -486,7 +486,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.10.02a';
+  const HTML_V = '2026.10.02b';
 
   (function ensureFreshHtml() {
     try {
@@ -1719,6 +1719,10 @@ const App = (() => {
     renderMode();
     renderCharacters();
     renderTogetherBanner();
+    // The 周年 theme needs start_date, which only arrives with the config —
+    // the boot-time applyTheme() ran before anyone was logged in, and the
+    // ticks only re-apply on a new hour band or a new day.
+    applyTheme();
 
     const entries = await Data.getEntries();
     S.entries = entries;
@@ -3577,6 +3581,7 @@ const App = (() => {
   const _ANV_CARD = ['', '一', '两', '三', '四', '五', '六', '七', '八', '九', '十'];
   const _ANV_ORD  = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一'];
   const _anvLeap  = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const _anvLabel = (n) => _ANV_CARD[n] ? `${_ANV_CARD[n]}周年` : `${n} 周年`;
 
   // What today is, if anything. Takes the date so it is testable without
   // touching the clock, the same way currentTheme()/periodOf() are.
@@ -3592,7 +3597,7 @@ const App = (() => {
     const key = todayStr(d);
     if (yrs >= 1 && d.getMonth() + 1 === m && d.getDate() === annDay) {
       return { kind: 'year', n: yrs, days, key,
-               label: _ANV_CARD[yrs] ? `${_ANV_CARD[yrs]}周年` : `${yrs} 周年`,
+               label: _anvLabel(yrs),
                next:  _ANV_ORD[yrs + 1] ? `第${_ANV_ORD[yrs + 1]}年` : `第 ${yrs + 1} 年` };
     }
     if (days % 1000 === 0) {
@@ -4459,6 +4464,31 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     <path d="M-2.8 -2.2L-2.3 -6.4L-0.5 -3.3ZM2.8 -2.2L2.3 -6.4L0.5 -3.3Z" fill="#6A5A86" stroke="#382C4C" stroke-width="1" stroke-linejoin="round"/>
     <ellipse cx="0" cy="0.6" rx="3.4" ry="4.4" fill="#7A6A96" stroke="#382C4C" stroke-width="1.2"/>
     <circle cx="-1.3" cy="-0.3" r="0.85" fill="#FFD24A"/><circle cx="1.3" cy="-0.3" r="0.85" fill="#FFD24A"/></g>`;
+  // 周年相框 — one a year, drawn by one function so the row on the wall stays
+  // one family: the same gold frame and heart, a new ribbon colour and the
+  // number. The digits are stroked paths, not <text>: a font is whatever the
+  // phone has, and a path is the same everywhere (§7.1).
+  const _ANNIV_DIGIT = {
+    2: 'M-5.6 -4.4C-5.6 -7.5 -3.2 -9.2 0 -9.2C3.3 -9.2 5.7 -7.2 5.7 -4.3C5.7 -1.5 3.6 0.5 0.8 2.9L-6 8.8H6.2',
+    3: 'M-5.6 -6.9C-4.2 -8.5 -2.3 -9.2 0 -9.2C3.4 -9.2 5.5 -7.4 5.5 -4.9C5.5 -2.3 3.3 -0.7 0 -0.7C3.7 -0.7 6.1 1.2 6.1 4.3C6.1 7.3 3.5 9.2 0 9.2C-2.5 9.2 -4.5 8.4 -5.9 6.6',
+    4: 'M3.4 9.2V-9.2L-6.4 3.8H6.8',
+  };
+  const _ANNIV_TINT = {          // ribbon · its outline · the mat behind the heart
+    2: ['#FF93B4', '#C85C82', '#FFF0F4'],
+    3: ['#B9A0F2', '#7D61C4', '#F5F0FF'],
+    4: ['#86D5BF', '#409B82', '#EEFAF6'],
+  };
+  const _annivFrame = (n) => { const [rb, ri, mat] = _ANNIV_TINT[n]; return _ds(`
+    <rect x="14" y="17" width="72" height="73" rx="9" fill="#E9BE5A" stroke="#A8781F" stroke-width="3"/>
+    <rect x="21" y="24" width="58" height="59" rx="4" fill="${mat}" stroke="#C9963A" stroke-width="1.8"/>
+    <path d="M27 31l1.3 3 3 1.3-3 1.3-1.3 3-1.3-3-3-1.3 3-1.3z" fill="#F2C14E"/>
+    <path d="M73 70l1.1 2.5 2.5 1.1-2.5 1.1-1.1 2.5-1.1-2.5-2.5-1.1 2.5-1.1z" fill="#F2C14E"/>
+    <path d="M50 76C38 68 29.5 60 29.5 50.5C29.5 44 34.5 39.5 40.5 39.5C45 39.5 48.2 42 50 45.5C51.8 42 55 39.5 59.5 39.5C65.5 39.5 70.5 44 70.5 50.5C70.5 60 62 68 50 76Z" fill="#FF7A9A" stroke="#D34F73" stroke-width="2.4" stroke-linejoin="round"/>
+    ${_hi(38.5, 46, 4.5, 2.6)}
+    <path d="${_ANNIV_DIGIT[n]}" transform="translate(50 57)" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M50 18C45 10 36 9.5 37 16.5C38 22 45.5 21 50 18ZM50 18C55 10 64 9.5 63 16.5C62 22 54.5 21 50 18Z" fill="${rb}" stroke="${ri}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M48.5 20L44 28.5L47.5 27.6L48.8 30.6ZM51.5 20L56 28.5L52.5 27.6L51.2 30.6Z" fill="${rb}" stroke="${ri}" stroke-width="1.6" stroke-linejoin="round"/>
+    <circle cx="50" cy="18.5" r="3.6" fill="${rb}" stroke="${ri}" stroke-width="2"/>`); };
 
   const DECOR = {
     // ── floor furniture ──
@@ -4615,6 +4645,18 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
                    svg:_ds(`<ellipse cx="50" cy="89" rx="27" ry="5.5" fill="#C9B79A" stroke="#9C8B72" stroke-width="2.2"/> <ellipse cx="32" cy="62" rx="19" ry="25" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="68" cy="62" rx="19" ry="25" fill="#EE8A2E" stroke="#B85E17" stroke-width="2.6"/> <ellipse cx="50" cy="61" rx="20" ry="27" fill="#F49A3A" stroke="#B85E17" stroke-width="2.6"/> <path d="M48 35q0-9 4-14l3.5 2q-3 4-3 12z" fill="#6E8B3D" stroke="#4C6528" stroke-width="1.8" stroke-linejoin="round"/> <path d="M27 38Q50 20 74 35Q52 44 27 38Z" fill="#7FB863" stroke="#3F7038" stroke-width="2.4" stroke-linejoin="round"/> <path d="M31 37.5Q50 30 70 35" fill="none" stroke="#3F7038" stroke-width="1.4" opacity="0.6"/> <circle cx="32" cy="60" r="6" fill="#FFE08A" stroke="#B85E17" stroke-width="2"/> <path d="M32 54v12M26 60h12" stroke="#B85E17" stroke-width="1.5"/> <circle cx="68" cy="60" r="6" fill="#FFE08A" stroke="#B85E17" stroke-width="2"/> <path d="M68 54v12M62 60h12" stroke="#B85E17" stroke-width="1.5"/> <path d="M42 87V73a8 8 0 0 1 16 0V87Z" fill="#8A5A34" stroke="#5E3A1E" stroke-width="2.2" stroke-linejoin="round"/> <circle cx="54" cy="80" r="1.6" fill="#FFD24A"/>${_bat(74, 24, 0.85)}${_hi(26,52,3.5,7)}`) },
     hat_witch:   { name:'小巫师帽', slot:'outfit', price:25, draw:'witchHat',
                    from:'10-12', to:'11-02', season:'万圣节' },
+    // ── 周年礼物 (added 2026-10) ──
+    // Free, on the shelf for the eight days from that anniversary only — the
+    // date is derived from start_date (_annivGiftWindow), never a MM-DD here.
+    // Drawn ahead like the keepsakes (§4.4); season-check counts the runway.
+    // `spot` hangs each one centred on the wall above the pet, in a row that
+    // grows outward year by year (two years' frames are ~20% of the room wide).
+    anniv_frame_2:{ k:'bi', name:'两周年相框', art:'🖼️', slot:'wall', ratio:0.46, price:0, anniv:2, season:'周年',
+                   spot:[50, 44], svg:_annivFrame(2) },
+    anniv_frame_3:{ k:'bj', name:'三周年相框', art:'🖼️', slot:'wall', ratio:0.46, price:0, anniv:3, season:'周年',
+                   spot:[28, 44], svg:_annivFrame(3) },
+    anniv_frame_4:{ k:'bk', name:'四周年相框', art:'🖼️', slot:'wall', ratio:0.46, price:0, anniv:4, season:'周年',
+                   spot:[72, 44], svg:_annivFrame(4) },
   };
 
   // No placement cap: the couple can put out everything they own.
@@ -4651,6 +4693,17 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   // Written for a tropical climate: the four seasons are mood only, festivals
   // are what actually feels real here.
   const THEMES = [
+    // 周年纪念日 — the couple's OWN day, not a calendar date: annivOccasion()
+    // (the film's single source of "is today the day", §7.257) decides, so it
+    // follows start_date and covers every 1000th day too. Priority 15 beats
+    // every festival: this couple's anniversary IS 12-24, 圣诞's busiest day,
+    // and for that one day the room is about the two of them, not Santa.
+    // The name, the number in the sky and the first speech line are filled
+    // in per occasion by currentTheme() — 「两周年」, 「2」.
+    { id:'anniv', name:'周年', priority:15, anniv:true, emoji:'💞',
+      window:'anniv', effect:'balloons', particle:'💞', outfit:'hat_party',
+      wall:['#5B3A4E','#4B3041'], floorTone:'#6F4A5E',
+      speech:['谢谢你们一直在一起', '今天要多抱抱哦'] },
     { id:'cny', name:'新年', priority:10, lunar:'cny', span:[-2, 12], emoji:'🧧',
       window:'fireworks', effect:'fireworks', particle:'🧧', outfit:'scarf_red',
       wall:['#5B2230','#4A1B27'], floorTone:'#6B2A2A',
@@ -4704,6 +4757,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   const _md = (d) => `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   function _themeActive(th, d) {
+    if (th.anniv) return !!annivOccasion(d);       // needs start_date: off before login
     if (th.lunar) {
       const iso = LUNAR[th.lunar]?.[d.getFullYear()];
       if (!iso) return false;                       // table ran out — fail quiet
@@ -4738,7 +4792,21 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       if (!_themeActive(th, d)) continue;
       if (!best || th.priority > best.priority) best = th;   // ties: first listed wins
     }
-    return best;
+    return best && best.anniv ? _annivTheme(best, d) : best;
+  }
+
+  // The 周年 entry has no name of its own: the chip says 「两周年」 (or
+  // 「一千天」), the sky carries the number, and the pet says which one —
+  // plus a nudge toward the shop when that anniversary has a gift in it.
+  function _annivTheme(th, d) {
+    const occ = annivOccasion(d);
+    if (!occ) return th;
+    const yearly = occ.kind === 'year';
+    const name = yearly ? occ.label : `${_ANV_CARD[occ.n / 1000] || occ.n / 1000}千天`;
+    const gift = yearly && Object.values(DECOR).some(it => it.anniv === occ.n);
+    return { ...th, name, num: String(occ.n), speech: [
+      yearly ? `${name}快乐！💞` : `在一起${occ.n}天啦！💞`,
+      ...th.speech, ...(gift ? ['小窝里有份礼物哦 🎁'] : [])] };
   }
 
   // 小窝币: earned from the pet's growth, NOT from love points — furniture must
@@ -4784,6 +4852,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
      and out of year, because taking back something someone paid for would be
      indefensible (see decorOwns in the shop filter).                        */
   function decorInSeason(item, d = now()) {
+    if (item.anniv) {
+      const w = _annivGiftWindow(item.anniv);
+      return !!w && d >= w.start && d <= w.end;
+    }
     if (!item.from || !item.to) return true;
     if (item.year && item.year !== d.getFullYear()) return false;
     const md = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -4793,9 +4865,26 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     return inWindow;
   }
 
+  /* 周年礼物 — free, and on the shelf for the eight days from THAT
+     anniversary. The date comes from start_date (2/29 couples get 2/28, the
+     same rule as annivOccasion), never from a MM-DD table: a second copy of
+     the date is exactly the drift §3.1 was about. Each anniversary happens
+     once, so these are one-time pieces without needing a `year`. */
+  const ANNIV_GIFT_DAYS = 8;
+  function _annivGiftWindow(n, start = S.startDate) {
+    if (!start) return null;
+    const [y, m, dd] = String(start).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !dd) return null;
+    const yy = y + n;
+    const day = (m === 2 && dd === 29 && !_anvLeap(yy)) ? 28 : dd;
+    return { start: new Date(yy, m - 1, day),
+             end:   new Date(yy, m - 1, day + ANNIV_GIFT_DAYS - 1, 23, 59, 59) };
+  }
+
   // Label for the shop badge: 「2026 中秋限定」 for a one-year piece,
-  // 「中秋限定」 for one that comes back every year.
+  // 「中秋限定」 for one that comes back every year, 「两周年限定」 for a gift.
   function decorSeasonLabel(item) {
+    if (item.anniv) return `${_anvLabel(item.anniv)}限定`;
     if (!item.season) return '';
     return item.year ? `${item.year} ${item.season}限定` : `${item.season}限定`;
   }
@@ -5640,8 +5729,9 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     let layer = sky.querySelector('.home-fest-layer');
     const active = (th && th.priority >= 10 && th.effect) ? th : null;
     if (!active) { layer?.remove(); return; }
-    // Keyed on year too — see the matching note in renderThemeParticles().
-    const key = `${active.id}:${(d || now()).getFullYear()}`;
+    // Keyed on year too — see the matching note in renderThemeParticles() —
+    // and on the name, which is what changes between one 周年 and the next.
+    const key = `${active.id}:${active.name}:${(d || now()).getFullYear()}`;
     if (layer && layer.dataset.for === key) return;   // already correct
     layer?.remove();
     layer = document.createElement('div');
@@ -5710,6 +5800,19 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       ).join('') + [0, 1].map(i =>
         `<span class="night-bat" style="--b:${12 + i * 7}%;--bd:${14 + i * 5}s;--fd:${i * 6}s">🦇</span>`
       ).join('');
+    } else if (active.effect === 'balloons') {
+      // 周年 — the number itself as a gold foil balloon (「2」 on 两周年,
+      // 「1000」 on the thousandth day) with a small bunch tied beside it,
+      // bobbing in the open band above the cards. Day and night alike: a
+      // balloon means a party, not a time of day (§7.23). Placed in px from
+      // the CENTRE, not % of the width: spread across the width they sat on
+      // the title and behind the ♫/⚙️ buttons, and the gap between those is
+      // a fixed ~110px on every phone.
+      const tints = ['#FF9DBB', '#F6C760', '#B9A2F2', '#8FD6C2'];
+      const spots = [[-20, 40], [14, 26], [30, 46], [45, 18]];   // tucked behind the 2: at 360px it is 18px from the title
+      hero = spots.map(([dx, y], i) =>
+        `<span class="anniv-balloon" style="--dx:${dx}px;--y:${y}px;--c:${tints[i]};--bd:${(4.2 + i * 0.6).toFixed(1)}s;--fd:${(i * 0.7).toFixed(1)}s"></span>`
+      ).join('') + `<span class="anniv-num">${_escHtml(active.num || '')}</span>`;
     } else if (active.effect === 'boat') {
       // Three boats at different lanes/speeds/delays read as a race —
       // one lone boat drifting by read as a stray decoration. Lanes are
@@ -5846,6 +5949,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   }
   // Days since a limited piece's window last opened (0 = it opened today).
   function _daysSinceOpen(it, d) {
+    if (it && it.anniv) {
+      const w = _annivGiftWindow(it.anniv);
+      return w ? Math.floor(((d || now()) - w.start) / 86400000) : 9999;
+    }
     if (!it || !it.from) return 9999;
     const now0 = d || now();
     const [fm, fd] = it.from.split('-').map(Number);
@@ -5855,6 +5962,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   }
   // Days until a limited piece leaves the shop (null = not limited).
   function decorDaysLeft(it, d) {
+    if (it && it.anniv) {
+      const w = _annivGiftWindow(it.anniv);
+      return w ? Math.ceil((w.end - (d || now())) / 86400000) : null;
+    }
     if (!it || !it.to) return null;
     const now0 = d || now();
     const [em, ed] = it.to.split('-').map(Number);
@@ -5863,6 +5974,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     return Math.ceil((end - now0) / 86400000);
   }
 
+  let _seasonLead = null;   // the piece the card is about — see openDecorFromSeason
   function renderSeasonCard() {
     const card = document.getElementById('season-card');
     if (!card) return;
@@ -5882,12 +5994,16 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     const lead  = fresh.slice().sort((a, b) => since(a) - since(b))[0];
     const drop  = fresh.filter(id => DECOR[id].season === DECOR[lead].season);
     const it   = DECOR[lead] || DECOR[stock[0]];
+    _seasonLead = DECOR[lead] ? lead : stock[0];
     const left = decorDaysLeft(it);
     // Name the card after the FURNITURE's season, not the current theme:
     // 中秋 stock opens 09-05 but the 中秋 theme only starts 09-21, so for two
     // weeks the card would have announced "秋来啦" over a tray of mooncakes.
-    const label = it.season || (th ? th.name : '');
-    const emoji = (it.season && th && th.name === it.season) ? th.emoji
+    // A 周年 gift is not stock at all — it says what it is: a present.
+    const gift  = it.anniv ? _anvLabel(it.anniv) : '';
+    const label = gift || it.season || (th ? th.name : '');
+    const emoji = gift ? '💞'
+                : (it.season && th && th.name === it.season) ? th.emoji
                 : it.season === '中秋' ? '🥮' : it.season === '圣诞' ? '🎄'
                 : it.season === '新年' ? '🧧' : it.season === '端午' ? '🐲'
                 : it.season === '情人节' ? '💐' : it.season === '万圣节' ? '🎃'
@@ -5896,7 +6012,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     card.innerHTML = `
       <span class="sc-emoji">${emoji}</span>
       <div class="sc-body" onclick="App.openDecorFromSeason()">
-        <div class="sc-title">${label ? label + '限定上架' : '新家具上架'} · ${drop.length} 件</div>
+        <div class="sc-title">${gift ? `${gift}礼物 · 免费收下` : `${label ? label + '限定上架' : '新家具上架'} · ${drop.length} 件`}</div>
         <div class="sc-sub">${drop.slice(0,3).map(i => DECOR[i].name).join('、')}${
           drop.length > 3 ? ' 等' : ''}${left != null ? ` · 还有 ${left} 天下架` : ''}</div>
       </div>
@@ -5912,8 +6028,12 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     _stampSeasonSeen();
     document.getElementById('season-card')?.classList.add('hidden');
   }
+  // Open the shop on the card's own tab: the shop remembers the last tab, so
+  // a wall-only gift announced on the card could land on 家具 and look missing.
   function openDecorFromSeason() {
     dismissSeasonCard();
+    const slot = DECOR[_seasonLead]?.slot;
+    if (slot) S.decorTab = slot;
     showPetHome().then(() => openDecor()).catch(() => {});
   }
 
@@ -5932,6 +6052,12 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       // Out-of-season stock hides from the shop, but anything already owned
       // stays visible so it can still be placed.
       .filter(([id, it]) => decorInSeason(it) || decorOwns(id));
+    // What just arrived goes first: the 🆕 tiles are why someone came in from
+    // the card, and catalog order put the newest piece last, below the fold.
+    // Seen is only marked on the way out (closeDecor), so nothing reshuffles
+    // while the shop is open.
+    const fresh = new Set(items.filter(([id]) => isNewDecor(id)).map(([id]) => id));
+    items.sort(([a], [b]) => fresh.has(b) - fresh.has(a));
 
     const grid = document.getElementById('decor-grid');
     if (!items.length) { grid.innerHTML = `<div class="decor-empty">这一类还没有东西</div>`; return; }
@@ -5942,7 +6068,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       const afford = coins >= it.price;
       const art = decorArtHtml(it);
       let btn;
-      if (!owned) {
+      if (!owned && !it.price) {
+        // a 周年 gift: no coins involved, so no price on the button either
+        btn = `<button class="decor-btn" onclick="App.buyDecor('${id}')">🎁 免费收下</button>`;
+      } else if (!owned) {
         btn = `<button class="decor-btn" ${afford ? '' : 'disabled'} onclick="App.buyDecor('${id}')">
                  ${afford ? `🪙 ${it.price} 购买` : `🪙 ${it.price} 不够`}</button>`;
       } else if (placed) {
@@ -5953,10 +6082,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       const left = decorDaysLeft(it);
       return `<div class="decor-card ${placed ? 'placed' : ''}">
         ${isNewDecor(id) ? `<span class="decor-new">🆕 NEW</span>` : ''}
-        ${it.season ? `<span class="decor-limited${it.year ? ' oneyear' : ''}">${decorSeasonLabel(it)}</span>` : ''}
+        ${it.season ? `<span class="decor-limited${(it.year || it.anniv) ? ' oneyear' : ''}">${decorSeasonLabel(it)}</span>` : ''}
         ${art}
         <div class="decor-name">${_escHtml(it.name)}</div>
-        <div class="decor-price">${it.free ? '初始赠送' : owned ? '已拥有' : `售价 ${it.price}`}</div>
+        <div class="decor-price">${it.free ? '初始赠送' : owned ? '已拥有' : it.price ? `售价 ${it.price}` : '周年礼物 · 免费'}</div>
         ${(left != null && !owned) ? `<div class="decor-ends">⏳ 还有 ${left} 天下架</div>` : ''}
         ${btn}
       </div>`;
@@ -5971,7 +6100,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       await Data.buyDecor(id);
       S.decorOwned = await Data.getDecorOwned();
       spawnPetHearts();
-      showToast(`🎉 买下了「${it.name}」`);
+      showToast(it.price ? `🎉 买下了「${it.name}」` : `🎁 收下了「${it.name}」`);
       await placeDecor(id);          // place it immediately — that's the payoff
     } catch (err) {
       showToast(err.message === 'already_owned' ? '已经拥有了' : '购买失败: ' + err.message);
@@ -5987,7 +6116,11 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       if (!eq.items.some(o => o.i === id)) {
         // Stagger new pieces so they never land exactly on top of each other
         const n = eq.items.length;
-        const piece = it.slot === 'wall'
+        // A piece with its own `spot` goes there: the grid knows nothing about
+        // the window, and hung the 两周年相框 straight over it.
+        const piece = it.spot
+          ? { i:id, x: it.spot[0], y: it.spot[1], s:1 }
+          : it.slot === 'wall'
           ? { i:id, x: 18 + (n % 4) * 20, y: 22 + (n % 3) * 8,  s:1 }
           : { i:id, x: 14 + (n % 5) * 18, y: 70 + (n % 3) * 8, s:1 };
         // Refuse BEFORE the room changes: a piece that can't be saved would
@@ -6782,6 +6915,13 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     dismissSeasonCard, openDecorFromSeason,
     selectDecor, resizeDecor, removeSelectedDecor, refreshRoom, finishDecorEdit,
     _seasonStockTest: (d) => Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
+    // The same two questions for another couple's start_date ('' = not set yet).
+    _seasonAtTest: (d, start) => { const keep = S.startDate; S.startDate = start;
+      try { const th = currentTheme(d);
+        return { id: th && th.id, name: th && th.name, num: th && th.num, speech: th && th.speech,
+                 stock: Object.entries(DECOR).filter(([,i]) => i.season && decorInSeason(i, d)).map(([k]) => k),
+                 left: Object.entries(DECOR).filter(([,i]) => i.anniv && decorInSeason(i, d)).map(([,i]) => decorDaysLeft(i, d)) };
+      } finally { S.startDate = keep; } },
     _forceRoomBanner: () => showRoomUpdateBanner(),
     _coinTest: () => ({ exp: petExp(), earned: nestCoinsEarned(), spent: nestCoinsSpent(), balance: nestCoins() }),
     _scoreTest: () => ({ c1: S.char1Score, c2: S.char2Score }),

@@ -63,6 +63,21 @@ if (!yearList.length) {
     `keepsakes pre-drawn through ${lastYear} (${runway} year${runway === 1 ? '' : 's'} of runway) — ${detail}`);
 }
 
+// ── 1b'. 周年礼物: is the next anniversary's gift drawn? ──
+// A gift is keyed on the anniversary NUMBER (anniv:2 = 两周年) and its date
+// comes from the couple's start_date, which lives in the database — so this
+// needs the one fact the repo cannot derive: the year they got together.
+// Same runway as the keepsakes: two years in hand, or the job fails.
+const START_YEAR = 2024;            // config start_date 2024-12-24
+const gifts = [...src.matchAll(/anniv:(\d+)/g)].map(m => +m[1]);
+if (!gifts.length) {
+  thin.push('no 周年 gifts drawn at all');
+} else {
+  const lastN = Math.max(...gifts), lastY = START_YEAR + lastN, left = lastY - YEAR;
+  (left < KEEPSAKE_RUNWAY ? broken : notes).push(
+    `周年礼物 drawn through ${lastN} 周年 = ${lastY} (${left} year${left === 1 ? '' : 's'} of runway) — draw the next with _annivFrame()`);
+}
+
 // ── 1c. every real festival has a home-ambiance effect ──
 // Fireworks/hearts/lanterns/lights/boat are keyed off THEMES[i].effect
 // (renderHomeFestival() in app.js). A festival added later without one would

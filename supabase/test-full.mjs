@@ -154,6 +154,14 @@ async function run() {
   check("decor price recorded as the coin ledger", decorA.data.find((d) => d.itemId === "mooncake_box_27").ptsSpent === 60);
   check("decor does NOT leak into the normal reward bag", !(await call("/bag", { token: A1 })).data.some((b) => b.sourceType === "decor"));
 
+  // 周年礼物 (CLAUDE.md §7.29): price 0, claimed by whichever partner gets there first
+  const gift = await call("/decor-buy", { method: "POST", token: A2, body: { itemId: "anniv_frame_2", itemName: "两周年相框", itemIcon: "🖼️", price: 0, date: "2026-12-24", month: "2026-12" } });
+  check("free 周年 gift: POST /decor-buy price 0 → 201", gift.status === 201, JSON.stringify(gift.data));
+  const giftA = (await call("/bag?type=decor", { token: A1 })).data.find((d) => d.itemId === "anniv_frame_2");
+  check("gift claimed by one partner is owned by both, ledger 0 coins", giftA && giftA.ptsSpent === 0, JSON.stringify(giftA));
+  const gift2 = await call("/decor-buy", { method: "POST", token: A1, body: { itemId: "anniv_frame_2", price: 0 } });
+  check("the other partner claiming it too → already_owned", gift2.status === 400 && gift2.data.error === "already_owned");
+
   // -------------------------------------------------- settle + history
   section("monthly settle + history");
   const before = await call("/entries", { token: A1 });

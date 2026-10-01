@@ -552,6 +552,43 @@ a furnished room at day/dusk/night, and the shop tabs. `tools/season-test.js`
 walks the calendar: 38 theme boundaries through 2030, the stock calendar, the
 drop cards replayed visit by visit, and every festival rendered without errors.
 
+## 7.29 💞 周年 — the couple's own day, and its gift
+
+Added 2026-10-02 for 两周年 on 12-24 — which is also 圣诞's busiest day.
+
+- **Theme `anniv`, priority 15**, above every festival. It is not a MM-DD row:
+  `_themeActive` asks `annivOccasion()` (§7.257), so it follows `start_date`,
+  also covers every 1000th day (「一千天」), and is simply off while no start
+  date is known. `currentTheme()` fills in the name (「两周年」), the number
+  for the sky and the first speech line.
+- **A theme that depends on the couple needs the config first.**
+  `applyTheme()` runs at module load, before login, and after that only on a
+  new hour band or a new day — so on 12-24 the home sky would have stayed 圣诞
+  for hours after logging in. `refresh()` now re-applies it. Anything else in a
+  theme that reads `S.*` has the same dependency.
+- **周年礼物** (`anniv: n`) is free and on the shelf for 8 days from the Nth
+  anniversary. The window is derived from `start_date` (`_annivGiftWindow`,
+  same 2/29 rule) — never a MM-DD in the catalog, which would be a second copy
+  of the date (§3.1). Not `free: true` either: that flag means "always owned",
+  which would have hung the frame in every room, years early.
+- **One frame a year**, drawn by `_annivFrame(n)`: same gold frame and heart,
+  a new ribbon and number. Drawn through 四周年 (2028). `season-check.js` fails
+  when fewer than two years are drawn; it needs `START_YEAR`, the one fact the
+  repo can't derive.
+- **A gift has its own `spot`**, centred on the wall above the pet, with later
+  years flanking it. The placement grid knows nothing about the window and hung
+  the first one straight over it.
+- **The shop sorts 🆕 first, and the season card opens the shop on its piece's
+  tab.** The gift sat last on 墙面, below the fold, behind whichever tab was
+  used last.
+- **Home sky:** a gold foil 「2」 with a small bunch of balloons, placed in px
+  from the centre. Spread across the width by %, they sat on the title and
+  behind ♫/⚙️. At 360px there are 18px between the title and the 「2」.
+
+`tools/season-test.js` §8 covers all of it: the calendar (other couples, 2/29,
+no start date), the shelf, the card → shop → claim path, placement, midnight,
+reduced motion, and 360/390/820.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -992,7 +1029,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Drive the real flow in a browser — don't trust that it "should" work
 □ Check BOTH light and dark
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
-□ Re-run: node supabase/test-full.mjs         (backend, 113 checks)
+□ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js — serve the repo on :8765 first)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -1077,11 +1114,11 @@ whoever was already signed in keeps using a half-updated build).
 
 | Suite | Covers |
 |---|---|
-| `node supabase/test-full.mjs` | 113 live checks against the real backend: auth + pairing, scoring, settle (incl. stale previews, simultaneous settles, backdated entries), shop, buy, bag, claims, decor, letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
+| `node supabase/test-full.mjs` | 116 live checks against the real backend: auth + pairing, scoring, settle (incl. stale previews, simultaneous settles, backdated entries), shop, buy, bag, claims, decor (incl. the free 周年 gift), letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
 | `node supabase/test-anniv.mjs` | 周年悄悄话: sealing, the server-side date lock, and every way round it |
 | `node tools/anniversary-test.js` | 周年小电影 + 悄悄话 UI in a browser, faked clock (serve the repo on :8765 first) |
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
-| `node tools/season-test.js` | Seasons by faked clock: every theme boundary through 2030, the limited-stock calendar, the drop cards, each festival's home sky / room / pet / outfit, reduced motion, keepsakes that expire |
+| `node tools/season-test.js` | Seasons by faked clock: every theme boundary through 2030, the limited-stock calendar, the drop cards, each festival's home sky / room / pet / outfit, reduced motion, keepsakes that expire, and 周年 (theme, free gift, claim, placement, midnight) |
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |

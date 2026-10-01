@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.10.02a">
+  <meta name="app-html-v" content="2026.10.02b">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -2523,6 +2523,56 @@
       animation: moon-glow 6s ease-in-out infinite;
     }
 
+    /* 周年 — the number itself as a gold foil balloon (「2」, or 「1000」 on
+       the thousandth day) in a small bunch of pastel ones, all bobbing in the
+       open band above the cards. Day and night alike: a balloon means a
+       party, not a time of day (§7.23). Strings and knots are pseudo-
+       elements, so they never take a tap (§1.2). Both keyframes start and
+       end on the same frame, so the reduced-motion blanket rule leaves them
+       standing still and visible (and .anniv-num keeps its centring
+       translate — it must NOT join the transform:none group, like .hero-heart). */
+    html[data-festival="anniv"] .sky-bg .home-fest-layer {
+      background: radial-gradient(circle at 50% 6%, rgba(255,205,120,0.24), transparent 58%);
+    }
+    .sky-bg .anniv-num {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      font: 900 46px/1 ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, sans-serif;
+      letter-spacing: -1px; color: #F2C14E;
+      background: linear-gradient(165deg, #FFF3C4 8%, #F2C14E 42%, #C98F24 72%, #FBE08A 92%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-text-stroke: 1.2px rgba(150,100,20,0.55);
+      filter: drop-shadow(0 3px 6px rgba(120,80,10,0.35));
+      animation: anniv-num-bob 4.8s ease-in-out infinite;
+    }
+    .sky-bg .anniv-num::after {
+      content: ''; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 30px; margin-left: -0.75px;
+      background: linear-gradient(#C98F24, rgba(201,143,36,0)); pointer-events: none;
+    }
+    @keyframes anniv-num-bob {
+      0%, 100% { transform: translateX(-50%) translateY(0) rotate(-3deg); }
+      50%      { transform: translateX(-50%) translateY(-6px) rotate(3deg); }
+    }
+    .sky-bg .anniv-balloon {
+      position: absolute; top: var(--y, 16px); left: calc(50% + var(--dx, 0px) - 9.5px);
+      width: 19px; height: 23px; border-radius: 50% / 56% 56% 44% 44%;
+      background: radial-gradient(circle at 33% 28%, rgba(255,255,255,0.85) 0 2.5px, rgba(255,255,255,0) 4px), var(--c, #FF9DBB);
+      box-shadow: inset -3px -4px 0 rgba(0,0,0,0.08);
+      animation: anniv-bob var(--bd, 5s) ease-in-out infinite;
+      animation-delay: var(--fd, 0s);
+    }
+    .sky-bg .anniv-balloon::before {
+      content: ''; position: absolute; left: 50%; bottom: -3px; width: 6px; height: 4px; margin-left: -3px;
+      background: var(--c, #FF9DBB); clip-path: polygon(50% 0, 100% 100%, 0 100%); pointer-events: none;
+    }
+    .sky-bg .anniv-balloon::after {
+      content: ''; position: absolute; left: 50%; top: calc(100% + 3px); width: 1px; height: 26px;
+      background: rgba(140,110,90,0.5); pointer-events: none;
+    }
+    @keyframes anniv-bob {
+      0%, 100% { transform: translateY(0) rotate(-4deg); }
+      50%      { transform: translateY(-7px) rotate(4deg); }
+    }
+
     /* ── 回忆相册 on the love page ── */
     .lp-memories {
       width: 100%; max-width: 310px;
@@ -3286,6 +3336,22 @@
     @keyframes spooky-bat {
       0%, 100% { transform: translate(0, 0) rotate(-8deg); }
       50%      { transform: translate(14px, -6px) rotate(8deg); }
+    }
+    /* 周年 — a rose-gold evening with a warm gold light and one balloon
+       drifting past. Same ::before slot as the bat; never takes a tap (§1.2). */
+    .pet-room[data-window="anniv"] .pet-window { background: linear-gradient(180deg, #3B2A5A 0%, #8E4F7A 58%, #F0A487 100%); }
+    .pet-room[data-window="anniv"] .pet-window-orb {
+      background: radial-gradient(circle, #FFF4CC, #F2C14E);
+      box-shadow: 0 0 20px rgba(242,193,78,0.85);
+    }
+    .pet-room[data-window="anniv"] .pet-window::before {
+      content: '🎈'; position: absolute; top: 16px; left: 32px; z-index: 1;
+      font-size: 13px; pointer-events: none;
+      animation: anniv-window-balloon 6s ease-in-out infinite;
+    }
+    @keyframes anniv-window-balloon {
+      0%, 100% { transform: translate(0, 3px) rotate(-6deg); }
+      50%      { transform: translate(6px, -5px) rotate(6deg); }
     }
     /* Theme badge on the pet page header */
     .pet-season-chip {

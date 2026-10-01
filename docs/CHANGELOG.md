@@ -12,6 +12,17 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-02 — 周年纪念日
+
+The couple's own anniversary (and every 1000th day) now gets a room theme of
+its own, above any festival that lands on the same day, and each anniversary
+brings a free one-time keepsake for the room. The details stay a surprise
+until the day. It follows the start date set in 设置, so nothing has to be
+switched on.
+
+Also: newly arrived furniture is listed first in the shop, and the home
+"new stock" card opens the shop on the right tab.
+
 ## 2026-10-02 — Opening the app is about twice as fast
 
 Logging in or reopening the app waited for four independent requests one

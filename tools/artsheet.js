@@ -109,6 +109,8 @@ function seed(decorIds, catalog, roomJson) {
       await p.waitForFunction(() => typeof App !== 'undefined' && App.demoMode);
       await p.evaluate(() => document.getElementById('start-page')?.remove());
       await p.evaluate(() => App.demoMode()); await sleep(400);
+      // on an anniversary the film's envelope opens over everything (§7.257)
+      await p.evaluate(() => document.getElementById('anv-root') && App.closeAnniversary && App.closeAnniversary());
       await p.evaluate(() => App.showPetHome()); await sleep(900);
       await p.screenshot({ path: `${SHOTS}/artsheet_room_${label}_${w}.png` });
       if (label === 'day' && w === 390) {
