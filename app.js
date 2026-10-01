@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.02-53';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.02-54';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -773,7 +773,15 @@ const App = (() => {
   /* ServiceNow's apiKey never expired; a Supabase access token lasts about an
      hour. Without this the app would start 401-ing mid-session and look
      logged out. Refresh once, silently, then retry the original request.   */
-  async function _sbRefresh() {
+  // Single-flight. Several requests can 401 at once (init fires four), and
+  // Supabase rotates the refresh token on use — four parallel refreshes would
+  // spend the same token four times. Everyone waits on the one in progress.
+  let _refreshing = null;
+  function _sbRefresh() {
+    if (!_refreshing) _refreshing = _sbRefreshOnce().finally(() => { _refreshing = null; });
+    return _refreshing;
+  }
+  async function _sbRefreshOnce() {
     const rt = localStorage.getItem('sn_refresh');
     if (!rt) return false;
     try {
@@ -907,7 +915,12 @@ const App = (() => {
       // and badges under-counting for the rest of the session.
       _heavyStatsLoaded = false;
       if (S.usingSN) {
-        const cfg = await snFetch('/config');
+        // All four at once. They don't depend on each other, and one after
+        // another they were most of a 6-second login (≈1s each, measured on
+        // the live site): auth → config → categories → rewards → punishments.
+        const [cfg, cats, rws, pns] = await Promise.all([
+          snFetch('/config'), snFetch('/categories'), snFetch('/rewards'), snFetch('/punishments'),
+        ]);
         if (cfg && cfg.configured === false) {
           S.mode            = 'reward';
           S.rewardTarget    = 100;
@@ -945,9 +958,9 @@ const App = (() => {
           pts:    x.pts    != null ? parseInt(x.pts)   : 0,
           active: x.active != null ? (x.active === true || x.active === '1' || x.active === 1) : true,
         });
-        S.categories  = (await snFetch('/categories')).map(normCat);
-        S.rewards     = (await snFetch('/rewards')).map(_normTier);
-        S.punishments = (await snFetch('/punishments')).map(_normTier);
+        S.categories  = (cats || []).map(normCat);
+        S.rewards     = (rws  || []).map(_normTier);
+        S.punishments = (pns  || []).map(_normTier);
       } else {
         const d = LS.load();
         S.mode            = d.mode;

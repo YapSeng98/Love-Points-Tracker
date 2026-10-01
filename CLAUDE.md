@@ -966,6 +966,14 @@ What that found, all real and all now fixed:
 
 ## 7.4 ⚡ Measured performance (keep it here)
 
+**Login → home: 3.6s** on the live site (2026-10-02). It was 6.1s warm and
+11s straight after a deploy, because `Data.init` fetched config, categories,
+rewards and punishments one after another at ~1s each. They are independent,
+so they now go together — and since four requests can 401 at once,
+`_sbRefresh` is single-flight (Supabase rotates the refresh token on use).
+Every function call costs ~1s regardless of size; count round trips on the
+critical path before anything else.
+
 Cold load **317ms**, DCL 56ms, 432KB, 818 nodes. With a year of data — 220
 entries, 120 letters, 40 photos, 24 settled months — home renders in **268ms**
 at 2780 nodes, the slowest screen switch is 13ms, and the heap sits at 6MB.

@@ -12,6 +12,13 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-02 — Opening the app is about twice as fast
+
+Logging in or reopening the app waited for four independent requests one
+after another (~1s each), so the home screen took about 6 seconds to fill.
+They now go out together: 3.6s. If the session token has expired, the
+requests that notice share a single refresh instead of each starting one.
+
 ## 2026-10-02 — 秋 and 万圣节
 
 The shop had nothing new between 中秋 closing (10-05) and 圣诞 opening
