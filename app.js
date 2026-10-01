@@ -5928,7 +5928,9 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     try {
       const raw = localStorage.getItem(SEEN_KEY);
       if (raw === null) {
-        const baseline = Object.keys(DECOR).filter(id => decorInSeason(DECOR[id]));
+        // …except a 周年 gift: a present is announced even on a phone that
+        // happens to be set up on the day (one 🆕, not the 18 this prevents).
+        const baseline = Object.keys(DECOR).filter(id => decorInSeason(DECOR[id]) && !DECOR[id].anniv);
         localStorage.setItem(SEEN_KEY, JSON.stringify(baseline));
         return baseline;
       }
@@ -5978,6 +5980,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   function renderSeasonCard() {
     const card = document.getElementById('season-card');
     if (!card) return;
+    // Seed the seen baseline on the FIRST open, not on the first day that
+    // happens to have limited stock: a phone first opened on 12-03 (nothing
+    // seasonal on sale) seeded it on 12-24 — with that day's arrivals in it.
+    seenIds();
     const th    = currentTheme();
     const stock = inSeasonIds();
     const fresh = stock.filter(isNewDecor);
@@ -6052,12 +6058,14 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       // Out-of-season stock hides from the shop, but anything already owned
       // stays visible so it can still be placed.
       .filter(([id, it]) => decorInSeason(it) || decorOwns(id));
-    // What just arrived goes first: the 🆕 tiles are why someone came in from
-    // the card, and catalog order put the newest piece last, below the fold.
-    // Seen is only marked on the way out (closeDecor), so nothing reshuffles
-    // while the shop is open.
+    // What just arrived goes first, newest drop first: the 🆕 tiles are why
+    // someone came in from the card, and catalog order put the newest piece
+    // last, below the fold — behind 圣诞's, if the shop wasn't opened since
+    // that drop. Seen is only marked on the way out (closeDecor), so nothing
+    // reshuffles while the shop is open.
     const fresh = new Set(items.filter(([id]) => isNewDecor(id)).map(([id]) => id));
-    items.sort(([a], [b]) => fresh.has(b) - fresh.has(a));
+    const age = (id) => fresh.has(id) ? _daysSinceOpen(DECOR[id]) : 1e9;
+    items.sort(([a], [b]) => age(a) - age(b));
 
     const grid = document.getElementById('decor-grid');
     if (!items.length) { grid.innerHTML = `<div class="decor-empty">这一类还没有东西</div>`; return; }

@@ -20,8 +20,10 @@ brings a free one-time keepsake for the room. The details stay a surprise
 until the day. It follows the start date set in 设置, so nothing has to be
 switched on.
 
-Also: newly arrived furniture is listed first in the shop, and the home
-"new stock" card opens the shop on the right tab.
+Also: newly arrived furniture is listed first in the shop (newest first),
+the home "new stock" card opens the shop on the right tab, and a phone opened
+for the first time on a day with nothing limited on sale no longer misses the
+next drop's announcement.
 
 ## 2026-10-02 — Opening the app is about twice as fast
 

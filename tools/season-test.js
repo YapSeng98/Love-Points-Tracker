@@ -360,6 +360,27 @@ const shot = (p, name) => p.screenshot({ path: `${SHOTS}/season_${name}.png` });
     await ctx.close();
   }
   {
+    // A phone set up ON the day (new phone, reinstall): everything already on
+    // sale counts as seen — except the present, which is still announced.
+    const { p, ctx } = await open(browser, '2026-12-24T09:00:00');
+    const c = await p.evaluate(() => { const c = document.getElementById('season-card');
+      return c.classList.contains('hidden') ? null : c.querySelector('.sc-title')?.textContent; });
+    ok(c === '两周年礼物 · 免费收下', `当天第一次打开的新手机：照样提醒礼物（「${c}」），不提早就在卖的圣诞`);
+    await ctx.close();
+  }
+  {
+    // Hasn't opened the shop since before 圣诞 arrived: those pieces are 🆕
+    // too, and the gift that arrived TODAY still has to come first.
+    const { p, ctx } = await open(browser, '2026-12-03T09:00:00');
+    await p.clock.setFixedTime(at('2026-12-24T09:00:00'));
+    await p.evaluate(() => App.showPetHome()); await sleep(400);
+    await p.evaluate(() => { App.decorTab('wall'); App.openDecor(); }); await sleep(400);
+    const order = await p.$$eval('#decor-grid .decor-card', a => a.map(c => (c.querySelector('.decor-new') ? '🆕' : '') + c.querySelector('.decor-name').textContent));
+    ok(order.slice(0, 3).join() === '🆕两周年相框,🆕星星彩灯,🆕圣诞袜' && !order.slice(3).some(n => n.startsWith('🆕')),
+      `好久没逛商店：新的在前、最新的最前 → ${order.slice(0, 4).join('、')}…`);
+    await ctx.close();
+  }
+  {
     // keepsake rules: owned → stays forever; missed → gone
     const { p, ctx } = await open(browser, '2027-03-01', { data: seed({ owned: ['anniv_frame_2'] }) });
     await p.evaluate(() => App.showPetHome()); await sleep(400);

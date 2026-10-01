@@ -578,9 +578,16 @@ Added 2026-10-02 for 两周年 on 12-24 — which is also 圣诞's busiest day.
 - **A gift has its own `spot`**, centred on the wall above the pet, with later
   years flanking it. The placement grid knows nothing about the window and hung
   the first one straight over it.
-- **The shop sorts 🆕 first, and the season card opens the shop on its piece's
-  tab.** The gift sat last on 墙面, below the fold, behind whichever tab was
-  used last.
+- **The shop sorts 🆕 first, newest drop first, and the season card opens the
+  shop on its piece's tab.** The gift sat last on 墙面, below the fold, behind
+  whichever tab was used last — and behind 圣诞's pieces for anyone who hadn't
+  opened the shop since that drop.
+- **The seen baseline (§7.16) is seeded on the first open**, in
+  `renderSeasonCard`, not lazily at the first `isNewDecor` call. That call
+  only happened on the first day with limited stock, so a phone first opened
+  on 12-03 (nothing seasonal on sale) seeded it on 12-24, with that day's
+  arrivals in it. A 周年 gift is never part of the baseline: a present gets
+  announced even on a phone that is set up on the day.
 - **Home sky:** a gold foil 「2」 with a small bunch of balloons, placed in px
   from the centre. Spread across the width by %, they sat on the title and
   behind ♫/⚙️. At 360px there are 18px between the title and the 「2」.
