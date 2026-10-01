@@ -75,14 +75,19 @@ export async function unsettledScore(
 }
 
 // Client-authoritative dates (CLAUDE.md §2): the client sends its own local
-// date/month; only fall back to the server clock when they are absent.
+// date; only fall back to the server clock when it is absent.
+//
+// The month is the month OF that date — never a second, independent input.
+// The app used to send `month` separately, from "the month right now", so a
+// 9/30 entry logged on 10/1 with a backdated date was labelled October, and
+// September's 月末结算 (which archives by label) silently left it out.
+// `month` from the body is only used when there is no date at all.
 export function clientDate(body: { date?: string; month?: string } | null) {
-  const today = /^\d{4}-\d{2}-\d{2}$/.test(body?.date || "")
-    ? body!.date!
-    : new Date().toISOString().slice(0, 10);
-  const month = /^\d{4}-\d{2}$/.test(body?.month || "")
-    ? body!.month!
-    : today.slice(0, 7);
+  const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(body?.date || "");
+  const today = hasDate ? body!.date! : new Date().toISOString().slice(0, 10);
+  const month = hasDate
+    ? today.slice(0, 7)
+    : /^\d{4}-\d{2}$/.test(body?.month || "") ? body!.month! : today.slice(0, 7);
   return { today, month };
 }
 

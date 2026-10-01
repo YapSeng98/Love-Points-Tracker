@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.09.30-51';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.02-52';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -454,6 +454,11 @@ const App = (() => {
     if (_lastDay === null) { _lastDay = day; return; }
     if (day !== _lastDay) {
       _lastDay = day;
+      // The header still said 9 月 after midnight on 10/1 until something
+      // happened to call refresh(). New entries no longer depend on S.month
+      // (they take the month of their own date), but the label should not lie.
+      S.month = monthKey();
+      try { document.getElementById('month-label').textContent = monthLabel(S.month); } catch (e) {}
       try { renderTogetherBanner(); } catch (e) {}   // 天数 + 里程碑
       try { renderSeasonCard(); }      catch (e) {}   // 限定家具上架
       try { renderPetBanner(); }       catch (e) {}
@@ -1025,8 +1030,9 @@ const App = (() => {
         return (list || []).map(e => ({ ...e, icon: decodeFromSN(e.icon) }));
       }
       const d = LS.load();
-      const live = Object.keys(d.entries || {}).flatMap(m => d.entries[m] || []);
-      const archived = d.archive || [];
+      const live = Object.keys(d.entries || {}).flatMap(m => d.entries[m] || [])
+        .map(e => ({ ...e, settled: false }));
+      const archived = (d.archive || []).map(e => ({ ...e, settled: true }));
       return [...live, ...archived].filter(e =>
         String(e.month || (e.date || '').slice(0, 7)).startsWith(String(year)));
     },
@@ -1066,7 +1072,13 @@ const App = (() => {
       for (const m of Object.keys(d.entries || {})) {
         const idx = (d.entries[m] || []).findIndex(e => e.id === id);
         if (idx < 0) continue;
-        d.entries[m][idx] = { ...d.entries[m][idx], ...data };
+        const e = { ...d.entries[m][idx], ...data };
+        // A new date can mean a new month: re-bucket it, like the server
+        // relabels it, so demo settles agree with real ones.
+        if (e.date) e.month = String(e.date).slice(0, 7);
+        if (e.month === m) { d.entries[m][idx] = e; break; }
+        d.entries[m].splice(idx, 1);
+        (d.entries[e.month] ||= []).unshift(e);
         break;
       }
       LS.save(d);
@@ -1181,18 +1193,27 @@ const App = (() => {
       S.punishments = (await snFetch('/punishments')).map(_normTier);
     },
 
-    async settleMonth(month, char1Pts, char2Pts, mode, result1, result2) {
+    // `seen` is what this phone counted — [id, pts, charId] per entry. The
+    // server refuses (409 stale) unless it is exactly what it would archive,
+    // so a partner's entry logged a second ago can't be archived uncounted.
+    async settleMonth(month, char1Pts, char2Pts, mode, result1, result2, seen) {
       if (S.usingSN) return snFetch('/monthly/settle', {
         method: 'POST',
-        body: JSON.stringify({ month, char1Pts, char2Pts, mode, result1, result2 }),
+        body: JSON.stringify({ month, char1Pts, char2Pts, mode, result1, result2, seen }),
       });
       const d = LS.load();
       d.history = d.history || [];
       d.history.unshift({ month, char1Pts, char2Pts, mode, result1, result2, settledAt: new Date().toISOString() });
       // Archive rather than delete — settled entries still exist server-side
-      // (u_monthly stamped) and 年度回顾 needs them for yearly counts.
-      d.archive = (d.archive || []).concat(d.entries[month] || []);
-      d.entries[month] = [];
+      // (monthly_id stamped) and 年度回顾 needs them for yearly counts.
+      // By LABEL, across every bucket, exactly like the server.
+      const settle = [];
+      for (const m of Object.keys(d.entries || {})) {
+        const keep = [];
+        for (const e of d.entries[m] || []) ((e.month || m) === month ? settle : keep).push(e);
+        d.entries[m] = keep;
+      }
+      d.archive = (d.archive || []).concat(settle);
       LS.save(d);
     },
 
@@ -1865,11 +1886,12 @@ const App = (() => {
     const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.textContent = '签到中…'; }
     try {
+      const date = todayStr();
       await Data.addEntry({
         id: 'e' + Date.now(),
         catId: '', catName: CHECKIN_CAT, icon: '📅', pts,
         desc: isSun ? '周日签到 🎉' : '每日签到',
-        charId, month: S.month, date: todayStr(),
+        charId, month: date.slice(0, 7), date,
       });
       spawnParticles(true);
       const who = forPartner ? `帮 ${charDisplayName(charId)} ` : '';
@@ -2109,6 +2131,7 @@ const App = (() => {
 
     spawnParticles(cat.pts >= 0);
 
+    const date = todayStr();
     const entry = {
       id: 'e' + Date.now(),
       catId: cat.id,
@@ -2117,8 +2140,8 @@ const App = (() => {
       pts: cat.pts,
       desc: '',
       charId: S.activeChar,
-      month: S.month,
-      date: todayStr(),
+      month: date.slice(0, 7),   // always the month OF the date (see submitEntry)
+      date,
     };
 
     try {
@@ -2131,11 +2154,47 @@ const App = (() => {
     }
   }
 
+  // Backdating is how a 9/30 说晚安 gets logged on 10/1, and it is fine — as
+  // long as the couple can see which month the entry will count in. Once that
+  // month has been settled, the entry can only join a later round of it, so
+  // say so rather than let it quietly miss the result they already saw.
+  // Built from JS (not index.html) so a stale cached page still gets it.
+  function _wireAddDate() {
+    const input = document.getElementById('add-date');
+    if (!input) return;
+    input.max = todayStr();                 // a future date would sit outside every settle
+    input.oninput = _renderAddDateHint;
+    _renderAddDateHint();
+  }
+  function _renderAddDateHint() {
+    const input = document.getElementById('add-date');
+    if (!input) return;
+    let hint = document.getElementById('add-date-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'add-date-hint';
+      hint.style.cssText = 'font-size:12px;line-height:1.5;color:var(--sub-ink);margin-top:6px';
+      input.insertAdjacentElement('afterend', hint);
+    }
+    const m = (input.value || todayStr()).slice(0, 7);
+    const label = m.slice(0, 4) === String(now().getFullYear()) ? `${parseInt(m.slice(5))} 月` : monthLabel(m);
+    let text = '';
+    if (m < monthKey()) {
+      const settled = (S.historyRecords || []).some(r => r.month === m);
+      text = settled
+        ? `📌 ${label}已经结算过了，这条会作为 ${label}的补记，下次结算时单独算一笔`
+        : `📌 这条算在 ${label}，结算 ${label}时一起算`;
+    }
+    hint.textContent = text;
+    hint.style.display = text ? '' : 'none';
+  }
+
   function openAddModal() {
     document.getElementById('add-entry-id').value = '';
     document.getElementById('modal-add-title').textContent = '✏️ 自定义记分';
     document.getElementById('modal-add-btn').textContent = '记录 ✨';
     document.getElementById('add-date').value = todayStr();
+    _wireAddDate();
     document.getElementById('add-desc').value = '';
     const sel = document.getElementById('add-cat-select');
     sel.innerHTML = S.categories.filter(c=>c.active!==false).map(c =>
@@ -2156,6 +2215,7 @@ const App = (() => {
     document.getElementById('modal-add-title').textContent = '📝 编辑记录';
     document.getElementById('modal-add-btn').textContent = '保存 ✅';
     document.getElementById('add-date').value = entry.date || todayStr();
+    _wireAddDate();
     document.getElementById('add-pts').value = entry.pts || 0;
     document.getElementById('add-desc').value = entry.desc || '';
     const sel = document.getElementById('add-cat-select');
@@ -2188,6 +2248,12 @@ const App = (() => {
     const desc   = document.getElementById('add-desc').value.trim();
     const date   = document.getElementById('add-date').value || todayStr();
     const cat    = S.categories.find(c => c.id === catId) || {};
+    // The entry's month is the month OF ITS DATE, never "the month right now".
+    // Using S.month here is what put four 9/30 entries logged on 10/1 into
+    // October, so September's 月末结算 left them out. 月末结算 archives by
+    // this label, so it has to agree with the date the couple picked.
+    const month  = date.slice(0, 7);
+    if (date > todayStr()) { showToast('📅 日期不能选未来哦'); return; }
 
     try {
       if (editId) {
@@ -2199,7 +2265,7 @@ const App = (() => {
           catId:   keep ? (existing?.catId || '') : catId,
           catName: keep ? (existing?.catName || '自定义') : (cat.name || existing?.catName || '自定义'),
           icon:    keep ? (existing?.icon || '📌')       : (cat.icon || existing?.icon || '📌'),
-          pts, desc, date,
+          pts, desc, date, month,
         });
         closeModal('modal-add');
         showToast('已更新 ✅');
@@ -2210,7 +2276,7 @@ const App = (() => {
           icon: cat.icon || '📌',
           pts, desc, date,
           charId: S.activeChar,
-          month: S.month,
+          month,
         };
         spawnParticles(pts >= 0);
         await Data.addEntry(entry);
@@ -2221,6 +2287,7 @@ const App = (() => {
       }
       await refresh();
     } catch (err) {
+      if (_isSettledErr(err)) { closeModal('modal-add'); return _settledUnderYou(); }
       showToast('操作失败: ' + err.message);
     }
   }
@@ -2232,8 +2299,18 @@ const App = (() => {
       showToast('已删除 🗑️');
       await refresh();
     } catch (err) {
+      if (_isSettledErr(err)) return _settledUnderYou();
       showToast('删除失败: ' + err.message);
     }
+  }
+
+  // The server refuses to change an entry that a 月末结算 already counted
+  // (its history row was computed from it). That only happens when the other
+  // phone settled a moment ago and this screen hasn't caught up.
+  const _isSettledErr = (err) => /SN 409/.test(err?.message || '') && /settled/.test(err.message);
+  async function _settledUnderYou() {
+    showToast('🔒 这条已经被结算进历史了，不能再改');
+    await refresh().catch(() => {});
   }
 
   // Group entries by the calendar month they were actually logged in. Needed
@@ -2264,9 +2341,10 @@ const App = (() => {
     };
   }
 
-  let _pendingSettleGroups = [];   // [[month, entries], ...] chosen at confirm time
-  let _settlePastGroups    = [];   // months that are definitely over
-  let _settleCurrentGroup  = null; // [month, entries] for the still-running month
+  let _pendingSettleGroups  = [];  // [[month, entries], ...] chosen at confirm time
+  let _settlePastGroups     = [];  // months that are definitely over
+  let _settleCurrentGroups  = [];  // the still-running month (and any later label)
+  let _settling = false;           // a double tap must not send two settles
 
   function openSettleModal() {
     // Nothing logged → settling would just create an empty record.
@@ -2278,10 +2356,13 @@ const App = (() => {
     // The current month is still being lived in — closing it early would wipe
     // a half-finished month's points. Past months are over and safe to sweep;
     // the current one is only settled if the user explicitly ticks the box.
+    // Every group at or after this month goes behind that box — `find` used to
+    // keep only the first, so anything labelled later was never offered at all.
     const groups   = _groupEntriesByMonth(S.entries);
     const thisMonth = monthKey();
-    _settlePastGroups   = groups.filter(([m]) => m < thisMonth);
-    _settleCurrentGroup = groups.find(([m]) => m >= thisMonth) || null;
+    _settlePastGroups    = groups.filter(([m]) => m < thisMonth);
+    _settleCurrentGroups = groups.filter(([m]) => m >= thisMonth);
+    const settledBefore  = new Set((S.historyRecords || []).map(r => r.month));
 
     const prev = document.getElementById('settle-preview');
     const fmtScore = s => (s > 0 ? '+' : '') + s;
@@ -2299,13 +2380,17 @@ const App = (() => {
       </div>`;
     };
 
-    const monthBlock = ([month, monthEntries], isCurrent) => {
+    const monthBlock = ([month, monthEntries]) => {
       const r = _monthOutcomes(monthEntries);
       const anyReward = S.mode === 'reward' && (r.o1 || r.o2);
       const anyPunish = S.mode === 'punishment' && (r.o1 || r.o2);
+      // A month that already has a history row is being settled AGAIN — the
+      // entries were added after its first 结算 — so say what this round is.
+      const tag = month === thisMonth ? '（本月·进行中）'
+                : settledBefore.has(month) ? `（补记 ${monthEntries.length} 条）` : '';
       return `<div class="settle-month-block">
         <div class="sp-icon">${anyReward ? '🎊' : anyPunish ? '😱' : '📊'}</div>
-        <div class="sp-title">${monthLabel(month)} 结算${isCurrent ? '（本月·进行中）' : ''}</div>
+        <div class="sp-title">${monthLabel(month)} 结算${tag}</div>
         <div class="settle-char-row">
           ${charCard('char1', r.s1, r.i1, r.o1)}
           ${charCard('char2', r.s2, r.i2, r.o2)}
@@ -2316,18 +2401,18 @@ const App = (() => {
     let html = '';
     if (_settlePastGroups.length) {
       html += `<div class="settle-multi-note">⚠️ 有 ${_settlePastGroups.length} 个已过去的月份尚未结算，将分别存入历史记录</div>`;
-      html += _settlePastGroups.map(g => monthBlock(g, false)).join('<div class="settle-month-sep"></div>');
+      html += _settlePastGroups.map(g => monthBlock(g)).join('<div class="settle-month-sep"></div>');
     }
-    if (_settleCurrentGroup) {
+    if (_settleCurrentGroups.length) {
       if (_settlePastGroups.length) html += '<div class="settle-month-sep"></div>';
-      html += monthBlock(_settleCurrentGroup, true);
+      html += _settleCurrentGroups.map(g => monthBlock(g)).join('<div class="settle-month-sep"></div>');
       // Default: OFF when there are past months to clean up (the common
       // "I forgot to settle" case — don't also close the month they're in),
       // ON when the current month is all there is (the normal month-end flow).
       const defaultOn = _settlePastGroups.length === 0;
       html += `<label class="settle-current-opt">
         <input type="checkbox" id="settle-include-current" ${defaultOn ? 'checked' : ''}/>
-        <span>同时结算本月（${monthLabel(_settleCurrentGroup[0])}）——本月还没结束，通常等月底再结算</span>
+        <span>同时结算本月（${monthLabel(_settleCurrentGroups[0][0])}）——本月还没结束，通常等月底再结算</span>
       </label>`;
     }
     html += `<div style="font-size:12px;color:var(--sub);margin-top:4px">结算后对应月份积分清零，开始新的一轮</div>`;
@@ -2337,18 +2422,24 @@ const App = (() => {
   }
 
   async function confirmSettle() {
+    if (_settling) return;
     // Read the opt-in at confirm time, so the user can tick/untick freely
     // before committing.
     const includeCurrent = !!document.getElementById('settle-include-current')?.checked;
     _pendingSettleGroups = [
       ..._settlePastGroups,
-      ...(includeCurrent && _settleCurrentGroup ? [_settleCurrentGroup] : []),
+      ...(includeCurrent ? _settleCurrentGroups : []),
     ];
     if (!_pendingSettleGroups.length) {
       closeModal('modal-settle');
       showToast('ℹ️ 没有选择要结算的月份');
       return;
     }
+    _settling = true;
+    const btn = document.querySelector('#modal-settle .btn-primary');
+    const btnText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '结算中…'; }
+    let done = 0;
     try {
       let res, r;
       // Settle oldest → newest so history stays in the order it happened.
@@ -2357,8 +2448,10 @@ const App = (() => {
         res = await Data.settleMonth(
           month, r.s1, r.s2, S.mode,
           r.o1 ? r.o1.name : '无结果',
-          r.o2 ? r.o2.name : '无结果'
+          r.o2 ? r.o2.name : '无结果',
+          monthEntries.map(e => [e.id, parseInt(e.pts) || 0, e.charId || 'char1'])
         );
+        done++;
       }
       closeModal('modal-settle');
 
@@ -2372,12 +2465,30 @@ const App = (() => {
       else                                                { showToast('✅ 已结算，新的一轮开始！'); }
 
       _pendingSettleGroups = [];
-      _settlePastGroups = []; _settleCurrentGroup = null;
+      _settlePastGroups = []; _settleCurrentGroups = [];
       S.month = monthKey();
       try { await Data.reloadTiers(); } catch {}
       await refresh();
     } catch (err) {
-      showToast('结算失败: ' + err.message);
+      if (/SN 409/.test(err.message || '')) {
+        // The entries moved under the preview: the partner logged, edited or
+        // deleted something for that month after this screen last loaded.
+        // The server wrote nothing for that month, so show the real numbers
+        // and let them confirm again rather than archive what nobody saw.
+        closeModal('modal-settle');
+        try { await Data.reloadTiers(); } catch {}
+        await refresh().catch(() => {});
+        _settling = false;
+        if (!S.entries.length) { showToast('✅ 已由对方结算，同步好了'); return; }
+        openSettleModal();
+        showToast(done ? `✅ 已结算 ${done} 个月；刚刚有新的记录，请再确认一次`
+                       : '🔄 刚刚有新的记录，已更新数字，请再确认一次');
+      } else {
+        showToast('结算失败: ' + err.message);
+      }
+    } finally {
+      _settling = false;
+      if (btn) { btn.disabled = false; btn.textContent = btnText || '确认结算 🎊'; }
     }
   }
 
@@ -2485,11 +2596,20 @@ const App = (() => {
       content.innerHTML = `<div class="empty-state"><div class="es-icon">📅</div>还没有历史记录</div>`;
     } else {
       const fmtS = s => (s > 0 ? '+' : '') + s;
+      // A month can be settled in more than one round (entries added after
+      // its first 结算). Number the rounds so two 「2026-09」 rows read as
+      // what they are rather than as a duplicate.
+      const rounds = {};
+      records.forEach(r => (rounds[r.month] ||= []).push(r.settledAt || ''));
+      Object.values(rounds).forEach(a => a.sort());
       content.innerHTML = records.map(r => {
         const c1 = r.char1Pts !== undefined ? r.char1Pts : (r.totalPts || 0);
         const c2 = r.char2Pts !== undefined ? r.char2Pts : 0;
+        const all = rounds[r.month];
+        const round = all.length > 1
+          ? `<div style="font-size:11px;font-weight:600;color:var(--sub-ink);margin-top:2px">第 ${all.indexOf(r.settledAt || '') + 1} 轮</div>` : '';
         return `<div class="history-item">
-          <div class="history-month">${r.month}</div>
+          <div class="history-month">${r.month}${round}</div>
           <div class="history-info">
             <div class="history-result" style="font-size:13px">
               <span class="entry-char-badge char1" style="margin-right:4px">${S.charName1}</span>${fmtS(c1)} → ${r.result1 || r.resultName || '无'}
@@ -3188,6 +3308,8 @@ const App = (() => {
 
     const A = (id, icon, name, desc, ok, cur, target) =>
       ({ id, icon, name, desc, unlocked: !!ok, cur, target });
+    // Months, not history rows: a month settled in two rounds is one month.
+    const settledN = new Set(hist.map(r => r.month)).size;
 
     return [
       A('first_entry', '🌱', '第一笔记录', '记下第一条积分',
@@ -3203,8 +3325,8 @@ const App = (() => {
       A('shop1',    '🛒', '首次兑换',   '在商店兑换一次',  purchases >= 1),
       A('reward1',  '🏆', '首次达成奖励', '结算时拿到奖励', wonReward),
       A('clean',    '✨', '零扣分',     '本轮一次扣分都没有', entries.length > 0 && badMarks === 0),
-      A('season',   '📆', '坚持一季',   '结算过 3 个月',   hist.length >= 3,  hist.length, 3),
-      A('year',     '🎊', '坚持一年',   '结算过 12 个月',  hist.length >= 12, hist.length, 12),
+      A('season',   '📆', '坚持一季',   '结算过 3 个月',   settledN >= 3,  settledN, 3),
+      A('year',     '🎊', '坚持一年',   '结算过 12 个月',  settledN >= 12, settledN, 12),
       A('pts500',   '💰', '积分 500',   '两人共攒 500 分', lifetime >= 500,  lifetime, 500),
       A('pts2000',  '👑', '积分 2000',  '两人共攒 2000 分', lifetime >= 2000, lifetime, 2000),
     ];
@@ -3301,10 +3423,18 @@ const App = (() => {
     // month is summed from its entries, penalties and shop spending included.
     const settledMonths = new Set(hist.map(r => r.month));
     const monthTotals = {};
+    let settledPts = 0, livePts = 0;
+    // `+=`: a month settled in two rounds has two rows, and `=` kept only one.
     hist.forEach(r => {
-      monthTotals[r.month] = Math.max(0, parseInt(r.char1Pts) || 0)
-                           + Math.max(0, parseInt(r.char2Pts) || 0);
+      const p = Math.max(0, parseInt(r.char1Pts) || 0) + Math.max(0, parseInt(r.char2Pts) || 0);
+      monthTotals[r.month] = (monthTotals[r.month] || 0) + p;
+      settledPts += p;
     });
+    // Is this entry still live, or already inside a history row? The backend
+    // says so per entry. "Its month has a history row" was the old guess, and
+    // once a month can be settled in more than one round it is wrong: entries
+    // added after a month's first 结算 vanished from the year's total.
+    const isLive = (e) => e.settled !== undefined ? !e.settled : !settledMonths.has(monthOf(e));
     // Floor PER PERSON, exactly like lifetimeCombinedPoints and the archived
     // history rows above. Summing the month into one lump and flooring that
     // once looks equivalent but is not: with char1 +200 and char2 -40, a lump
@@ -3313,14 +3443,15 @@ const App = (() => {
     // was supposed to have fixed.
     const perChar = {};
     entries.forEach(e => {
+      if (!isLive(e)) return;                       // already counted above
       const m = monthOf(e);
-      if (settledMonths.has(m)) return;             // already counted above
       const who = e.charId === 'char2' ? 'char2' : 'char1';
       ((perChar[m] ||= {}))[who] = (perChar[m][who] || 0) + (parseInt(e.pts) || 0);
     });
     Object.entries(perChar).forEach(([m, byWho]) => {
-      monthTotals[m] = (monthTotals[m] || 0)
-        + Math.max(0, byWho.char1 || 0) + Math.max(0, byWho.char2 || 0);
+      const p = Math.max(0, byWho.char1 || 0) + Math.max(0, byWho.char2 || 0);
+      monthTotals[m] = (monthTotals[m] || 0) + p;
+      livePts += p;
     });
     Object.keys(monthTotals).forEach(m => {         // belt and braces
       if (monthTotals[m] < 0) monthTotals[m] = 0;
@@ -3341,11 +3472,6 @@ const App = (() => {
     let topCat = '', topCatN = 0;
     Object.entries(catCount).forEach(([n, c]) => { if (c > topCatN) { topCat = n; topCatN = c; } });
 
-    let settledPts = 0, livePts = 0;
-    Object.entries(monthTotals).forEach(([m, p]) => {
-      if (settledMonths.has(m)) settledPts += p; else livePts += p;
-    });
-
     return {
       year: yr,
       totalPts, settledPts, livePts,
@@ -3354,7 +3480,7 @@ const App = (() => {
       checkins: entries.filter(e => e.catName === CHECKIN_CAT).length,
       letters: letters.length,
       photos: photos.length,
-      settledMonths: hist.length,
+      settledMonths: settledMonths.size,   // months, not rounds
       yearPhotos: photos,
     };
   }
@@ -4120,7 +4246,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     const hist    = S.historyRecords || [];
     const letters = (S.letters || []).length;
     const photos  = (S.photos  || []).length;
-    return lifetimeCombinedPoints() + letters * 30 + photos * 20 + hist.length * 100;
+    // 结算月数 ×100 (PET_GAME_DESIGN.md) — distinct months, so a small 补记
+    // round for a month already settled doesn't mint another 100 EXP.
+    const months  = new Set(hist.map(r => r.month)).size;
+    return lifetimeCombinedPoints() + letters * 30 + photos * 20 + months * 100;
   }
 
   // The pet always starts at 0 and grows only from what you do AFTER adopting
@@ -6583,6 +6712,8 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     _bootTest: () => boot(),
     _setMode: (m) => { S.mode = m; },
     _yearReviewTest: (y) => computeYearReview(y, (S.entries||[]).filter(e => (e.date||'').startsWith(String(y)))),
+    _yearReviewFullTest: async (y) => { S.historyRecords = await Data.getHistory();
+      return computeYearReview(y, await Data.getEntriesOfYear(y)); },
     _themeTest: (d) => currentTheme(d),
     _particleTest: (d, i) => themeParticle(currentTheme(d), d, i),
     _zodiacTest: (y) => zodiacEmoji(y),

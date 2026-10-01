@@ -154,6 +154,45 @@ their data had been deleted.
   automatically; the current month is opt-in via a checkbox, default OFF when
   there are older months pending.
 
+### 3.1 The month label is DERIVED from the date — never a second input
+
+Reported 2026-10-01: four entries dated 9/30, logged on 10/1, were left out of
+September's settle. `submitEntry` sent `month: S.month` ("the month right
+now") beside the date the couple picked, so they were labelled October — and
+settle archives **by label**. The label was a second source of truth for a fact
+the date already holds.
+
+- `clientDate()` returns `month = date.slice(0,7)` whenever a date is present;
+  `entries` POST uses it, and `entries-id` PUT moves `month` with `date`.
+- Before this, an entry posted without `month` was stored with an **empty**
+  label, which no settle could ever find — while the settle answered
+  `alreadySettled` and the app believed it. Nothing in the app hit it; the
+  suite did.
+- A month can therefore be settled more than once (a 补记 after its first
+  settle). That is legitimate: count months as `new Set(rows.map(r=>r.month))`,
+  never `rows.length` (pet EXP is 结算月数×100, the 坚持 badges are months), and
+  sum rows per month with `+=`.
+
+### 3.2 A settle archives exactly what the phone counted
+
+The stored totals are added up on the phone; the archive is the server's
+pending set. If they differ, points vanish silently. So:
+
+- The app sends `seen: [[id, pts, char], …]`; `monthly-settle` answers **409
+  stale** unless it is exactly the pending set, and writes nothing. The app
+  refreshes and reopens the preview.
+- The archive UPDATE carries `.is("monthly_id", null)`; a concurrent second
+  settle claims zero rows and deletes its own history row (detach first, then
+  delete). Verified with four simultaneous settles × ten rounds.
+- A settled entry is read-only (`entries-id` → 409 `settled`).
+- `/history` is not capped — everything that sums it needs every row.
+- Each `/entries` row carries `settled`; 年度回顾 uses it rather than guessing
+  from "this month has a history row".
+
+`tools/settle-test.js` replays all of it in a browser (mocked server for the
+409 path); `supabase/test-full.mjs` § "settle — month follows the date…"
+attacks the live functions.
+
 ---
 
 ## 4. 🐣 Derived-state rules (badges, recap, pet)
@@ -911,8 +950,10 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Drive the real flow in a browser — don't trust that it "should" work
 □ Check BOTH light and dark
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
-□ Re-run: node supabase/test-full.mjs         (backend, 91 checks)
-□ Re-run the pet logic audit                  (client invariants, 23 checks)
+□ Re-run: node supabase/test-full.mjs         (backend, 113 checks)
+□ Re-run the browser suites in tools/ that touch what changed
+  (settle-test.js, anniversary-test.js — serve the repo on :8765 first)
+□ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
 
@@ -994,11 +1035,12 @@ whoever was already signed in keeps using a half-updated build).
 
 | Suite | Covers |
 |---|---|
-| `node supabase/test-full.mjs` | 91 live checks against the real backend: auth + pairing, scoring, settle, shop, buy, bag, claims, decor, letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
+| `node supabase/test-full.mjs` | 113 live checks against the real backend: auth + pairing, scoring, settle (incl. stale previews, simultaneous settles, backdated entries), shop, buy, bag, claims, decor, letters, photos, avatars, cross-couple isolation, unauthenticated refusal |
 | `node supabase/test-anniv.mjs` | 周年悄悄话: sealing, the server-side date lock, and every way round it |
 | `node tools/anniversary-test.js` | 周年小电影 + 悄悄话 UI in a browser, faked clock (serve the repo on :8765 first) |
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
-| Browser tests (scratchpad) | Pet invariants, settle UI, layout sweep, art sheet |
+| `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
+| ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
 
 The suites register throwaway couples each run — safe to re-run any time.

@@ -8,12 +8,17 @@ serve(async (req) => {
   if (!caller) return json({ error: "Unauthorized" }, 401);
   const { matchId, admin } = caller;
 
+  // No 24-row cap: the shared goal, the pet's EXP (and so 小窝币) and
+  // 年度回顾 all sum EVERY settled month from this list. A cap would quietly
+  // shrink the goal and stall the pet once the couple passed two years of
+  // settlements. Rows are ~100 bytes.
   const { data } = await admin
     .from("monthly")
     .select("month, char1_pts, char2_pts, mode, result_1, result_2, settled_at")
     .eq("match_id", matchId)
     .order("month", { ascending: false })
-    .limit(24);
+    .order("settled_at", { ascending: false })
+    .limit(1000);
 
   return json((data || []).map((m) => ({
     month: m.month,

@@ -12,6 +12,37 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-02 — 月末结算 counts what you saw, and only that
+
+**Reported:** entries dated 9/30 but logged on 10/1 were left out of
+September's settlement. The custom-entry form let you pick a date, but saved
+the entry's month as "the month right now" — so a backdated 9/30 entry was
+labelled October, and the settle (which archives by that label) treated it as
+October's. Four entries were affected; they have been moved into September's
+history row, whose totals were recomputed from its entries (no reward
+changed).
+
+An entry's month is now always the month **of its own date** — enforced on the
+server for every write, and editing an entry's date moves it with it. The date
+picker no longer offers future dates, and when you backdate it says which month
+the entry will count in — including when that month has already been settled,
+in which case the entry becomes a 补记 round of that month at the next settle.
+
+Two other ways to get the same symptom, both closed:
+- **A partner logging while the other settles.** The settle stored totals added
+  up on one phone but archived whatever the server had, so an entry logged on
+  the other phone a moment earlier was archived without being counted. The
+  phone now sends what it counted; if that isn't exactly what the server would
+  archive, nothing is written and the preview refreshes.
+- **Both partners pressing 结算 together** (or a double tap) could write two
+  history rows for one month. Only one can now succeed, and the button ignores
+  a second tap.
+
+Also: a settled entry can no longer be edited or deleted (its history row was
+computed from it); 年度回顾 no longer drops entries added to a month after its
+first settle; history is no longer capped at 24 rows (the goal and the pet sum
+all of them); and pet EXP and the 坚持 badges count settled *months*, not rows.
+
 ## 2026-09-30 — 周年小电影
 
 On each anniversary of the start date the first open on each phone shows a

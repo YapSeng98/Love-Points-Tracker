@@ -1,5 +1,5 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
-import { serve, json, getCaller } from "../_shared/util.ts";
+import { serve, json, getCaller, clientDate } from "../_shared/util.ts";
 
 serve(async (req) => {
   const caller = await getCaller(req);
@@ -15,7 +15,7 @@ serve(async (req) => {
     // ?year=YYYY is the 年度回顾 path: settled entries included.
     let q = admin
       .from("entries")
-      .select("id, category_id, category_name, icon, points, note, char, month, date")
+      .select("id, category_id, category_name, icon, points, note, char, month, date, monthly_id")
       .eq("match_id", matchId);
 
     if (/^\d{4}$/.test(year)) {
@@ -37,6 +37,10 @@ serve(async (req) => {
       charId: e.char || "char1",
       month: e.month,
       date: e.date,
+      // 年度回顾 needs to know which entries a history row already counts —
+      // "the month has a history row" is not the same thing, because a month
+      // can be settled in more than one round.
+      settled: !!e.monthly_id,
     })));
   }
 
@@ -45,8 +49,9 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const pts = parseInt(body.pts) || 0;
     // Dates are client-authoritative (CLAUDE.md §2) — the server clock is in
-    // a timezone behind the users, so only fall back to it if absent.
-    const today = new Date().toISOString().slice(0, 10);
+    // a timezone behind the users, so only fall back to it if absent. The
+    // month label always follows the date (see clientDate).
+    const { today, month } = clientDate(body);
     const { data, error } = await admin
       .from("entries")
       .insert({
@@ -58,8 +63,8 @@ serve(async (req) => {
         icon: body.icon || "",
         points: pts,
         note: body.desc || "",
-        month: body.month || "",
-        date: body.date || today,
+        month,
+        date: today,
       })
       .select("id")
       .single();

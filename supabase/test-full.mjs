@@ -178,6 +178,85 @@ async function run() {
   const histList = await call("/history", { token: A2 });
   check("history shows the settled month", histList.data.some((h) => h.month === "2026-07" && h.char1Pts === 100 && h.result1 === "达成"));
 
+  // ------------------------------- settle: what you see is what is archived
+  // Reported 2026-10-01: four 9/30 entries logged on 10/1 were labelled
+  // October (the app sent "the month right now" beside a backdated date), so
+  // September's settle left them out. Plus the two ways the same symptom
+  // could happen with correct labels: a partner logging while the other
+  // settles, and both partners pressing 结算 together.
+  section("settle — month follows the date, stale previews, races");
+  const back = await call("/entries", { method: "POST", token: A1, body: { charId: "char1", catName: "说晚安", icon: "🫶", pts: 5, desc: "", date: "2026-08-31", month: "2026-09" } });
+  const backRow = (await call("/entries", { token: A1 })).data.find((e) => e.id === back.data.id);
+  check("backdated entry is labelled by its DATE's month (8/31 → 2026-08, not 2026-09)", backRow && backRow.month === "2026-08", `got ${backRow && backRow.month}`);
+
+  const moved = await call("/entries", { method: "POST", token: A2, body: { charId: "char2", catName: "12.00睡觉", icon: "😴", pts: 1, desc: "", date: "2026-09-03", month: "2026-09" } });
+  await call(`/entries-id?id=${moved.data.id}`, { method: "PUT", token: A2, body: { date: "2026-08-30" } });
+  const movedRow = (await call("/entries", { token: A1 })).data.find((e) => e.id === moved.data.id);
+  check("editing the date moves the entry to that month", movedRow && movedRow.date === "2026-08-30" && movedRow.month === "2026-08", JSON.stringify(movedRow));
+  check("an invalid date is refused, not stored", (await call(`/entries-id?id=${moved.data.id}`, { method: "PUT", token: A2, body: { date: "30/08/2026" } })).status === 400);
+
+  const augSeen = (await call("/entries", { token: A1 })).data
+    .filter((e) => e.month === "2026-08").map((e) => [e.id, e.pts, e.charId]);
+  check("both August entries are pending", augSeen.length === 2, `got ${augSeen.length}`);
+  // the partner logs one more August entry after A1's preview was taken
+  const late = await call("/entries", { method: "POST", token: A2, body: { charId: "char2", catName: "说晚安", icon: "🫶", pts: 5, desc: "", date: "2026-08-31" } });
+  const stale = await call("/monthly-settle", { method: "POST", token: A1, body: { month: "2026-08", char1Pts: 5, char2Pts: 1, mode: "reward", result1: "无结果", result2: "无结果", seen: augSeen } });
+  check("settling a preview that missed a new entry → 409 stale", stale.status === 409 && stale.data.error === "stale", `${stale.status} ${JSON.stringify(stale.data)}`);
+  check("…and nothing was archived", (await call("/entries", { token: A1 })).data.filter((e) => e.month === "2026-08").length === 3);
+  check("…and no history row was written", !(await call("/history", { token: A1 })).data.some((h) => h.month === "2026-08"));
+
+  // the partner edits points after the preview → also stale
+  const augSeen2 = (await call("/entries", { token: A1 })).data
+    .filter((e) => e.month === "2026-08").map((e) => [e.id, e.pts, e.charId]);
+  await call(`/entries-id?id=${late.data.id}`, { method: "PUT", token: A2, body: { pts: 8 } });
+  const stale2 = await call("/monthly-settle", { method: "POST", token: A1, body: { month: "2026-08", char1Pts: 5, char2Pts: 6, mode: "reward", seen: augSeen2 } });
+  check("settling after the partner changed a score → 409 stale", stale2.status === 409, `got ${stale2.status}`);
+
+  const augFresh = (await call("/entries", { token: A1 })).data
+    .filter((e) => e.month === "2026-08").map((e) => [e.id, e.pts, e.charId]);
+  const okSettle = await call("/monthly-settle", { method: "POST", token: A1, body: { month: "2026-08", char1Pts: 5, char2Pts: 9, mode: "reward", result1: "无结果", result2: "无结果", seen: augFresh } });
+  check("settling the fresh preview → success", okSettle.status === 200 && okSettle.data.monthId, JSON.stringify(okSettle.data));
+  const augHist = (await call("/history", { token: A2 })).data.filter((h) => h.month === "2026-08");
+  check("history holds the totals of exactly what was archived", augHist.length === 1 && augHist[0].char1Pts === 5 && augHist[0].char2Pts === 9, JSON.stringify(augHist));
+
+  const yearFlags = (await call("/entries?year=2026", { token: A1 })).data;
+  check("?year marks archived entries settled:true", yearFlags.filter((e) => e.month === "2026-08").every((e) => e.settled === true));
+  check("?year marks live entries settled:false", yearFlags.filter((e) => e.month === "2026-09").every((e) => e.settled === false));
+
+  const lockedEdit = await call(`/entries-id?id=${back.data.id}`, { method: "PUT", token: A1, body: { pts: 50 } });
+  check("editing a SETTLED entry → 409", lockedEdit.status === 409, `got ${lockedEdit.status}`);
+  const lockedDel = await call(`/entries-id?id=${back.data.id}`, { method: "DELETE", token: A2 });
+  check("deleting a SETTLED entry → 409", lockedDel.status === 409, `got ${lockedDel.status}`);
+  const stillThere = (await call("/entries?year=2026", { token: A1 })).data.find((e) => e.id === back.data.id);
+  check("…and the settled entry is unchanged", stillThere && stillThere.pts === 5);
+
+  // both partners press 结算 at the same moment, with and without `seen`
+  for (const [m, withSeen] of [["2026-06", true], ["2026-05", false], ["2026-04", true]]) {
+    for (let k = 0; k < 3; k++) {
+      await call("/entries", { method: "POST", token: k % 2 ? A2 : A1, body: { charId: k % 2 ? "char2" : "char1", catName: "陪伴", icon: "💑", pts: 10, desc: "", date: `${m}-1${k}` } });
+    }
+    const seen = (await call("/entries", { token: A1 })).data.filter((e) => e.month === m).map((e) => [e.id, e.pts, e.charId]);
+    const body = { month: m, char1Pts: 20, char2Pts: 10, mode: "reward", result1: "无结果", result2: "无结果", ...(withSeen ? { seen } : {}) };
+    const [x, y] = await Promise.all([
+      call("/monthly-settle", { method: "POST", token: A1, body }),
+      call("/monthly-settle", { method: "POST", token: A2, body }),
+    ]);
+    const rows = (await call("/history", { token: A1 })).data.filter((h) => h.month === m);
+    check(`two simultaneous settles of ${m}${withSeen ? "" : " (old app, no seen)"} → exactly one history row`, rows.length === 1, `rows=${rows.length}, ${x.status} ${JSON.stringify(x.data)} / ${y.status} ${JSON.stringify(y.data)}`);
+    check(`…and every ${m} entry is archived`, !(await call("/entries", { token: A1 })).data.some((e) => e.month === m));
+  }
+
+  // a 月末结算 history longer than two years must not lose its oldest rows
+  const months = Array.from({ length: 25 }, (_, i) => `20${String(10 + Math.floor(i / 12)).padStart(2, "0")}-${String(i % 12 + 1).padStart(2, "0")}`);
+  for (let i = 0; i < months.length; i += 5) {
+    await Promise.all(months.slice(i, i + 5).map(async (m) => {
+      await call("/entries", { method: "POST", token: A1, body: { charId: "char1", catName: "旧账", icon: "📌", pts: 1, desc: "", date: `${m}-15` } });
+      await call("/monthly-settle", { method: "POST", token: A1, body: { month: m, char1Pts: 1, char2Pts: 0, mode: "reward" } });
+    }));
+  }
+  const longHist = (await call("/history", { token: A1 })).data;
+  check("history returns more than 24 rows (the goal and pet sum all of them)", longHist.length >= 30 && longHist.some((h) => h.month === "2010-01"), `got ${longHist.length} rows`);
+
   // --------------------------------------------------------- letters
   section("letters");
   const lt = await call("/letters", { method: "POST", token: A1, body: { charId: "char1", text: "写给你的情书", date: "2026-09-11T10:00:00.000Z" } });
