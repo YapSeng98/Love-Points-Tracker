@@ -782,6 +782,31 @@ now sit closer to the wall than 8% allowed.
 > on a deliberate edit keeps it conservative in the safe direction: coordinates
 > that fit the narrowest screen that touched them fit everywhere.
 
+## 7.249 👆 Only what is drawn takes a tap — and new pieces land where they can be seen
+
+Reported 2026-10-07 with a screenshot: a 毛线篮 just bought showed only its
+two needles above 呆呆's head and could not be picked up. Two causes, both
+the §1.2 shape again:
+
+- **The placement grid sent every fifth floor piece to x=50** — the pet's
+  column. `_freeSpot()` now measures: it tries a short list of spots and takes
+  the first that nothing covers, else the least-covered one. Being HIDDEN (by
+  the pet's drawn body, the bubble, or a piece in front by `_stackOrder` —
+  including 置前/置后 `z`) costs four to ten times more than covering a piece
+  behind; the window costs a little. Measure the pet by `.pet-body`/`.pet-head`,
+  not its box: the box is mostly air, and counting it pushed a 兔子灯 straight
+  behind a table instead.
+- **The pet's whole box took taps**, empty corners included, and it sits
+  above the furniture. `.pet-stage` is now `pointer-events: none` with only its
+  drawn shapes hit-testable (minus its ground shadow); the click still bubbles
+  to `onclick`. The speech bubble and the rug took taps too and no longer do.
+
+A piece already hidden comes back by 收起 then 摆进小窝 in the shop — it lands
+on a free spot. `tools/room-test.js` replays the report (0% of the basket was
+tappable before, half after), the drag out, the pet still reacting to a poke,
+re-placing at 360/390/820, and a room filled one piece at a time; `ROOM=` a
+saved layout replays a real room (never commit one).
+
 ## 7.248 🚫 A control that cannot do anything must look like it
 
 置前/置后 stayed enabled for a lone piece, and for one already at the front of
@@ -1038,7 +1063,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js — serve the repo on :8765 first)
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js — serve the repo on :8765 first)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
@@ -1127,6 +1152,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
 | `node tools/season-test.js` | Seasons by faked clock: every theme boundary through 2030, the limited-stock calendar, the drop cards, each festival's home sky / room / pet / outfit, reduced motion, keepsakes that expire, and 周年 (theme, free gift, claim, placement, midnight) |
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
+| `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |

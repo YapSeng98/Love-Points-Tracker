@@ -12,6 +12,16 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-07 — Furniture behind the pet can be picked up again
+
+A piece bought from the shop could land right behind the pet — the 毛线篮 did,
+with only its needles showing — and then couldn't be tapped, because the
+pet's whole rectangle (empty corners included) caught every tap. Now only the
+pet's actual shape takes a tap, the speech bubble and the rug never do, and new
+furniture is placed on a spot where it can be seen instead of a fixed grid.
+A piece that is already hidden: 装扮小窝 → 「✓ 已摆放」 to take it back, then
+「摆进小窝」 — it lands somewhere free.
+
 ## 2026-10-02 — 周年纪念日
 
 The couple's own anniversary (and every 1000th day) now gets a room theme of

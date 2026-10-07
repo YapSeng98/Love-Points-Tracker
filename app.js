@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.02-56';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.07-57';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -486,7 +486,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.10.02b';
+  const HTML_V = '2026.10.07a';
 
   (function ensureFreshHtml() {
     try {
@@ -6115,6 +6115,72 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     }
   }
 
+  /* Where a newly placed piece lands. The old fixed grid sent every fifth
+     floor piece to x=50 — straight behind the pet, which sits above the
+     furniture: a 毛线篮 vanished behind 呆呆 with only its needles showing,
+     and could not be picked up (reported 2026-10-07). It also knew nothing
+     about the window. So measure: try a short list of spots and take the
+     first that clears the pet (floor), the window and the speech bubble
+     (wall) and everything already placed — or failing that, the least
+     covered one. Off screen there is nothing to measure, and the grid it
+     falls back to skips the pet's column. */
+  function _freeSpot(it, n) {
+    const wall = it.slot === 'wall';
+    const grid = wall ? { x: [16, 36, 64, 84][n % 4], y: 22 + (n % 3) * 8 }
+                      : { x: [14, 30, 70, 86][n % 4], y: 70 + (n % 3) * 8 };
+    const room = document.getElementById('pet-room');
+    const rr = room && room.getBoundingClientRect();
+    if (!rr || !rr.width || !rr.height) return grid;
+    const pct = (r) => ({ l: (r.left - rr.left) / rr.width * 100, r: (r.right - rr.left) / rr.width * 100,
+                          t: (r.top - rr.top) / rr.height * 100,  b: (r.bottom - rr.top) / rr.height * 100 });
+    // What would HIDE the new piece costs most — it is the one the couple
+    // just got and wants to see. The pet and the bubble paint above all
+    // furniture; among furniture, a piece is in front by the room's own
+    // stacking rule (_stackOrder: floor over wall, then the explicit 置前/
+    // 置后 z, then y). Covering a piece behind costs a little, the window a
+    // bit more. The pet is measured by its drawn body and head, not its box:
+    // the box is mostly air, and counting it pushed a 兔子灯 behind a table.
+    const box = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width ? pct(r) : null; };
+    const hide = [], cover = [];
+    const body = [...room.querySelectorAll('#pet-stage .pet-body, #pet-stage .pet-head')].map(box).filter(Boolean);
+    const pet = body.length ? { l: Math.min(...body.map(b => b.l)), r: Math.max(...body.map(b => b.r)),
+                                t: Math.min(...body.map(b => b.t)), b: Math.max(...body.map(b => b.b)) }
+                            : box(document.getElementById('pet-stage'));       // the egg has no body yet
+    if (pet) hide.push([pet, 10]);
+    if (wall) {
+      const bubble = box(document.getElementById('pet-speech')), win = box(room.querySelector('.pet-window'));
+      if (bubble) hide.push([bubble, 10]);
+      if (win) cover.push([win, 3]);
+    }
+    const items = S.equipped?.items || [];
+    const pieces = [...room.querySelectorAll('#pet-decor-layer .decor-piece')]
+      .map(el => ({ o: items[+el.dataset.i], b: box(el) })).filter(x => x.o && x.b);
+    const inFront = (o, y) => {
+      const oWall = DECOR[o.i]?.slot === 'wall';
+      if (oWall !== wall) return !oWall;               // the floor is always in front of the wall
+      const z = +o.z || 0;                             // the new piece has z 0 and is placed last
+      return z > 0 || (z === 0 && (+o.y || 0) > y);
+    };
+    const side = (parseFloat(getComputedStyle(room).getPropertyValue('--pet-h')) || 154) * (it.ratio || 0.5);
+    const w = side / rr.width * 100, h = side / rr.height * 100;   // the art is a 1em square
+    const lim = DRAG_BOUNDS[wall ? 'wall' : 'floor'];
+    const xs = [14, 86, 30, 70, 22, 78, 40, 60];
+    const ys = wall ? [30, 40, 22, 46] : [80, 88, 72, 92];
+    let best = null;
+    for (const y of ys) for (const x of xs) {
+      const p = { l: x - w / 2, r: x + w / 2, t: y - h, b: y };
+      if (p.l < 0 || p.r > 100 || p.t < 0 || y < lim.minY || y > lim.maxY) continue;
+      const ov = (k) => Math.max(0, Math.min(p.r, k.r) - Math.max(p.l, k.l)) * Math.max(0, Math.min(p.b, k.b) - Math.max(p.t, k.t));
+      let cost = 0;
+      for (const [k, wt] of hide)  cost += wt * ov(k);
+      for (const [k, wt] of cover) cost += wt * ov(k);
+      for (const { o, b } of pieces) cost += (inFront(o, y) ? 4 : 1) * ov(b);
+      if (!cost) return { x, y };
+      if (!best || cost < best.cost) best = { x, y, cost };
+    }
+    return best ? { x: best.x, y: best.y } : grid;
+  }
+
   async function placeDecor(id) {
     const it = DECOR[id];
     if (!it || !decorOwns(id)) return;
@@ -6124,13 +6190,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       if (!eq.items.some(o => o.i === id)) {
         // Stagger new pieces so they never land exactly on top of each other
         const n = eq.items.length;
-        // A piece with its own `spot` goes there: the grid knows nothing about
-        // the window, and hung the 两周年相框 straight over it.
-        const piece = it.spot
-          ? { i:id, x: it.spot[0], y: it.spot[1], s:1 }
-          : it.slot === 'wall'
-          ? { i:id, x: 18 + (n % 4) * 20, y: 22 + (n % 3) * 8,  s:1 }
-          : { i:id, x: 14 + (n % 5) * 18, y: 70 + (n % 3) * 8, s:1 };
+        // A piece with its own `spot` goes there (the 周年 frames); anything
+        // else to the first measured spot that is actually free.
+        const at = it.spot ? { x: it.spot[0], y: it.spot[1] } : _freeSpot(it, n);
+        const piece = { i:id, x: at.x, y: at.y, s:1 };
         // Refuse BEFORE the room changes: a piece that can't be saved would
         // otherwise show up now and vanish on the partner's next refresh.
         if (encodeEquipped({ ...eq, items: [...eq.items, piece] }).length > EQ_MAX) {

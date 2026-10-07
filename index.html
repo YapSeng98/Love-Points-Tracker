@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.10.02b">
+  <meta name="app-html-v" content="2026.10.07a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -3022,6 +3022,7 @@
       position: absolute; bottom: 7%; left: 50%; transform: translateX(-50%); z-index: 1;
       width: 62%; height: 12%; border-radius: 50%;
       background: rgba(255,255,255,0.22);
+      pointer-events: none;      /* drawn after the furniture layer: it took taps meant for it (§1.2) */
     }
 
     .pet-stage {
@@ -3036,7 +3037,15 @@
       cursor: pointer;
       transition: transform 0.9s cubic-bezier(0.34,1.4,0.64,1);
       animation: pet-breathe 3.4s ease-in-out infinite;
+      /* Only the pet's DRAWN shape takes a tap (the rule below), not its whole
+         box: the stage sits above the furniture, and its empty corners
+         swallowed every tap on a piece standing behind it — a 毛线篮 whose
+         needles showed above 呆呆's head could not be picked up (2026-10-07).
+         The click still bubbles up to onclick from the shape that was hit. */
+      pointer-events: none;
     }
+    .pet-stage svg * { pointer-events: visiblePainted; }
+    .pet-stage svg [fill^="rgba(0,0,0"] { pointer-events: none; }   /* its ground shadow is not the pet */
     .pet-stage .pet-svg { width: 100%; height: 100%; display: block;
       filter: drop-shadow(0 6px 12px rgba(80,50,120,0.22)); }
     @keyframes pet-breathe {
@@ -3061,6 +3070,7 @@
     }
     .pet-speech-bubble {
       position: absolute; top: 8%; left: 50%; transform: translateX(-50%); z-index: 4;
+      pointer-events: none;      /* informational (§1.4) — a wall piece behind it stays tappable */
       max-width: 74%; text-align: center;
       background: rgba(255,255,255,0.94); color: #4A3A6B;
       font-size: 12.5px; font-weight: 700; line-height: 1.45;
