@@ -42,7 +42,8 @@ async function call(path, { method = "GET", token, body } = {}) {
 const stamp = Date.now();
 const u = (n) => `t${stamp}_anv_${n}`;
 const usernames = [];
-const MSG = "这一路走来，有开心，也有难过。谢谢你出现在我的世界里。我爱你 ❤️";
+// Test text only — never a real note: this repo is public (CLAUDE.md §7.258).
+const MSG = "这是一句测试用的悄悄话，有中文、标点和表情。到点才能看 ❤️";
 
 // A date comfortably in the future and one comfortably past, in any zone.
 const ymd = (d) => d.toISOString().slice(0, 10);

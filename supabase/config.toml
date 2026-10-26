@@ -345,3 +345,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/anniv-note/deno.json"
 entrypoint = "./functions/anniv-note/index.ts"
+
+[functions.surprise]
+enabled = true
+verify_jwt = false
+import_map = "./functions/surprise/deno.json"
+entrypoint = "./functions/surprise/index.ts"

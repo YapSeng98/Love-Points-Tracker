@@ -12,6 +12,19 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-27 — 生日惊喜
+
+Both birthdays can be set in 设置 (a year is optional and adds 「第 N 个
+生日」). Two weeks before one partner's birthday, the other one — and only the
+other one — gets a card to prepare a surprise: a letter, a 生日券 that lands in
+the birthday person's 背包, photos from the album, and an optional wrapped box
+the night before. It is sealed on the server until 00:00 on the day; moving the
+phone's date does nothing. On the day the app celebrates whoever's birthday it
+is, plays a short film the first time it is opened, and keeps a small 🎂 on the
+edge of the screen to watch it again all day.
+
+Also: names in the 背包 are now shown safely whatever they contain.
+
 ## 2026-10-07 — Furniture behind the pet can be picked up again
 
 A piece bought from the shop could land right behind the pet — the 毛线篮 did,

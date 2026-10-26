@@ -596,6 +596,55 @@ Added 2026-10-02 for 两周年 on 12-24 — which is also 圣诞's busiest day.
 no start date), the shelf, the card → shop → claim path, placement, midnight,
 reduced motion, and 360/390/820.
 
+## 7.30 🎂 生日惊喜 — the phone decorates the day, the server opens the film
+
+Built 2026-10-27. Both birthdays live in 设置 (month and day; an optional year
+turns on 「第 N 个生日」). From 14 days before, ONLY the partner's phone shows a
+card to prepare a letter (≤800), one 生日券 (it lands in the birthday
+person's 背包 as `source_type 'gift'`), 3–12 photos and an optional
+night-before teaser. All of it is sealed in `surprises` (RLS on, no
+policies) behind the `surprise` function, opening at 00:00 in the writer's
+zone — the 悄悄话 rule (§7.258).
+
+- **Two clocks.** The phone's date drives decorations only: the `bday` theme
+  (priority 16, worded per viewer — 「生日」 on your own phone, 「YY生日」 on
+  the partner's), the bunting, crowns on the portrait and the pet, the cards.
+  The FILM, and its "watched" flag, only start once the server answers
+  `day: true`. A phone date moved to the birthday shows the bunting and
+  nothing else, and uses nothing up — the first draft let the app's own
+  cake-and-candles part play by the phone's date, which would have marked the
+  day as watched and skipped it on the real day.
+- **Who am I is the login**, `_me()` = `sn_char`, never `S.activeChar`: that
+  is also the home page's "whose points am I adding" switch and can point at
+  the partner. The 悄悄话 card and the anniversary film had the same mix-up.
+- **The whole day.** The film plays once per phone, then docks as a 🎂 tab on
+  the screen edge: tap = replay (after asking the server again), drag = it
+  snaps to the nearer edge. It settles only where no SMALL control is
+  (buttons under 60% of the width, the nav, 月末结算), checked with
+  `elementFromPoint` so controls on hidden pages don't count; overlapping a
+  big card's edge is fine. Gone the next day; past ones replay from
+  「我们的时光」 (`GET ?list=1`).
+- **Opened exactly once.** The opening is a conditional update on
+  `opened_at` (the settle trick, §3.2) with the coupon inserted in the same
+  step and the opening given back if that insert fails. Three simultaneous
+  opens give one coupon.
+- **Never over someone typing.** A modal or a focused input at 00:00 glows the
+  tab instead; `closeModal` plays it. The anniversary film plays first on a
+  shared day. A precise timer fires at 00:00 when tomorrow is your birthday,
+  and a phone a few seconds ahead of the server retries for the first minute.
+- **Nothing prepared still gets a birthday**: the app's own five scenes, and
+  no screen ever says 「对方没写」. The photo heart fills the shape's key points
+  first (tip, both lobes, sides), so 3 photos already read as a heart.
+- Demo mode runs the function's rules on the phone clock (`_bdayDemo`) so the
+  real UI is tested end to end — keep the two in step.
+- The bag now escapes item names and looks an item up by id for 使用: a
+  coupon title is the couple's own text and can contain quotes.
+
+`tools/birthday-test.js` walks it on a faked clock, both phones, every scene
+at 360/375/390/430/820 (overflow, button size, thumb reach, font size), the
+tab at four widths, typing at midnight, the moved-date case against a mocked
+server, and replay. `supabase/test-surprise.mjs` attacks the live function.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -973,6 +1022,10 @@ partner's film. Table `anniv_notes`, function `anniv-note`.
 - It is in `tools/backup.js`'s table list. `supabase/test-anniv.mjs` attacks
   it live: early read, spoofed date, partner overwrite, third couple, direct
   Postgres read/write, rewrite after delivery.
+- **Test text is never the real text.** The note the user picked was copied
+  into `tools/anniversary-test.js` as test data on 9-30 and sat in this
+  public repo until 10-27. Fixtures use obviously fake sentences; the real
+  words only ever go in through the app.
 
 ---
 
@@ -1063,7 +1116,8 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js, room-test.js — serve the repo on :8765 first)
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js — serve the repo
+  on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
@@ -1152,6 +1206,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node supabase/test-api.mjs` | Narrower slice — auth, config, categories, entries, RLS bypass attempts |
 | `node tools/season-test.js` | Seasons by faked clock: every theme boundary through 2030, the limited-stock calendar, the drop cards, each festival's home sky / room / pet / outfit, reduced motion, keepsakes that expire, and 周年 (theme, free gift, claim, placement, midnight) |
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
+| `node tools/birthday-test.js` | 生日惊喜 in a browser: dates (2/29, age), both phones, preparing and sealing, the teaser, 00:00 with the app open, nothing prepared, typing at midnight, a moved phone date against a mocked server, the 🎂 tab, every scene at 360–820, replay |
+| `node supabase/test-surprise.mjs` | 生日惊喜 live: birthdays in config, sealing, the early read and the "was anything prepared?" leak, spoofed zone, third couple, direct Postgres, moved birthday, delivered rewrite, three opens → one coupon, the receipt |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |

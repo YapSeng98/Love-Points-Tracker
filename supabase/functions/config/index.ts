@@ -1,6 +1,20 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { serve, json, getCaller } from "../_shared/util.ts";
 
+// A birthday is 'MM-DD', or 'YYYY-MM-DD' when a year was given (that year turns
+// on 「第 N 个生日」). '' clears it. Anything else is refused rather than
+// stored, because the surprise function matches dates against it.
+function cleanBirthday(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  const m = /^(?:(\d{4})-)?(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const y = m[1] ? +m[1] : 2000;            // 2000 is a leap year, so a bare 02-29 is fine
+  if (m[1] && (y < 1900 || y > 2100)) return null;
+  const d = new Date(Date.UTC(y, +m[2] - 1, +m[3]));
+  return d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? s : null;
+}
+
 serve(async (req) => {
   const caller = await getCaller(req);
   if (!caller) return json({ error: "Unauthorized" }, 401);
@@ -44,6 +58,8 @@ serve(async (req) => {
         petBase: cfg.pet_base ?? 0,
         wx1: cfg.wx_1 || "",
         wx2: cfg.wx_2 || "",
+        birthday1: cfg.birthday_1 || "",
+        birthday2: cfg.birthday_2 || "",
       });
     }
     return json({ configured: false, startDate: "", char1Name, char2Name, charImg1, charImg2 });
@@ -60,6 +76,12 @@ serve(async (req) => {
     if (body.rewardTarget !== undefined) patch.reward_target = body.rewardTarget;
     if (body.punishThreshold !== undefined) patch.punish_threshold = body.punishThreshold;
     if (body.startDate !== undefined) patch.start_date = body.startDate;
+    for (const [k, col] of [["birthday1", "birthday_1"], ["birthday2", "birthday_2"]]) {
+      if (body[k] === undefined) continue;
+      const b = cleanBirthday(body[k]);
+      if (b === null) return json({ error: "bad birthday" }, 400);
+      patch[col] = b;
+    }
     if (body.charName1 !== undefined) patch.char1_name = body.charName1;
     if (body.charName2 !== undefined) patch.char2_name = body.charName2;
     if (body.goalName !== undefined) patch.goal_name = body.goalName;

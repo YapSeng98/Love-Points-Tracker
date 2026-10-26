@@ -3,7 +3,7 @@
 // Uses demo mode with a seeded couple and a faked clock — no real account.
 
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
-const PORT = 8765, URL = `http://localhost:${PORT}/index.html`;
+const URL = process.env.APP_URL || `http://localhost:8765/index.html`;
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✅', m); } else { fail++; console.log('  ❌', m); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -253,7 +253,8 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
   }
 
   const SHOT = (n) => (process.env.SHOTS || '/tmp') + '/' + n;
-  const MSG = '这一路走来，有开心，也有难过，也一起扛过不少难关。每一件小事，都在一点一滴记下我们的回忆，也在慢慢证明我们的感情。谢谢你出现在我的世界里。我爱你 ❤️';
+  // Test text only — never a real note: this repo is public (CLAUDE.md §7.258).
+  const MSG = '这是一段测试用的悄悄话：有长句子，也有标点符号，用来检查整段文字在小电影里能完整显示，不会被截断，字多的时候也会多停留几秒钟，可以慢慢看完。最后再加一个表情 ❤️';
 
   console.log('\n11. 周年悄悄话：CS 在 9-30 写好封起来');
   {
@@ -315,7 +316,7 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
     await sleep(6000);
     await p.screenshot({ path: SHOT('23_film_whisper.png') });
     const txt = (await p.textContent('.anv-scene[data-s="letter"]')).replace(/\s/g, '');
-    ok(txt.includes('CS想对你说') && txt.includes('谢谢你出现在我的世界里') && !txt.includes('第一封信'), '「CS 想对你说」+ 整段悄悄话，不再引用旧信');
+    ok(txt.includes('CS想对你说') && txt.includes('不会被截断') && !txt.includes('第一封信'), '「CS 想对你说」+ 整段悄悄话，不再引用旧信');
     const fit = await p.$eval('.anv-whisper', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; });
     ok(fit, '整段在手机屏幕里放得下');
     const lt = await p.evaluate(() => App._annivStateTest().letterSecs);

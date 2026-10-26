@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.10.07a">
+  <meta name="app-html-v" content="2026.10.27a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -1156,6 +1156,9 @@
       outline: none; font-family: inherit;
       transition: border-color 0.2s;
     }
+    .bday-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .modal-field .bday-year { margin-top: 8px; }
+    .bday-hint { font-size: 12.5px; color: var(--sub); line-height: 1.6; margin: -4px 2px 16px; }
     .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus {
       border-color: var(--blue);
     }
@@ -3347,6 +3350,19 @@
       0%, 100% { transform: translate(0, 0) rotate(-8deg); }
       50%      { transform: translate(14px, -6px) rotate(8deg); }
     }
+    /* 生日 — a deep blue party night with a gold glow, and a party popper
+       bobbing in the corner. Same ::before slot as the others; never takes a
+       tap (§1.2). */
+    .pet-room[data-window="bday"] .pet-window { background: linear-gradient(180deg, #1E2350 0%, #4A3D7A 100%); }
+    .pet-room[data-window="bday"] .pet-window-orb {
+      background: radial-gradient(circle, #FFF1C2, #FFC56B);
+      box-shadow: 0 0 22px rgba(255,197,107,0.9);
+    }
+    .pet-room[data-window="bday"] .pet-window::before {
+      content: '🎉'; position: absolute; top: 14px; left: 30px; z-index: 1;
+      font-size: 14px; pointer-events: none;
+      animation: anniv-window-balloon 5s ease-in-out infinite;
+    }
     /* 周年 — a rose-gold evening with a warm gold light and one balloon
        drifting past. Same ::before slot as the bat; never takes a tap (§1.2). */
     .pet-room[data-window="anniv"] .pet-window { background: linear-gradient(180deg, #3B2A5A 0%, #8E4F7A 58%, #F0A487 100%); }
@@ -4669,6 +4685,20 @@
       <label>💑 开始在一起的日期</label>
       <input id="cfg-start-date" type="date"/>
     </div>
+
+    <!-- Birthdays (§7.30): month + day; a year is optional and turns on 「第 N 个生日」 -->
+    <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">生日</div>
+    <div class="modal-field">
+      <label id="cfg-bday-label-1" for="cfg-bday-m-1">🎂 生日</label>
+      <div class="bday-row"><select id="cfg-bday-m-1" aria-label="月"></select><select id="cfg-bday-d-1" aria-label="日"></select></div>
+      <select id="cfg-bday-y-1" class="bday-year" aria-label="出生年份（可不填）"></select>
+    </div>
+    <div class="modal-field">
+      <label id="cfg-bday-label-2" for="cfg-bday-m-2">🎂 生日</label>
+      <div class="bday-row"><select id="cfg-bday-m-2" aria-label="月"></select><select id="cfg-bday-d-2" aria-label="日"></select></div>
+      <select id="cfg-bday-y-2" class="bday-year" aria-label="出生年份（可不填）"></select>
+    </div>
+    <p class="bday-hint">填了出生年份，生日那天会写「第 N 个生日」；不填就只写「生日快乐」。</p>
 
     <!-- Score thresholds -->
     <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">积分设定</div>

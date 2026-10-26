@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.07-57';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.27-58';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -444,6 +444,7 @@ const App = (() => {
   // half, a phone left open overnight kept yesterday's day count and never
   // showed the new season's furniture until you happened to navigate.
   function _clockTick() {
+    if (_myBirthdayTomorrow()) { try { renderBdayCard(); } catch (e) {} }   // the teaser's countdown
     const per = periodOf().id;
     if (per !== _lastPeriod) {
       _lastPeriod = per;
@@ -461,6 +462,7 @@ const App = (() => {
       try { document.getElementById('month-label').textContent = monthLabel(S.month); } catch (e) {}
       try { renderTogetherBanner(); } catch (e) {}   // 天数 + 里程碑
       try { renderSeasonCard(); }      catch (e) {}   // 限定家具上架
+      try { renderCharacters(); renderBdayCard(); _bdayArmMidnight(); } catch (e) {}   // 生日: crown, card
       try { renderPetBanner(); }       catch (e) {}
       // Festival windows are date-based (from/to, lunar span) and can flip
       // exactly at midnight without the hour-band changing at all — the same
@@ -486,7 +488,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.10.07a';
+  const HTML_V = '2026.10.27a';
 
   (function ensureFreshHtml() {
     try {
@@ -614,6 +616,7 @@ const App = (() => {
     historyRecords: [],
     needsSetup: false,
     startDate: '',
+    birthday1: '', birthday2: '',     // 'MM-DD' or 'YYYY-MM-DD' (§7.30)
     shopItems: [],
     bagItems: [],
     bagHistory: [],
@@ -914,6 +917,7 @@ const App = (() => {
       // would otherwise latch the cache on an empty dataset and leave the pet
       // and badges under-counting for the rest of the session.
       _heavyStatsLoaded = false;
+      _bdayReset();
       if (S.usingSN) {
         // All four at once. They don't depend on each other, and one after
         // another they were most of a 6-second login (≈1s each, measured on
@@ -936,6 +940,8 @@ const App = (() => {
         if (cn1) { S.charName1 = cn1; localStorage.setItem('sn_charname1', cn1); }
         if (cn2) { S.charName2 = cn2; localStorage.setItem('sn_charname2', cn2); }
         S.startDate = cfg.startDate || '';
+        S.birthday1 = cfg.birthday1 || '';
+        S.birthday2 = cfg.birthday2 || '';
         // Shared goal — blank until the couple sets one (and stays blank on an
         // instance whose u_love_config lacks the u_goal_* fields yet)
         S.goalName   = decodeFromSN(cfg.goalName || '');
@@ -974,6 +980,8 @@ const App = (() => {
         S.charImg1        = d.charImg1  || '';
         S.charImg2        = d.charImg2  || '';
         S.startDate       = d.startDate || '';
+        S.birthday1       = d.birthday1 || '';
+        S.birthday2       = d.birthday2 || '';
         S.goalName        = d.goalName  || '';
         S.goalIcon        = d.goalIcon  || '🎯';
         S.goalTarget      = parseInt(d.goalTarget) || 0;
@@ -1164,6 +1172,26 @@ const App = (() => {
       if (t) d.annivNotes.push({ char: S.activeChar, openOn, tz, text: t });
       LS.save(d);
       return { success: true, text: t };
+    },
+
+    /* ── 生日惊喜 (sealed until 00:00 on the birthday — the SERVER decides, §7.30) ── */
+    async getSurprise(openOn) {
+      const tz = -new Date().getTimezoneOffset();
+      if (S.usingSN) return snFetch(`/surprise?openOn=${encodeURIComponent(openOn)}&tz=${tz}`);
+      return _bdayDemo.get(openOn, tz);          // the same rules, on the phone clock
+    },
+    async saveSurprise(body) {
+      const b = { ...body, tz: -new Date().getTimezoneOffset() };
+      if (S.usingSN) return snFetch('/surprise', { method: 'PUT', body: JSON.stringify(b) });
+      return _bdayDemo.put(b);
+    },
+    async openSurprise(openOn) {
+      if (S.usingSN) return snFetch('/surprise', { method: 'POST', body: JSON.stringify({ openOn, date: todayStr(), month: monthKey() }) });
+      return _bdayDemo.open(openOn);
+    },
+    async listSurprises() {
+      if (S.usingSN) return snFetch('/surprise?list=1');
+      return _bdayDemo.list();
     },
 
     /* ── 回忆相册 (memory photos, couple-private) ── */
@@ -1669,6 +1697,13 @@ const App = (() => {
         wrap2.innerHTML = ADAI_SVG;
       }
     }
+    // 生日: a crown on whoever's birthday it is, on both phones (§7.30)
+    try {
+      for (const b of birthdaysToday()) {
+        const w = document.getElementById(`char-img-wrap-${b.char === 'char1' ? 1 : 2}`);
+        if (w) { _bdfStyle(); w.insertAdjacentHTML('beforeend', `<span class="bdf-crown" aria-hidden="true">${_BDF_CROWN}</span>`); }
+      }
+    } catch (e) {}
   }
 
   function renderCharSelector() {
@@ -1750,6 +1785,8 @@ const App = (() => {
       _syncPetExp();
     }).catch(() => { renderSharedGoal(); renderPetBanner(); });
     renderSeasonCard();
+    renderBdayCard();
+    _bdayArmMidnight();
     renderPartnerWeather();
   }
 
@@ -2762,6 +2799,7 @@ const App = (() => {
     document.getElementById('cfg-name1').value = S.charName1 || 'Pochacco';
     document.getElementById('cfg-name2').value = S.charName2 || '阿呆';
     document.getElementById('cfg-start-date').value = S.startDate || '';
+    _fillBirthdayFields();
     _refreshSettingsPreview();
     openModal('modal-settings');
   }
@@ -2822,12 +2860,16 @@ const App = (() => {
     const charName1   = document.getElementById('cfg-name1').value.trim() || 'Pochacco';
     const charName2   = document.getElementById('cfg-name2').value.trim() || '阿呆';
     const startDate   = document.getElementById('cfg-start-date').value  || '';
+    const birthday1   = _readBirthdayField(1), birthday2 = _readBirthdayField(2);
+    if (birthday1 === null || birthday2 === null) { showToast('📅 生日选了一个不存在的日子，再看一下'); return; }
     S.rewardTarget    = rewardTarget;
     S.punishThreshold = punishThreshold;
     S.charName1       = charName1;
     S.charName2       = charName2;
     S.startDate       = startDate;
-    await Data.saveConfig({ mode: S.mode, rewardTarget, punishThreshold, charName1, charName2, startDate, charImg1: S.charImg1, charImg2: S.charImg2 });
+    S.birthday1       = birthday1;
+    S.birthday2       = birthday2;
+    await Data.saveConfig({ mode: S.mode, rewardTarget, punishThreshold, charName1, charName2, startDate, birthday1, birthday2, charImg1: S.charImg1, charImg2: S.charImg2 });
     closeModal('modal-settings');
     await refresh();
     renderTogetherBanner();
@@ -2890,6 +2932,14 @@ const App = (() => {
         onclick="event.stopPropagation();App.playAnniversary()">🎬 今天${_escHtml(occ.label)} · 看小电影 ›</span>`;
       return;
     }
+    const bt = birthdaysToday(), bme = bt.find(b => b.mine), bthem = bt.find(b => !b.mine);
+    if (tip && (bme || bthem)) {
+      _anvStyle();
+      tip.innerHTML = bme
+        ? `<span class="th-anniv" role="button" tabindex="0" onclick="event.stopPropagation();App.openBirthdayFromTab()">🎂 今天是你的生日 · 看惊喜 ›</span>`
+        : `<span class="th-anniv">🎂 今天是 ${_escHtml(bthem.name)} 的生日</span>`;
+      return;
+    }
     if (tip) {
       const m = days === null ? null : nextMilestone(days);
       tip.innerHTML = m
@@ -2928,6 +2978,7 @@ const App = (() => {
     pg.classList.add('open');
     loadMemories();   // async fill of the 回忆相册 strip
     renderWhisperCard();
+    renderBdayMemories();
   }
 
   function closeLovePage() {
@@ -3627,6 +3678,7 @@ const App = (() => {
   let _anvSnoozed = '';     // 「稍后再看」 — don't re-raise it for the rest of this session
 
   function maybeShowAnniversary() {
+    setTimeout(maybeShowBirthday, 0);   // it waits for the anniversary film if that opens now
     try {
       if (document.getElementById('anv-root')) return;
       // Never over the splash or the login / pairing / maintenance card:
@@ -3783,7 +3835,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     const things = lists.flat().filter(e => inWin(e.date) && e.catName !== CHECKIN_CAT).length;
     const letters = (S.letters || []).filter(l => inWin(todayStr(new Date(l.date)))).length;
 
-    const other = S.activeChar === 'char2' ? 'char1' : 'char2';
+    const other = _me() === 'char2' ? 'char1' : 'char2';
     const theirs = (S.letters || [])
       .filter(l => (l.charId || 'char1') === other && l.text)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -3843,7 +3895,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       const after = pg.querySelector('.love-since-card');
       if (after) after.after(card); else pg.appendChild(card);
     }
-    const other = charDisplayName(S.activeChar === 'char2' ? 'char1' : 'char2');
+    const other = charDisplayName(_me() === 'char2' ? 'char1' : 'char2');
     let delivered = '';
     if (today) {
       // A note sealed for today has opened — it is being delivered, not
@@ -3921,8 +3973,8 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     occ = occ || annivOccasion() || _annivLatest();
     if (!occ || document.getElementById('anv-root')) return;
     _anvStyle();
-    const me = charDisplayName(S.activeChar);
-    const other = charDisplayName(S.activeChar === 'char2' ? 'char1' : 'char2');
+    const me = charDisplayName(_me());
+    const other = charDisplayName(_me() === 'char2' ? 'char1' : 'char2');
     const root = document.createElement('div');
     root.id = 'anv-root';
     root.className = 'anv-root';
@@ -4217,6 +4269,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     if (st.started) { try { if (typeof Music !== 'undefined') Music.endFilm(); } catch (e) {} }
     st.root.classList.add('anv-out');
     setTimeout(() => st.root.remove(), 500);
+    setTimeout(maybeShowBirthday, 600);
     renderTogetherBanner();
   }
 
@@ -4226,6 +4279,966 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') maybeShowAnniversary();
   });
+
+  /* ══════════════ 生日惊喜 (CLAUDE.md §7.30) ══════════════
+     On each partner's birthday the app celebrates them, and the other partner
+     can have prepared a surprise — a letter, a coupon for the 背包, photos —
+     sealed on the server until 00:00 that day (the surprise function; the same
+     rule as 周年悄悄话 §7.258).
+
+     - Two clocks. The phone's date drives decorations only: bunting, crown,
+       the home card, the 14-day prep card. The FILM waits for the server to
+       say the birthday has begun, so moving the phone's date forward can
+       neither play it early nor use up its first showing.
+     - The whole day. Once watched (or put off) it docks as a 🎂 tab on the
+       screen edge: tap to watch again, drag to move it; it never settles on a
+       button. Gone the next day; past ones replay from 「我们的时光」.
+     - Who am I: the login (_me), never S.activeChar — that is also the home
+       page's "whose points am I adding" switch and can be the partner.
+     - Styles are injected from here (bdf-*), so a cached index.html can't
+       leave any of it unstyled (§7.27). Class names are bdf-* scoped (§1.1). */
+
+  const BDAY_PREP_DAYS = 14;
+  const BDAY_SONG = 'no-copyright-music-pochacco-lulu.mp3';
+  const BDAY_ICONS = ['🌊', '🍲', '🎬', '🎡', '🏝️', '💐', '🍰', '🎁'];
+
+  function _me() { return (S.usingSN && localStorage.getItem('sn_char')) || S.activeChar || 'char1'; }
+  function _otherOf(c) { return c === 'char2' ? 'char1' : 'char2'; }
+  function _bdayOf(c) { return (c === 'char1' ? S.birthday1 : S.birthday2) || ''; }
+  function _bdayParse(b) {
+    const m = /^(?:(\d{4})-)?(\d{2})-(\d{2})$/.exec(String(b || ''));
+    return m ? { y: m[1] ? +m[1] : 0, m: +m[2], d: +m[3] } : null;
+  }
+  // The local date a birthday falls on in year y. A 2/29 birthday is kept on
+  // 2/28 in the three years without one — the anniversary's rule.
+  function _bdayIn(b, y) {
+    const p = _bdayParse(b);
+    if (!p) return null;
+    return new Date(y, p.m - 1, (p.m === 2 && p.d === 29 && !_anvLeap(y)) ? 28 : p.d);
+  }
+  // Whose birthday is today, by the phone's date — decorations only.
+  function birthdaysToday(d = now()) {
+    const out = [];
+    for (const c of ['char1', 'char2']) {
+      const b = _bdayIn(_bdayOf(c), d.getFullYear());
+      if (!b || b.getMonth() !== d.getMonth() || b.getDate() !== d.getDate()) continue;
+      const y = _bdayParse(_bdayOf(c)).y;
+      out.push({ char: c, mine: c === _me(), name: charDisplayName(c), key: todayStr(d), age: y ? d.getFullYear() - y : 0 });
+    }
+    return out;
+  }
+  // The partner's next birthday while it is 1–14 days away: the time to prepare.
+  function partnerBirthdaySoon(d = now()) {
+    const c = _otherOf(_me()), t0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    for (const y of [d.getFullYear(), d.getFullYear() + 1]) {
+      const b = _bdayIn(_bdayOf(c), y);
+      if (!b) return null;
+      const inDays = Math.round((b - t0) / 86400000);
+      if (inDays >= 1) {
+        if (inDays > BDAY_PREP_DAYS) return null;
+        const y0 = _bdayParse(_bdayOf(c)).y;
+        return { char: c, name: charDisplayName(c), date: b, openOn: todayStr(b), inDays, age: y0 ? y - y0 : 0 };
+      }
+    }
+    return null;
+  }
+  // 'YYYY-MM-DD' when tomorrow is my birthday (the optional teaser), else ''.
+  function _myBirthdayTomorrow(d = now()) {
+    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+    const b = _bdayIn(_bdayOf(_me()), t.getFullYear());
+    return b && b.getMonth() === t.getMonth() && b.getDate() === t.getDate() ? todayStr(t) : '';
+  }
+  // The theme says whose day it is, on each phone (§7.29's chip fits 3–4 glyphs).
+  function _bdayTheme(th, d) {
+    const list = birthdaysToday(d);
+    if (!list.length) return th;
+    const mine = list.find(b => b.mine), theirs = list.find(b => !b.mine);
+    const nm = theirs ? theirs.name : '';
+    const name = mine ? '生日' : ([...nm].length <= 3 ? `${nm}生日` : '生日');
+    const speech = mine && theirs ? ['你们俩都生日快乐！🎂', '今天要吃两个蛋糕吗？']
+      : mine ? ['生日快乐！🎂', '今天你最大', '许一个大大的愿望吧']
+      : [`${nm}生日快乐！🎂`, `今天要对${nm}特别好哦`, '一起唱生日歌吧'];
+    return { ...th, name, speech };
+  }
+
+  /* ── 设置: month, day and an optional year ── */
+  function _fillBirthdayFields() {
+    const opt = (v, t) => `<option value="${v}">${t}</option>`;
+    const yNow = new Date().getFullYear();
+    for (const n of [1, 2]) {
+      const m = document.getElementById(`cfg-bday-m-${n}`), d = document.getElementById(`cfg-bday-d-${n}`), y = document.getElementById(`cfg-bday-y-${n}`);
+      if (!m || !d || !y) continue;
+      const lab = document.getElementById(`cfg-bday-label-${n}`);
+      if (lab) lab.textContent = `🎂 ${charDisplayName('char' + n)} 的生日`;
+      m.innerHTML = opt('', '月') + Array.from({ length: 12 }, (_, i) => opt(i + 1, `${i + 1} 月`)).join('');
+      d.innerHTML = opt('', '日') + Array.from({ length: 31 }, (_, i) => opt(i + 1, `${i + 1} 日`)).join('');
+      y.innerHTML = opt('', '出生年份（可不填）') + Array.from({ length: yNow - 1939 }, (_, i) => opt(yNow - i, `${yNow - i} 年`)).join('');
+      const p = _bdayParse(n === 1 ? S.birthday1 : S.birthday2);
+      m.value = p ? p.m : ''; d.value = p ? p.d : ''; y.value = p && p.y ? p.y : '';
+    }
+  }
+  // '' = not set, null = a day that doesn't exist (2/30) — saving refuses that
+  function _readBirthdayField(n) {
+    const v = (k) => document.getElementById(`cfg-bday-${k}-${n}`)?.value || '';
+    const m = +v('m'), d = +v('d'), y = +v('y');
+    if (!m || !d) return '';
+    const probe = new Date(y || 2000, m - 1, d);
+    if (probe.getMonth() !== m - 1) return null;
+    const md = `${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return y ? `${y}-${md}` : md;
+  }
+
+  /* ── server state, cached briefly (each call is ~1s, §7.4) ── */
+  let _bdayCache = {};
+  function _bdayReset() { _bdayCache = {}; }
+  async function _bdayFetch(openOn, maxAge = 60000) {
+    const c = _bdayCache[openOn];
+    if (c && Date.now() - c.at < maxAge) return c.data;
+    const data = await Data.getSurprise(openOn);
+    _bdayCache[openOn] = { data, at: Date.now() };
+    return data;
+  }
+
+  /* ── demo: the surprise function's rules, on the phone clock ── */
+  const _bdayDemo = {
+    _all() { return LS.load().surprises || []; },
+    _save(list) { const d = LS.load(); d.surprises = list; LS.save(d); },
+    _opens(r) { return Date.parse(`${r.openOn}T00:00:00Z`) - r.tz * 60000; },
+    _isBday(openOn, c) { const b = _bdayIn(_bdayOf(c), +openOn.slice(0, 4)); return !!b && todayStr(b) === openOn; },
+    _shape(r) {
+      if (!r) return null;
+      const ph = LS.load().photos || [];
+      return { letter: r.letter || '', couponTitle: r.couponTitle || '', couponNote: r.couponNote || '', couponIcon: r.couponIcon || '',
+               photoIds: r.photoIds || [], teaser: !!r.teaser, openedAt: r.openedAt || null,
+               photos: (r.photoIds || []).map(id => ph.find(p => p.id === id)).filter(Boolean)
+                 .map(p => ({ id: p.id, image: p.image, caption: p.caption || '', date: p.date || '' })) };
+    },
+    get(openOn, tz) {
+      const me = _me(), other = _otherOf(me), list = this._all(), t = Date.now();
+      const mine = list.find(r => r.from === me && r.openOn === openOn), their = list.find(r => r.from === other && r.openOn === openOn);
+      const theirsOpen = !!their && t >= this._opens(their);
+      const start = Date.parse(`${openOn}T00:00:00Z`) - (their ? their.tz : tz) * 60000;
+      return {
+        openOn, day: this._isBday(openOn, me) && t >= start && t < start + 86400000,
+        teaser: !!their && !!their.teaser && !theirsOpen && t >= this._opens(their) - 86400000,
+        moved: list.find(r => r.from === me && r.openOn !== openOn && !r.openedAt && t < this._opens(r) && !this._isBday(r.openOn, other))?.openOn || '',
+        mine: this._shape(mine), theirs: theirsOpen ? this._shape(their) : null,
+      };
+    },
+    put(b) {
+      const me = _me(), list = this._all(), t = Date.now();
+      if (!this._isBday(b.openOn, _otherOf(me))) throw new Error('SN 400: not their birthday');
+      const mine = list.find(r => r.from === me && r.openOn === b.openOn);
+      if (t >= Date.parse(`${b.openOn}T00:00:00Z`) - (mine ? mine.tz : b.tz) * 60000) throw new Error('SN 409: already delivered');
+      const clip = (v, n) => [...String(v ?? '').trim()].slice(0, n).join('');
+      const rec = { from: me, openOn: b.openOn, tz: b.tz, letter: clip(b.letter, 800), couponTitle: clip(b.couponTitle, 30),
+                    couponNote: '', couponIcon: '', photoIds: (b.photoIds || []).slice(0, 12), teaser: !!b.teaser, openedAt: null };
+      if (rec.couponTitle) { rec.couponNote = clip(b.couponNote, 80); rec.couponIcon = clip(b.couponIcon, 16); }
+      let rest = list.filter(r => !(r.from === me && r.openOn === b.openOn));
+      if (b.moveFrom) rest = rest.filter(r => !(r.from === me && r.openOn === b.moveFrom && !r.openedAt));
+      if (rec.letter || rec.couponTitle || rec.photoIds.length) rest.push(rec);
+      this._save(rest);
+      return { success: true };
+    },
+    open(openOn) {
+      const list = this._all(), r = list.find(x => x.from === _otherOf(_me()) && x.openOn === openOn);
+      if (!r || Date.now() < this._opens(r)) return { opened: false };
+      if (r.openedAt) return { opened: true, coupon: false };
+      r.openedAt = new Date().toISOString();
+      this._save(list);
+      return { opened: true, coupon: !!r.couponTitle };
+    },
+    list() {
+      const other = _otherOf(_me()), t = Date.now();
+      return this._all().filter(r => r.from === other && t >= this._opens(r))
+        .sort((a, b) => (a.openOn < b.openOn ? 1 : -1)).map(r => ({ openOn: r.openOn, opened: !!r.openedAt }));
+    },
+  };
+
+  /* ── art ── */
+  const _BDF_CROWN = `<svg viewBox="0 0 40 26" aria-hidden="true"><path d="M4 23L5 6l8 8 7-12 7 12 8-8 1 17z" fill="#FFD24A" stroke="#C8961C" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="5" cy="5" r="2.4" fill="#FF7A9A"/><circle cx="20" cy="2.4" r="2.4" fill="#8FD6C2"/><circle cx="35" cy="5" r="2.4" fill="#FF7A9A"/><rect x="4" y="20" width="32" height="4" rx="2" fill="#F3B93A"/></svg>`;
+  function _bdfCake() {
+    return `<svg class="bdf-cake" viewBox="0 0 120 92" aria-hidden="true">
+      <ellipse cx="60" cy="86" rx="46" ry="5.5" fill="#FFFFFF" opacity=".9" stroke="#E6D6DC" stroke-width="1.5"/>
+      <rect x="22" y="54" width="76" height="30" rx="8" fill="#FFE1EA" stroke="#E596AD" stroke-width="2"/>
+      <path d="M22 60q6 9 12 0q6 9 12 0q6 9 12 0q6 9 12 0q6 9 12 0q6 9 12 0q2 3 4 1V58a8 8 0 0 0-8-8H30a8 8 0 0 0-8 8z" fill="#FFFFFF"/>
+      <rect x="34" y="34" width="52" height="22" rx="7" fill="#FFF4F7" stroke="#E596AD" stroke-width="2"/>
+      <path d="M34 40q5 7 10 0q5 7 10 0q5 7 10 0q5 7 10 0q5 7 12 0V40a7 7 0 0 0-7-6H41a7 7 0 0 0-7 6z" fill="#F7A8BE"/>
+      <circle cx="40" cy="34" r="3.6" fill="#E8556B"/><circle cx="80" cy="34" r="3.6" fill="#E8556B"/>
+      <ellipse cx="30" cy="66" rx="4" ry="2.4" fill="#fff" opacity=".6"/>
+      ${[48, 60, 72].map((x, i) => `<g class="bdf-cdl">
+        <rect x="${x - 2.2}" y="16" width="4.4" height="18" rx="2" fill="${['#9ED1F0', '#FFD86B', '#F7A8BE'][i]}" stroke="rgba(0,0,0,.12)"/>
+        <path class="bdf-smoke" d="M${x} 13q-3-5 0-9q3-4 0-8" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.6" stroke-linecap="round"/>
+        <circle class="bdf-glow" cx="${x}" cy="10" r="9" fill="rgba(255,200,110,.35)"/>
+        <path class="bdf-flame" d="M${x} 2c3.6 4 4 7.6 0 12c-4-4.4-3.6-8 0-12z" fill="#FFC56B"/>
+        <path class="bdf-flame" d="M${x} 7c1.6 2 1.8 3.8 0 6c-1.8-2.2-1.6-4 0-6z" fill="#FFF3C4"/></g>`).join('')}
+    </svg>`;
+  }
+  const _BDF_GIFT = `<svg viewBox="0 0 120 112" aria-hidden="true">
+    <ellipse cx="60" cy="108" rx="40" ry="4" fill="rgba(0,0,0,.35)"/>
+    <rect x="24" y="56" width="72" height="48" rx="6" fill="#FF93B0" stroke="#C4506F" stroke-width="2.5"/><rect x="54" y="56" width="12" height="48" fill="#FFD24A"/><ellipse cx="38" cy="66" rx="6" ry="3" fill="#fff" opacity=".3"/>
+    <g class="bdf-lid"><rect x="18" y="38" width="84" height="20" rx="6" fill="#F07C98" stroke="#C4506F" stroke-width="2.5"/><rect x="54" y="38" width="12" height="20" fill="#FFD24A"/>
+      <path d="M60 38C50 23 35 23 37 32C39 39 52 38 60 38ZM60 38C70 23 85 23 83 32C81 39 68 38 60 38Z" fill="#FFD24A" stroke="#C99A1E" stroke-width="2" stroke-linejoin="round"/></g></svg>`;
+  function _bdfPet(crown) {
+    if (!S.petSpecies) return '';
+    try { return petSvg(petStageInfo().idx, petSpecies(), '', crown); } catch (e) { return ''; }
+  }
+
+  function _bdfStyle() {
+    if (document.getElementById('bdf-style')) return;
+    const st = document.createElement('style');
+    st.id = 'bdf-style';
+    st.textContent = `
+.bdf-root{position:fixed;inset:0;z-index:300;height:100dvh;color:#FBEFF3;font-family:'Songti SC','Noto Serif SC','STSong',serif;overflow:hidden;-webkit-user-select:none;user-select:none;animation:bdf-in .5s ease;
+  background:radial-gradient(120% 70% at 50% 105%,rgba(255,180,90,.30),transparent 62%),#160E1C;transition:background .9s ease}
+@keyframes bdf-in{from{opacity:0}}
+.bdf-root.bdf-lit{background:radial-gradient(130% 80% at 50% -10%,#8A4566 0%,#4A2A50 48%,#241631 100%)}
+.bdf-root.bdf-out{opacity:0;transition:opacity .45s ease}
+.bdf-x{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;z-index:6;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:rgba(251,239,243,.8);font:600 17px system-ui,sans-serif;cursor:pointer}
+.bdf-sc{position:absolute;inset:0;max-width:560px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:calc(env(safe-area-inset-top,0px) + 60px) 26px calc(env(safe-area-inset-bottom,0px) + 22px);opacity:0;pointer-events:none;transition:opacity .5s ease}
+.bdf-sc.bdf-on{opacity:1;pointer-events:auto}
+.bdf-mid{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:0}
+.bdf-act{width:100%;display:flex;flex-direction:column;gap:10px;align-items:center}
+.bdf-p{width:100%;max-width:330px;min-height:52px;border:0;border-radius:99px;background:linear-gradient(135deg,#FF9DB6,#E25C86);color:#fff;font:700 16px system-ui,-apple-system,'PingFang SC',sans-serif;letter-spacing:.04em;cursor:pointer;box-shadow:0 8px 22px rgba(226,92,134,.35)}
+.bdf-g{width:100%;max-width:330px;min-height:48px;border:1px solid rgba(255,255,255,.28);border-radius:99px;background:rgba(255,255,255,.08);color:#FBEFF3;font:600 15px system-ui,'PingFang SC',sans-serif;cursor:pointer}
+.bdf-l{min-height:44px;border:0;background:none;color:rgba(251,239,243,.66);font:500 14px system-ui,'PingFang SC',sans-serif;cursor:pointer;padding:0 16px}
+.bdf-p:focus-visible,.bdf-g:focus-visible,.bdf-l:focus-visible,.bdf-x:focus-visible{outline:2px solid #FFD98A;outline-offset:3px}
+.bdf-cap{font:500 13.5px system-ui,'PingFang SC',sans-serif;letter-spacing:.14em;color:rgba(251,239,243,.66);margin:0}
+.bdf-line{font-size:18px;font-weight:600;line-height:1.6;margin:0}
+.bdf-hint{font:500 13px system-ui,'PingFang SC',sans-serif;color:rgba(251,239,243,.66);margin:0}
+.bdf-big{font-family:'Ma Shan Zheng','Kaiti SC','STKaiti',cursive;font-size:44px;line-height:1.2;color:#FFEAF0;margin:0}
+.bdf-name{font-family:'Ma Shan Zheng','Kaiti SC','STKaiti',cursive;font-size:60px;line-height:1.1;color:#FFD98A;text-shadow:0 0 24px rgba(255,200,110,.45);margin:0;max-width:100%;overflow-wrap:anywhere}
+.bdf-stage{position:relative;width:min(62%,250px)}
+.bdf-stage .pet-svg{width:100%;height:auto;display:block}
+.bdf-stage .bdf-cake{position:absolute;left:50%;bottom:-2%;width:78%;transform:translateX(-50%);display:block}
+.bdf-cakeonly .bdf-cake{position:static;transform:none;width:100%}
+.bdf-walk{animation:bdf-walk 1.5s ease-out both}
+@keyframes bdf-walk{0%{transform:translateX(-140%)}70%{transform:translateX(4%)}100%{transform:none}}
+.bdf-bob{animation:bdf-bob 2.4s ease-in-out infinite}
+@keyframes bdf-bob{50%{transform:translateY(-6px)}}
+.bdf-flame{transform-box:fill-box;transform-origin:50% 100%;animation:bdf-flick .9s ease-in-out infinite alternate}
+@keyframes bdf-flick{0%{transform:scale(1,1) rotate(-3deg)}100%{transform:scale(.92,1.08) rotate(3deg)}}
+.bdf-glow{animation:bdf-glw 1.8s ease-in-out infinite alternate}
+@keyframes bdf-glw{to{opacity:.55}}
+.bdf-cdl.bdf-blown .bdf-flame,.bdf-cdl.bdf-blown .bdf-glow{opacity:0;transition:opacity .35s ease}
+.bdf-smoke{opacity:0}
+.bdf-cdl.bdf-blown .bdf-smoke{animation:bdf-smk 1.6s ease-out forwards}
+@keyframes bdf-smk{0%{opacity:.7;transform:translateY(0)}100%{opacity:0;transform:translateY(-22px)}}
+.bdf-breath{width:150px;height:150px;border-radius:50%;border:1.5px solid rgba(255,214,150,.5);display:grid;place-items:center;animation:bdf-breath 4s ease-in-out infinite;font-size:34px}
+@keyframes bdf-breath{50%{transform:scale(1.12);border-color:rgba(255,214,150,.9)}}
+.bdf-chev{font-size:22px;color:#FFC56B;animation:bdf-chev 1.4s ease-in-out infinite}
+@keyframes bdf-chev{50%{transform:translateY(-6px);opacity:.6}}
+.bdf-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+.bdf-env{width:220px;height:146px;position:relative;cursor:pointer;border:0;background:none;padding:0;animation:bdf-bob 2.4s ease-in-out infinite}
+.bdf-env-b{position:absolute;inset:0;border-radius:9px;background:linear-gradient(160deg,#F7D9E2,#EBB3C5);box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.bdf-env-f{position:absolute;left:0;right:0;top:0;height:84px;background:linear-gradient(180deg,#F3C6D4,#E4A4BA);clip-path:polygon(0 0,100% 0,50% 100%);border-radius:9px 9px 0 0;transform-origin:50% 0;transition:transform .6s ease}
+.bdf-env.bdf-opened .bdf-env-f{transform:rotateX(180deg)}
+.bdf-seal{position:absolute;left:50%;top:62px;width:46px;height:46px;margin-left:-23px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#E0536F,#A2223C);display:grid;place-items:center;color:#FFE3EA;font:20px/1 'Ma Shan Zheng','Kaiti SC',serif;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.bdf-paper{width:100%;max-width:340px;background:#FFF8EC;color:#4A3540;border-radius:6px;padding:20px 20px 14px;text-align:left;box-shadow:0 18px 40px rgba(0,0,0,.45);
+  background-image:repeating-linear-gradient(transparent 0 33px,rgba(180,140,120,.18) 33px 34px);animation:bdf-unfold .7s ease both}
+@keyframes bdf-unfold{from{transform:translateY(40px) scaleY(.6);opacity:0}}
+.bdf-txt{font:21px/34px 'Ma Shan Zheng','Kaiti SC','STKaiti',cursive;max-height:44dvh;overflow:auto;-webkit-mask:linear-gradient(#000 82%,transparent);mask:linear-gradient(#000 82%,transparent);padding-bottom:18px;white-space:pre-wrap;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+.bdf-sig{font:22px 'Ma Shan Zheng','Kaiti SC',serif;text-align:right}
+.bdf-gift{width:170px;cursor:pointer;border:0;background:none;padding:0}
+.bdf-gift svg{width:100%;display:block;overflow:visible}
+.bdf-gift.bdf-shake{animation:bdf-shake .45s ease}
+@keyframes bdf-shake{20%{transform:rotate(-8deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(3deg)}}
+.bdf-lid{transform-box:fill-box;transform-origin:50% 100%;transition:transform .7s cubic-bezier(.2,1.4,.5,1),opacity .7s .2s}
+.bdf-gift.bdf-opened .bdf-lid{transform:translate(0,-60px) rotate(-18deg);opacity:0}
+.bdf-ticket{width:100%;max-width:318px;color:#4B2E3A;border-radius:14px;padding:20px 26px;text-align:left;position:relative;
+  background:radial-gradient(circle at 0 50%,transparent 12px,#FFF3DF 12.5px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 12px,#FFF3DF 12.5px) right/51% 100% no-repeat;
+  filter:drop-shadow(0 14px 28px rgba(0,0,0,.45));animation:bdf-pop .6s cubic-bezier(.2,1.5,.5,1) both}
+@keyframes bdf-pop{from{transform:scale(.4) rotate(-8deg);opacity:0}}
+.bdf-ticket .bdf-k{font:700 13px system-ui,'PingFang SC',sans-serif;letter-spacing:.3em;color:#C0486C}
+.bdf-ticket .bdf-t{font:30px/1.35 'Ma Shan Zheng','Kaiti SC',serif;margin:6px 0 8px;overflow-wrap:anywhere}
+.bdf-ticket .bdf-n{font:500 14px/1.6 system-ui,'PingFang SC',sans-serif;color:#7A5866;margin-bottom:10px;overflow-wrap:anywhere}
+.bdf-ticket .bdf-m{display:flex;justify-content:space-between;gap:10px;border-top:1.5px dashed rgba(75,46,58,.3);padding-top:10px;font:500 13px system-ui,'PingFang SC',sans-serif;color:#7A5866}
+.bdf-stamp{position:absolute;right:18px;top:14px;font:30px/1 system-ui}
+.bdf-heart{position:relative;width:100%}
+.bdf-tile{position:absolute;border-radius:6px;box-shadow:0 6px 14px rgba(0,0,0,.4);border:3px solid #FFFDF8;background:#6A4A78 center/cover no-repeat;opacity:0;animation:bdf-tin .5s ease forwards}
+@keyframes bdf-tin{from{opacity:0;transform:scale(.6) rotate(var(--r))}to{opacity:1;transform:scale(1) rotate(var(--r))}}
+.bdf-heart .bdf-mid-t{position:absolute;left:0;right:0;text-align:center;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.bdf-root,.bdf-root *,.bdf-tab{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.bdf-walk{animation:none!important}}
+.bdf-tab{position:fixed;z-index:75;width:46px;height:58px;border:0;padding:0;border-radius:29px 0 0 29px;background:linear-gradient(135deg,#FFE29A,#FF9DB6);font-size:26px;line-height:58px;text-align:center;
+  box-shadow:-3px 6px 16px rgba(226,92,134,.38);cursor:grab;touch-action:none;transition:left .28s cubic-bezier(.3,1.3,.6,1),top .2s ease,border-radius .2s}
+.bdf-tab.bdf-left{border-radius:0 29px 29px 0;box-shadow:3px 6px 16px rgba(226,92,134,.38)}
+.bdf-tab.bdf-drag{transition:none;border-radius:29px;cursor:grabbing;transform:scale(1.06)}
+.bdf-tab.bdf-glowing{animation:bdf-pulse 1.6s ease-in-out infinite}
+@keyframes bdf-pulse{50%{box-shadow:0 0 22px 4px rgba(255,170,90,.85)}}
+.bdf-tip{position:fixed;z-index:75;background:rgba(40,28,50,.92);color:#fff;font:600 13px/1.5 system-ui,'PingFang SC',sans-serif;padding:8px 12px;border-radius:12px;white-space:nowrap;pointer-events:none;transition:opacity .3s}
+.bdf-tip.bdf-gone{opacity:0}
+#bday-card{margin:0 16px 12px;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(255,170,195,.26),rgba(185,160,240,.20));border:1.5px solid rgba(220,120,160,.42);
+  box-shadow:0 3px 12px rgba(190,80,130,.14);display:flex;align-items:center;gap:11px}
+#bday-card.hidden{display:none}
+#bday-card.bdf-tap{cursor:pointer}
+#bday-card.bdf-glowcard{animation:bdf-cardglow 2.4s ease-in-out infinite}
+@keyframes bdf-cardglow{50%{box-shadow:0 0 18px 2px rgba(255,140,170,.45)}}
+html[data-theme="dark"] #bday-card{background:linear-gradient(135deg,rgba(255,140,175,.16),rgba(150,120,220,.14));border-color:rgba(240,140,180,.34)}
+#bday-card .bdf-go{font-size:20px;color:var(--sub);flex-shrink:0}
+.bdf-crown{position:absolute;left:50%;top:-12px;transform:translateX(-50%) rotate(-6deg);width:40%;max-width:46px;pointer-events:none;z-index:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
+.bdf-crown svg{width:100%;display:block}
+.sky-bg .bdf-bunting{position:absolute;top:8px;pointer-events:none;overflow:visible}
+.bdf-veil{position:fixed;left:0;right:0;top:0;height:100dvh;z-index:310;background:rgba(20,14,30,.45);display:flex;align-items:flex-end;justify-content:center;animation:bdf-in .25s ease}
+.bdf-sheet{--s-bg:#FFF9FB;--s-ink:#3B2A3A;--s-sub:#7E6472;--s-card:#FFFFFF;--s-line:#F1DDE6;--s-acc:#B93A62;--s-acc-soft:#FBE3EA;
+  width:100%;max-width:560px;max-height:calc(100% - 24px);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--s-bg);color:var(--s-ink);border-radius:26px 26px 0 0;
+  padding:10px 20px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 40px rgba(0,0,0,.25);font-family:system-ui,-apple-system,'PingFang SC',sans-serif}
+html[data-theme="dark"] .bdf-sheet{--s-bg:#231B2B;--s-ink:#F3EAF3;--s-sub:#B8A6B8;--s-card:#2E2438;--s-line:#43354F;--s-acc:#F28CAB;--s-acc-soft:#3B2131}
+.bdf-bar{width:40px;height:5px;border-radius:3px;background:var(--s-line);align-self:center;flex:none}
+.bdf-h{margin:4px 0 0;font:900 20px 'Songti SC','Noto Serif SC',serif}
+.bdf-sub{margin:0;font-size:14px;line-height:1.6;color:var(--s-sub)}
+.bdf-chip{align-self:flex-start;background:var(--s-acc-soft);color:var(--s-acc);font-weight:700;font-size:13px;padding:3px 11px;border-radius:99px}
+.bdf-warn{font-size:13.5px;line-height:1.6;background:#FFF0DB;color:#7A4600;border-radius:14px;padding:10px 12px}
+html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
+.bdf-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--s-card);border:1.5px solid var(--s-line);min-height:62px;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.bdf-item .ic{font-size:24px;width:30px;text-align:center;flex:none}
+.bdf-item .tx{flex:1;min-width:0}
+.bdf-item b{display:block;font-size:15.5px}
+.bdf-item small{display:block;font-size:13px;color:var(--s-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdf-done{font-weight:800;font-size:15px;color:#2E8A5E;flex:none}
+.bdf-more{font-size:20px;color:var(--s-sub);flex:none}
+.bdf-toggle{width:50px;height:30px;border-radius:99px;background:#D9CCD3;position:relative;flex:none;transition:background .2s}
+.bdf-toggle::after{content:'';position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.bdf-toggle.on{background:#E25C86}.bdf-toggle.on::after{transform:translateX(20px)}
+.bdf-sbtn{min-height:52px;border-radius:99px;font:700 16px system-ui,'PingFang SC',sans-serif;cursor:pointer;width:100%;border:0}
+.bdf-sbtn.p{background:linear-gradient(135deg,#FF9DB6,#E25C86);color:#fff;box-shadow:0 8px 20px rgba(226,92,134,.3)}
+.bdf-sbtn.s{background:var(--s-card);border:1.5px solid var(--s-line);color:var(--s-acc)}
+.bdf-sbtn:disabled{opacity:.5;cursor:default}
+.bdf-close{min-height:44px;border:0;background:none;color:var(--s-sub);font:500 14px system-ui,sans-serif;cursor:pointer}
+.bdf-top{display:flex;align-items:center;gap:8px;min-height:44px}
+.bdf-top b{flex:1;font-size:16px}
+.bdf-back{width:44px;height:44px;border:0;background:none;color:var(--s-ink);font-size:26px;cursor:pointer;margin-left:-10px}
+.bdf-saved{font-size:13px;color:#2E8A5E}
+.bdf-ta{width:100%;min-height:180px;flex:1;box-sizing:border-box;resize:none;border:1.5px solid var(--s-line);border-radius:16px;padding:12px 14px;font:20px/1.7 'Ma Shan Zheng','Kaiti SC','STKaiti',serif;color:var(--s-ink);background:var(--s-card)}
+.bdf-ta:focus,.bdf-in:focus{outline:2px solid #E25C86;outline-offset:1px}
+.bdf-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px}
+.bdf-foot .bdf-sbtn{width:auto;padding:0 26px;min-height:46px}
+.bdf-count{font-size:13.5px;color:var(--s-sub);font-variant-numeric:tabular-nums}
+.bdf-icons{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.bdf-icon{min-height:44px;border-radius:12px;border:1.5px solid var(--s-line);background:var(--s-card);font-size:22px;cursor:pointer;padding:0}
+.bdf-icon.on{border-color:#E25C86;background:var(--s-acc-soft)}
+.bdf-lab{display:flex;flex-direction:column;gap:6px;font-size:13.5px;font-weight:700;color:var(--s-sub)}
+.bdf-in{min-height:46px;border:1.5px solid var(--s-line);border-radius:14px;padding:0 14px;font:16px system-ui,'PingFang SC',sans-serif;color:var(--s-ink);background:var(--s-card)}
+.bdf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.bdf-ph{aspect-ratio:1;border-radius:12px;border:3px solid transparent;background:#E8DCE3 center/cover no-repeat;cursor:pointer;position:relative;padding:0}
+.bdf-ph.on{border-color:#E25C86}
+.bdf-ph span{position:absolute;top:6px;right:6px;min-width:24px;height:24px;border-radius:12px;background:#E25C86;color:#fff;font:800 13px/24px system-ui;text-align:center;padding:0 5px}
+.bdf-ph:not(.on) span{display:none}
+.bdf-mem{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.bdf-mem button{min-height:40px;border-radius:99px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.14);color:#fff;font:700 14px system-ui,'PingFang SC',sans-serif;padding:0 16px;cursor:pointer}
+`;
+    document.head.appendChild(st);
+  }
+
+  /* ── the film ── */
+  let _bdf = null;          // { root, order, idx, real, openOn, opened, music, data }
+  let _bdayPending = false; // it arrived while someone was typing — play when the sheet closes
+  const _bdaySeenKey = (key) => `bday_seen_${key}_${_me()}`;
+  function _bdaySeen(key) { try { return !!localStorage.getItem(_bdaySeenKey(key)); } catch (e) { return false; } }
+  function _bdayMarkSeen(key) { try { localStorage.setItem(_bdaySeenKey(key), '1'); } catch (e) {} }
+
+  // o: { who, from, age, data, real, openOn }
+  //   real   — the birthday person's own showing: counts as seen, reports the opening
+  //   data   — what was prepared (null → the app's own film only)
+  function openBirthdayFilm(o) {
+    if (_bdf || document.getElementById('bdf-root')) return;
+    _bdfStyle(); _anvFont();
+    try { if (typeof Music !== 'undefined') Music.prepareFilm(BDAY_SONG); } catch (e) {}
+    document.getElementById('bdf-tab')?.remove(); document.getElementById('bdf-tip')?.remove();
+    const esc = _escHtml, d = o.data || null;
+    const letter = d ? String(d.letter || '').trim() : '';
+    const coupon = d && d.couponTitle ? d : null;
+    const photos = d ? (d.photos || []).filter(p => p && p.image).slice(0, 12) : [];
+    const prepared = !!(letter || coupon || photos.length >= 3);
+    const order = ['dark', 'wish', 'blow', 'name'];
+    if (letter) order.push('letter');
+    if (coupon) order.push('gift');
+    if (photos.length >= 3) order.push('photos');
+    order.push('end');
+    const pet = _bdfPet(false), petC = _bdfPet(true);
+    const stage = (cls) => pet ? `<div class="bdf-stage ${cls}">${pet}${_bdfCake()}</div>` : `<div class="bdf-stage bdf-cakeonly ${cls}">${_bdfCake()}</div>`;
+    const petName = S.petSpecies ? (S.petName || '呆呆') : '';
+    const root = document.createElement('div');
+    root.id = 'bdf-root'; root.className = 'bdf-root';
+    root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', '生日惊喜');
+    root.innerHTML = `<canvas class="bdf-confetti"></canvas>
+      <button type="button" class="bdf-x" data-dock aria-label="${o.real ? '收到旁边' : '关闭'}">✕</button>
+      <section class="bdf-sc" data-s="dark"><div class="bdf-mid"><p class="bdf-cap">嘘……</p>${stage('bdf-walk')}</div>
+        <div class="bdf-act"><p class="bdf-line">${prepared ? '有人偷偷给你准备了一点东西' : petName ? `${esc(petName)}给你端来了蛋糕` : '蜡烛已经点好了'}</p>
+          <button type="button" class="bdf-p" data-go="wish">${prepared ? '看看是什么' : '许个愿吧'}</button>
+          ${o.real ? '<button type="button" class="bdf-l" data-dock>稍后再看</button>' : ''}</div></section>
+      <section class="bdf-sc" data-s="wish"><div class="bdf-mid"><div class="bdf-breath" aria-hidden="true">🙏</div><p class="bdf-big" style="font-size:38px">先闭上眼睛</p><p class="bdf-line" style="font-weight:500">许一个愿，不用说出来</p></div>
+        <div class="bdf-act"><p class="bdf-hint">慢慢来，许好了再点</p><button type="button" class="bdf-p" data-go="blow">许好了</button></div></section>
+      <section class="bdf-sc" data-s="blow"><div class="bdf-mid">${stage('')}</div>
+        <div class="bdf-act"><div class="bdf-chev" aria-hidden="true">︿</div><p class="bdf-hint">往上滑，或者点下面，把蜡烛吹灭</p><button type="button" class="bdf-p" data-blow>吹蜡烛 🌬️</button></div></section>
+      <section class="bdf-sc" data-s="name"><div class="bdf-mid"><p class="bdf-cap">今 天 的 主 角</p><p class="bdf-big">生日快乐</p><p class="bdf-name">${esc(o.who)}</p>
+          <p class="bdf-line" style="font-weight:500;opacity:.85">${o.age > 0 ? `今天是你的第 ${o.age} 个生日 🎂` : '这一整天都是你的 🎂'}</p></div>
+        <div class="bdf-act"><button type="button" class="bdf-p" data-next>继续</button></div></section>
+      ${letter ? `<section class="bdf-sc" data-s="letter"><div class="bdf-mid" data-lettermid><p class="bdf-cap">${esc(o.from)} 写给你的信</p>
+          <button type="button" class="bdf-env" data-env aria-label="拆开信"><div class="bdf-env-b"></div><div class="bdf-env-f"></div><div class="bdf-seal">${esc([...o.from][0] || '♥')}</div></button>
+          <p class="bdf-hint" data-envhint>点信封拆开</p></div>
+        <div class="bdf-act"><button type="button" class="bdf-p" data-next>收好了</button></div></section>` : ''}
+      ${coupon ? `<section class="bdf-sc" data-s="gift"><div class="bdf-mid" data-giftmid><p class="bdf-cap">${esc(o.from)} 送你的</p>
+          <button type="button" class="bdf-gift" data-gift aria-label="拆礼物">${_BDF_GIFT}</button><p class="bdf-hint" data-gifthint>点三下拆开</p></div>
+        <div class="bdf-act"><button type="button" class="bdf-p" data-next>${o.real ? '收进背包' : '继续'}</button></div></section>` : ''}
+      ${photos.length >= 3 ? `<section class="bdf-sc" data-s="photos"><div class="bdf-mid"><div class="bdf-heart" data-heart></div></div>
+        <div class="bdf-act"><p class="bdf-hint">${esc(o.from)} 挑的 ${photos.length} 张</p><button type="button" class="bdf-p" data-next>继续</button></div></section>` : ''}
+      <section class="bdf-sc" data-s="end"><div class="bdf-mid"><div class="bdf-stage bdf-bob${petC ? '' : ' bdf-cakeonly'}">${petC || _bdfCake()}</div><p class="bdf-big" style="font-size:38px">又长大一岁啦</p>
+          <p class="bdf-line" style="font-weight:500;opacity:.85">${esc(o.from)}${petName ? ` 和${esc(petName)}` : ''}陪你过 💕</p></div>
+        <div class="bdf-act">${o.real ? `<button type="button" class="bdf-p" data-reply>回一封信给 ${esc(o.from)}</button><button type="button" class="bdf-g" data-dock>收到旁边</button>`
+                                       : '<button type="button" class="bdf-p" data-dock>关闭</button><button type="button" class="bdf-g" data-go="dark">再看一次</button>'}</div></section>`;
+    document.body.appendChild(root);
+    _bdf = { root, order, idx: 0, real: !!o.real, openOn: o.openOn || '', opened: false, music: false, letter, coupon, photos, o };
+    if (o.real && o.openOn) _bdayMarkSeen(o.openOn);
+
+    root.addEventListener('click', (e) => {
+      const t = e.target.closest('button');
+      if (!t || !_bdf) return;
+      if (t.hasAttribute('data-dock')) return closeBirthdayFilm();
+      if (t.hasAttribute('data-reply')) { closeBirthdayFilm(); return openComposeLetter(); }
+      if (t.hasAttribute('data-blow')) return _bdfBlow();
+      if (t.hasAttribute('data-env')) return _bdfOpenLetter(t);
+      if (t.hasAttribute('data-gift')) return _bdfShakeGift(t);
+      if (t.hasAttribute('data-next')) return _bdfGo(_bdf.order[_bdf.idx + 1]);
+      if (t.dataset.go) return _bdfGo(t.dataset.go);
+    });
+    let y0 = null;
+    const blowSc = root.querySelector('[data-s="blow"]');
+    blowSc.addEventListener('pointerdown', (e) => { y0 = e.clientY; });
+    blowSc.addEventListener('pointerup', (e) => { if (y0 != null && y0 - e.clientY > 30) _bdfBlow(); y0 = null; });
+    _bdfGo('dark');
+  }
+
+  function _bdfGo(id) {
+    const f = _bdf;
+    if (!f || !f.order.includes(id)) return;
+    f.idx = f.order.indexOf(id);
+    f.root.classList.toggle('bdf-lit', f.idx >= 3);
+    f.root.querySelectorAll('.bdf-sc').forEach(s => s.classList.toggle('bdf-on', s.dataset.s === id));
+    if (id === 'dark') {
+      const w = f.root.querySelector('.bdf-walk');
+      if (w) { w.style.animation = 'none'; void w.offsetWidth; w.style.animation = ''; }
+      f.root.querySelectorAll('.bdf-cdl').forEach(c => c.classList.remove('bdf-blown'));
+      f.blown = false;
+    }
+    if (id === 'photos') _bdfHeart(f.root.querySelector('[data-heart]'), f.photos, f.o.who);
+    // The opening is reported at the first thing the partner prepared — or at
+    // the end when there was nothing — once, and only on the real showing.
+    if (f.real && !f.opened && f.idx >= 4) {
+      f.opened = true;
+      Data.openSurprise(f.openOn).then(() => { delete _bdayCache[f.openOn]; renderBdayCard(); }).catch(() => {});
+    }
+  }
+
+  function _bdfBlow() {
+    const f = _bdf;
+    if (!f || f.order[f.idx] !== 'blow' || f.blown) return;
+    f.blown = true;
+    // Sound has to start inside the tap itself (phones refuse it later).
+    try { if (typeof Music !== 'undefined') { Music.startFilm(BDAY_SONG); f.music = true; } } catch (e) {}
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    f.root.querySelectorAll('[data-s="blow"] .bdf-cdl').forEach((c, i) => setTimeout(() => c.classList.add('bdf-blown'), reduce ? 0 : i * 260));
+    setTimeout(() => {
+      if (_bdf !== f) return;
+      f.root.classList.add('bdf-lit');
+      if (!reduce) _bdfConfetti(f.root.querySelector('.bdf-confetti'));
+      try { navigator.vibrate && navigator.vibrate(30); } catch (e) {}
+    }, reduce ? 0 : 900);
+    setTimeout(() => { if (_bdf === f) _bdfGo('name'); }, reduce ? 400 : 2600);
+  }
+
+  function _bdfOpenLetter(btn) {
+    const f = _bdf;
+    if (!f || btn.classList.contains('bdf-opened')) return;
+    btn.classList.add('bdf-opened');
+    f.root.querySelector('[data-envhint]')?.remove();
+    setTimeout(() => {
+      if (_bdf !== f) return;
+      btn.remove();
+      const p = document.createElement('div');
+      p.className = 'bdf-paper';
+      p.innerHTML = `<div class="bdf-txt">${_escHtml(f.letter)}</div><div class="bdf-sig">—— ${_escHtml(f.o.from)}</div>`;
+      f.root.querySelector('[data-lettermid]').appendChild(p);
+    }, 650);
+  }
+
+  function _bdfShakeGift(btn) {
+    const f = _bdf;
+    if (!f || btn.classList.contains('bdf-opened')) return;
+    const n = (+btn.dataset.n || 0) + 1;
+    btn.dataset.n = n;
+    const hint = f.root.querySelector('[data-gifthint]');
+    if (n < 3) {
+      btn.classList.remove('bdf-shake'); void btn.offsetWidth; btn.classList.add('bdf-shake');
+      if (hint) hint.textContent = n === 1 ? '再点两下' : '最后一下';
+      return;
+    }
+    btn.classList.add('bdf-opened');
+    hint?.remove();
+    setTimeout(() => {
+      if (_bdf !== f) return;
+      btn.remove();
+      const c = f.coupon, t = document.createElement('div');
+      t.className = 'bdf-ticket';
+      t.innerHTML = `<span class="bdf-stamp">${_escHtml(c.couponIcon || '🎟️')}</span><div class="bdf-k">生 日 券</div><div class="bdf-t">${_escHtml(c.couponTitle)}</div>
+        ${c.couponNote ? `<div class="bdf-n">${_escHtml(c.couponNote)}</div>` : ''}<div class="bdf-m"><span>${f.real ? '已放进你的背包' : '当天放进 TA 的背包'}</span><span>—— ${_escHtml(f.o.from)}</span></div>`;
+      f.root.querySelector('[data-giftmid]').appendChild(t);
+    }, 600);
+  }
+
+  // Photos around a heart, hand-placed and filled in order of what makes the
+  // shape: the tip and both lobes first, then the sides, then the rest — so 3
+  // photos already read as a heart and 12 close the outline. (Every k-th point
+  // of a ring scattered 5 photos at random; evenly spaced points on the heart
+  // curve crowd into its dip and cover the name in the middle.)
+  const _BDF_HEART = [[.5, .99], [.27, .05], [.73, .05], [.05, .44], [.95, .44], [.5, .2], [.17, .66], [.83, .66], [.33, .84], [.67, .84], [.08, .2], [.92, .2]];
+  function _bdfHeart(box, photos, who) {
+    if (!box) return;
+    const W = Math.min(box.parentElement.clientWidth || 320, 508), tile = Math.round(W * .165);
+    const bh = Math.round(W * .9);
+    box.style.height = bh + 'px';
+    const n = photos.length;
+    const spots = _BDF_HEART.slice(0, n);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    box.innerHTML = spots.map(([x, y], i) => {
+      const url = String(photos[i].image).replace(/"/g, '%22');
+      return `<div class="bdf-tile" style="width:${tile}px;height:${tile}px;left:${x * (W - tile)}px;top:${y * (bh - tile)}px;--r:${(i % 2 ? 1 : -1) * (3 + i % 3 * 2)}deg;background-image:url(&quot;${url}&quot;);animation-delay:${reduce ? 0 : i * .14}s"></div>`;
+    }).join('') + `<div class="bdf-mid-t" style="top:${bh * .4}px"><p class="bdf-cap">这一年的</p><p class="bdf-name" style="font-size:44px">${_escHtml(who)}</p></div>`;
+  }
+
+  function _bdfConfetti(cv) {
+    if (!cv) return;
+    const W = cv.width = cv.clientWidth || innerWidth, H = cv.height = cv.clientHeight || innerHeight;
+    const ctx = cv.getContext('2d'), cols = ['#FF9DB6', '#FFD36E', '#9FCFF2', '#B9A2F2', '#8FD6C2', '#FFFFFF'];
+    const ps = Array.from({ length: 90 }, () => ({ x: W / 2 + (Math.random() - .5) * 70, y: H * .42, vx: (Math.random() - .5) * 10, vy: -Math.random() * 12 - 4,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 5 + Math.random() * 5, h: 8 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)] }));
+    const t0 = performance.now();
+    (function frame(t) {
+      const k = (t - t0) / 2600;
+      ctx.clearRect(0, 0, W, H);
+      if (k >= 1 || !document.body.contains(cv)) return;
+      ps.forEach(p => { p.vy += .28; p.vx *= .992; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.globalAlpha = 1 - Math.max(0, k - .6) / .4; ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore(); });
+      requestAnimationFrame(frame);
+    })(t0);
+  }
+
+  function closeBirthdayFilm() {
+    const f = _bdf;
+    if (!f) return;
+    _bdf = null;
+    if (f.music) { try { Music.endFilm(); } catch (e) {} }
+    f.root.classList.add('bdf-out');
+    setTimeout(() => f.root.remove(), 450);
+    if (f.real) setTimeout(() => renderBdayTab(false, true), 480);
+  }
+
+  /* ── when it comes out ── */
+  // Typing in a sheet or a modal must not be covered: wait, and glow the tab.
+  function _bdayBusy() {
+    const a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
+    return !!document.querySelector('.modal-overlay.open, #anw-veil, #bdf-veil');
+  }
+  let _bdayRetry = null;
+  async function maybeShowBirthday() {
+    try {
+      renderBdayTab();
+      const mine = birthdaysToday().find(b => b.mine);
+      if (!mine || _bdf) return;
+      if (document.getElementById('anv-root')) return;          // the anniversary film first
+      if (document.getElementById('start-page')) return;
+      if (!document.getElementById('setup-overlay')?.classList.contains('hidden')) return;
+      if (S.needsSetup || _bdaySeen(mine.key)) return;
+      const data = await _bdayFetch(mine.key, 0).catch(() => null);
+      if (!data || !data.day) {
+        // A phone clock a few seconds ahead of the server asks just before
+        // 00:00 there: try again shortly, for the first minute.
+        const t = now(), sinceMidnight = t.getHours() * 3600 + t.getMinutes() * 60 + t.getSeconds();
+        clearTimeout(_bdayRetry);
+        if (data && sinceMidnight < 60) _bdayRetry = setTimeout(maybeShowBirthday, 4000);
+        return;
+      }
+      if (_bdf || _bdaySeen(mine.key)) return;
+      if (_bdayBusy()) { _bdayPending = true; renderBdayTab(true); return; }
+      _bdayPending = false;
+      openBirthdayFilm({ who: mine.name, from: charDisplayName(_otherOf(mine.char)), age: mine.age, data: data.theirs, real: true, openOn: mine.key });
+    } catch (e) { /* a decoration must never break the app */ }
+  }
+  // The tab, or the home tip: replay — after asking the server it is the day.
+  async function openBirthdayFromTab() {
+    const mine = birthdaysToday().find(b => b.mine);
+    if (!mine || _bdf) return;
+    const data = await _bdayFetch(mine.key, 0).catch(() => null);
+    if (!data) { showToast('🎂 连上网络就能看'); return; }
+    if (!data.day) { showToast('🎂 还没到哦，00:00 才开始'); return; }
+    _bdayPending = false;
+    openBirthdayFilm({ who: mine.name, from: charDisplayName(_otherOf(mine.char)), age: mine.age, data: data.theirs, real: true, openOn: mine.key });
+  }
+  // The partner watching what they prepared (before, or on the day).
+  async function _bdfPreview(openOn, draft) {
+    const soon = partnerBirthdaySoon(), today = birthdaysToday().find(b => !b.mine);
+    const who = (today || soon) ? charDisplayName(_otherOf(_me())) : '';
+    let data = draft || null;
+    if (!data) { try { data = (await _bdayFetch(openOn)).mine; } catch (e) {} }
+    if (!who || !data) return;
+    const age = today ? today.age : soon ? soon.age : 0;
+    openBirthdayFilm({ who, from: charDisplayName(_me()), age, data, real: false, openOn });
+  }
+  // A precise wake-up at 00:00 when tomorrow is my birthday (the minute tick
+  // alone can be up to a minute late).
+  let _bdayMidnight = null;
+  function _bdayArmMidnight() {
+    clearTimeout(_bdayMidnight);
+    if (!_myBirthdayTomorrow()) return;
+    const t = now(), mid = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 1);
+    const ms = mid - t;
+    if (ms > 0 && ms < 2 * 3600000) _bdayMidnight = setTimeout(() => { try { _clockTick(); } catch (e) {} }, ms);
+  }
+
+  /* ── the 🎂 tab on the screen edge ── */
+  function _bdfTabPos() { try { return JSON.parse(localStorage.getItem('bdf_tab') || 'null') || { side: 'r', top: .5 }; } catch (e) { return { side: 'r', top: .5 }; } }
+  // The nearest height to the one asked for that covers no SMALL control (a
+  // button, a link, the nav, 月末结算). Big tappable cards are fine to overlap
+  // by their edge — the tab only reaches 46px in, into their padding.
+  function _bdfTabPlace(tab, wantTop) {
+    const H = window.innerHeight, W = window.innerWidth, pos = _bdfTabPos();
+    if (wantTop != null) pos.top = wantTop / H;
+    const x0 = pos.side === 'r' ? W - 46 : 0, lo = 64, hi = Math.max(lo, H - 70 - 58);
+    tab.style.pointerEvents = 'none';
+    const blocks = [...document.querySelectorAll('button, a[href], input, select, textarea, [onclick], [role="button"], .bottom-nav')]
+      .filter(el => el !== tab).map(el => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ el, r }) => r.width && r.height && r.right > x0 && r.left < x0 + 46 && (r.width < W * .6 || el.classList.contains('bottom-nav'))
+        && (() => { const c = document.elementFromPoint(Math.min(W - 1, Math.max(0, r.left + r.width / 2)), Math.min(H - 1, Math.max(0, r.top + r.height / 2))); return c && (c === el || el.contains(c)); })())
+      .map(b => b.r);
+    tab.style.pointerEvents = '';
+    const ok = (t) => !blocks.some(r => t < r.bottom + 6 && r.top - 6 < t + 58);
+    const want = Math.min(hi, Math.max(lo, Math.round(pos.top * H)));
+    let top = want;
+    for (let dd = 0; dd <= hi - lo; dd += 4) {
+      if (want + dd <= hi && ok(want + dd)) { top = want + dd; break; }
+      if (want - dd >= lo && ok(want - dd)) { top = want - dd; break; }
+    }
+    tab.style.top = top + 'px';
+    tab.style.left = x0 + 'px';
+    tab.classList.toggle('bdf-left', pos.side === 'l');
+    pos.top = top / H;
+    try { localStorage.setItem('bdf_tab', JSON.stringify(pos)); } catch (e) {}
+    return { top, side: pos.side };
+  }
+  function renderBdayTab(glow, tip) {
+    const mine = birthdaysToday().find(b => b.mine);
+    let tab = document.getElementById('bdf-tab');
+    if (!mine || _bdf || !document.getElementById('setup-overlay')?.classList.contains('hidden') || document.getElementById('start-page')) {
+      tab?.remove(); document.getElementById('bdf-tip')?.remove(); return;
+    }
+    _bdfStyle();
+    if (!tab) {
+      tab = document.createElement('button');
+      tab.id = 'bdf-tab'; tab.type = 'button'; tab.className = 'bdf-tab';
+      tab.setAttribute('aria-label', '生日惊喜，点一下再看一次');
+      tab.textContent = '🎂';
+      document.body.appendChild(tab);
+      _bdfTabWire(tab);
+    }
+    if (glow !== undefined) tab.classList.toggle('bdf-glowing', !!glow || _bdayPending);
+    const at = _bdfTabPlace(tab);
+    if (tip) {
+      let t = document.getElementById('bdf-tip');
+      if (!t) { t = document.createElement('div'); t.id = 'bdf-tip'; t.className = 'bdf-tip'; document.body.appendChild(t); }
+      t.textContent = '想再看就点我，挡到了就拖走';
+      t.classList.remove('bdf-gone');
+      t.style.top = (at.top + 12) + 'px';
+      if (at.side === 'r') { t.style.left = ''; t.style.right = '56px'; } else { t.style.right = ''; t.style.left = '56px'; }
+      setTimeout(() => t.classList.add('bdf-gone'), 4000);
+    }
+  }
+  function _bdfTabWire(tab) {
+    let drag = null;
+    tab.addEventListener('pointerdown', (e) => {
+      drag = { x0: e.clientX, y0: e.clientY, top: parseFloat(tab.style.top) || 0, moved: false };
+      try { tab.setPointerCapture(e.pointerId); } catch (er) {}
+    });
+    tab.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+      if (!drag.moved) { drag.moved = true; tab.classList.add('bdf-drag'); document.getElementById('bdf-tip')?.classList.add('bdf-gone'); }
+      tab.style.left = Math.min(innerWidth - 46, Math.max(0, e.clientX - 23)) + 'px';
+      tab.style.top = Math.min(innerHeight - 64, Math.max(8, drag.top + dy)) + 'px';
+    });
+    const up = (e) => {
+      if (!drag) return;
+      const moved = drag.moved;
+      drag = null;
+      tab.classList.remove('bdf-drag');
+      if (!moved) { openBirthdayFromTab(); return; }
+      const pos = _bdfTabPos();
+      pos.side = e.clientX < innerWidth / 2 ? 'l' : 'r';
+      try { localStorage.setItem('bdf_tab', JSON.stringify(pos)); } catch (er) {}
+      _bdfTabPlace(tab, parseFloat(tab.style.top) || 0);
+    };
+    tab.addEventListener('pointerup', up);
+    tab.addEventListener('pointercancel', up);
+  }
+
+  /* ── the home card ── */
+  function _openBag() { showShop().then(() => { try { shopTabSwitch('bag'); } catch (e) {} }).catch(() => {}); }
+  async function renderBdayCard() {
+    try {
+      let card = document.getElementById('bday-card');
+      const anchor = document.getElementById('season-card');
+      if (!card && anchor) { card = document.createElement('div'); card.id = 'bday-card'; card.className = 'hidden'; anchor.after(card); }
+      if (!card) return;
+      _bdfStyle();
+      const esc = _escHtml;
+      const show = (emoji, title, sub, onclick, glow) => {
+        card.className = (onclick ? 'bdf-tap' : '') + (glow ? ' bdf-glowcard' : '');
+        card.onclick = onclick || null;
+        card.setAttribute('role', onclick ? 'button' : 'note');
+        card.innerHTML = `<span class="sc-emoji">${emoji}</span><div class="sc-body"><div class="sc-title">${title}</div>${sub ? `<div class="sc-sub">${sub}</div>` : ''}</div>${onclick ? '<span class="bdf-go">›</span>' : ''}`;
+      };
+      const hide = () => { card.className = 'hidden'; card.onclick = null; };
+      const today = birthdaysToday(), mine = today.find(b => b.mine), theirs = today.find(b => !b.mine);
+      if (theirs) {
+        const data = await _bdayFetch(theirs.key).catch(() => null);
+        const m = data && data.mine;
+        if (m && m.openedAt) {
+          const t = new Date(m.openedAt);
+          show('✉️', `${esc(theirs.name)} 拆开了你准备的惊喜 ✓`, `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')} 拆开的 · 点这里看 TA 看到的`, () => _bdfPreview(theirs.key), false);
+        } else if (m) {
+          show('✉️', '你准备的惊喜已经送到了', `${esc(theirs.name)} 还没拆开 · 点这里看 TA 会看到的`, () => _bdfPreview(theirs.key), false);
+        } else {
+          show('🎂', `今天是 ${esc(theirs.name)} 的生日`, '记得跟 TA 说生日快乐', null, false);
+        }
+        return;
+      }
+      if (mine) {
+        const data = await _bdayFetch(mine.key).catch(() => null);
+        const t = data && data.theirs;
+        if (t && t.openedAt && t.couponTitle) show(esc(t.couponIcon || '🎟️'), `你有一张生日券：${esc(t.couponTitle)}`, '在背包里，随时可以用', _openBag, false);
+        else hide();
+        return;
+      }
+      const soon = partnerBirthdaySoon();
+      if (soon) {
+        const data = await _bdayFetch(soon.openOn).catch(() => null);
+        const sealed = !!(data && data.mine);
+        show('🎂', `${esc(soon.name)} 的生日还有 ${soon.inDays} 天`, sealed ? '惊喜已经封好 ✓ · 生日前都还能改' : '准备一个惊喜，只有你看得到这张卡片',
+          () => openBirthdayPrep(), !sealed && soon.inDays <= 3);
+        return;
+      }
+      const eve = _myBirthdayTomorrow();
+      if (eve) {
+        const data = await _bdayFetch(eve).catch(() => null);
+        if (data && data.teaser) {
+          const mins = Math.ceil((new Date(+eve.slice(0, 4), +eve.slice(5, 7) - 1, +eve.slice(8, 10)) - now()) / 60000);
+          show('🎁', mins <= 60 ? `还有 ${mins} 分钟就能拆开` : '明天 00:00 拆开', '有人给你准备了一点东西', null, false);
+          return;
+        }
+      }
+      hide();
+    } catch (e) { /* never break home */ }
+  }
+
+  /* ── 「我们的时光」: the ones you received, to watch again ── */
+  async function renderBdayMemories() {
+    try {
+      const pg = document.getElementById('love-page');
+      if (!pg) return;
+      let card = document.getElementById('bdf-mem');
+      let list = [];
+      try { list = await Data.listSurprises(); } catch (e) {}
+      if (!list || !list.length) { card?.remove(); return; }
+      _bdfStyle();
+      if (!card) {
+        card = document.createElement('div');
+        card.id = 'bdf-mem'; card.className = 'anw-card';
+        const after = document.getElementById('anw-card') || pg.querySelector('.love-since-card');
+        if (after) after.after(card); else pg.appendChild(card);
+      }
+      card.innerHTML = `<div class="anw-top"><span class="anw-ic">🎂</span><div><b>收到过的生日惊喜</b><small>点一下再看一次</small></div></div>
+        <div class="bdf-mem">${list.map(r => `<button type="button" data-open="${r.openOn}">${+r.openOn.slice(0, 4)} 年 ▶</button>`).join('')}</div>`;
+      card.onclick = async (e) => {
+        const b = e.target.closest('[data-open]');
+        if (!b) return;
+        const openOn = b.dataset.open;
+        let data = null;
+        try { data = await Data.getSurprise(openOn); } catch (er) {}
+        if (!data || !data.theirs) { showToast('暂时连不上，等会儿再试'); return; }
+        const y = _bdayParse(_bdayOf(_me()))?.y || 0;
+        openBirthdayFilm({ who: charDisplayName(_me()), from: charDisplayName(_otherOf(_me())), age: y ? +openOn.slice(0, 4) - y : 0, data: data.theirs, real: false, openOn });
+      };
+    } catch (e) {}
+  }
+
+  /* ── preparing: a sheet only the partner ever sees ── */
+  let _prep = null;   // { soon, draft, sealed, moved, view, offline }
+  function _prepDraftKey() { return 'bdf_draft_' + (_prep ? _prep.soon.openOn : ''); }
+  function _prepKeepLocal() { try { localStorage.setItem(_prepDraftKey(), JSON.stringify(_prep.draft)); } catch (e) {} }
+  // Keep the sheet above the on-screen keyboard: size the veil to the visual viewport.
+  function _prepViewport() {
+    const veil = document.getElementById('bdf-veil'), vv = window.visualViewport;
+    if (!veil || !vv) return;
+    veil.style.top = vv.offsetTop + 'px';
+    veil.style.height = vv.height + 'px';
+  }
+  async function openBirthdayPrep() {
+    const soon = partnerBirthdaySoon();
+    if (!soon || document.getElementById('bdf-veil')) return;
+    _bdfStyle(); _anvFont();
+    const veil = document.createElement('div');
+    veil.id = 'bdf-veil'; veil.className = 'bdf-veil';
+    veil.innerHTML = `<div class="bdf-sheet" role="dialog" aria-modal="true" aria-label="准备生日惊喜"><div class="bdf-bar"></div><p class="bdf-sub">加载中…</p></div>`;
+    veil.addEventListener('click', (e) => { if (e.target === veil) closeBirthdayPrep(); });
+    document.body.appendChild(veil);
+    if (window.visualViewport) { visualViewport.addEventListener('resize', _prepViewport); visualViewport.addEventListener('scroll', _prepViewport); }
+    let data = null;
+    try { data = await _bdayFetch(soon.openOn, 0); } catch (e) {}
+    await _loadStatsSources().catch(() => {});
+    if (!document.getElementById('bdf-veil')) return;
+    const m = data && data.mine;
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem('bdf_draft_' + soon.openOn) || 'null'); } catch (e) {}
+    const blank = { letter: '', couponTitle: '', couponNote: '', couponIcon: BDAY_ICONS[0], photoIds: [], teaser: false };
+    _prep = {
+      soon, moved: (data && data.moved) || '', sealed: !!m, offline: !data, view: 'main',
+      draft: m ? { letter: m.letter || '', couponTitle: m.couponTitle || '', couponNote: m.couponNote || '', couponIcon: m.couponIcon || BDAY_ICONS[0], photoIds: m.photoIds || [], teaser: !!m.teaser }
+               : { ...blank, ...(local || {}) },
+    };
+    _prepRender();
+  }
+  function closeBirthdayPrep() {
+    if (window.visualViewport) { visualViewport.removeEventListener('resize', _prepViewport); visualViewport.removeEventListener('scroll', _prepViewport); }
+    document.getElementById('bdf-veil')?.remove();
+    _prep = null;
+    renderBdayCard();
+    if (_bdayPending) setTimeout(maybeShowBirthday, 300);
+  }
+  const _prepHas = (d) => !!(String(d.letter || '').trim() || String(d.couponTitle || '').trim() || (d.photoIds || []).length);
+  async function _prepSave(seal) {
+    const p = _prep;
+    if (!p) return false;
+    _prepKeepLocal();
+    try {
+      await Data.saveSurprise({ openOn: p.soon.openOn, ...p.draft, moveFrom: p.moved || undefined });
+      p.sealed = _prepHas(p.draft); p.moved = ''; p.offline = false;
+      delete _bdayCache[p.soon.openOn];
+      return true;
+    } catch (e) {
+      const msg = String(e && e.message || '');
+      if (/409/.test(msg)) showToast('🎂 已经送出去了，改不了啦');
+      else if (/400/.test(msg)) showToast('🎂 生日日期变了，关掉再打开一下');
+      else showToast(seal ? '📶 没连上，内容先存在这台手机上，连上网再点一次「封好」' : '📶 没连上，先存在这台手机上');
+      return false;
+    }
+  }
+  function _prepRender() {
+    const p = _prep, sheet = document.querySelector('#bdf-veil .bdf-sheet');
+    if (!p || !sheet) return;
+    const esc = _escHtml, d = p.draft, name = esc(p.soon.name);
+    const md = `${p.soon.date.getMonth() + 1}月${p.soon.date.getDate()}日`;
+    if (p.view === 'main') {
+      const len = [...d.letter].length, n = d.photoIds.length;
+      const mv = p.moved ? `${+p.moved.slice(5, 7)}月${+p.moved.slice(8, 10)}日` : '';
+      sheet.innerHTML = `<div class="bdf-bar"></div>
+        <h3 class="bdf-h">给 ${name} 的生日惊喜</h3>
+        <p class="bdf-sub">${md} 00:00 一起打开。在那之前 ${name} 看不到任何东西，连你有没有准备都不知道。</p>
+        <span class="bdf-chip">还有 ${p.soon.inDays} 天${p.sealed ? ' · 已封好 ✓' : ''}</span>
+        ${p.moved ? `<div class="bdf-warn">⚠️ ${name} 的生日改过了。你给 ${mv} 封好的惊喜，下次「封好」时会挪到 ${md}。</div>` : ''}
+        ${p.offline ? '<div class="bdf-warn">📶 现在连不上服务器，改动先存在这台手机上。</div>' : ''}
+        <button type="button" class="bdf-item" data-view="letter"><span class="ic">✉️</span><span class="tx"><b>生日信</b><small>${len ? `已写 ${len} 字` : '写几句平时没说出口的话'}</small></span><span class="${len ? 'bdf-done' : 'bdf-more'}">${len ? '✓' : '›'}</span></button>
+        <button type="button" class="bdf-item" data-view="coupon"><span class="ic">${esc(d.couponTitle ? (d.couponIcon || '🎟️') : '🎟️')}</span><span class="tx"><b>生日券</b><small>${d.couponTitle ? esc(d.couponTitle) : '一句承诺，生日当天放进 TA 的背包'}</small></span><span class="${d.couponTitle ? 'bdf-done' : 'bdf-more'}">${d.couponTitle ? '✓' : '›'}</span></button>
+        <button type="button" class="bdf-item" data-view="photos"><span class="ic">📷</span><span class="tx"><b>这一年的照片</b><small>${n ? `已选 ${n} 张${n < 3 ? '，至少 3 张才会放' : ''}` : '挑 6–12 张，拼成一颗心'}</small></span><span class="${n >= 3 ? 'bdf-done' : 'bdf-more'}">${n >= 3 ? '✓' : '›'}</span></button>
+        <button type="button" class="bdf-item" data-teaser role="switch" aria-checked="${d.teaser}"><span class="ic">🎁</span><span class="tx"><b>前一晚给 TA 一点期待</b><small>只露出一个盒子，看不到里面</small></span><span class="bdf-toggle${d.teaser ? ' on' : ''}"></span></button>
+        <button type="button" class="bdf-sbtn s" data-preview ${_prepHas(d) ? '' : 'disabled'}>预览 ${name} 会看到的</button>
+        <button type="button" class="bdf-sbtn p" data-seal ${_prepHas(d) ? '' : 'disabled'}>${p.sealed ? '改好了，重新封好 💌' : '封好 💌'}</button>
+        <button type="button" class="bdf-close" data-close>关闭</button>`;
+    } else if (p.view === 'letter') {
+      sheet.innerHTML = `<div class="bdf-top"><button type="button" class="bdf-back" data-back aria-label="返回">‹</button><b>写给 ${name} 的信</b><span class="bdf-saved" data-saved></span></div>
+        <textarea class="bdf-ta" data-letter maxlength="800" placeholder="${name}：\n生日快乐呀……">${esc(d.letter)}</textarea>
+        <div class="bdf-foot"><span class="bdf-count" data-count>${[...d.letter].length} / 800</span><button type="button" class="bdf-sbtn p" data-done>完成</button></div>`;
+    } else if (p.view === 'coupon') {
+      sheet.innerHTML = `<div class="bdf-top"><button type="button" class="bdf-back" data-back aria-label="返回">‹</button><b>生日券</b></div>
+        <p class="bdf-sub">写一句承诺。生日那天 ${name} 拆开礼物盒就会看到，券会自动放进 TA 的背包，跟别的奖励一样用。</p>
+        <div class="bdf-icons">${BDAY_ICONS.map(i => `<button type="button" class="bdf-icon${i === d.couponIcon ? ' on' : ''}" data-icon="${i}" aria-label="图标 ${i}">${i}</button>`).join('')}</div>
+        <label class="bdf-lab">写一句承诺<input class="bdf-in" data-ctitle maxlength="30" placeholder="例如：带你去看一次海" value="${esc(d.couponTitle)}"></label>
+        <label class="bdf-lab">再补一句（可以不写）<input class="bdf-in" data-cnote maxlength="80" placeholder="例如：有效期：一辈子" value="${esc(d.couponNote)}"></label>
+        <div class="bdf-foot">${d.couponTitle ? '<button type="button" class="bdf-sbtn s" data-cclear>不送券了</button>' : '<span></span>'}<button type="button" class="bdf-sbtn p" data-done>完成</button></div>`;
+    } else if (p.view === 'photos') {
+      const all = (S.photos || []).filter(x => x && x.image);
+      sheet.innerHTML = `<div class="bdf-top"><button type="button" class="bdf-back" data-back aria-label="返回">‹</button><b>这一年的照片</b></div>
+        ${all.length ? `<p class="bdf-sub">按点的顺序拼成一颗心，最多 12 张。</p>
+          <div class="bdf-grid">${all.map(x => { const i = d.photoIds.indexOf(x.id);
+            return `<button type="button" class="bdf-ph${i >= 0 ? ' on' : ''}" data-pid="${esc(String(x.id))}" aria-pressed="${i >= 0}" aria-label="${esc(x.caption || x.date || '照片')}" style="background-image:url(&quot;${String(x.image).replace(/"/g, '%22')}&quot;)"><span>${i >= 0 ? i + 1 : ''}</span></button>`; }).join('')}</div>`
+          : '<p class="bdf-sub">相册里还没有照片。先去「我们的时光」加几张，再回来挑。</p>'}
+        <div class="bdf-foot"><span class="bdf-count" data-count>已选 ${d.photoIds.length} / 12</span><button type="button" class="bdf-sbtn p" data-done>完成</button></div>`;
+    }
+    _prepWire(sheet);
+  }
+  // Rotating or resizing moves the title and the buttons: measure again.
+  let _bdfResize = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_bdfResize);
+    _bdfResize = setTimeout(() => {
+      if (document.documentElement.dataset.festival === 'bday') {
+        document.querySelector('.sky-bg .home-fest-layer')?.remove();
+        try { applyTheme(); } catch (e) {}
+      }
+      const tab = document.getElementById('bdf-tab');
+      if (tab) _bdfTabPlace(tab);
+    }, 250);
+  });
+  function _prepWire(sheet) {
+    const p = _prep, d = p.draft;
+    sheet.onclick = async (e) => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.dataset.view) { p.view = t.dataset.view; _prepRender(); return; }
+      if (t.hasAttribute('data-close')) return closeBirthdayPrep();
+      if (t.hasAttribute('data-back')) { p.view = 'main'; _prepKeepLocal(); _prepRender(); return; }
+      if (t.hasAttribute('data-teaser')) { d.teaser = !d.teaser; if (p.sealed) await _prepSave(false); else _prepKeepLocal(); _prepRender(); return; }
+      if (t.hasAttribute('data-preview')) { _prepKeepLocal(); return _bdfPreview(p.soon.openOn, { ...d, photos: (S.photos || []).filter(x => d.photoIds.includes(x.id)).sort((a, b) => d.photoIds.indexOf(a.id) - d.photoIds.indexOf(b.id)) }); }
+      if (t.hasAttribute('data-seal')) {
+        t.disabled = true;
+        const ok = await _prepSave(true);
+        if (ok) { showToast(`💌 封好了，${p.soon.date.getMonth() + 1}月${p.soon.date.getDate()}日 00:00 送到 ${p.soon.name} 那里`); closeBirthdayPrep(); }
+        else if (document.body.contains(t)) t.disabled = false;
+        return;
+      }
+      if (t.dataset.icon) { d.couponIcon = t.dataset.icon; sheet.querySelectorAll('[data-icon]').forEach(b => b.classList.toggle('on', b === t)); return; }
+      if (t.hasAttribute('data-cclear')) { d.couponTitle = ''; d.couponNote = ''; await _prepSave(false); p.view = 'main'; _prepRender(); return; }
+      if (t.dataset.pid) {
+        const id = t.dataset.pid, i = d.photoIds.indexOf(id);
+        if (i >= 0) d.photoIds.splice(i, 1);
+        else if (d.photoIds.length < 12) d.photoIds.push(id);
+        else { showToast('最多 12 张'); return; }
+        sheet.querySelectorAll('[data-pid]').forEach(b => { const k = d.photoIds.indexOf(b.dataset.pid); b.classList.toggle('on', k >= 0); b.setAttribute('aria-pressed', k >= 0); b.querySelector('span').textContent = k >= 0 ? k + 1 : ''; });
+        const c = sheet.querySelector('[data-count]'); if (c) c.textContent = `已选 ${d.photoIds.length} / 12`;
+        return;
+      }
+      if (t.hasAttribute('data-done')) {
+        t.disabled = true;
+        await _prepSave(false);
+        p.view = 'main'; _prepRender();
+      }
+    };
+    const ta = sheet.querySelector('[data-letter]');
+    if (ta) {
+      let timer = null;
+      ta.addEventListener('input', () => {
+        d.letter = ta.value;
+        const c = sheet.querySelector('[data-count]'); if (c) c.textContent = `${[...ta.value].length} / 800`;
+        clearTimeout(timer);
+        timer = setTimeout(() => { _prepKeepLocal(); const s = sheet.querySelector('[data-saved]'); if (s) s.textContent = '草稿已保存'; }, 600);
+      });
+      setTimeout(() => { try { ta.focus({ preventScroll: true }); } catch (e) {} }, 60);
+    }
+    const ti = sheet.querySelector('[data-ctitle]'), no = sheet.querySelector('[data-cnote]');
+    if (ti) ti.addEventListener('input', () => { d.couponTitle = ti.value; });
+    if (no) no.addEventListener('input', () => { d.couponNote = no.value; });
+  }
 
   /* ══════════════ 恋爱小窝 · 宠物养成 (Phase 1) ══════════════
      Level and mood are DERIVED from the couple's real activity, never stored
@@ -4307,6 +5320,12 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   // colour swatch), so you could not tell 派对帽 from 小红围巾 except by name.
   function outfitArtFor(draw, headTop, headY, headR) {
     return {
+      // 生日 crown — worn ON TOP of whatever the couple dressed the pet in
+      crown: `<path d="M ${60-15} ${headTop+5} L ${60-13} ${headTop-12} L ${60-5.5} ${headTop-3} L 60 ${headTop-16} L ${60+5.5} ${headTop-3} L ${60+13} ${headTop-12} L ${60+15} ${headTop+5} Z"
+                    fill="#FFD24A" stroke="#C8961C" stroke-width="1.6" stroke-linejoin="round"/>
+              <circle cx="${60-13}" cy="${headTop-13}" r="2.2" fill="#FF7A9A"/><circle cx="60" cy="${headTop-17}" r="2.4" fill="#8FD6C2"/>
+              <circle cx="${60+13}" cy="${headTop-13}" r="2.2" fill="#FF7A9A"/>
+              <rect x="${60-14}" y="${headTop+1.5}" width="28" height="3.6" rx="1.8" fill="#F3B93A"/>`,
       partyHat: `<path d="M ${60-13} ${headTop+4} L 60 ${headTop-26} L ${60+13} ${headTop+4} Z"
                        fill="#FF8FA0" stroke="#E0687E" stroke-width="1.5" stroke-linejoin="round"/>
                  <circle cx="60" cy="${headTop-28}" r="4.5" fill="#FFD24A"/>`,
@@ -4693,6 +5712,13 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   // Written for a tropical climate: the four seasons are mood only, festivals
   // are what actually feels real here.
   const THEMES = [
+    // 生日 — per VIEWER (§7.30): the birthday person's phone says 「生日」, the
+    // partner's says whose. Above the anniversary's 15: on a birthday that is
+    // also a festival or the anniversary, the room is about that person. The
+    // pet keeps its own outfit and gets a crown on top (_bdayCrown in petSvg).
+    { id:'bday', name:'生日', priority:16, bday:true, emoji:'🎂',
+      window:'bday', effect:'bunting', particle:'✨', outfit:'',
+      wall:['#2F3762','#28305A'], floorTone:'#5E5279', speech:[] },
     // 周年纪念日 — the couple's OWN day, not a calendar date: annivOccasion()
     // (the film's single source of "is today the day", §7.257) decides, so it
     // follows start_date and covers every 1000th day too. Priority 15 beats
@@ -4758,6 +5784,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
 
   function _themeActive(th, d) {
     if (th.anniv) return !!annivOccasion(d);       // needs start_date: off before login
+    if (th.bday) return birthdaysToday(d).length > 0;
     if (th.lunar) {
       const iso = LUNAR[th.lunar]?.[d.getFullYear()];
       if (!iso) return false;                       // table ran out — fail quiet
@@ -4792,7 +5819,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       if (!_themeActive(th, d)) continue;
       if (!best || th.priority > best.priority) best = th;   // ties: first listed wins
     }
-    return best && best.anniv ? _annivTheme(best, d) : best;
+    return best && best.anniv ? _annivTheme(best, d) : best && best.bday ? _bdayTheme(best, d) : best;
   }
 
   // The 周年 entry has no name of its own: the chip says 「两周年」 (or
@@ -5035,7 +6062,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
      render as the same featureless snowman. */
   let _svgUid = 0;
 
-  function petSvg(stageIdx, sp = petSpecies(), outfitOverride = '') {
+  function petSvg(stageIdx, sp = petSpecies(), outfitOverride = '', forceCrown = false) {
     const uid = 'pg' + (++_svgUid);
     const grad = `
       <defs>
@@ -5143,7 +6170,9 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     // Player choice wins; the theme only dresses the pet if they haven't.
     const _th = currentTheme();
     const outfitId = outfitOverride || (S.equipped && S.equipped.outfit) || (_th && _th.outfit) || '';
-    const outfitArt = outfitArtFor(DECOR[outfitId]?.draw, headTop, headY, headR);
+    const outfitArt = outfitArtFor(DECOR[outfitId]?.draw, headTop, headY, headR)
+      // a birthday crown on top — unless the outfit is itself a hat
+      + (((forceCrown || (_th && _th.bday)) && !/Hat$/.test(DECOR[outfitId]?.draw || '')) ? outfitArtFor('crown', headTop, headY, headR) : '');
 
     return `<svg class="pet-svg" viewBox="0 -26 120 176">${grad}
       <ellipse cx="60" cy="139" rx="${bodyW*0.86}" ry="5.5" fill="rgba(0,0,0,0.14)"/>
@@ -5813,6 +6842,26 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
       hero = spots.map(([dx, y], i) =>
         `<span class="anniv-balloon" style="--dx:${dx}px;--y:${y}px;--c:${tints[i]};--bd:${(4.2 + i * 0.6).toFixed(1)}s;--fd:${(i * 0.7).toFixed(1)}s"></span>`
       ).join('') + `<span class="anniv-num">${_escHtml(active.num || '')}</span>`;
+    } else if (active.effect === 'bunting') {
+      // 生日 — a short 生日快乐 garland hung in the gap between the title and
+      // the ♫/⚙️ buttons, MEASURED: placed by %, the 「2」 balloons' first try
+      // sat on the title (§7.29). Too narrow a gap, and only the sparkles fall.
+      const tEl = document.querySelector('.app-title'), hr = document.querySelector('.header-right');
+      if (tEl && hr) {
+        const rg = document.createRange(); rg.selectNodeContents(tEl);
+        const a = rg.getBoundingClientRect().right, b = hr.getBoundingClientRect().left, gap = b - a;
+        if (a > 0 && gap > 100) {
+          const w = Math.min(176, gap - 14), x = a + (gap - w) / 2, cols = ['#FF9DB6', '#FFD36E', '#9FCFF2', '#B9A2F2'];
+          const flags = [14, 38, 62, 86].map((fx, i) => {
+            const fy = 4 + 14 * (1 - ((fx - 50) / 48) ** 2);
+            return `<path d="M${fx - 10} ${fy - 1}L${fx + 10} ${fy - 1}L${fx} ${fy + 16}z" fill="${cols[i]}" stroke="rgba(0,0,0,.12)" stroke-width=".5"/>`
+              + `<text x="${fx}" y="${fy + 8}" text-anchor="middle" font-size="10.5" font-family="Ma Shan Zheng, Kaiti SC, STKaiti, serif" fill="#4B2E3A">${'生日快乐'[i]}</text>`;
+          }).join('');
+          _bdfStyle();
+          hero = `<svg class="bdf-bunting" style="left:${x}px;width:${w}px;height:${(w * .34).toFixed(1)}px" viewBox="0 0 100 34" aria-hidden="true">`
+            + `<path d="M2 4Q50 32 98 4" fill="none" stroke="#B49AA8" stroke-width=".8"/>${flags}</svg>`;
+        }
+      }
     } else if (active.effect === 'boat') {
       // Three boats at different lanes/speeds/delays read as a race —
       // one lone boat drifting by read as a stray decoration. Lanes are
@@ -6301,6 +7350,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   }
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
+    if (_bdayPending) setTimeout(maybeShowBirthday, 400);   // it waited while a sheet was open
   }
 
   /* ── Custom confirm dialog (replaces native confirm()) ── */
@@ -6660,12 +7710,12 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     }
     el.innerHTML = S.bagItems.map(item => `
       <div class="bag-item">
-        <div class="bag-item-icon">${item.itemIcon || '🎁'}</div>
+        <div class="bag-item-icon">${_escHtml(item.itemIcon || '🎁')}</div>
         <div class="bag-item-info">
-          <div class="bag-item-name">${item.itemName}</div>
-          <div class="bag-item-meta">${item.acquiredDate} · 花费 ${item.ptsSpent} 分</div>
+          <div class="bag-item-name">${_escHtml(item.itemName || '')}</div>
+          <div class="bag-item-meta">${item.acquiredDate} · ${item.sourceType === 'gift' ? '🎂 生日礼物' : `花费 ${item.ptsSpent} 分`}</div>
         </div>
-        <button class="bag-item-use" onclick="App.confirmUseItem('${item.id}', '${item.itemName}')">使用</button>
+        <button class="bag-item-use" onclick="App.confirmUseItem('${_escHtml(String(item.id))}')">使用</button>
       </div>`).join('');
   }
 
@@ -6745,6 +7795,7 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
   }
 
   async function confirmUseItem(id, name) {
+    if (name === undefined) name = (S.bagItems || []).find(b => String(b.id) === String(id))?.itemName || '';
     if (!(await showConfirm(`确认使用「${name}」？\n使用后将移入历史记录`, false))) return;
     try {
       await ShopData.useItem(id);
@@ -7005,6 +8056,10 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
     _stackTest: () => [...document.querySelectorAll('#pet-decor-layer .decor-piece')]
       .map(e => ({ name: e.title, z: +getComputedStyle(e).zIndex })),
     _setChar: (w) => { S.activeChar = w; },
+    openBirthdayPrep, closeBirthdayPrep, openBirthdayFromTab, closeBirthdayFilm, maybeShowBirthday, renderBdayCard,
+    _bdayTest: (d) => ({ today: birthdaysToday(d), soon: partnerBirthdaySoon(d), tomorrow: _myBirthdayTomorrow(d), me: _me() }),
+    _bdfState: () => _bdf && { scene: _bdf.order[_bdf.idx], order: _bdf.order.slice(), real: _bdf.real, opened: _bdf.opened },
+    _bdayReset: () => _bdayReset(),
     _moodTest: () => petMood(),
     _moodFaceTest: () => petMoodFace(petMood()).label,
     _eqTest: () => S.equipped,
@@ -7221,23 +8276,24 @@ const Music = (() => {
   // leaves the player as it found it. It never touches the saved music_on
   // preference: watching a film is not a vote to have music on every day.
   let _filmWasPlaying = false;
-  let _filmSrcOk = null;              // null = not checked yet
+  const _filmSrcOk = {};              // src → true/false once checked (absent = not yet)
   // Asked while the envelope is showing. Phones only allow sound inside the
   // tap itself, and a missing file only reports its error AFTER play() — by
   // then the tap is spent and the fallback would be silent. So decide the
   // song before the tap, not after it.
-  function prepareFilm() {
-    if (_filmSrcOk !== null) return;
-    fetch(encodeURI(FILM_SRC), { method: 'HEAD', cache: 'no-store' })
-      .then(r => { _filmSrcOk = r.ok && /audio|mpeg|octet/.test(r.headers.get('content-type') || 'audio'); })
-      .catch(() => { _filmSrcOk = false; });
+  function prepareFilm(src = FILM_SRC) {
+    if (src in _filmSrcOk) return;
+    _filmSrcOk[src] = null;
+    fetch(encodeURI(src), { method: 'HEAD', cache: 'no-store' })
+      .then(r => { _filmSrcOk[src] = r.ok && /audio|mpeg|octet/.test(r.headers.get('content-type') || 'audio'); })
+      .catch(() => { _filmSrcOk[src] = false; });
   }
-  function startFilm() {
+  function startFilm(src = FILM_SRC) {
     if (!audio) return;
     _filmWasPlaying = playing;
-    const own = _filmSrcOk === true;
+    const own = _filmSrcOk[src] === true;
     currentTrack = own ? 'film' : 'default';   // 'film' ≠ default, so a late error still falls back
-    audio.src = own ? FILM_SRC : DEFAULT_SRC;
+    audio.src = own ? src : DEFAULT_SRC;
     audio.volume = Math.max(baseVolume, 0.5);
     audio.play().then(() => { playing = true; _updateBtn(); }).catch(() => {});
   }

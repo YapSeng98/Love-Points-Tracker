@@ -9,7 +9,7 @@
 // backend.
 
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
-const PORT = 8765, APP_URL = `http://localhost:${PORT}/index.html`;
+const APP_URL = process.env.APP_URL || `http://localhost:8765/index.html`;
 const SHOTS = process.env.SHOTS || '/tmp';
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✅', m); } else { fail++; console.log('  ❌', m); } };

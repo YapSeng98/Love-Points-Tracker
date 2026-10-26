@@ -13,7 +13,7 @@
 
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const fs = require('fs');
-const APP_URL = 'http://localhost:8765/index.html';
+const APP_URL = process.env.APP_URL || 'http://localhost:8765/index.html';
 const SHOTS = process.env.SHOTS || '/tmp';
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const SEASONS = (arg('--season', '') || '').split(',').filter(Boolean);
