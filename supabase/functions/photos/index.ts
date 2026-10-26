@@ -66,7 +66,7 @@ serve(async (req) => {
       .from("photos")
       .insert({
         match_id: matchId,
-        char: body.charId || caller.charId || "char1",
+        char: caller.charId || "char1",   // the uploader is the session, not the request
         storage_path: path,
         caption: body.caption || "",
         date: body.date || new Date().toISOString().slice(0, 10),

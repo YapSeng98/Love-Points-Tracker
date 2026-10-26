@@ -12,6 +12,15 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-27 — Letters, photos and weather always know who you are
+
+Tapping your partner's picture on the home page (to add points for them) used
+to make the app briefly think you WERE them: a letter written then was saved
+as theirs, a photo was credited to them, and your weather replaced theirs on
+the weather card. It now always goes by who is logged in. A letter can also
+only be opened by the person it was written to, and only changed or deleted
+by the person who wrote it.
+
 ## 2026-10-27 — 生日惊喜
 
 Both birthdays can be set in 设置 (a year is optional and adds 「第 N 个

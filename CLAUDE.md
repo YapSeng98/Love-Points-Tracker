@@ -351,6 +351,23 @@ Anything shared is scoped by `match_id`; anything per-person also by `char`.
 Cross-couple access must return 404 or an empty list — never another couple's
 data. Section 26 of the test suite enforces all of this.
 
+**"Who am I" is the login — `_me()` — never `S.activeChar`.** `S.activeChar`
+is the home page's *whose-points* switch, and tapping the partner's portrait
+to add points for them flips it. Points, claims and check-ins follow the
+switch on purpose. Authorship does not: with the switch on the partner, a phone
+wrote its weather into the partner's `wx_` slot, showed its own weather as
+theirs, and stamped letters and photos as written BY the partner — who then
+found a letter "from herself", while the writer could unseal it and use up
+her 未拆. Found 2026-10-27 from one wrong line on a weather card; the
+birthday and the anniversary film had made the same mistake earlier.
+
+The server now takes the author from the **session**, not the request
+(`letters`, `photos`), and `letters-id` lets only the writer rewrite or
+delete a letter and only the other partner open it. `tools/identity-test.js`
+replays all of it on the live backend with the switch flipped. Any new
+"mine/theirs" or "written by" goes through `_me()` in the app and
+`caller.charId` in the function.
+
 ---
 
 ## 7. 🎨 Design rules
@@ -1126,7 +1143,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js — serve the repo
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
@@ -1218,6 +1235,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/birthday-test.js` | 生日惊喜 in a browser: dates (2/29, age), both phones, preparing and sealing, the teaser, 00:00 with the app open, nothing prepared, typing at midnight, a moved phone date against a mocked server, the 🎂 tab, every scene at 360–820, replay |
 | `node supabase/test-surprise.mjs` | 生日惊喜 live: birthdays in config, sealing, the early read and the "was anything prepared?" leak, spoofed zone, third couple, direct Postgres, moved birthday, delivered rewrite, three opens → one coupon, the receipt |
+| `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |

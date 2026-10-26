@@ -29,7 +29,9 @@ serve(async (req) => {
       .from("letters")
       .insert({
         match_id: matchId,
-        char: body.charId || "char1",
+        // the session says who wrote it, never the request: the app's
+        // whose-points switch can point at the partner (CLAUDE.md §7.30)
+        char: caller.charId || "char1",
         text: body.text || "",
         // stored verbatim as the client's ISO string so no timezone
         // conversion can shift it (CLAUDE.md §2)

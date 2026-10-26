@@ -115,6 +115,9 @@ const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcS
   ok(await B.p.$('#bdf-tab') !== null, 'the 🎂 tab is on the edge');
   c = await card(B.p);
   ok(/你有一张生日券：测试券：一起去散步/.test(c), `B2's card: 「${c}」`);
+  const seat = await B.p.evaluate(() => { const art = document.querySelector('#char-img-wrap-2 .char-svg, #char-img-wrap-2 .char-img-custom')?.getBoundingClientRect(),
+    cr = document.querySelector('#char-img-wrap-2 .bdf-crown')?.getBoundingClientRect(); return art && cr ? (cr.bottom - art.top) / art.height : -1; });
+  ok(seat > .3 && seat < .42, `B2's crown sits on the head (band ${(seat * 100).toFixed(0)}% down the portrait)`);   // floated above it before v…-59
   await B.p.screenshot({ path: `${SHOTS}/live_bday_03_home.png` });
 
   console.log('\nA1 the same day');

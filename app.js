@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.27-59';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.27-60';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -296,7 +296,9 @@ const App = (() => {
     if (kind) _wxPending = kind;
     if (!S.usingSN || !kind) return;
     _wxPending = '';
-    const slot = S.activeChar === 'char2' ? 'wx2' : 'wx1';
+    // _me(), never S.activeChar: that is also the whose-points switch, and on the
+    // partner it wrote this phone's weather into THEIR slot (tools/identity-test.js)
+    const slot = _me() === 'char2' ? 'wx2' : 'wx1';
     // d = is it daylight THERE. Their hour alone would be a decent guess, but
     // it is wrong near the poles and around DST, and Open-Meteo already knows.
     const day = (_wxDay === null) ? _dayByHour(new Date().getHours()) : _wxDay;
@@ -315,7 +317,7 @@ const App = (() => {
   }
 
   function partnerWeather() {
-    const raw = S.activeChar === 'char2' ? S.wx1 : S.wx2;
+    const raw = _me() === 'char2' ? S.wx1 : S.wx2;
     if (!raw) return null;
     try {
       const w = JSON.parse(raw);
@@ -339,7 +341,7 @@ const App = (() => {
     // nowhere to be checked — you could not see what the app thought.
     if (!w && !mine) { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
-    const name = S.activeChar === 'char2' ? (S.charName1 || 'TA') : (S.charName2 || 'TA');
+    const name = _me() === 'char2' ? (S.charName1 || 'TA') : (S.charName2 || 'TA');
     const mineBit = mine
       ? `<span class="pwx-ico">${wxIcon(mine, _wxDay)}</span>
          <span class="pwx-txt">你这边 ${WX_LABEL[mine] || ''}</span>` : '';
@@ -3033,7 +3035,7 @@ const App = (() => {
       return;
     }
     list.innerHTML = letters.map(l => {
-      const mine    = (l.charId || 'char1') === S.activeChar;
+      const mine    = (l.charId || 'char1') === _me();   // the login, not the whose-points switch
       const sealed  = !mine && !l.opened;
       const sender  = charDisplayName(l.charId || 'char1');
       const text    = l.text || '';
@@ -3065,7 +3067,7 @@ const App = (() => {
     const text = (ta?.value || '').trim();
     if (!text) return;
     try {
-      await Data.addLetter({ charId: S.activeChar, text, date: new Date().toISOString(), opened: false });
+      await Data.addLetter({ charId: _me(), text, date: new Date().toISOString(), opened: false });
       renderLetterBanner();
       closeModal('modal-letter-compose');
       showToast('💌 信已封好送出');
@@ -3080,7 +3082,7 @@ const App = (() => {
     if (!letter) return;
     S.letterReaderId = id;
 
-    const mine   = (letter.charId || 'char1') === S.activeChar;
+    const mine   = (letter.charId || 'char1') === _me();
     const sealed = !mine && !letter.opened;
 
     document.getElementById('letter-paper-sender').textContent = charDisplayName(letter.charId || 'char1');
@@ -3188,7 +3190,7 @@ const App = (() => {
     const caption = document.getElementById('memory-caption').value.trim();
     const date    = document.getElementById('memory-date').value || todayStr();
     try {
-      await Data.addPhoto({ charId: S.activeChar, image: _pendingPhotoData, caption, date });
+      await Data.addPhoto({ charId: _me(), image: _pendingPhotoData, caption, date });
       _pendingPhotoData = '';
       closeModal('modal-memory');
       showToast('📷 回忆已收藏！');
@@ -3463,7 +3465,7 @@ const App = (() => {
     if (!el) return;
     const all = S.letters || [];
     if (!all.length) { el.innerHTML = ''; return; }
-    const mine = S.activeChar === 'char2' ? 'char1' : 'char2';   // written BY them
+    const mine = _me() === 'char2' ? 'char1' : 'char2';   // written BY them
     const unread = all.filter(l => l.charId === mine && !l.opened).length;
     el.innerHTML = unread
       ? `<b>${unread} 封未拆 💌</b> <span class="tb-left">共 ${all.length} 封</span>`
@@ -8104,8 +8106,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
+    _publishWeatherTest: (k) => publishWeather(k),
     // lets a test put a partner's reading in the other slot and re-render
-    _setPartnerWxTest: (raw) => { if (S.activeChar === 'char2') S.wx1 = raw; else S.wx2 = raw;
+    _setPartnerWxTest: (raw) => { if (_me() === 'char2') S.wx1 = raw; else S.wx2 = raw;
       renderPartnerWeather(); },
     _isNewDecorTest: (id) => isNewDecor(id),
     _daysLeftTest: (id, d) => decorDaysLeft(DECOR[id], d),
