@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.27-58';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.27-59';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1701,7 +1701,12 @@ const App = (() => {
     try {
       for (const b of birthdaysToday()) {
         const w = document.getElementById(`char-img-wrap-${b.char === 'char1' ? 1 : 2}`);
-        if (w) { _bdfStyle(); w.insertAdjacentHTML('beforeend', `<span class="bdf-crown" aria-hidden="true">${_BDF_CROWN}</span>`); }
+        if (!w) continue;
+        _bdfStyle();
+        // seated on the drawn head, not the box; YY's bow stays in front of hers; an uploaded photo has no bow and starts at the top
+        const photo = !!w.querySelector('.char-img-custom'), back = !photo && b.char === 'char2';
+        w.insertAdjacentHTML(back ? 'afterbegin' : 'beforeend',
+          `<span class="bdf-crown-l${photo ? ' bdf-crown-photo' : back ? ' bdf-crown-back' : ''}" aria-hidden="true"><span class="bdf-crown">${_BDF_CROWN}</span></span>`);
       }
     } catch (e) {}
   }
@@ -4577,7 +4582,13 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
 @keyframes bdf-cardglow{50%{box-shadow:0 0 18px 2px rgba(255,140,170,.45)}}
 html[data-theme="dark"] #bday-card{background:linear-gradient(135deg,rgba(255,140,175,.16),rgba(150,120,220,.14));border-color:rgba(240,140,180,.34)}
 #bday-card .bdf-go{font-size:20px;color:var(--sub);flex-shrink:0}
-.bdf-crown{position:absolute;left:50%;top:-12px;transform:translateX(-50%) rotate(-6deg);width:40%;max-width:46px;pointer-events:none;z-index:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
+/* the portrait bobs (char-idle, index.html); the crown rides a layer the size of the portrait running the same bob, or it floats off the head */
+.bdf-crown-l{position:absolute;inset:0;pointer-events:none;z-index:2;transform-origin:center bottom;animation:char-idle 2.8s cubic-bezier(0.45,0,0.55,1) infinite}
+.char-wrap.adai .bdf-crown-l{animation-delay:.9s}
+.bdf-crown{position:absolute;left:50%;bottom:64%;transform:translateX(-50%) rotate(-6deg);width:40%;max-width:46px;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
+.bdf-crown-l.bdf-crown-photo .bdf-crown{bottom:88%}
+.bdf-crown-l.bdf-crown-back{z-index:0}
+.char-img-wrap:has(.bdf-crown-back) .char-svg{position:relative;z-index:1}
 .bdf-crown svg{width:100%;display:block}
 .sky-bg .bdf-bunting{position:absolute;top:8px;pointer-events:none;overflow:visible}
 .bdf-veil{position:fixed;left:0;right:0;top:0;height:100dvh;z-index:310;background:rgba(20,14,30,.45);display:flex;align-items:flex-end;justify-content:center;animation:bdf-in .25s ease}

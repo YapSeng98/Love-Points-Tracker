@@ -448,6 +448,23 @@ async function walk(p, each) {
     ok(th && th.id === 'bday' && th.name === '生日' && th.speech.some(s => /你们俩/.test(s)), '主题「生日」，呆呆说「你们俩都生日快乐」');
     ok((await film(p))?.real, 'CS 的手机：自己的生日电影照样出来');
     ok(await p.evaluate(() => !!document.querySelector('#char-img-wrap-1 .bdf-crown') && !!document.querySelector('#char-img-wrap-2 .bdf-crown')), '两个头像都戴小皇冠');
+    // Reported from the live run: the portraits bob ~20px and the crown stood still, so it floated off YY's head.
+    // Sample a whole bob (2.8s) on both sides (char2 runs 0.9s behind) — the crown must keep its seat on the head.
+    await p.evaluate(() => App.closeBirthdayFilm()); await sleep(900);
+    const gaps = { 1: [], 2: [] };
+    for (let i = 0; i < 15; i++) {
+      const g = await p.evaluate(() => [1, 2].map(n => {
+        const art = document.querySelector(`#char-img-wrap-${n} .char-svg, #char-img-wrap-${n} .char-img-custom`).getBoundingClientRect();
+        return (document.querySelector(`#char-img-wrap-${n} .bdf-crown`).getBoundingClientRect().bottom - art.top) / art.height;
+      }));
+      gaps[1].push(g[0]); gaps[2].push(g[1]);
+      await sleep(200);
+    }
+    // as a share of the portrait: the drawn head starts 31% down the box (y 41 of 132), so the crown's band belongs just below that
+    const drift = n => (Math.max(...gaps[n]) - Math.min(...gaps[n])) * 92, all = [...gaps[1], ...gaps[2]];
+    ok(drift(1) <= 2 && drift(2) <= 2, `小皇冠跟着头像一起跳（CS 偏 ${drift(1).toFixed(1)}px · YY 偏 ${drift(2).toFixed(1)}px）`);
+    ok(Math.min(...all) > .3 && Math.max(...all) < .42, `一直戴在头上，不飘在半空（底边在头像 ${(Math.min(...all) * 100).toFixed(0)}–${(Math.max(...all) * 100).toFixed(0)}% 处）`);
+    await p.screenshot({ path: `${SHOTS}/bday_14_crowns.png`, clip: { x: 0, y: 0, width: 390, height: 520 } });
     await ctx.close();
   }
 

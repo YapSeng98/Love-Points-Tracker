@@ -69,7 +69,7 @@ Things that are now true and were not before:
 ## 1. 💥 Recurring bug patterns (each has bitten us more than once)
 
 ### 1.1 Generic CSS class names collide — ALWAYS scope
-**Happened three times.** Bare, short class names in a single global
+**Happened four times.** Bare, short class names in a single global
 stylesheet silently apply to unrelated components.
 
 | Incident | Symptom |
@@ -77,6 +77,7 @@ stylesheet silently apply to unrelated components.
 | `.sun` (ambient sky) vs `.cal-cell.sun` (Sunday) | Sunday cells grew rotating sun rays and flew out of the calendar grid |
 | `.c1`/`.c2` (clouds) vs `.dot.c1` (pet legend) | A blue ball drifted across the screen every 22s |
 | `.star` | Same family of risk |
+| `.bdf-back` (prep-sheet back button) vs a crown modifier | YY's birthday crown shrank to 19px and floated off her head — a *prefixed* name still collides inside its own feature; grep before naming a modifier |
 
 **Rule:** any decorative/ambient class MUST be scoped to its container
 (`.sky-bg .sun`, `.clouds-bg .c1`). Never introduce a new top-level class
@@ -639,6 +640,15 @@ zone — the 悄悄话 rule (§7.258).
   real UI is tested end to end — keep the two in step.
 - The bag now escapes item names and looks an item up by id for 使用: a
   coupon title is the couple's own text and can contain quotes.
+- **A crown sits on the drawn head, and moves with it.** The first one was
+  placed against the portrait's *box*, which is 31% air above the head, and
+  stood still while the portrait bobs ~20px (`char-idle`) — on the live site it
+  floated a head's height above YY. It now rides a layer the size of the
+  portrait running the same animation and delay, with its band at the head
+  line (y 41 of 132). YY's sits behind her bow; an uploaded photo has no
+  bow and no air, so its crown sits on the top edge. Only a live screenshot
+  showed it: every test passed, because they asked "is there a crown" and
+  never "is it on the head".
 
 `tools/birthday-test.js` walks it on a faked clock, both phones, every scene
 at 360/375/390/430/820 (overflow, button size, thumb reach, font size), the

@@ -25,6 +25,10 @@ edge of the screen to watch it again all day.
 
 Also: names in the 背包 are now shown safely whatever they contain.
 
+Same day, after a run on the live site: the birthday crown floated above the
+head on the home page. It now sits on the head (behind YY's bow) and bobs with
+the portrait.
+
 ## 2026-10-07 — Furniture behind the pet can be picked up again
 
 A piece bought from the shop could land right behind the pet — the 毛线篮 did,
