@@ -657,6 +657,15 @@ zone — the 悄悄话 rule (§7.258).
   real UI is tested end to end — keep the two in step.
 - The bag now escapes item names and looks an item up by id for 使用: a
   coupon title is the couple's own text and can contain quotes.
+- **The song is 「生日快乐歌」 as a music box, built from code**
+  (`tools/make-birthday-song.js` → `happy-birthday-musicbox.m4a`). The
+  melody is public domain; every recording of it is someone's performance and
+  this repo is public, so nothing is downloaded. ~56s, it loops, and it starts
+  at the candle tap (sound needs a tap). Phone speakers drop everything under
+  ~250 Hz, so the bass carries its own harmonics. It was checked by decoding
+  the file and reading the pitch at each onset back as the tune — read the
+  note that STARTS there (energy after minus before): plain loudest-pitch
+  picked up ringing notes and the chords' harmonics and misread six notes.
 - **A crown sits on the drawn head, and moves with it.** The first one was
   placed against the portrait's *box*, which is 31% air above the head, and
   stood still while the portrait bobs ~20px (`char-idle`) — on the live site it

@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.27-60';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.10.27-61';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -4306,7 +4306,9 @@ html[data-theme="dark"] .anw-ta{background:#1A1420;color:#FFE3EC;border-color:#5
        leave any of it unstyled (§7.27). Class names are bdf-* scoped (§1.1). */
 
   const BDAY_PREP_DAYS = 14;
-  const BDAY_SONG = 'no-copyright-music-pochacco-lulu.mp3';
+  // 「生日快乐歌」 as a music box, rendered by tools/make-birthday-song.js (the
+  // melody is public domain; a downloaded recording would not be).
+  const BDAY_SONG = 'happy-birthday-musicbox.m4a';
   const BDAY_ICONS = ['🌊', '🍲', '🎬', '🎡', '🏝️', '💐', '🍰', '🎁'];
 
   function _me() { return (S.usingSN && localStorage.getItem('sn_char')) || S.activeChar || 'char1'; }

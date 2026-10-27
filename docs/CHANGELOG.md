@@ -12,6 +12,13 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-10-27 — The birthday film plays 「生日快乐歌」
+
+When the candles are blown out, the film now plays Happy Birthday as a music
+box instead of the app's everyday music: once softly, once higher on a
+celesta, then a lift into a brighter key and a slow ending. It is made for the
+app rather than taken from a recording.
+
 ## 2026-10-27 — Letters, photos and weather always know who you are
 
 Tapping your partner's picture on the home page (to add points for them) used

@@ -212,7 +212,13 @@ async function walk(p, each) {
     ok(st && st.real, '当天第一次打开：自己出来');
     const line = await p.textContent('.bdf-sc.bdf-on .bdf-line');
     ok(line === '有人偷偷给你准备了一点东西', `第一句：「${line}」`);
-    await walk(p, async (s) => { if (['name', 'letter', 'gift', 'photos', 'end'].includes(s)) await p.screenshot({ path: `${SHOTS}/bday_02_${s}.png` }); });
+    let song = null;
+    await walk(p, async (s) => {
+      if (s === 'name') song = await p.evaluate(() => { const a = document.getElementById('bg-audio'); return { src: decodeURI(a.currentSrc || a.src), paused: a.paused, t: a.currentTime, err: !!a.error }; });
+      if (['name', 'letter', 'gift', 'photos', 'end'].includes(s)) await p.screenshot({ path: `${SHOTS}/bday_02_${s}.png` });
+    });
+    ok(song && /happy-birthday-musicbox\.m4a$/.test(song.src) && !song.paused && song.t > .5 && !song.err,
+      `吹完蜡烛：响起的是生日歌，不是平时的背景音乐（${song && song.src.split('/').pop()} · ${song && song.t.toFixed(1)}s）`);
     st = await film(p);
     ok(st && st.scene === 'end' && st.opened, '看到最后；拆开记下了');
     const s = await stored(p);
