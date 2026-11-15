@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.10.27a">
+  <meta name="app-html-v" content="2026.11.15a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -4640,6 +4640,15 @@
         <option value="city">跟着城市（不用定位）</option>
         <option value="precise">用精确位置（更准）</option>
         <option value="off">关掉天气</option>
+      </select>
+    </div>
+
+    <!-- 新外观 (CLAUDE.md §7.31): per phone, like the theme -->
+    <div class="modal-field">
+      <label>✨ 外观风格</label>
+      <select id="cfg-look" onchange="App.setLook(this.value)">
+        <option value="classic">经典</option>
+        <option value="ui3d">新外观 · 立体和动画（试用）</option>
       </select>
     </div>
 

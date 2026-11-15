@@ -681,6 +681,54 @@ at 360/375/390/430/820 (overflow, button size, thumb reach, font size), the
 tab at four widths, typing at midnight, the moved-date case against a mocked
 server, and replay. `supabase/test-surprise.mjs` attacks the live function.
 
+## 7.31 ✨ 新外观 (ui3d) — a second look, per phone, off by default
+
+Added 2026-11-15 after a full UX walk of every screen. It is a soft-3D and
+motion layer over the same screens, switched in 设置 › 外观风格 (or
+`?look=ui3d` / `?look=classic` in the address), stored in localStorage `look`
+and never synced — one partner can live with it before the other sees
+anything. A prototype was approved first, built on a snapshot of the real
+screens, so the decision was made looking at the app rather than a mock.
+
+- **One switch, one stylesheet.** `ui3d.css` holds every rule, all under
+  `html.ui3d`, loaded by app.js as `ui3d.css?v=APP_VERSION` only when the look is
+  on. The ui3d block in app.js adds only what CSS can't (the ＋ button and its
+  sheet, the 月末结算 chip, the nav pill, tilt, the room's light, count-ups);
+  everything it inserts carries `data-u3d`, so turning it off removes it all —
+  `ui3d-test.js` §6 asserts zero leftovers.
+- **Depth from light, not borders:** a top highlight and a coloured shadow on
+  every surface, a slow aurora behind the app, clay shading on the portraits
+  (an SVG lighting filter, `#u3d-clay`), a raised 3D number on the hero. Only
+  transforms and opacity animate; the one blur is the nav bar.
+- **UX changes ride the same switch:** ＋ in the middle of the bar (the most
+  used action was 1.5 screens down), 月末结算 moves from the floating button that
+  covered 签到 every day into the score card (glows when a past month is open or
+  in the last three days), ✏️🗑️ appear when a row is tapped (40×40, not 27×33),
+  quick-score tiles half the height, 设置 only on the ⚙️.
+- **The ＋ sheet saves through `quickEntry()`**, the tiles' own path, after
+  `selectChar(who)` — a quick entry is exactly what a tile would have made, so
+  §3's month and date rules hold with no second copy.
+- **Parallax never moves a decor piece.** The drag, clamp and placement code
+  measure pieces (§7.247, §7.249); a `translate` on them would skew every
+  measurement by up to 9px. Only the window, the light and the pet move, and the
+  room holds still while a piece is selected or held.
+- **State lives at the top of app.js** (`LOOK_KEY`, `_u3d`): render hooks read it
+  and some renders run at module load (§7.27's temporal dead zone).
+- **Class names are `u3d-`, not `u-`.** Nothing collided yet; §1.1 is about not
+  waiting until something does.
+- Found by the suite: under reduced motion the flying number was skipped but the
+  confetti still burst. Every effect checks `_u3dReduce()`.
+
+Two fixes found on the same walk apply to BOTH looks: entry notes and
+category names were inserted unescaped (a note with `<b>` rendered bold on both
+phones), and two strings still said ServiceNow — one in the confirm when
+deleting a category.
+
+`tools/ui3d-test.js` covers the switch, the sheet's stored entry, the chip,
+rows, tilt, the room's taps, turning it off, reduced motion, and 360/390/820 in
+both themes. Run the other browser suites in the new look with
+`APP_URL=…/index.html?look=ui3d` — they must pass in both.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -1152,7 +1200,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js — serve the repo
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
@@ -1244,6 +1292,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/birthday-test.js` | 生日惊喜 in a browser: dates (2/29, age), both phones, preparing and sealing, the teaser, 00:00 with the app open, nothing prepared, typing at midnight, a moved phone date against a mocked server, the 🎂 tab, every scene at 360–820, replay |
 | `node supabase/test-surprise.mjs` | 生日惊喜 live: birthdays in config, sealing, the early read and the "was anything prepared?" leak, spoofed zone, third couple, direct Postgres, moved birthday, delivered rewrite, three opens → one coupon, the receipt |
+| `node tools/ui3d-test.js` | 新外观: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=ui3d` in `APP_URL` |
 | `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |

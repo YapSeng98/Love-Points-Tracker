@@ -12,6 +12,18 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-15 — 新外观 to try, and two small fixes
+
+设置 › 外观风格 now has 新外观: cards lit with soft depth, a gently moving
+background, 3D-shaded portraits, a glass bottom bar, and light falling into
+小窝. It also changes a few things to use: a ＋ in the middle of the bottom bar
+to add points from anywhere, 月末结算 inside the score card instead of floating
+over the page, and edit/delete on an entry only after you tap it. It is per
+phone and off until you choose it, so each of you can try it on your own.
+
+For everyone: what you type in an entry's note is now always shown exactly as
+typed, and two leftover messages that mentioned ServiceNow are gone.
+
 ## 2026-10-27 — The birthday film plays 「生日快乐歌」
 
 When the candles are blown out, the film now plays Happy Birthday as a music

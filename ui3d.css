@@ -1,0 +1,303 @@
+/* ── 恋爱积分簿 · 立体 (ui3d) ─────────────────────────────────────────────
+   Soft-3D and motion layer. Every rule is scoped under html.ui3d, so the whole
+   look switches on and off with one class, and it only restyles: nothing the
+   app's logic or tests depend on moves.
+   Depth comes from light, not from heavier borders: a top highlight, a coloured
+   shadow under each surface, and a slow aurora behind everything.
+   Costs are kept to the compositor — transforms and opacity only animate; the
+   one blur is the nav bar. The app's blanket reduced-motion rule (index.html,
+   CLAUDE.md §7.3) still applies, and the ui3d block in app.js skips tilt,
+   parallax and count-ups under it. Turned on per phone in 设置 › 外观风格
+   (CLAUDE.md §7.31); loaded by app.js as ui3d.css?v=APP_VERSION. */
+
+@property --u-ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+html.ui3d {
+  --u-shade: 86, 64, 150;                 /* rgb of every coloured shadow */
+  --u-hi: rgba(255, 255, 255, .95);        /* the top-edge highlight */
+  --u-edge: rgba(255, 255, 255, .78);
+  --u-glass: rgba(255, 255, 255, .66);
+  --u-a1: #FFC2DC; --u-a2: #C4D6FF; --u-a3: #FFE1B5; --u-a4: #D8C6FF;
+  --u-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --u-num: #D2448A;
+  --u-num-x: #F3A6C8, #EC93BA, #E481AD, #DB6FA0, #D25E93;
+  --u-hero-a: #FFE7F2; --u-hero-b: #F2E6FF; --u-hero-c: #E5EEFF;
+  --u-bubble-a: #FFFFFF; --u-bubble-b: #E9F1FF; --u-bubble-c: #C9DBFF;
+  --u-bubble-na: #FFFFFF; --u-bubble-nb: #FFECEF; --u-bubble-nc: #FFC9D2;
+  --u-chip-a: #FFFFFF; --u-chip-b: #EEF2FF;
+}
+html.ui3d[data-theme="dark"] {
+  --u-shade: 0, 0, 0;
+  --u-hi: rgba(255, 255, 255, .10);
+  --u-edge: rgba(255, 255, 255, .07);
+  --u-glass: rgba(30, 27, 48, .62);
+  --u-a1: #5E2A66; --u-a2: #22377A; --u-a3: #47296B; --u-a4: #1B4769;
+  --u-num: #FFB2D4;
+  --u-num-x: #D9739F, #C2618C, #A9507A, #904068, #783257;
+  --u-hero-a: #3B2142; --u-hero-b: #2E2449; --u-hero-c: #1F2B4A;
+  --u-bubble-a: #4A4470; --u-bubble-b: #34305A; --u-bubble-c: #252145;
+  --u-bubble-na: #5A3A55; --u-bubble-nb: #43293F; --u-bubble-nc: #2F1D2D;
+  --u-chip-a: #3B3558; --u-chip-b: #2A2542;
+}
+
+/* ── aurora: four soft light pools drifting behind the whole app ── */
+html.ui3d body::before {
+  content: ""; position: fixed; inset: -25%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(34% 26% at 20% 22%, var(--u-a1), transparent 70%),
+    radial-gradient(32% 26% at 80% 16%, var(--u-a2), transparent 70%),
+    radial-gradient(36% 28% at 72% 74%, var(--u-a3), transparent 70%),
+    radial-gradient(34% 28% at 24% 78%, var(--u-a4), transparent 70%);
+  opacity: .8;
+  animation: u3d-aurora 26s ease-in-out infinite alternate;
+}
+@keyframes u3d-aurora {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50%  { transform: translate3d(4%, -3%, 0) rotate(9deg) scale(1.08); }
+  100% { transform: translate3d(-4%, 3%, 0) rotate(-7deg) scale(1.03); }
+}
+
+/* ── surfaces: depth from a top highlight and a coloured shadow ── */
+html.ui3d :is(.score-card, .letter-banner, .checkin-banner, #partner-wx, #season-card, #bday-card,
+  .entry-day-items, .home-duo .pet-banner-box, .home-duo .pet-adopt, .home-duo .goal-box, .home-duo .goal-empty,
+  .add-custom-btn, .cat-tab) {
+  border-color: var(--u-edge);
+  box-shadow:
+    inset 0 1px 0 var(--u-hi),
+    0 1px 2px rgba(var(--u-shade), .06),
+    0 10px 22px -12px rgba(var(--u-shade), .34),
+    0 24px 40px -28px rgba(var(--u-shade), .30);
+  transition: transform .55s var(--u-spring), box-shadow .3s ease;
+}
+/* tilt toward the finger while pressed (ui3d.js sets the angles), spring back on release */
+html.ui3d .u3d-tilt {
+  transform: perspective(720px) rotateX(var(--u-rx, 0deg)) rotateY(var(--u-ry, 0deg)) scale(.985);
+  transition: transform .12s ease-out, box-shadow .2s;
+}
+
+/* ── hero: a lit card with a slowly turning colour rim and a raised number ── */
+html.ui3d .together-hero {
+  border: 1.5px solid transparent;
+  background:
+    radial-gradient(120% 90% at var(--u-mx, 50%) var(--u-my, -20%), rgba(255, 255, 255, .55), transparent 55%) padding-box,
+    linear-gradient(145deg, var(--u-hero-a), var(--u-hero-b) 55%, var(--u-hero-c)) padding-box,
+    conic-gradient(from var(--u-ang), #FF8FC0, #C69CFF, #8FC4FF, #FFD08F, #FF8FC0) border-box;
+  box-shadow:
+    inset 0 1px 0 var(--u-hi),
+    0 14px 30px -14px rgba(210, 70, 140, .45),
+    0 30px 50px -34px rgba(var(--u-shade), .35);
+  animation: u3d-spin 7s linear infinite;
+  transition: transform .55s var(--u-spring);
+}
+@keyframes u3d-spin { to { --u-ang: 360deg; } }
+html.ui3d .th-days {
+  font-size: 54px; color: var(--u-num);
+  text-shadow:
+    0 1px 0 #F3A6C8, 0 2px 0 #EC93BA, 0 3px 0 #E481AD, 0 4px 0 #DB6FA0, 0 5px 0 #D25E93,
+    0 12px 20px rgba(190, 40, 110, .32);
+}
+html.ui3d[data-theme="dark"] .th-days {
+  text-shadow:
+    0 1px 0 #D9739F, 0 2px 0 #C2618C, 0 3px 0 #A9507A, 0 4px 0 #904068, 0 5px 0 #783257,
+    0 12px 22px rgba(0, 0, 0, .55);
+}
+html.ui3d .th-next:not(:empty) { box-shadow: inset 0 1px 0 var(--u-hi), 0 4px 10px -4px rgba(210, 70, 140, .3); }
+
+/* ── portraits: clay shading (filter from ui3d.js), a shadow that squashes as they land ── */
+html.ui3d .char-svg { filter: url(#u3d-clay) drop-shadow(0 6px 8px rgba(var(--u-shade), .16)); }
+html.ui3d .char-svg > ellipse:first-child { display: none; }       /* the drawn shadow rode the bounce */
+html.ui3d .char-img-wrap::after {
+  content: ""; position: absolute; left: 22%; right: 22%; bottom: -5px; height: 10px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--u-shade), .30), transparent);
+  pointer-events: none;
+  animation: u3d-squash 2.8s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+html.ui3d .char-wrap.adai .char-img-wrap::after { animation-delay: .9s; }
+@keyframes u3d-squash {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  45%, 55% { transform: scaleX(.68); opacity: .5; }
+}
+html.ui3d .u3d-hop { animation: u3d-hop .6s var(--u-spring) !important; }   /* applied to the art and the crown layer together */
+@keyframes u3d-hop {
+  0% { transform: translateY(0) scale(1.06, .92); }
+  35% { transform: translateY(-26px) scale(.94, 1.08); }
+  70% { transform: translateY(0) scale(1.08, .9); }
+  100% { transform: translateY(0) scale(1); }
+}
+.u3d-heart { position: fixed; z-index: 400; pointer-events: none; font-size: 22px; animation: u3d-heart 1.1s ease-out forwards; }
+@keyframes u3d-heart { from { transform: translate(-50%, 0) scale(.6); opacity: 1; } to { transform: translate(calc(-50% + var(--dx, 0px)), -70px) scale(1.15); opacity: 0; } }
+
+/* jelly score pills */
+html.ui3d .char-score-badge {
+  background: linear-gradient(180deg, var(--u-chip-a), var(--u-chip-b));
+  border: 1px solid var(--u-edge);
+  box-shadow: inset 0 -3px 0 rgba(var(--u-shade), .08), inset 0 2px 0 var(--u-hi), 0 8px 16px -6px rgba(var(--u-shade), .38);
+}
+html.ui3d .u3d-pop { animation: u3d-pop .55s var(--u-spring); }
+@keyframes u3d-pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+html.ui3d .mode-knob { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .8), 0 4px 10px -2px rgba(var(--u-shade), .35); }
+
+/* ── quick-score tiles: a lit bubble per icon, tile laid out as a row (half the height) ── */
+html.ui3d .categories-grid .cat-card {
+  display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-areas: "ic nm" "ic pt";
+  column-gap: 10px; row-gap: 1px; align-items: center; padding: 11px 12px;
+  border-color: var(--u-edge);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 8px 18px -12px rgba(var(--u-shade), .36);
+  transition: transform .5s var(--u-spring), box-shadow .3s;
+}
+html.ui3d .categories-grid .cat-card::before { display: none; }
+html.ui3d .categories-grid .cat-card:active { transform: scale(.95); }
+html.ui3d .cat-icon {
+  width: 42px; height: 42px; flex-shrink: 0; margin: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 22px;
+  background: radial-gradient(circle at 32% 26%, var(--u-bubble-a), var(--u-bubble-b) 46%, var(--u-bubble-c));
+  box-shadow: inset -3px -4px 8px rgba(var(--u-shade), .12), 0 6px 10px -5px rgba(70, 110, 200, .45);
+}
+html.ui3d .cat-card.negative .cat-icon {
+  background: radial-gradient(circle at 32% 26%, var(--u-bubble-na), var(--u-bubble-nb) 46%, var(--u-bubble-nc));
+  box-shadow: inset -3px -4px 8px rgba(var(--u-shade), .12), 0 6px 10px -5px rgba(220, 90, 110, .45);
+}
+html.ui3d .categories-grid .cat-icon { grid-area: ic; }
+html.ui3d .categories-grid .cat-name { grid-area: nm; align-self: end; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.ui3d .categories-grid .cat-pts { grid-area: pt; align-self: start; font-size: 13.5px; }
+
+/* ── entries: actions stay out of the way until a row is tapped ── */
+html.ui3d .entry-item { transition: background .25s; }
+html.ui3d .entry-item .entry-edit, html.ui3d .entry-item .entry-delete { display: none; }
+html.ui3d .entry-item.u3d-open { background: rgba(var(--u-shade), .05); }
+html.ui3d .entry-item.u3d-open .entry-edit, html.ui3d .entry-item.u3d-open .entry-delete {
+  display: grid; place-items: center; width: 40px; height: 40px; opacity: 1; font-size: 17px;
+  border-radius: 12px; background: linear-gradient(180deg, var(--u-chip-a), var(--u-chip-b));
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 4px 10px -4px rgba(var(--u-shade), .35);
+  animation: u3d-in .35s var(--u-spring) both;
+}
+html.ui3d .entry-item.u3d-open .entry-delete { animation-delay: .04s; }
+@keyframes u3d-in { from { transform: translateX(14px) scale(.6); opacity: 0; } }
+
+/* ── nav: floating glass with a lit pill that slides to the active tab ── */
+html.ui3d .bottom-nav {
+  background: var(--u-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--u-edge);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 18px 36px -16px rgba(var(--u-shade), .45);
+}
+html.ui3d .u3d-nav-ind {
+  position: absolute; top: 7px; height: calc(100% - 14px); border-radius: 18px; pointer-events: none; z-index: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .95), rgba(236, 242, 255, .9));
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -6px rgba(70, 110, 200, .5);
+  transition: left .5s var(--u-spring), width .5s var(--u-spring);
+}
+html.ui3d[data-theme="dark"] .u3d-nav-ind { background: linear-gradient(180deg, rgba(90, 84, 140, .9), rgba(60, 55, 100, .9)); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 6px 14px -6px rgba(0,0,0,.6); }
+html.ui3d .bottom-nav .nav-item { position: relative; z-index: 1; background: transparent !important; }
+html.ui3d .bottom-nav .nav-item .nav-icon { transition: transform .5s var(--u-spring); }
+html.ui3d .bottom-nav .nav-item.active .nav-icon { transform: translateY(-2px) scale(1.14); }
+html.ui3d .bottom-nav .nav-icon-wrap { background: transparent !important; box-shadow: none !important; }
+
+/* the one button you use every day, in the middle; 月末结算 moves into the score card */
+html.ui3d .settle-fab-dock { display: none; }
+html.ui3d #nav-settings { display: none; }
+html.ui3d .u3d-add {
+  position: relative; z-index: 2; flex: 0 0 auto; align-self: center;
+  width: 58px; height: 58px; margin: -26px 2px 0; border-radius: 50%; border: 0; cursor: pointer;
+  font: 800 30px/1 system-ui, sans-serif; color: #fff;
+  background: radial-gradient(circle at 34% 26%, #FFB2D2, #F2669F 52%, #C9407E);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .6), inset 0 -4px 8px rgba(120, 20, 70, .35), 0 12px 22px -8px rgba(220, 70, 140, .7);
+  transition: transform .5s var(--u-spring);
+}
+html.ui3d .u3d-add::before {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: conic-gradient(from var(--u-ang), #FF8FC0, #C69CFF, #8FC4FF, #FFD08F, #FF8FC0);
+  filter: blur(6px); opacity: .75; animation: u3d-spin 5s linear infinite;
+}
+html.ui3d .u3d-add:active { transform: scale(.9); }
+html.ui3d .u3d-settle-chip {
+  margin-left: auto; min-height: 34px; font: 800 12.5px/1 inherit; font-family: inherit; color: #245E94; padding: 0 12px; border-radius: 999px;
+  border: 0; cursor: pointer; background: rgba(255, 255, 255, .94);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px -4px rgba(20, 60, 120, .45);
+  transition: transform .45s var(--u-spring);
+}
+html.ui3d .u3d-settle-chip:active { transform: scale(.94); }
+html.ui3d .u3d-settle-chip.due { animation: u3d-due 1.8s ease-in-out infinite; }
+@keyframes u3d-due { 50% { box-shadow: inset 0 1px 0 #fff, 0 0 0 5px rgba(255, 255, 255, .35), 0 4px 10px -4px rgba(20, 60, 120, .45); } }
+html.ui3d .score-card-header { display: flex; align-items: center; gap: 8px; }
+
+/* ── quick-add sheet ── */
+.u3d-sheet-veil { position: fixed; inset: 0; z-index: 300; background: rgba(20, 14, 30, .38); opacity: 0; transition: opacity .3s; }
+.u3d-sheet-veil.on { opacity: 1; }
+.u3d-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 301; max-width: 560px; margin: 0 auto;
+  padding: 10px max(18px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  border-radius: 28px 28px 0 0; color: var(--dark, #2D3748);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(246, 242, 255, .97));
+  box-shadow: inset 0 1px 0 #fff, 0 -20px 40px -20px rgba(86, 64, 150, .45);
+  transform: translateY(105%); transition: transform .55s var(--u-spring);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+html[data-theme="dark"] .u3d-sheet { background: linear-gradient(180deg, rgba(40, 36, 62, .98), rgba(28, 25, 46, .98)); color: #EEE8F6; box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 -20px 40px -20px rgba(0,0,0,.7); }
+.u3d-sheet.on { transform: translateY(0); }
+.u3d-sheet .u3d-grab { width: 40px; height: 5px; border-radius: 3px; background: rgba(120, 110, 150, .3); margin: 0 auto 12px; }
+.u3d-sheet h3 { margin: 0 0 12px; font-size: 19px; font-weight: 800; }
+.u3d-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.u3d-seg button {
+  min-height: 44px; border-radius: 14px; border: 1.5px solid rgba(120, 110, 170, .2); background: transparent;
+  font: 800 14px/1 inherit; color: inherit; font-family: inherit; cursor: pointer; transition: all .3s var(--u-spring, ease);
+}
+.u3d-seg button.on { color: #fff; border-color: transparent; background: linear-gradient(180deg, #73ACE3, #3F7FC4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 8px 16px -8px rgba(60, 120, 200, .85); }
+.u3d-seg button.on[data-c="char2"] { background: linear-gradient(180deg, #F68DB8, #DA5490); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 8px 16px -8px rgba(220, 80, 140, .85); }
+.u3d-seg button.on[data-s="-1"] { background: linear-gradient(180deg, #FF8C8C, #DD5252); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 8px 16px -8px rgba(220, 80, 80, .85); }
+.u3d-cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
+.u3d-cat {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px 9px; border-radius: 16px; cursor: pointer;
+  border: 1.5px solid transparent; background: rgba(255, 255, 255, .7); font: 600 12.5px/1.2 inherit; font-family: inherit; color: inherit;
+  box-shadow: 0 6px 14px -10px rgba(86, 64, 150, .45); transition: transform .45s var(--u-spring), border-color .2s;
+}
+html[data-theme="dark"] .u3d-cat { background: rgba(255, 255, 255, .06); }
+.u3d-cat b { font-size: 12px; font-weight: 800; color: #2E6DA6; }
+.u3d-cat.neg b { color: #C0392F; }
+html[data-theme="dark"] .u3d-cat b { color: #85B3E6; } html[data-theme="dark"] .u3d-cat.neg b { color: #FF9C93; }
+.u3d-cat .ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 21px;
+  background: radial-gradient(circle at 32% 26%, #fff, #E9F1FF 46%, #C9DBFF); box-shadow: inset -3px -4px 8px rgba(86,64,150,.12), 0 5px 9px -5px rgba(70,110,200,.5); }
+.u3d-cat.neg .ic { background: radial-gradient(circle at 32% 26%, #fff, #FFECEF 46%, #FFC9D2); }
+.u3d-cat.on { border-color: #F2669F; transform: translateY(-3px) scale(1.04); }
+.u3d-go {
+  width: 100%; min-height: 54px; border: 0; border-radius: 18px; cursor: pointer; color: #fff;
+  font: 800 17px/1 inherit; font-family: inherit;
+  background: linear-gradient(180deg, #F57FB0, #E0508F); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45), 0 12px 22px -10px rgba(220, 70, 140, .75);
+  transition: transform .4s var(--u-spring);
+}
+.u3d-go:active { transform: scale(.97); }
+.u3d-more { display: block; margin: 10px auto 0; min-height: 40px; padding: 0 14px; border: 0; background: transparent; cursor: pointer;
+  font: 700 13.5px/1 inherit; font-family: inherit; color: #2E6DA6; }
+html[data-theme="dark"] .u3d-more { color: #85B3E6; }
+.u3d-sheet .u3d-empty { grid-column: 1 / -1; text-align: center; padding: 18px 0; font-size: 13.5px; opacity: .7; }
+.u3d-fly { position: fixed; z-index: 420; pointer-events: none; font: 900 26px/1 system-ui, sans-serif; color: #E0508F; text-shadow: 0 2px 0 #fff, 0 6px 12px rgba(220,70,140,.45); }
+.u3d-confetti { position: fixed; z-index: 410; pointer-events: none; width: 8px; height: 12px; border-radius: 2px; }
+
+/* ── 小窝: window light, depth haze, parallax (ui3d.js adds the layers) ── */
+html.ui3d .u3d-room-light, html.ui3d .u3d-room-haze { position: absolute; inset: 0; pointer-events: none; }
+html.ui3d .u3d-room-light { z-index: 30; mix-blend-mode: screen; filter: blur(7px); animation: u3d-breathe 7s ease-in-out infinite; --u-lt: 255, 238, 196; }
+html.ui3d[data-theme="dark"] .u3d-room-light { --u-lt: 168, 194, 255; }
+html.ui3d .u3d-shaft { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(var(--u-lt), .62), rgba(var(--u-lt), .18) 80%); }
+html.ui3d .u3d-patch { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(var(--u-lt), .82), rgba(var(--u-lt), 0)); }
+html.ui3d .u3d-glow { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(var(--u-lt), .65), rgba(var(--u-lt), 0)); }
+@keyframes u3d-breathe { 0%, 100% { opacity: .9; } 50% { opacity: .65; } }
+html.ui3d .u3d-room-haze {
+  z-index: 31;
+  background: radial-gradient(140% 100% at 50% 110%, transparent 55%, rgba(var(--u-shade), .16) 100%);
+}
+html.ui3d .u3d-mote { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255, 250, 230, .9); box-shadow: 0 0 6px rgba(255, 240, 200, .9);
+  animation: u3d-mote var(--d, 9s) ease-in-out infinite; animation-delay: var(--delay, 0s); opacity: 0; }
+html.ui3d[data-theme="dark"] .u3d-mote { background: rgba(200, 220, 255, .9); box-shadow: 0 0 8px rgba(170, 200, 255, .9); }
+@keyframes u3d-mote { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: .9; } 80% { opacity: .7; } 100% { transform: translate(var(--mx, -30px), var(--my, 60px)); opacity: 0; } }
+html.ui3d .pet-room { box-shadow: inset 0 1px 0 var(--u-hi), 0 22px 40px -22px rgba(var(--u-shade), .5); }
+/* parallax moves the window, the light and the pet — never a decor piece, which
+   the drag, clamp and placement code measure (CLAUDE.md §7.247, §7.249) */
+html.ui3d .pet-room .pet-window { translate: calc(var(--u-px, 0) * -4px) calc(var(--u-py, 0) * -3px); transition: translate .6s var(--u-spring); }
+html.ui3d .pet-room .u3d-room-light { translate: calc(var(--u-px, 0) * -6px) calc(var(--u-py, 0) * -3px); transition: translate .6s var(--u-spring); }
+html.ui3d .pet-room .pet-stage { translate: calc(var(--u-px, 0) * -12px) calc(var(--u-py, 0) * -5px); transition: translate .6s var(--u-spring); }
+
+@media (prefers-reduced-motion: reduce) {
+  html.ui3d body::before, html.ui3d .together-hero, html.ui3d .u3d-add::before, html.ui3d .char-img-wrap::after, html.ui3d .u3d-mote, html.ui3d .u3d-room-light, html.ui3d .u3d-settle-chip.due { animation: none !important; }
+  .u3d-sheet, .u3d-sheet-veil { transition-duration: .01ms; }
+}

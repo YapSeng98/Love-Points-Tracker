@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.10.27-61';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.15-62';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -48,6 +48,10 @@ const App = (() => {
      these keep it in sync afterwards (incl. live OS changes in auto mode). */
   const THEME_KEY = 'theme_mode';   // 'time' | 'auto' | 'light' | 'dark'
   const themeMode = () => localStorage.getItem(THEME_KEY) || 'time';
+  // 新外观 (ui3d, §7.31): per phone like the theme. Declared up here because the
+  // render hooks read it and some renders run at module load, before the block.
+  const LOOK_KEY = 'look';           // 'classic' | 'ui3d'
+  const _u3d = { on: false, counted: false, daysTarget: '', last: {}, held: false, tilting: null };
 
   /* Time of day comes from the DEVICE clock and nothing else. A server-side
      "it is night now" would be wrong for hours every day — the ServiceNow
@@ -490,7 +494,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.10.27a';
+  const HTML_V = '2026.11.15a';
 
   (function ensureFreshHtml() {
     try {
@@ -1594,10 +1598,10 @@ const App = (() => {
         const charId = e.charId || 'char1';
         const name   = charDisplayName(charId);
         return `<div class="entry-item" id="entry-${e.id}">
-          <div class="entry-icon">${e.icon || '📌'}</div>
+          <div class="entry-icon">${_escHtml(e.icon || '📌')}</div>
           <div class="entry-info">
-            <div class="entry-cat">${(e.catName && e.catName !== 'undefined') ? e.catName : (e.name && e.name !== 'undefined' ? e.name : '自定义')}</div>
-            <div class="entry-desc">${e.desc || ''}</div>
+            <div class="entry-cat">${_escHtml((e.catName && e.catName !== 'undefined') ? e.catName : (e.name && e.name !== 'undefined' ? e.name : '自定义'))}</div>
+            <div class="entry-desc">${_escHtml(e.desc || '')}</div>
           </div>
           <span class="entry-char-badge ${charId}">${name}</span>
           <div class="entry-pts ${pos?'positive':'negative'}">${pos?'+':''}${e.pts}</div>
@@ -1727,6 +1731,7 @@ const App = (() => {
     const fmtScore = (s) => (s > 0 ? '+' : '') + s;
     if (b1) { b1.textContent = fmtScore(S.char1Score); b1.className = 'char-score-badge ' + (S.char1Score > 0 ? 'pos' : S.char1Score < 0 ? 'neg' : 'zero'); }
     if (b2) { b2.textContent = fmtScore(S.char2Score); b2.className = 'char-score-badge ' + (S.char2Score > 0 ? 'pos' : S.char2Score < 0 ? 'neg' : 'zero'); }
+    _u3dPop(b1, S.char1Score, 'c1'); _u3dPop(b2, S.char2Score, 'c2'); _u3dSettleDue();
 
     // Active-for chip
     const chip = document.getElementById('active-for-chip');
@@ -2558,6 +2563,7 @@ const App = (() => {
       document.getElementById('nav-'+p)?.classList.remove('active');
     });
     document.getElementById('nav-'+page)?.classList.add('active');
+    _u3dNavPlace();
 
     if (page === 'tables') {
       await showTables();
@@ -2791,6 +2797,8 @@ const App = (() => {
     if (themeSel) themeSel.value = themeMode();
     const wxSel = document.getElementById('cfg-weather');
     if (wxSel) wxSel.value = wxMode();
+    const lookSel = document.getElementById('cfg-look');
+    if (lookSel) lookSel.value = lookMode();
     const demoBtn = document.getElementById('cfg-clear-demo');
     if (demoBtn) demoBtn.style.display = S.usingSN ? 'none' : 'flex';
     // demo mode has no account, so nothing to change a password on
@@ -2928,6 +2936,7 @@ const App = (() => {
     }
     const days = daysTogether(S.startDate);
     el.textContent = days === null ? '--' : String(days);   // hero shows the bare number
+    _u3dDays(el);
     // Fill the empty right-hand side of the row with something to look
     // forward to, instead of 283px of nothing and a chevron.
     // On the day itself the tip becomes the way back into the film — after
@@ -6302,6 +6311,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     renderPetHome();
     _markRoomSynced();
     startPetSync();
+    _u3dRoom();
   }
 
   function closePetHome() {
@@ -7604,7 +7614,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const arr  = type === 'category' ? S.categories : type === 'reward' ? S.rewards : S.punishments;
     const item = arr.find(x => x.id === id);
     if (!item) return;
-    if (!(await showConfirm(`确认删除「${item.name}」？\n${S.usingSN ? '将从 ServiceNow 删除' : '将从本地删除'}`))) return;
+    if (!(await showConfirm(`确认删除「${item.name}」？\n${S.usingSN ? '删除后你们俩都看不到了' : '将从本地删除'}`))) return;
     try {
       await Data.deleteItem(type, id);
       if (type === 'category')    S.categories  = S.categories.filter(x => x.id !== id);
@@ -7670,7 +7680,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const el = document.getElementById('shop-content-shop');
     if (!el) return;
     if (!S.usingSN) {
-      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用商店功能</div></div>';
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">本地演示模式没有积分商店 · 登录后就能用</div></div>';
       return;
     }
     el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
@@ -7991,6 +8001,306 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     if (sn2) sn2.textContent = S.charName2 || '线条小狗·她';
   }
 
+  /* ── 新外观 · 立体 (ui3d) — CLAUDE.md §7.31 ───────────────────────────────
+     A soft-3D and motion layer over the same screens. Per phone and off by
+     default (设置 › 外观风格), so one partner can live with it before the other
+     sees anything. ui3d.css holds every rule, all scoped under html.ui3d; this
+     block adds only what CSS cannot: the ＋ button and its sheet, the 月末结算
+     chip, the nav pill, tilt toward the finger, the room's window light, and
+     numbers that count up. Everything it inserts carries data-u3d, so turning it
+     off takes it all back out.
+     - The ＋ sheet saves through quickEntry(), the tiles' own path, so a quick
+       entry is exactly the entry a tile would have made (who = S.activeChar).
+     - Parallax moves the window, the pet and the light — never a decor piece:
+       the drag, clamp and placement code measure pieces (§7.247, §7.249).
+     - One set of document listeners, idle while the look is off. */
+  const U3D_TILT = '.together-hero, .score-card, .letter-banner, .checkin-banner, #partner-wx, .entry-day-items, .home-duo .pet-banner-box, .home-duo .goal-box, .home-duo .goal-empty, .categories-grid .cat-card';
+  const U3D_CLAY = `<svg data-u3d width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="u3d-clay" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="2.6" result="b"/>
+    <feSpecularLighting in="b" surfaceScale="2.4" specularConstant=".7" specularExponent="16" lighting-color="#fff" result="s"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
+    <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
+    <feDiffuseLighting in="b" surfaceScale="2.4" diffuseConstant="1.18" lighting-color="#fff" result="d"><feDistantLight azimuth="235" elevation="66"/></feDiffuseLighting>
+    <feComposite in="d" in2="SourceAlpha" operator="in" result="d2"/>
+    <feBlend in="SourceGraphic" in2="d2" mode="multiply" result="lit"/>
+    <feComposite in="s2" in2="lit" operator="arithmetic" k1="0" k2=".5" k3="1" k4="0"/></filter></svg>`;
+  const _u3dReduce = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  function lookMode() { try { return localStorage.getItem(LOOK_KEY) === 'ui3d' ? 'ui3d' : 'classic'; } catch (e) { return 'classic'; } }
+
+  function setLook(mode) {
+    const on = mode === 'ui3d';
+    try { localStorage.setItem(LOOK_KEY, on ? 'ui3d' : 'classic'); } catch (e) {}
+    _u3dSet(on);
+    showToast(on ? '✨ 新外观已打开 · 只在这台手机上' : '已换回经典外观');
+  }
+
+  function _u3dSet(on) {
+    if (on === _u3d.on) return;
+    _u3d.on = on;
+    const root = document.documentElement;
+    if (!on) {
+      root.classList.remove('ui3d');
+      document.querySelectorAll('[data-u3d]').forEach(n => n.remove());
+      document.querySelectorAll('.u3d-tilt, .u3d-open, .u3d-hop').forEach(n => n.classList.remove('u3d-tilt', 'u3d-open', 'u3d-hop'));
+      return;
+    }
+    if (!document.getElementById('ui3d-css')) {
+      const l = document.createElement('link');
+      l.id = 'ui3d-css'; l.rel = 'stylesheet'; l.href = 'ui3d.css?v=' + encodeURIComponent(APP_VERSION);
+      document.head.appendChild(l);
+    }
+    root.classList.add('ui3d');
+    document.body.insertAdjacentHTML('beforeend', U3D_CLAY);
+    const nav = document.querySelector('.bottom-nav'), tables = document.getElementById('nav-tables');
+    if (nav && tables) {
+      nav.insertAdjacentHTML('afterbegin', '<span class="u3d-nav-ind" data-u3d></span>');
+      tables.insertAdjacentHTML('afterend', '<button type="button" class="u3d-add" data-u3d aria-label="记一笔">＋</button>');
+      const plus = tables.nextElementSibling;
+      plus.addEventListener('click', () => openQuickAdd(plus));
+      requestAnimationFrame(_u3dNavPlace);
+    }
+    const head = document.querySelector('.score-card-header');
+    if (head) {
+      head.insertAdjacentHTML('beforeend', '<button type="button" class="u3d-settle-chip" data-u3d>🎯 月末结算</button>');
+      head.lastElementChild.addEventListener('click', (e) => { e.stopPropagation(); openSettleModal(); });
+      _u3dSettleDue();
+    }
+    const days = document.getElementById('together-days');
+    if (days) _u3dDays(days);
+    _u3dRoom();
+  }
+
+  // Render hooks — cheap no-ops while the look is off.
+  function _u3dPop(el, v, k) {
+    const was = _u3d.last[k];
+    _u3d.last[k] = v;
+    if (!_u3d.on || !el || was === undefined || was === v || _u3dReduce()) return;
+    el.classList.remove('u3d-pop'); void el.offsetWidth; el.classList.add('u3d-pop');
+  }
+  function _u3dDays(el) {
+    _u3d.daysTarget = el.textContent;
+    if (!_u3d.on || _u3d.counted) return;
+    const to = parseInt(_u3d.daysTarget, 10);
+    if (!Number.isFinite(to)) return;                    // '--' until a start date is known
+    _u3d.counted = true;
+    if (_u3dReduce()) return;
+    const t0 = performance.now(), ms = 1300;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / ms);
+      if (!_u3d.on || k >= 1) { el.textContent = _u3d.daysTarget; return; }   // always lands on the real number
+      el.textContent = String(Math.round((parseInt(_u3d.daysTarget, 10) || to) * (1 - Math.pow(1 - k, 3))));
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function _u3dNavPlace() {
+    if (!_u3d.on) return;
+    const nav = document.querySelector('.bottom-nav'), ind = nav && nav.querySelector('.u3d-nav-ind');
+    if (!ind) return;
+    const it = nav.querySelector('.nav-item.active'), r = it && it.getBoundingClientRect();
+    if (!r || !r.width) { ind.style.opacity = '0'; return; }   // 设置 is hidden under this look
+    const nr = nav.getBoundingClientRect();
+    ind.style.opacity = '1'; ind.style.left = (r.left - nr.left + 4) + 'px'; ind.style.width = (r.width - 8) + 'px';
+  }
+  // Due when an older month is still open, or in the month's last three days.
+  function _u3dSettleDue() {
+    const chip = document.querySelector('.u3d-settle-chip');
+    if (!chip) return;
+    const mk = monthKey(), t = new Date(), last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const older = (S.entries || []).some(e => { const m = e.month || String(e.date || '').slice(0, 7); return m && m < mk; });
+    chip.classList.toggle('due', older || t.getDate() >= last - 2);
+  }
+
+  /* ＋ 记一笔 — who, plus or minus, which category, one tap to save */
+  function openQuickAdd(fromBtn) {
+    if (document.querySelector('.u3d-sheet')) return;
+    let who = S.activeChar === 'char2' ? 'char2' : 'char1', sign = 1, pick = 0;
+    const cats = () => (S.categories || []).filter(c => c.active !== false && (sign > 0 ? c.pts >= 0 : c.pts < 0));
+    document.body.insertAdjacentHTML('beforeend', `<div class="u3d-sheet-veil" data-u3d></div>
+      <div class="u3d-sheet" data-u3d role="dialog" aria-modal="true" aria-label="记一笔">
+        <div class="u3d-grab"></div><h3>记一笔</h3>
+        <div class="u3d-seg"><button type="button" data-c="char1">给 ${_escHtml(charDisplayName('char1'))}</button><button type="button" data-c="char2">给 ${_escHtml(charDisplayName('char2'))}</button></div>
+        <div class="u3d-seg"><button type="button" data-s="1">💙 加分</button><button type="button" data-s="-1">💔 扣分</button></div>
+        <div class="u3d-cats"></div>
+        <button type="button" class="u3d-go"></button>
+        <button type="button" class="u3d-more">写备注或换日期 ›</button>
+      </div>`);
+    const veil = document.querySelector('.u3d-sheet-veil'), sheet = document.querySelector('.u3d-sheet');
+    const grid = sheet.querySelector('.u3d-cats'), go = sheet.querySelector('.u3d-go');
+    const render = () => {
+      sheet.querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === who));
+      sheet.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', +b.dataset.s === sign));
+      const list = cats();
+      if (pick >= list.length) pick = 0;
+      grid.innerHTML = list.length
+        ? list.map((c, i) => `<button type="button" class="u3d-cat${c.pts < 0 ? ' neg' : ''}${i === pick ? ' on' : ''}" data-i="${i}"><span class="ic">${_escHtml(c.icon || '📌')}</span>${_escHtml(c.name)}<b>${c.pts > 0 ? '+' : ''}${c.pts}</b></button>`).join('')
+        : `<div class="u3d-empty">还没有${sign > 0 ? '加分' : '扣分'}项目 · 在「快速记分 › 管理」里加</div>`;
+      const c = list[pick];
+      go.disabled = !c;
+      go.textContent = c ? `记给 ${charDisplayName(who)} · ${c.pts > 0 ? '+' : ''}${c.pts} 分` : '记录';
+    };
+    render();
+    requestAnimationFrame(() => { veil.classList.add('on'); sheet.classList.add('on'); });
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const close = () => {
+      document.removeEventListener('keydown', onKey);
+      sheet.classList.remove('on'); veil.classList.remove('on');
+      setTimeout(() => { sheet.remove(); veil.remove(); }, 420);
+    };
+    document.addEventListener('keydown', onKey);
+    veil.addEventListener('click', close);
+    sheet.addEventListener('click', async (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.c) { who = b.dataset.c; render(); return; }
+      if (b.dataset.s) { sign = +b.dataset.s; pick = 0; render(); return; }
+      if (b.dataset.i !== undefined) { pick = +b.dataset.i; render(); return; }
+      if (b.classList.contains('u3d-more')) { close(); if (S.activeChar !== who) selectChar(who); openAddModal(); return; }
+      if (b === go && !go.disabled) {
+        const c = cats()[pick];
+        if (!c) return;
+        go.disabled = true;
+        close();
+        if (S.activeChar !== who) selectChar(who);
+        _u3dFly(fromBtn, who, c.pts);
+        await quickEntry(c.id);
+      }
+    });
+  }
+  function _u3dFly(fromBtn, who, pts) {
+    const pill = document.getElementById(`${who}-score-badge`);
+    if (!pill || !fromBtn) return;
+    const a = fromBtn.getBoundingClientRect(), b = pill.getBoundingClientRect();
+    const land = () => {
+      if (pts > 0 && !_u3dReduce()) _u3dConfetti(b.left + b.width / 2, b.top + b.height / 2);
+      const wrap = document.getElementById(`char-img-wrap-${who === 'char1' ? 1 : 2}`);
+      if (wrap) _u3dHop(wrap);
+      try { navigator.vibrate && navigator.vibrate(12); } catch (e) {}
+    };
+    if (_u3dReduce()) return land();
+    const fly = document.createElement('div');
+    fly.className = 'u3d-fly'; fly.dataset.u3d = ''; fly.textContent = (pts > 0 ? '+' : '') + pts;
+    if (pts < 0) fly.style.color = '#D9534F';
+    fly.style.left = (a.left + a.width / 2) + 'px'; fly.style.top = a.top + 'px';
+    document.body.appendChild(fly);
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - a.top;
+    fly.animate([
+      { transform: 'translate(-50%,0) scale(.6)', opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx * .4}px), ${Math.min(dy * .5, -120)}px) scale(1.3)`, opacity: 1, offset: .45 },
+      { transform: `translate(calc(-50% + ${dx}px), ${dy}px) scale(.7)`, opacity: .9 },
+    ], { duration: 900, easing: 'cubic-bezier(.3,.1,.3,1)' }).onfinish = () => { fly.remove(); land(); };
+  }
+  function _u3dConfetti(x, y) {
+    const C = ['#FF8FC0', '#C69CFF', '#8FC4FF', '#FFD08F', '#7FD6A8'];
+    for (let i = 0; i < 22; i++) {
+      const c = document.createElement('div');
+      c.className = 'u3d-confetti'; c.dataset.u3d = ''; c.style.left = x + 'px'; c.style.top = y + 'px'; c.style.background = C[i % C.length];
+      document.body.appendChild(c);
+      const ang = Math.random() * Math.PI * 2, d = 50 + Math.random() * 70;
+      c.animate([
+        { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${Math.cos(ang) * d}px), calc(-50% + ${Math.sin(ang) * d - 30}px)) rotate(${Math.random() * 540}deg)`, opacity: 1, offset: .6 },
+        { transform: `translate(calc(-50% + ${Math.cos(ang) * d * 1.2}px), calc(-50% + ${Math.sin(ang) * d + 60}px)) rotate(${Math.random() * 720}deg)`, opacity: 0 },
+      ], { duration: 1100 + Math.random() * 400, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = () => c.remove();
+    }
+  }
+  // The art and the birthday crown layer hop together, so the crown stays on the head (§7.30).
+  function _u3dHop(wrap) {
+    if (_u3dReduce()) return;
+    wrap.querySelectorAll('.char-svg, .char-img-custom, .bdf-crown-l').forEach(el => {
+      el.classList.remove('u3d-hop'); void el.getBoundingClientRect(); el.classList.add('u3d-hop');
+      el.addEventListener('animationend', () => el.classList.remove('u3d-hop'), { once: true });
+    });
+  }
+  function _u3dHeart(x, y, glyph) {
+    if (_u3dReduce()) return;
+    const h = document.createElement('div');
+    h.className = 'u3d-heart'; h.dataset.u3d = ''; h.textContent = glyph;
+    h.style.left = x + 'px'; h.style.top = y + 'px'; h.style.setProperty('--dx', (Math.random() * 40 - 20) + 'px');
+    document.body.appendChild(h); setTimeout(() => h.remove(), 1200);
+  }
+
+  /* 小窝: light falls from the window, down and away from it, onto the floor */
+  function _u3dRoom() {
+    if (!_u3d.on) return;
+    const r = document.getElementById('pet-room');
+    const rr = r && r.getBoundingClientRect();
+    if (!rr || !rr.width) return;                      // closed — laid on the next open
+    r.querySelectorAll(':scope > [data-u3d]').forEach(n => n.remove());
+    const w = r.querySelector('.pet-window');
+    const wr = w ? w.getBoundingClientRect() : { left: rr.left + rr.width * .68, right: rr.left + rr.width * .88, top: rr.top + rr.height * .12, bottom: rr.top + rr.height * .28 };
+    const X = (x) => ((x - rr.left) / rr.width) * 100, Y = (y) => ((y - rr.top) / rr.height) * 100;
+    const wl = X(wr.left), wrt = X(wr.right), wt = Y(wr.top), wb = Y(wr.bottom), wc = (wl + wrt) / 2, wm = (wt + wb) / 2;
+    const fx = wc > 50 ? wc - 24 : wc + 24, fy = 86, fw = (wrt - wl) * 1.8;
+    r.insertAdjacentHTML('beforeend', `<div class="u3d-room-light" data-u3d>
+      <div class="u3d-glow" style="left:${wl - 6}%;top:${wt - 8}%;width:${wrt - wl + 12}%;height:${wb - wt + 16}%"></div>
+      <div class="u3d-shaft" style="clip-path:polygon(${wl}% ${wm}%, ${wrt}% ${wm}%, ${fx + fw / 2}% ${fy}%, ${fx - fw / 2}% ${fy}%)"></div>
+      <div class="u3d-patch" style="left:${fx - fw * .65}%;top:${fy - 6}%;width:${fw * 1.3}%;height:12%"></div></div>
+      <div class="u3d-room-haze" data-u3d></div>`);
+    const haze = r.lastElementChild;
+    for (let i = 0; i < 8; i++) {
+      const m = document.createElement('span'), t = Math.random();
+      m.className = 'u3d-mote';
+      m.style.left = (wc + (fx - wc) * t + (Math.random() - .5) * fw * .6) + '%';
+      m.style.top = (wm + (fy - 10 - wm) * t) + '%';
+      m.style.setProperty('--d', (7 + Math.random() * 6).toFixed(1) + 's');
+      m.style.setProperty('--delay', (-Math.random() * 8).toFixed(1) + 's');
+      m.style.setProperty('--mx', (-20 - Math.random() * 40) + 'px');
+      m.style.setProperty('--my', (40 + Math.random() * 60) + 'px');
+      haze.appendChild(m);
+    }
+  }
+  function _u3dParallax(room, e) {
+    if (!e || _u3dReduce() || _u3d.held || _roomBusyEditing()) { room.style.removeProperty('--u-px'); room.style.removeProperty('--u-py'); return; }
+    const b = room.getBoundingClientRect();
+    room.style.setProperty('--u-px', (((e.clientX - b.left) / b.width) * 2 - 1).toFixed(3));
+    room.style.setProperty('--u-py', (((e.clientY - b.top) / b.height) * 2 - 1).toFixed(3));
+  }
+  function _u3dTiltAt(el, e) {
+    const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    el.style.setProperty('--u-rx', ((.5 - y) * 9).toFixed(2) + 'deg');
+    el.style.setProperty('--u-ry', ((x - .5) * 11).toFixed(2) + 'deg');
+    el.style.setProperty('--u-mx', (x * 100).toFixed(1) + '%');
+    el.style.setProperty('--u-my', (y * 100 - 30).toFixed(1) + '%');
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!_u3d.on) return;
+    if (e.target.closest('.decor-piece')) _u3d.held = true;
+    const el = e.target.closest(U3D_TILT);
+    if (el && !_u3dReduce()) { _u3dTiltAt(el, e); el.classList.add('u3d-tilt'); _u3d.tilting = el; }
+  }, { passive: true });
+  document.addEventListener('pointermove', (e) => {
+    if (!_u3d.on) return;
+    if (_u3d.tilting) _u3dTiltAt(_u3d.tilting, e);
+    const room = e.target.closest && e.target.closest('#pet-room');
+    if (room) _u3dParallax(room, e);
+  }, { passive: true });
+  const _u3dRelease = () => {
+    _u3d.held = false;
+    if (_u3d.tilting) { _u3d.tilting.classList.remove('u3d-tilt'); _u3d.tilting = null; }
+    const room = document.getElementById('pet-room');
+    if (room && _u3d.on) _u3dParallax(room, null);
+  };
+  document.addEventListener('pointerup', _u3dRelease, { passive: true });
+  document.addEventListener('pointercancel', _u3dRelease, { passive: true });
+  document.addEventListener('click', (e) => {
+    if (!_u3d.on) return;
+    const t = e.target;
+    const row = t.closest('.entries-list .entry-item');
+    if (row && !t.closest('.entry-edit, .entry-delete')) {
+      const was = row.classList.contains('u3d-open');
+      document.querySelectorAll('.entry-item.u3d-open').forEach(x => x.classList.remove('u3d-open'));
+      if (!was) row.classList.add('u3d-open');
+    }
+    const wrap = t.closest('.char-img-wrap');
+    if (wrap) { _u3dHop(wrap); _u3dHeart(e.clientX, e.clientY - 24, wrap.id.endsWith('2') ? '💗' : '💙'); }
+  });
+  window.addEventListener('resize', () => { _u3dNavPlace(); if (document.getElementById('pet-page')?.classList.contains('open')) _u3dRoom(); });
+  // ?look=ui3d (or classic) in the address sets it for this phone, like ?dev=1 (§8.5) —
+  // a link to try it, and how the browser suites run themselves in either look.
+  try { const q = new URLSearchParams(location.search).get('look'); if (q === 'ui3d' || q === 'classic') localStorage.setItem(LOOK_KEY, q); } catch (e) {}
+  if (lookMode() === 'ui3d') _u3dSet(true);
+
   // Run boot even if the DOM is already parsed — app.js is loaded via a
   // cache-busting async <script>, so DOMContentLoaded may have already fired
   // by the time this runs (which would otherwise leave the app un-booted).
@@ -8029,7 +8339,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, changePassword, logout,
     clearDemoData, resetPet,
-    setTheme,
+    setTheme, setLook,
     claimReward,
     setCharImg, resetCharImg,
     openManage, openManageFromTable, openEditForm, saveEditForm,
