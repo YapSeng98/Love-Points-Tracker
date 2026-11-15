@@ -719,10 +719,27 @@ screens, so the decision was made looking at the app rather than a mock.
 - Found by the suite: under reduced motion the flying number was skipped but the
   confetti still burst. Every effect checks `_u3dReduce()`.
 
+- **The opening screen and login card are in it too** (2026-11-15): follows
+  day and night, a raised title, the couple clay-shaded on a lit stage, a frosted
+  login card under a glossy app icon, a sliding tab pill, 他/她 as cards. The
+  splash paints before app.js loads, so index.html's head script stamps
+  `html.ui3d` and writes the stylesheet link itself — without that, every open
+  flashed the classic splash first. The clay filter `#u3d-clay` lives in
+  index.html for the same reason; app.js adds one only if a stale page lacks it.
+  The radios are visually hidden inside the cards, so a test must tap the
+  label — `page.check()` on the input fails, and so would a real finger.
+- **A near-empty screen needs softer light than a busy one.** The home aurora at
+  full strength read as smudges on the splash; those screens use their own
+  translucent pools (`--u-p1…4`).
+
 Two fixes found on the same walk apply to BOTH looks: entry notes and
 category names were inserted unescaped (a note with `<b>` rendered bold on both
 phones), and two strings still said ServiceNow — one in the confirm when
-deleting a category.
+deleting a category. The login card had three more: 他/她 were white-on-white in
+dark mode (inline light backgrounds — inline styles can't follow a theme, so
+the tabs and options are classes now and `switchTab` toggles `.on`), the
+spaced-out pair-code hint was cut off, and a phone that had never logged in
+read 「继续 (…) →」 instead of 「登录」.
 
 `tools/ui3d-test.js` covers the switch, the sheet's stored entry, the chip,
 rows, tilt, the room's taps, turning it off, reduced motion, and 360/390/820 in
@@ -1292,7 +1309,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/birthday-test.js` | 生日惊喜 in a browser: dates (2/29, age), both phones, preparing and sealing, the teaser, 00:00 with the app open, nothing prepared, typing at midnight, a moved phone date against a mocked server, the 🎂 tab, every scene at 360–820, replay |
 | `node supabase/test-surprise.mjs` | 生日惊喜 live: birthdays in config, sealing, the early read and the "was anything prepared?" leak, spoofed zone, third couple, direct Postgres, moved birthday, delivered rewrite, three opens → one coupon, the receipt |
-| `node tools/ui3d-test.js` | 新外观: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=ui3d` in `APP_URL` |
+| `node tools/ui3d-test.js` | 新外观 and the login screens: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=ui3d` in `APP_URL` |
 | `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |

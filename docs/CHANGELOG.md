@@ -12,6 +12,16 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-15 — The opening screen and login, redesigned in 新外观
+
+With 新外观 on, the screen you see when opening the app follows day and night,
+with a bigger title and the two of you standing in soft light, and the login
+card is frosted glass with clearer fields and 他/她 as two cards.
+
+For everyone: 他/她 on the sign-up form were unreadable in dark mode, the
+pair-code hint was cut off, and a phone that had never logged in showed
+「继续 (…) →」 on the button — all fixed.
+
 ## 2026-11-15 — 新外观 to try, and two small fixes
 
 设置 › 外观风格 now has 新外观: cards lit with soft depth, a gently moving

@@ -297,7 +297,135 @@ html.ui3d .pet-room .pet-window { translate: calc(var(--u-px, 0) * -4px) calc(va
 html.ui3d .pet-room .u3d-room-light { translate: calc(var(--u-px, 0) * -6px) calc(var(--u-py, 0) * -3px); transition: translate .6s var(--u-spring); }
 html.ui3d .pet-room .pet-stage { translate: calc(var(--u-px, 0) * -12px) calc(var(--u-py, 0) * -5px); transition: translate .6s var(--u-spring); }
 
+/* ── opening screen: follows day and night, a raised title, the couple on a lit stage ── */
+/* softer pools than the home aurora: on a near-empty screen full-strength ones read as smudges */
+html.ui3d #start-page {
+  background:
+    radial-gradient(48% 34% at 18% 18%, var(--u-p1), transparent 72%),
+    radial-gradient(44% 32% at 84% 26%, var(--u-p2), transparent 72%),
+    radial-gradient(52% 36% at 70% 88%, var(--u-p3), transparent 74%),
+    radial-gradient(46% 34% at 16% 82%, var(--u-p4), transparent 74%),
+    linear-gradient(165deg, var(--u-sp-a), var(--u-sp-b) 50%, var(--u-sp-c));
+}
+html.ui3d { --u-sp-a: #D6E6FF; --u-sp-b: #EADFFF; --u-sp-c: #FFDDEB; --u-title-x: rgba(150, 100, 220, .55);
+  --u-p1: rgba(255, 196, 222, .5); --u-p2: rgba(190, 212, 255, .55); --u-p3: rgba(255, 226, 190, .38); --u-p4: rgba(214, 196, 255, .5); }
+html.ui3d[data-theme="dark"] { --u-sp-a: #121A33; --u-sp-b: #1F1838; --u-sp-c: #2A1630; --u-title-x: rgba(0, 0, 0, .65);
+  --u-p1: rgba(110, 50, 120, .55); --u-p2: rgba(40, 64, 140, .55); --u-p3: rgba(80, 46, 120, .45); --u-p4: rgba(30, 80, 120, .45); }
+html.ui3d #start-page .sp-deco { opacity: .5; filter: saturate(.8); }
+html.ui3d .sp-content { max-width: 360px; }
+html.ui3d .sp-paw-logo {
+  width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; font-size: 32px; margin-bottom: 14px;
+  background: radial-gradient(circle at 30% 22%, #FFFFFF, #FFD6EA 38%, #C9A8FF 78%, #8FB8FF);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .9), inset 0 -6px 12px rgba(110, 60, 170, .25), 0 14px 26px -10px rgba(140, 80, 200, .6);
+  animation: u3d-float 3.2s ease-in-out infinite; filter: none;
+}
+@keyframes u3d-float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-7px) rotate(3deg); } }
+html.ui3d .sp-title {
+  font-size: 40px; letter-spacing: .05em; margin-bottom: 6px;
+  filter: drop-shadow(0 1px 0 #D9C2FF) drop-shadow(0 1px 0 #C7A8F5) drop-shadow(0 1px 0 #B48EEB) drop-shadow(0 10px 14px var(--u-title-x));
+}
+html.ui3d[data-theme="dark"] .sp-title {
+  background: linear-gradient(130deg, #9CC6FF 0%, #C8A8FF 48%, #FF9EC8 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0 #6E5AA8) drop-shadow(0 1px 0 #5A4890) drop-shadow(0 1px 0 #463876) drop-shadow(0 10px 16px var(--u-title-x));
+}
+html.ui3d .sp-tagline { font-size: 13.5px; color: #7B72A8; margin-bottom: 6px; }
+html.ui3d[data-theme="dark"] .sp-tagline { color: #B9AFD8; }
+html.ui3d .sp-couple-scene { position: relative; gap: 18px; margin: 26px 0 40px; }
+html.ui3d .sp-couple-scene::after {
+  content: ""; position: absolute; left: 4%; right: 4%; bottom: -16px; height: 38px; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0));
+}
+html.ui3d[data-theme="dark"] .sp-couple-scene::after { background: radial-gradient(closest-side, rgba(190, 170, 255, .35), rgba(190, 170, 255, 0)); }
+html.ui3d .sp-couple-char.c1 .char-svg, html.ui3d .sp-couple-char.c2 .char-svg { width: 108px !important; height: 126px !important; }
+html.ui3d .sp-couple-char.c1 .char-svg { filter: url(#u3d-clay) drop-shadow(0 0 16px rgba(91, 155, 213, .45)) drop-shadow(0 10px 10px rgba(var(--u-shade), .16)) !important; }
+html.ui3d .sp-couple-char.c2 .char-svg { filter: url(#u3d-clay) drop-shadow(0 0 16px rgba(255, 80, 140, .45)) drop-shadow(0 10px 10px rgba(var(--u-shade), .16)) !important; }
+/* the rim turns, like the 在一起 card's — a blurred ring behind it would paint on top,
+   because the button is already its own stacking context */
+html.ui3d .sp-btn {
+  min-height: 58px; font-size: 16.5px; letter-spacing: .04em; border: 2.5px solid transparent;
+  background:
+    linear-gradient(180deg, #8FB2F5 0%, #7C8CF0 30%, #B57EF2 66%, #F27BA6 100%) padding-box,
+    conic-gradient(from var(--u-ang), #FFFFFF, #FFC2DC, #C9B4FF, #B8D8FF, #FFFFFF) border-box;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .4), inset 0 -4px 0 rgba(0, 0, 0, .14), 0 0 26px -2px rgba(200, 120, 255, .55), 0 14px 30px -10px rgba(140, 100, 200, .6);
+  animation: u3d-spin 6s linear infinite;
+  transition: transform .5s var(--u-spring);
+}
+html.ui3d .sp-btn:active { transform: scale(.96); }
+
+/* ── login card: frosted glass, a glossy app icon, a sliding tab pill ── */
+html.ui3d #setup-overlay {
+  background:
+    radial-gradient(48% 34% at 16% 14%, var(--u-p1), transparent 72%),
+    radial-gradient(44% 32% at 86% 22%, var(--u-p2), transparent 72%),
+    radial-gradient(52% 36% at 74% 88%, var(--u-p3), transparent 74%),
+    linear-gradient(165deg, var(--u-sp-a), var(--u-sp-b) 50%, var(--u-sp-c));
+}
+html.ui3d .setup-logo {
+  width: 76px; height: 76px; border-radius: 24px; display: grid; place-items: center; font-size: 38px;
+  background: radial-gradient(circle at 30% 22%, #FFFFFF, #FFD6EA 38%, #C9A8FF 78%, #8FB8FF);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .9), inset 0 -6px 12px rgba(110, 60, 170, .25), 0 18px 30px -12px rgba(140, 80, 200, .65);
+  animation: u3d-float 3.2s ease-in-out infinite;
+}
+html.ui3d .setup-card {
+  border-radius: 28px; padding: 28px 24px 24px;
+  background: var(--u-glass-card);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--u-edge);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 30px 60px -28px rgba(var(--u-shade), .55), 0 10px 24px -14px rgba(var(--u-shade), .35);
+  animation: u3d-rise .7s var(--u-spring) both;
+}
+html.ui3d { --u-glass-card: rgba(255, 255, 255, .74); --u-field: rgba(255, 255, 255, .9); --u-field-line: rgba(120, 110, 180, .18); --u-ink: #2D2A45; }
+html.ui3d[data-theme="dark"] { --u-glass-card: rgba(30, 27, 50, .74); --u-field: rgba(255, 255, 255, .06); --u-field-line: rgba(255, 255, 255, .12); --u-ink: #EEEAF8; }
+@keyframes u3d-rise { from { opacity: 0; transform: translateY(26px) scale(.97); } }
+html.ui3d .setup-card h2 { font-size: 24px; color: var(--u-ink); }
+html.ui3d .login-tabs { background: rgba(var(--u-shade), .07); border-radius: 14px; }
+html.ui3d[data-theme="dark"] .login-tabs { background: rgba(255, 255, 255, .06); }
+html.ui3d .login-tabs::before {
+  content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 11px; pointer-events: none;
+  background: linear-gradient(180deg, #FFFFFF, #EEF3FF); box-shadow: inset 0 1px 0 #fff, 0 6px 14px -6px rgba(70, 110, 200, .55);
+  transition: transform .5s var(--u-spring);
+}
+html.ui3d[data-theme="dark"] .login-tabs::before { background: linear-gradient(180deg, #4A4470, #34305A); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 14px -6px rgba(0, 0, 0, .6); }
+html.ui3d .login-tabs.on-reg::before { transform: translateX(100%); }
+html.ui3d .login-tab, html.ui3d .login-tab.on { background: transparent; box-shadow: none; min-height: 40px; font-size: 14.5px; }
+html.ui3d .login-tab.on { color: #2E6DA6; }
+html.ui3d[data-theme="dark"] .login-tab.on { color: #A9CDF5; }
+html.ui3d .field-group { gap: 8px; margin-bottom: 16px; }
+html.ui3d .field-group input {
+  min-height: 50px; border-radius: 16px; font-size: 15.5px; color: var(--u-ink);
+  background: var(--u-field); border: 1.5px solid var(--u-field-line);
+  box-shadow: inset 0 2px 4px rgba(var(--u-shade), .06);
+  transition: border-color .2s, box-shadow .25s;
+}
+html.ui3d .field-group input:focus { border-color: #E0559A; box-shadow: inset 0 2px 4px rgba(var(--u-shade), .06), 0 0 0 4px rgba(242, 102, 159, .18); }
+html.ui3d .setup-card .btn-primary {
+  min-height: 54px; border-radius: 18px; font-size: 16px; font-weight: 800;
+  background: linear-gradient(180deg, #F57FB0, #E0508F 55%, #C8427F);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45), inset 0 -3px 6px rgba(110, 20, 60, .25), 0 14px 26px -12px rgba(220, 70, 140, .8);
+  transition: transform .45s var(--u-spring);
+}
+html.ui3d .setup-card .btn-primary:disabled { opacity: .75; }
+html.ui3d #sn-login-err:not(:empty), html.ui3d #reg-err:not(:empty) {
+  background: rgba(255, 107, 107, .12); color: #C73E3E; border-radius: 12px; padding: 8px 10px; animation: u3d-shake .45s;
+}
+html.ui3d[data-theme="dark"] #sn-login-err:not(:empty), html.ui3d[data-theme="dark"] #reg-err:not(:empty) { color: #FF9C93; }
+@keyframes u3d-shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+html.ui3d .reg-chars { gap: 12px; }
+html.ui3d .reg-char-opt {
+  flex-direction: column; justify-content: center; gap: 4px; min-height: 76px; border-radius: 18px; font-size: 15px; position: relative;
+  border: 1.5px solid var(--u-field-line); color: var(--u-ink);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 8px 16px -12px rgba(var(--u-shade), .4);
+  transition: transform .45s var(--u-spring), border-color .2s, box-shadow .25s;
+}
+html.ui3d .reg-char-opt input { position: absolute; opacity: 0; pointer-events: none; }
+html.ui3d .reg-char-opt span { font-size: 15.5px; }
+html.ui3d .reg-char-opt:has(input:checked) { transform: translateY(-3px); }
+html.ui3d .reg-char-opt.c1:has(input:checked) { border-color: #5B9BD5; box-shadow: 0 0 0 4px rgba(91, 155, 213, .2), 0 12px 20px -12px rgba(60, 120, 200, .6); }
+html.ui3d .reg-char-opt.c2:has(input:checked) { border-color: #F2669F; box-shadow: 0 0 0 4px rgba(242, 102, 159, .2), 0 12px 20px -12px rgba(220, 70, 140, .6); }
+html.ui3d .reg-char-opt:has(input:focus-visible) { outline: 2px solid #E0559A; outline-offset: 2px; }
+html.ui3d .demo-link { text-decoration: none; opacity: .8; font-weight: 600; padding: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
-  html.ui3d body::before, html.ui3d .together-hero, html.ui3d .u3d-add::before, html.ui3d .char-img-wrap::after, html.ui3d .u3d-mote, html.ui3d .u3d-room-light, html.ui3d .u3d-settle-chip.due { animation: none !important; }
+  html.ui3d body::before, html.ui3d .together-hero, html.ui3d .u3d-add::before, html.ui3d .char-img-wrap::after, html.ui3d .u3d-mote, html.ui3d .u3d-room-light, html.ui3d .u3d-settle-chip.due, html.ui3d .sp-paw-logo, html.ui3d .setup-logo, html.ui3d .sp-btn { animation: none !important; }
   .u3d-sheet, .u3d-sheet-veil { transition-duration: .01ms; }
 }

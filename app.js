@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.15-62';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.15-63';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -494,7 +494,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.11.15a';
+  const HTML_V = '2026.11.15b';
 
   (function ensureFreshHtml() {
     try {
@@ -2120,8 +2120,9 @@ const App = (() => {
     document.getElementById('panel-register').classList.toggle('hidden', isLogin);
     const tLogin = document.getElementById('tab-login');
     const tReg   = document.getElementById('tab-register');
-    if (tLogin) Object.assign(tLogin.style, { background: isLogin ? 'white' : 'transparent', color: isLogin ? 'var(--blue)' : 'var(--sub)', boxShadow: isLogin ? '0 2px 8px rgba(91,155,213,0.18)' : 'none' });
-    if (tReg)   Object.assign(tReg.style,   { background: isLogin ? 'transparent' : 'white', color: isLogin ? 'var(--sub)' : 'var(--blue)', boxShadow: isLogin ? 'none' : '0 2px 8px rgba(91,155,213,0.18)' });
+    if (tLogin) tLogin.classList.toggle('on', isLogin);
+    if (tReg)   tReg.classList.toggle('on', !isLogin);
+    document.getElementById('login-tabs')?.classList.toggle('on-reg', !isLogin);   // the new look's sliding pill
     _loginErr('');
     _regErr('');
   }
@@ -8049,7 +8050,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       document.head.appendChild(l);
     }
     root.classList.add('ui3d');
-    document.body.insertAdjacentHTML('beforeend', U3D_CLAY);
+    if (!document.getElementById('u3d-clay')) document.body.insertAdjacentHTML('beforeend', U3D_CLAY);   // index.html carries it; a stale copy may not
     const nav = document.querySelector('.bottom-nav'), tables = document.getElementById('nav-tables');
     if (nav && tables) {
       nav.insertAdjacentHTML('afterbegin', '<span class="u3d-nav-ind" data-u3d></span>');
@@ -8478,8 +8479,11 @@ function startApp() {
     const nameEl = document.getElementById('sn-username');
     const btn    = document.getElementById('sn-connect-btn');
     if (savedName && nameEl) nameEl.value = savedName;
+    // 「继续 (name) →」 only for the account this phone already knows; a phone
+    // that has never logged in used to read 「继续 (…) →」.
     const updateBtn = () => {
-      if (btn) btn.textContent = `继续 (${nameEl?.value?.trim() || savedName || '…'}) →`;
+      const typed = nameEl?.value?.trim() || '';
+      if (btn) btn.textContent = savedName && (!typed || typed === savedName) ? `继续 (${savedName}) →` : '登录';
     };
     updateBtn();
     nameEl?.addEventListener('input', updateBtn);

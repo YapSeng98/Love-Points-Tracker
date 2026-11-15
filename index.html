@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.11.15a">
+  <meta name="app-html-v" content="2026.11.15b">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -20,6 +20,16 @@
              || (_tm === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.dataset.theme  = _d ? 'dark' : 'light';
       document.documentElement.dataset.period = _p;
+    } catch (e) {}
+    // 新外观 (CLAUDE.md §7.31): stamped here too, or the splash paints the classic
+    // look first and flips when app.js arrives. app.js loads ui3d.css again with
+    // APP_VERSION, so a stale copy of this page can't pin an old stylesheet.
+    try {
+      var _lk = (location.search.match(/[?&]look=(ui3d|classic)/) || [])[1] || localStorage.getItem('look');
+      if (_lk === 'ui3d') {
+        document.documentElement.classList.add('ui3d');
+        document.write('<link rel="stylesheet" id="ui3d-css-pre" href="ui3d.css?h=2026.11.15b">');
+      }
     } catch (e) {}
   </script>
   <style>
@@ -160,6 +170,25 @@
       text-align: center; font-size: 13px; color: var(--blue);
       cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
     }
+    /* Login tabs and 他/她 — were inline styles, which neither dark mode nor the
+       new look could reach: 他/她 rendered white-on-white at night. */
+    .login-tabs { position: relative; display: flex; border-radius: 12px; background: #EEF4FB; padding: 4px; margin-bottom: 20px; }
+    .login-tab { position: relative; z-index: 1; flex: 1; padding: 8px 0; border: none; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; background: transparent; color: var(--sub); transition: all .2s; }
+    .login-tab.on { background: white; color: var(--blue); box-shadow: 0 2px 8px rgba(91,155,213,0.18); }
+    html[data-theme="dark"] .login-tabs { background: rgba(255,255,255,0.06); }
+    html[data-theme="dark"] .login-tab { color: #9AA8BC; }
+    html[data-theme="dark"] .login-tab.on { background: #2B3A55; color: #9CC8F2; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .reg-chars { display: flex; gap: 10px; margin-bottom: 16px; }
+    .reg-char-opt { flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--card-border); cursor: pointer; font-size: 14px; font-weight: 600; color: var(--dark); }
+    .reg-char-opt.c1 { background: #F0F7FF; }
+    .reg-char-opt.c2 { background: #FFF0F5; }
+    .reg-char-opt.c1 input { accent-color: var(--blue); }
+    .reg-char-opt.c2 input { accent-color: #FF6B9D; }
+    html[data-theme="dark"] .reg-char-opt { color: #E6ECF5; border-color: rgba(255,255,255,0.12); }
+    html[data-theme="dark"] .reg-char-opt.c1 { background: rgba(91,155,213,0.16); }
+    html[data-theme="dark"] .reg-char-opt.c2 { background: rgba(255,107,157,0.14); }
+    .field-group .pair-code-input { letter-spacing: 4px; font-size: 18px; font-weight: 700; text-align: center; }
+    .field-group .pair-code-input::placeholder { letter-spacing: 0; font-size: 13px; font-weight: 500; }
 
     /* ── Header ── */
     .header {
@@ -3615,6 +3644,15 @@
 <body>
 
 <!-- ── Start / Splash page ── -->
+<!-- 新外观's clay shading (ui3d.css, CLAUDE.md §7.31) — here so the splash has it before app.js loads -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="u3d-clay" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="2.6" result="b"/>
+  <feSpecularLighting in="b" surfaceScale="2.4" specularConstant=".7" specularExponent="16" lighting-color="#fff" result="s"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
+  <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
+  <feDiffuseLighting in="b" surfaceScale="2.4" diffuseConstant="1.18" lighting-color="#fff" result="d"><feDistantLight azimuth="235" elevation="66"/></feDiffuseLighting>
+  <feComposite in="d" in2="SourceAlpha" operator="in" result="d2"/>
+  <feBlend in="SourceGraphic" in2="d2" mode="multiply" result="lit"/>
+  <feComposite in="s2" in2="lit" operator="arithmetic" k1="0" k2=".5" k3="1" k4="0"/></filter></svg>
 <div id="start-page">
   <!-- floating sakura & star decos -->
   <div class="sp-deco" style="top:6%;left:9%;animation-delay:0s">🌸</div>
@@ -3803,15 +3841,9 @@
     <h2 style="text-align:center;margin-bottom:16px;">欢迎 💙</h2>
 
     <!-- Tab bar -->
-    <div style="display:flex;gap:0;border-radius:12px;background:#EEF4FB;padding:4px;margin-bottom:20px;">
-      <button id="tab-login" onclick="App.switchTab('login')"
-        style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:white;color:var(--blue);box-shadow:0 2px 8px rgba(91,155,213,0.18);transition:all .2s;">
-        登录
-      </button>
-      <button id="tab-register" onclick="App.switchTab('register')"
-        style="flex:1;padding:8px 0;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--sub);transition:all .2s;">
-        注册
-      </button>
+    <div class="login-tabs" id="login-tabs">
+      <button type="button" id="tab-login" class="login-tab on" onclick="App.switchTab('login')">登录</button>
+      <button type="button" id="tab-register" class="login-tab" onclick="App.switchTab('register')">注册</button>
     </div>
 
     <!-- ── LOGIN PANEL ── -->
@@ -3839,13 +3871,13 @@
       <!-- Step 1: fill in details -->
       <div id="reg-step-1">
         <!-- 他 / 她 selector -->
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-          <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--card-border);cursor:pointer;background:#F0F7FF;font-size:14px;font-weight:600;">
-            <input type="radio" name="reg-char" value="char1" checked style="accent-color:var(--blue);" onchange="App.onRegCharChange()">
+        <div class="reg-chars">
+          <label class="reg-char-opt c1">
+            <input type="radio" name="reg-char" value="char1" checked onchange="App.onRegCharChange()">
             <span>他 💙</span>
           </label>
-          <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--card-border);cursor:pointer;background:#FFF0F5;font-size:14px;font-weight:600;">
-            <input type="radio" name="reg-char" value="char2" style="accent-color:#FF6B9D;" onchange="App.onRegCharChange()">
+          <label class="reg-char-opt c2">
+            <input type="radio" name="reg-char" value="char2" onchange="App.onRegCharChange()">
             <span>她 🩷</span>
           </label>
         </div>
@@ -3867,8 +3899,8 @@
         <div id="reg-pair-wrap" class="hidden">
           <div class="field-group">
             <label>伴侣配对码</label>
-            <input id="reg-pair-code" type="text" placeholder="输入 Ta 发给你的配对码" autocomplete="off"
-                   maxlength="6" style="letter-spacing:4px;font-size:18px;font-weight:700;text-align:center;"
+            <input id="reg-pair-code" class="pair-code-input" type="text" placeholder="输入 Ta 发给你的配对码" autocomplete="off"
+                   maxlength="6"
                    onkeydown="if(event.key==='Enter') App.register()">
           </div>
         </div>

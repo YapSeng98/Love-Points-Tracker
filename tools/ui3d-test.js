@@ -6,6 +6,9 @@
 // phone is untouched. Then: turned on from 设置, the ＋ sheet saves through the
 // tiles' own path, 月末结算 lives in the score card, entry actions wait for a tap,
 // the room's light never takes a tap, and turning it off leaves nothing behind.
+// §9: the opening screen and login card — three fixes for both looks (他/她
+// unreadable at night, the pair-code hint cut off, 「继续 (…) →」 on a fresh
+// phone), then the new look's version, stamped before app.js so it can't flash.
 
 const { chromium } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const APP_URL = process.env.APP_URL || 'http://localhost:8765/index.html';
@@ -273,6 +276,107 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
       if (w === 390) await p.screenshot({ path: `${SHOTS}/ui3d_03_${dark ? 'dark' : 'light'}_sheet.png` });
       await p.evaluate(() => document.querySelector('.u3d-sheet-veil').click()); await sleep(500);
       if (w === 390) await p.screenshot({ path: `${SHOTS}/ui3d_04_${dark ? 'dark' : 'light'}_home.png` });
+      await ctx.close();
+    }
+  }
+
+  console.log('\n9. The opening screen and the login card');
+  async function loginPhone({ look = '', dark = false, w = 390, h = 844, saved = '', reduced = false } = {}) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, timezoneId: 'Asia/Singapore', deviceScaleFactor: 2,
+      colorScheme: dark ? 'dark' : 'light', reducedMotion: reduced ? 'reduce' : 'no-preference' });
+    const p = await ctx.newPage();
+    const errs = [];
+    p.on('pageerror', e => errs.push(String(e)));
+    await p.clock.setFixedTime(new Date(dark ? '2026-11-15T21:30:00+08:00' : '2026-11-15T15:00:00+08:00'));
+    await p.route(/open-meteo|supabase\.co/, r => r.abort());
+    await p.addInitScript(([look, saved]) => {
+      if (sessionStorage.getItem('seeded')) return;
+      localStorage.clear(); localStorage.setItem('music_on', 'false');
+      if (look) localStorage.setItem('look', look);
+      if (saved) localStorage.setItem('sn_username', saved);
+      sessionStorage.setItem('seeded', '1');
+    }, [look, saved]);
+    await p.goto(APP_URL, { waitUntil: 'domcontentloaded' });
+    const early = await p.evaluate(() => ({ cls: document.documentElement.classList.contains('ui3d'), pre: !!document.getElementById('ui3d-css-pre') }));
+    await p.waitForFunction(() => typeof App !== 'undefined' && typeof startApp === 'function');
+    await sleep(900);
+    return { p, ctx, errs, early };
+  }
+  const toLogin = async (p) => { await p.evaluate(() => startApp()); await p.waitForFunction(() => !document.getElementById('start-page') && !document.getElementById('setup-overlay').classList.contains('hidden')); await sleep(800); };
+  // for both looks — three bugs on the login card
+  for (const dark of [false, true]) {
+    const { p, ctx, errs } = await loginPhone({ dark });
+    await toLogin(p);
+    ok(await p.textContent('#sn-connect-btn') === '登录', `${dark ? 'dark' : 'light'}: a phone that never logged in says 「登录」, not 「继续 (…) →」`);
+    await p.evaluate(() => App.switchTab('register')); await sleep(300);
+    ok(await p.evaluate(() => document.getElementById('tab-register').classList.contains('on') && !document.getElementById('tab-login').classList.contains('on')), '…the 注册 tab lights up');
+    await p.click('.reg-char-opt.c2'); await sleep(200);
+    const opt = await p.evaluate(() => {
+      const lum = (c) => { const m = c.match(/[\d.]+/g).map(Number); const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return { l: .2126 * f(m[0]) + .7152 * f(m[1]) + .0722 * f(m[2]), a: m[3] ?? 1 }; };
+      const l = document.querySelector('.reg-char-opt.c1'), cs = getComputedStyle(l), card = getComputedStyle(document.querySelector('.setup-card'));
+      const txt = lum(cs.color), bg = lum(cs.backgroundColor), under = lum(card.backgroundColor);
+      const back = bg.a < .5 ? under.l : bg.l;                       // a translucent tint sits on the card
+      const ratio = (Math.max(txt.l, back) + .05) / (Math.min(txt.l, back) + .05);
+      const inp = document.getElementById('reg-pair-code'), ph = getComputedStyle(inp, '::placeholder');
+      const ctx2 = document.createElement('canvas').getContext('2d'); ctx2.font = `${ph.fontWeight} ${ph.fontSize} ${ph.fontFamily}`;
+      const need = ctx2.measureText(inp.placeholder).width + (parseFloat(ph.letterSpacing) || 0) * inp.placeholder.length;
+      const room = inp.clientWidth - parseFloat(getComputedStyle(inp).paddingLeft) - parseFloat(getComputedStyle(inp).paddingRight);
+      return { ratio: +ratio.toFixed(1), pair: !document.getElementById('reg-pair-wrap').classList.contains('hidden'), fits: need <= room, need: Math.round(need), room: Math.round(room) };
+    });
+    ok(opt.ratio >= 4.5, `${dark ? 'dark' : 'light'}: 他 / 她 are readable (${opt.ratio}:1)`);
+    ok(opt.pair && opt.fits, `picking 她 shows the pair code, and its hint fits (${opt.need}px in ${opt.room}px)`);
+    ok(!errs.length, 'no errors ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { p, ctx } = await loginPhone({ saved: 'CS' });
+    await toLogin(p);
+    ok(await p.textContent('#sn-connect-btn') === '继续 (CS) →', 'a phone that knows its account still says 「继续 (CS) →」');
+    await p.fill('#sn-username', 'someone'); await sleep(100);
+    ok(await p.textContent('#sn-connect-btn') === '登录', '…and 「登录」 once another name is typed');
+    await ctx.close();
+  }
+  // the new look
+  {
+    const { p, ctx, errs, early } = await loginPhone({ look: 'ui3d' });
+    ok(early.cls && early.pre, 'the new look is stamped before app.js runs, so the opening screen never flashes the old one');
+    const sp = await p.evaluate(() => ({ title: getComputedStyle(document.querySelector('.sp-title')).fontSize, logo: document.querySelector('.sp-paw-logo').getBoundingClientRect().width }));
+    ok(sp.title === '40px' && sp.logo >= 60, `opening screen: big title and a glossy icon ${JSON.stringify(sp)}`);
+    await p.screenshot({ path: `${SHOTS}/ui3d_05_start.png` });
+    await toLogin(p);
+    const card = await p.evaluate(() => ({ glass: getComputedStyle(document.querySelector('.setup-card')).backdropFilter, logo: Math.round(document.querySelector('.setup-logo').getBoundingClientRect().width) }));
+    ok(/blur/.test(card.glass) && card.logo === 76, `login card is frosted glass under a 76px app icon ${JSON.stringify(card)}`);
+    await p.click('#tab-register'); await sleep(650);
+    const pill = await p.evaluate(() => { const t = getComputedStyle(document.getElementById('login-tabs'), '::before').transform; return { reg: document.getElementById('login-tabs').classList.contains('on-reg'), t }; });
+    ok(pill.reg && pill.t !== 'none', `the tab pill slides to 注册 (${pill.t})`);
+    await p.click('.reg-char-opt.c2'); await sleep(250);
+    ok(await p.evaluate(() => document.querySelector('input[value="char2"]').checked && !document.getElementById('reg-pair-wrap').classList.contains('hidden')), 'tapping the 她 card picks 她 and asks for the pair code');
+    await p.click('.reg-char-opt.c1'); await sleep(250);
+    ok(await p.evaluate(() => document.querySelector('input[value="char1"]').checked && document.getElementById('reg-pair-wrap').classList.contains('hidden')), 'tapping 他 hides it again');
+    await p.screenshot({ path: `${SHOTS}/ui3d_06_register.png` });
+    await p.click('#tab-login'); await sleep(400);
+    await p.fill('#sn-username', 'nobody'); await p.fill('#sn-password', 'wrong'); await p.click('#sn-connect-btn');
+    await p.waitForFunction(() => document.getElementById('sn-login-err').textContent.trim() !== '', null, { timeout: 15000 }).catch(() => {});
+    const err = await p.evaluate(() => { const e = document.getElementById('sn-login-err'); return { text: e.textContent.trim(), bg: getComputedStyle(e).backgroundColor }; });
+    ok(err.text && err.bg !== 'rgba(0, 0, 0, 0)', `a failed login shows its message in a tinted pill: 「${err.text}」`);
+    ok(!errs.length, 'no errors ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { p, ctx } = await loginPhone({ look: 'ui3d', reduced: true });
+    await toLogin(p);
+    ok(await p.evaluate(() => getComputedStyle(document.querySelector('.setup-logo')).animationName === 'none'), 'reduced motion: the icon holds still');
+    await ctx.close();
+  }
+  for (const [w, h] of [[360, 760], [390, 844], [820, 1180]]) {
+    for (const dark of [false, true]) {
+      const { p, ctx, errs } = await loginPhone({ look: 'ui3d', dark, w, h });
+      const a = await p.evaluate(() => { const b = document.querySelector('.sp-btn').getBoundingClientRect(); return { sw: document.documentElement.scrollWidth, btn: b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight }; });
+      await toLogin(p);
+      await p.click('#tab-register'); await sleep(400);
+      const c = await p.evaluate(() => { const r = document.querySelector('.setup-card').getBoundingClientRect(); return { sw: document.documentElement.scrollWidth, card: r.left >= 0 && r.right <= innerWidth }; });
+      ok(a.sw <= w && a.btn && c.sw <= w && c.card && !errs.length, `${w}px ${dark ? 'dark' : 'light'}: opening screen and login card fit ${JSON.stringify({ ...a, ...c })}`);
+      if (w === 390) await p.screenshot({ path: `${SHOTS}/ui3d_07_login_${dark ? 'dark' : 'light'}.png` });
       await ctx.close();
     }
   }
