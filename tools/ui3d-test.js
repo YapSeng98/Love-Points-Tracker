@@ -344,7 +344,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     ok(sp.title === '40px' && sp.logo >= 60, `opening screen: big title and a glossy icon ${JSON.stringify(sp)}`);
     await p.screenshot({ path: `${SHOTS}/ui3d_05_start.png` });
     await toLogin(p);
-    const card = await p.evaluate(() => ({ glass: getComputedStyle(document.querySelector('.setup-card')).backdropFilter, logo: Math.round(document.querySelector('.setup-logo').getBoundingClientRect().width) }));
+    const card = await p.evaluate(() => ({ glass: getComputedStyle(document.querySelector('.setup-card')).backdropFilter, logo: document.querySelector('.setup-logo').offsetWidth }));   // offsetWidth: the icon floats with a tilt, so its box changes by a pixel
     ok(/blur/.test(card.glass) && card.logo === 76, `login card is frosted glass under a 76px app icon ${JSON.stringify(card)}`);
     await p.click('#tab-register'); await sleep(650);
     const pill = await p.evaluate(() => { const t = getComputedStyle(document.getElementById('login-tabs'), '::before').transform; return { reg: document.getElementById('login-tabs').classList.contains('on-reg'), t }; });
