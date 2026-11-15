@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.15-63';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.15-64';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -494,7 +494,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.11.15b';
+  const HTML_V = '2026.11.15c';
 
   (function ensureFreshHtml() {
     try {
@@ -8003,9 +8003,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   }
 
   /* ── 新外观 · 立体 (ui3d) — CLAUDE.md §7.31 ───────────────────────────────
-     A soft-3D and motion layer over the same screens. Per phone and off by
-     default (设置 › 外观风格), so one partner can live with it before the other
-     sees anything. ui3d.css holds every rule, all scoped under html.ui3d; this
+     A soft-3D and motion layer over the same screens. The default look; each
+     phone can go back to 经典 in 设置 › 外观风格, and that choice stays on that
+     phone only (never synced). ui3d.css holds every rule, all scoped under html.ui3d; this
      block adds only what CSS cannot: the ＋ button and its sheet, the 月末结算
      chip, the nav pill, tilt toward the finger, the room's window light, and
      numbers that count up. Everything it inserts carries data-u3d, so turning it
@@ -8025,13 +8025,15 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     <feBlend in="SourceGraphic" in2="d2" mode="multiply" result="lit"/>
     <feComposite in="s2" in2="lit" operator="arithmetic" k1="0" k2=".5" k3="1" k4="0"/></filter></svg>`;
   const _u3dReduce = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
-  function lookMode() { try { return localStorage.getItem(LOOK_KEY) === 'ui3d' ? 'ui3d' : 'classic'; } catch (e) { return 'classic'; } }
+  // The default since 2026-11-15 (the user asked for it to need no switching); a
+  // phone stays classic only once someone picks 经典 on it.
+  function lookMode() { try { return localStorage.getItem(LOOK_KEY) === 'classic' ? 'classic' : 'ui3d'; } catch (e) { return 'ui3d'; } }
 
   function setLook(mode) {
     const on = mode === 'ui3d';
     try { localStorage.setItem(LOOK_KEY, on ? 'ui3d' : 'classic'); } catch (e) {}
     _u3dSet(on);
-    showToast(on ? '✨ 新外观已打开 · 只在这台手机上' : '已换回经典外观');
+    showToast(on ? '✨ 新外观已打开 · 只在这台手机上' : '已换回经典外观 · 只在这台手机上');
   }
 
   function _u3dSet(on) {

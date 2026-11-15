@@ -12,6 +12,11 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-16 — 新外观 is now the default
+
+Every phone now opens in 新外观 without switching anything. If one of you
+prefers the old style, 设置 › 外观风格 › 经典 brings it back on that phone only.
+
 ## 2026-11-15 — The opening screen and login, redesigned in 新外观
 
 With 新外观 on, the screen you see when opening the app follows day and night,

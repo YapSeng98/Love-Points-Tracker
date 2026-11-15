@@ -681,14 +681,24 @@ at 360/375/390/430/820 (overflow, button size, thumb reach, font size), the
 tab at four widths, typing at midnight, the moved-date case against a mocked
 server, and replay. `supabase/test-surprise.mjs` attacks the live function.
 
-## 7.31 ✨ 新外观 (ui3d) — a second look, per phone, off by default
+## 7.31 ✨ 新外观 (ui3d) — the default look; 经典 is a per-phone choice
 
-Added 2026-11-15 after a full UX walk of every screen. It is a soft-3D and
-motion layer over the same screens, switched in 设置 › 外观风格 (or
-`?look=ui3d` / `?look=classic` in the address), stored in localStorage `look`
-and never synced — one partner can live with it before the other sees
-anything. A prototype was approved first, built on a snapshot of the real
-screens, so the decision was made looking at the app rather than a mock.
+Added 2026-11-15 after a full UX walk of every screen, behind a per-phone
+switch; made the **default** the next day because the user asked that nobody
+should have to switch it. It is a soft-3D and motion layer over the same
+screens. 设置 › 外观风格 › 经典 (or `?look=classic`) turns it off for that phone
+only — stored in localStorage `look`, never synced — and `lookMode()` treats
+anything but a stored `'classic'` as the new look. A prototype was approved
+first, built on a snapshot of the real screens, so the decision was made
+looking at the app rather than a mock.
+
+**Why the switch looked broken on the user's phone:** an iPhone home-screen
+icon runs as its own web app with its own storage, separate from Safari, so
+opening `?look=ui3d` in Safari or from a chat never reached the icon. Checked
+in WebKit (`~/Library/Caches/ms-playwright/webkit-*/pw_run.sh` — this
+playwright-core expects a different build, so pass `executablePath`): link,
+reload and the 设置 switch all worked. A per-device setting that is meant for
+everyone should be a default, not an instruction.
 
 - **One switch, one stylesheet.** `ui3d.css` holds every rule, all under
   `html.ui3d`, loaded by app.js as `ui3d.css?v=APP_VERSION` only when the look is
@@ -741,10 +751,11 @@ the tabs and options are classes now and `switchTab` toggles `.on`), the
 spaced-out pair-code hint was cut off, and a phone that had never logged in
 read 「继续 (…) →」 instead of 「登录」.
 
-`tools/ui3d-test.js` covers the switch, the sheet's stored entry, the chip,
-rows, tilt, the room's taps, turning it off, reduced motion, and 360/390/820 in
-both themes. Run the other browser suites in the new look with
-`APP_URL=…/index.html?look=ui3d` — they must pass in both.
+`tools/ui3d-test.js` covers the default, the 经典 switch, the sheet's stored
+entry, the chip, rows, tilt, the room's taps, turning it off, reduced motion,
+the login screens, and 360/390/820 in both themes. The other browser suites now
+run in the new look by default; run them again with
+`APP_URL=…/index.html?look=classic` — they must pass in both.
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
@@ -1309,7 +1320,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/artsheet.js [--season 万圣节,秋] [--date …]` | Not a test — pictures to LOOK at: the catalog at true size, a furnished room day/dusk/night, the shop tabs |
 | `node tools/birthday-test.js` | 生日惊喜 in a browser: dates (2/29, age), both phones, preparing and sealing, the teaser, 00:00 with the app open, nothing prepared, typing at midnight, a moved phone date against a mocked server, the 🎂 tab, every scene at 360–820, replay |
 | `node supabase/test-surprise.mjs` | 生日惊喜 live: birthdays in config, sealing, the early read and the "was anything prepared?" leak, spoofed zone, third couple, direct Postgres, moved birthday, delivered rewrite, three opens → one coupon, the receipt |
-| `node tools/ui3d-test.js` | 新外观 and the login screens: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=ui3d` in `APP_URL` |
+| `node tools/ui3d-test.js` | 新外观 and the login screens: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=classic` in `APP_URL` (they run in the new look by default) |
 | `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |

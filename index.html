@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.11.15b">
+  <meta name="app-html-v" content="2026.11.15c">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -21,14 +21,15 @@
       document.documentElement.dataset.theme  = _d ? 'dark' : 'light';
       document.documentElement.dataset.period = _p;
     } catch (e) {}
-    // 新外观 (CLAUDE.md §7.31): stamped here too, or the splash paints the classic
-    // look first and flips when app.js arrives. app.js loads ui3d.css again with
+    // 新外观 (CLAUDE.md §7.31) is the default: stamped here, or the splash paints
+    // the classic look first and flips when app.js arrives. Only a phone where
+    // someone picked 经典 stays classic. app.js loads ui3d.css again with
     // APP_VERSION, so a stale copy of this page can't pin an old stylesheet.
     try {
       var _lk = (location.search.match(/[?&]look=(ui3d|classic)/) || [])[1] || localStorage.getItem('look');
-      if (_lk === 'ui3d') {
+      if (_lk !== 'classic') {
         document.documentElement.classList.add('ui3d');
-        document.write('<link rel="stylesheet" id="ui3d-css-pre" href="ui3d.css?h=2026.11.15b">');
+        document.write('<link rel="stylesheet" id="ui3d-css-pre" href="ui3d.css?h=2026.11.15c">');
       }
     } catch (e) {}
   </script>
@@ -4675,12 +4676,12 @@
       </select>
     </div>
 
-    <!-- 新外观 (CLAUDE.md §7.31): per phone, like the theme -->
+    <!-- 新外观 (CLAUDE.md §7.31): the default; 经典 is per phone, like the theme -->
     <div class="modal-field">
       <label>✨ 外观风格</label>
       <select id="cfg-look" onchange="App.setLook(this.value)">
+        <option value="ui3d">新外观 · 立体和动画</option>
         <option value="classic">经典</option>
-        <option value="ui3d">新外观 · 立体和动画（试用）</option>
       </select>
     </div>
 

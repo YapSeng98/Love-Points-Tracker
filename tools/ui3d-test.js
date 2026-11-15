@@ -2,8 +2,8 @@
 // Serve the repo first:  python3 -m http.server 8765   (or APP_URL=http://localhost:8766/index.html)
 //   node tools/ui3d-test.js
 //
-// The look is per phone and off by default, so the first section proves a fresh
-// phone is untouched. Then: turned on from 设置, the ＋ sheet saves through the
+// The new look is the default (since 2026-11-15); 经典 is a per-phone choice that
+// sticks once picked. Then: the ＋ sheet saves through the
 // tiles' own path, 月末结算 lives in the score card, entry actions wait for a tap,
 // the room's light never takes a tap, and turning it off leaves nothing behind.
 // §9: the opening screen and login card — three fixes for both looks (他/她
@@ -69,11 +69,12 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
 (async () => {
   const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 
-  console.log('\n1. A fresh phone is untouched');
+  console.log('\n1. A fresh phone gets the new look');
   {
     const { p, ctx, errs } = await phone(browser, '2026-11-15T15:00:00+08:00');
+    await cssReady(p);
     const l = await looks(p);
-    ok(!l.on && !l.css && !l.plus && l.fab && l.navSettings && !l.leftovers, `off by default: no class, no stylesheet, no ＋, 月末结算 button and 设置 tab as before ${JSON.stringify(l)}`);
+    ok(l.on && l.css && l.plus && !l.fab && !l.navSettings, `on by default, nobody has to switch it: ＋ in the bar, no floating 月末结算 ${JSON.stringify(l)}`);
     // two fixes that apply to everyone, whichever look
     const desc = await p.evaluate(() => { const d = document.querySelector('#entry-e0 .entry-desc'); return { text: d.textContent, tags: d.querySelectorAll('b').length }; });
     ok(desc.text === '<b>粗</b>' && desc.tags === 0, `an entry note is shown as typed, not run as page code: 「${desc.text}」`);
@@ -84,25 +85,29 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     await ctx.close();
   }
 
-  console.log('\n2. Turned on from 设置, kept on this phone only');
+  console.log('\n2. 经典 from 设置, kept on this phone only');
   {
     const { p, ctx, errs } = await phone(browser, '2026-11-15T15:00:00+08:00');
+    await cssReady(p);
     await p.evaluate(() => App.showSettings()); await sleep(500);
-    ok(await p.$eval('#cfg-look', s => s.value) === 'classic', '设置 › 外观风格 shows 经典');
-    await p.selectOption('#cfg-look', 'ui3d');
-    ok(await cssReady(p), 'choosing 新外观 loads ui3d.css and applies it');
+    ok(await p.$eval('#cfg-look', s => s.value) === 'ui3d', '设置 › 外观风格 shows 新外观');
+    await p.selectOption('#cfg-look', 'classic'); await sleep(400);
     const toast = await p.textContent('.toast').catch(() => '');
-    ok(/新外观已打开/.test(toast) && /这台手机/.test(toast), `says it is this phone only: 「${toast.trim()}」`);
+    ok(/经典/.test(toast) && /这台手机/.test(toast), `says it is this phone only: 「${toast.trim()}」`);
     await p.evaluate(() => App.closeModal('modal-settings'));
     let l = await looks(p);
-    ok(l.on && l.plus && !l.fab && !l.navSettings, `＋ in the bar, 月末结算 button and 设置 tab tucked away ${JSON.stringify(l)}`);
+    ok(!l.on && !l.plus && l.fab && l.navSettings && !l.leftovers, `经典: 月末结算 button and 设置 tab back, nothing left over ${JSON.stringify(l)}`);
     await p.reload(); await p.waitForFunction(() => typeof App !== 'undefined' && App.demoMode);
     await p.evaluate(() => { document.getElementById('start-page')?.remove(); App.demoMode(); }); await sleep(1200);
     l = await looks(p);
-    ok(l.on && l.plus, 'still on after a reload');
+    ok(!l.on && !l.plus && !(await p.evaluate(() => !!document.getElementById('ui3d-css-pre'))), 'still 经典 after a reload — the opening screen too');
     const other = await phone(browser, '2026-11-15T15:00:00+08:00');
-    ok(!(await looks(other.p)).on, "the partner's phone is unaffected");
+    await cssReady(other.p);
+    ok((await looks(other.p)).on, "the partner's phone keeps the new look");
     await other.ctx.close();
+    await p.evaluate(() => App.showSettings()); await sleep(400);
+    await p.selectOption('#cfg-look', 'ui3d');
+    ok(await cssReady(p), 'and 新外观 comes straight back when picked');
     ok(!errs.length, 'no errors ' + errs.join(' | '));
     await ctx.close();
   }
@@ -303,11 +308,11 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     return { p, ctx, errs, early };
   }
   const toLogin = async (p) => { await p.evaluate(() => startApp()); await p.waitForFunction(() => !document.getElementById('start-page') && !document.getElementById('setup-overlay').classList.contains('hidden')); await sleep(800); };
-  // for both looks — three bugs on the login card
-  for (const dark of [false, true]) {
-    const { p, ctx, errs } = await loginPhone({ dark });
+  // three bugs on the login card, checked in both looks
+  for (const [look, dark] of [['classic', false], ['classic', true], ['ui3d', false], ['ui3d', true]]) {
+    const { p, ctx, errs } = await loginPhone({ dark, look });
     await toLogin(p);
-    ok(await p.textContent('#sn-connect-btn') === '登录', `${dark ? 'dark' : 'light'}: a phone that never logged in says 「登录」, not 「继续 (…) →」`);
+    ok(await p.textContent('#sn-connect-btn') === '登录', `${look} ${dark ? 'dark' : 'light'}: a phone that never logged in says 「登录」, not 「继续 (…) →」`);
     await p.evaluate(() => App.switchTab('register')); await sleep(300);
     ok(await p.evaluate(() => document.getElementById('tab-register').classList.contains('on') && !document.getElementById('tab-login').classList.contains('on')), '…the 注册 tab lights up');
     await p.click('.reg-char-opt.c2'); await sleep(200);
@@ -323,7 +328,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
       const room = inp.clientWidth - parseFloat(getComputedStyle(inp).paddingLeft) - parseFloat(getComputedStyle(inp).paddingRight);
       return { ratio: +ratio.toFixed(1), pair: !document.getElementById('reg-pair-wrap').classList.contains('hidden'), fits: need <= room, need: Math.round(need), room: Math.round(room) };
     });
-    ok(opt.ratio >= 4.5, `${dark ? 'dark' : 'light'}: 他 / 她 are readable (${opt.ratio}:1)`);
+    ok(opt.ratio >= 4.5, `${look} ${dark ? 'dark' : 'light'}: 他 / 她 are readable (${opt.ratio}:1)`);
     ok(opt.pair && opt.fits, `picking 她 shows the pair code, and its hint fits (${opt.need}px in ${opt.room}px)`);
     ok(!errs.length, 'no errors ' + errs.join(' | '));
     await ctx.close();
@@ -338,8 +343,8 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
   }
   // the new look
   {
-    const { p, ctx, errs, early } = await loginPhone({ look: 'ui3d' });
-    ok(early.cls && early.pre, 'the new look is stamped before app.js runs, so the opening screen never flashes the old one');
+    const { p, ctx, errs, early } = await loginPhone();
+    ok(early.cls && early.pre, 'a fresh phone gets the new look stamped before app.js runs, so the opening screen never flashes the old one');
     const sp = await p.evaluate(() => ({ title: getComputedStyle(document.querySelector('.sp-title')).fontSize, logo: document.querySelector('.sp-paw-logo').getBoundingClientRect().width }));
     ok(sp.title === '40px' && sp.logo >= 60, `opening screen: big title and a glossy icon ${JSON.stringify(sp)}`);
     await p.screenshot({ path: `${SHOTS}/ui3d_05_start.png` });
