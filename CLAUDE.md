@@ -536,6 +536,31 @@ rather than only against the ambient seasons.
 
 ---
 
+## 7.235 🎆 烟花 are drawn, not styled
+
+Asked for 2026-11-17: the fireworks were six box-shadow dots scaling up and
+never read as fireworks. `_fireworksStart()` draws them on one canvas in
+`.home-fest-layer`: a shell climbs on sparks and bursts into stars thrown out
+as a **sphere seen from the side** (dense rim, sparse middle — a flat circle of
+evenly spaced dots is what made the old one look like a loading spinner), which
+slow, sag, twinkle and die. Peony, two-colour, ring, gold willow, crackle, and
+a heart on the couple's days.
+
+- 跨年 and 春节 get the full show; 周年 and 情人节 a slower one with hearts.
+- **Night only, by `data-period`** (§7.15) — by day the loop idles on a 1s
+  timer and confetti stays the hero. Light adds up (`lighter`) on a dark sky;
+  on a forced-light night that washes out to white, so it paints `source-over`.
+- **Trails come from fading the canvas, not clearing it** (`destination-out`),
+  so the canvas stays transparent and the moon shows through. It is cleared
+  outright once idle: an 8-bit fade never quite reaches zero.
+- It lives and dies with the festival layer — no canvas and no loop on an
+  ordinary night — covers only the top 52% (the rest of the sky is behind the
+  cards), and takes no taps.
+- Reduced motion keeps the five still dots and starts nothing.
+
+`tools/season-test.js` §6b reads the canvas pixels back: lit at night in both
+themes, dark by day, absent under reduced motion and on ordinary nights.
+
 ## 7.28 🎃 秋 · 万圣节 — and what drawing it turned up
 
 Added 2026-10-02 because the shop had **nothing limited for two months**:
@@ -715,9 +740,15 @@ everyone should be a default, not an instruction.
   covered 签到 every day into the score card (glows when a past month is open or
   in the last three days), ✏️🗑️ appear when a row is tapped (40×40, not 27×33),
   quick-score tiles half the height, 设置 only on the ⚙️.
-- **The ＋ sheet saves through `quickEntry()`**, the tiles' own path, after
-  `selectChar(who)` — a quick entry is exactly what a tile would have made, so
-  §3's month and date rules hold with no second copy.
+- **The ＋ sheet is multi-select and saves through `quickEntries()`**, the
+  tiles' own path (`quickEntry(id)` is `quickEntries([id])`), after
+  `selectChar(who)` — each row is exactly what a tile would have made, so §3's
+  month and date rules hold with no second copy. Tiles toggle; picks survive
+  switching 加分/扣分 and each tab carries a count of its picks, because a pick
+  you can't see is one you save by accident. Nothing is ticked on opening for
+  the same reason. All rows are sent together, every one is tried
+  (`allSettled`), and the toast says how many failed — one refresh at the end,
+  not one per row (§7.4).
 - **Parallax never moves a decor piece.** The drag, clamp and placement code
   measure pieces (§7.247, §7.249); a `translate` on them would skew every
   measurement by up to 9px. Only the window, the light and the pet move, and the

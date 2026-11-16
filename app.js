@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.16-65';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-66';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1071,7 +1071,12 @@ const App = (() => {
       }
       const d = LS.load();
       if (!d.entries[entry.month]) d.entries[entry.month] = [];
-      const e = { ...entry, id: 'e'+Date.now() };
+      // Several can be saved in the same millisecond (the ＋ sheet's multi-select);
+      // a shared id would make deleting one delete them all.
+      const taken = new Set(Object.values(d.entries).flat().map(x => x.id));
+      let id = 'e' + Date.now();
+      for (let n = 1; taken.has(id); n++) id = 'e' + Date.now() + '_' + n;
+      const e = { ...entry, id };
       d.entries[entry.month].unshift(e);
       LS.save(d);
       return e;
@@ -2192,15 +2197,21 @@ const App = (() => {
     showToast(S.mode === 'reward' ? '🏆 切换为奖励模式' : '😈 切换为惩罚模式');
   }
 
-  async function quickEntry(catId) {
-    const cat = S.categories.find(c => c.id === catId);
-    if (!cat) return;
+  let _qeSeq = 0;
+  async function quickEntry(catId) { return quickEntries([catId]); }
 
-    spawnParticles(cat.pts >= 0);
+  // One tap on a tile, or several picked in the ＋ sheet: the same row either
+  // way, so the month and date rules (§3.1) live in one place.
+  async function quickEntries(catIds) {
+    const cats = catIds.map(id => S.categories.find(c => c.id === id)).filter(Boolean);
+    if (!cats.length) return;
+    const total = cats.reduce((n, c) => n + c.pts, 0);
 
-    const date = todayStr();
-    const entry = {
-      id: 'e' + Date.now(),
+    spawnParticles(total >= 0);
+
+    const date = todayStr(), stamp = Date.now();
+    const rows = cats.map((cat, i) => ({
+      id: 'e' + stamp + '_' + (++_qeSeq),   // several in one millisecond still get their own id
       catId: cat.id,
       catName: cat.name,
       icon: cat.icon,
@@ -2209,15 +2220,23 @@ const App = (() => {
       charId: S.activeChar,
       month: date.slice(0, 7),   // always the month OF the date (see submitEntry)
       date,
-    };
+    }));
 
-    try {
-      await Data.addEntry(entry);
+    // Every one is tried: a failure in the middle must not hide the ones that saved.
+    const done = await Promise.allSettled(rows.map(r => Data.addEntry(r)));
+    const bad = done.filter(d => d.status === 'rejected');
+    const saved = cats.filter((c, i) => done[i].status === 'fulfilled');
+    if (saved.length === 1 && !bad.length) {
+      const cat = saved[0];
       showToast(`${cat.icon || '📌'} ${cat.name} ${cat.pts >= 0 ? '+' : ''}${cat.pts} 分！`);
-      await refresh();
-      checkThreshold();
-    } catch (err) {
-      showToast('记录失败: ' + err.message);
+    } else if (saved.length) {
+      const sum = saved.reduce((n, c) => n + c.pts, 0);
+      showToast(`记了 ${saved.length} 项 ${sum >= 0 ? '+' : ''}${sum} 分` + (bad.length ? ` · ${bad.length} 项没记上` : '！'));
+    } else {
+      showToast('记录失败: ' + ((bad[0].reason && bad[0].reason.message) || bad[0].reason));
+    }
+    if (saved.length) {
+      try { await refresh(); checkThreshold(); } catch (err) { showToast('刷新失败: ' + err.message); }
     }
   }
 
@@ -6815,7 +6834,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       // Daytime is not left bare, though: confetti is genuinely visible in
       // daylight, so it becomes the day-side hero, the same way summer's
       // particle is a sun by day and fireflies by night (themeParticle).
-      const fireworks = Array.from({ length: 5 }, (_, i) =>
+      // The five dots are now only the still picture for reduced motion; with
+      // motion allowed, _fireworksStart() draws real shells on a canvas.
+      const fireworks = !_fwReduce() ? '' : Array.from({ length: 5 }, (_, i) =>
         `<span class="firework" style="--x:${14 + i * 18}%;--y:${5 + (i % 3) * 7}%;--fd:${(i * 0.7).toFixed(1)}s"></span>`
       ).join('');
       const palette = active.id === 'cny'
@@ -6904,6 +6925,162 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
 
     layer.innerHTML = particles + hero;
     sky.appendChild(layer);
+    // 跨年 and 春节 get the full show; 周年 and 情人节 a slower one with hearts in it.
+    const show = { nye: 'nye', cny: 'cny', anniv: 'love', vday: 'love' }[active.id];
+    if (show && !_fwReduce()) _fireworksStart(layer, show);
+  }
+
+  /* 烟花 — drawn on a canvas, because six box-shadow dots never read as a
+     firework. A shell climbs on a spark trail and bursts into stars that are
+     thrown out as a SPHERE (so the rim is denser than the middle, like the
+     real thing), slow in the air, sag under gravity, twinkle and die. Five
+     kinds: peony, a two-colour peony, a ring, a gold willow that hangs and
+     drips, a crackling one, and — on the couple's own days — a heart.
+
+     Night only, as before (§7.15, gate on data-period): after dark the loop
+     launches; by day it idles on a 1s timer and the confetti is the hero.
+     It lives and dies with .home-fest-layer: no canvas, no loop, the other
+     eleven months. Nothing here takes a tap (the sky is pointer-events:none)
+     and nothing runs under reduced motion — that keeps the still dots. */
+  const _fwReduce = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  const FW_PALETTE = {
+    nye:  ['#FFD75E', '#FF7BA8', '#7EC8FF', '#B18CFF', '#6BE0A6', '#FF9E6B', '#FFFFFF'],
+    cny:  ['#FF4A3D', '#FFC94A', '#FF3B30', '#FF8A3D', '#FF5E7A'],
+    love: ['#FF8FB8', '#FFD08F', '#FF6FA0', '#F6C760', '#FFC2DA'],
+  };
+  let _fwStat = null;   // read by the tests: what has flown so far
+  function _fireworksStart(layer, show) {
+    const cv = document.createElement('canvas');
+    cv.className = 'fw-canvas';
+    // Only the top half of the screen: below that the sky is behind the cards.
+    cv.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:52%;pointer-events:none';
+    layer.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    if (!ctx) { cv.remove(); return; }
+    const pal = FW_PALETTE[show], gentle = show === 'love';
+    const shells = [], stars = [], flashes = [];
+    const stat = _fwStat = { show, launched: 0, burst: 0, kinds: {}, stars: 0 };
+    let W = 0, H = 0, dpr = 1, last = 0, nextAt = 0, opening = gentle ? 1 : 3, dirty = false;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const pick = (a) => a[(Math.random() * a.length) | 0];
+    const fit = () => {
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (w === W && h === H) return;
+      W = w; H = h; dpr = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    };
+    const launch = () => {
+      // Wide screens get the show across the middle, not one shell lost at an edge.
+      const span = Math.min(W, 720), x0 = (W - span) / 2;
+      const ty = rnd(.14, .5) * H;
+      shells.push({ x: x0 + rnd(.12, .88) * span, y: H + 6, ty, vx: rnd(-14, 14), vy: -rnd(1.9, 2.3) * (H - ty), col: pick(pal) });
+      stat.launched++;
+    };
+    const burst = (sh) => {
+      const R = Math.min(W, 520) * rnd(.23, .34) * (gentle ? .85 : 1);   // how far the stars get, in px
+      const r = Math.random();
+      const kind = (gentle && r < .4) ? 'heart' : r < .34 ? 'peony' : r < .54 ? 'duo' : r < .7 ? 'willow' : r < .85 ? 'ring' : 'crackle';
+      stat.burst++; stat.kinds[kind] = (stat.kinds[kind] || 0) + 1;
+      const c1 = sh.col, c2 = pick(pal.filter(c => c !== c1));
+      const willow = kind === 'willow';
+      const drag = willow ? 1.5 : 2.3, n = kind === 'ring' ? 46 : kind === 'heart' ? 60 : willow ? 64 : 96;
+      const tilt = rnd(-.5, .5), squash = rnd(.35, .9);
+      for (let i = 0; i < n; i++) {
+        let ux, uy;
+        if (kind === 'ring') {
+          const a = (i / n) * Math.PI * 2, ex = Math.cos(a), ey = Math.sin(a) * squash;
+          ux = ex * Math.cos(tilt) - ey * Math.sin(tilt); uy = ex * Math.sin(tilt) + ey * Math.cos(tilt);
+        } else if (kind === 'heart') {
+          const a = (i / n) * Math.PI * 2;
+          ux = Math.pow(Math.sin(a), 3);
+          uy = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) / 16;
+        } else {
+          // a point on a sphere, seen from the side
+          const z = rnd(-1, 1), a = rnd(0, Math.PI * 2), k = Math.sqrt(1 - z * z) * rnd(.93, 1.05);
+          ux = Math.cos(a) * k; uy = Math.sin(a) * k;
+        }
+        const v = R * drag;
+        stars.push({
+          x: sh.x, y: sh.y, px: sh.x, py: sh.y, vx: ux * v + sh.vx * .3, vy: uy * v,
+          drag, g: willow ? 95 : 55, age: 0, life: willow ? rnd(2, 2.7) : rnd(1.15, 1.7),
+          col: willow ? '#FFD98A' : (kind === 'duo' && i % 2) ? c2 : c1,
+          w: willow ? 1.4 : 1.8, tw: rnd(0, 6.3), crackle: kind === 'crackle',
+        });
+      }
+      flashes.push({ x: sh.x, y: sh.y, age: 0, r: R * .55, col: c1 });
+    };
+    const frame = (t) => {
+      if (!cv.isConnected) { if (_fwStat === stat) _fwStat = null; return; }
+      const night = document.documentElement.dataset.period === 'night';
+      const busy = shells.length || stars.length || flashes.length;
+      if ((document.hidden || !night) && !busy) {
+        if (dirty) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); dirty = false; }
+        last = 0; setTimeout(() => requestAnimationFrame(frame), 1000);
+        return;
+      }
+      const dt = last ? Math.min(.05, (t - last) / 1000) : .016;
+      last = t;
+      fit();
+      if (night && !document.hidden && t >= nextAt && stars.length < 420 && W > 0) {
+        launch();
+        if (opening > 1) { opening--; nextAt = t + rnd(260, 520); }
+        else if (!gentle && Math.random() < .25) nextAt = t + rnd(180, 380);   // a pair
+        else nextAt = t + (gentle ? rnd(2200, 4200) : rnd(900, 2400));
+      }
+      // Fade what is there instead of clearing it: that is the trail. The
+      // canvas stays transparent, so the sky, moon and stars show through.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = `rgba(0,0,0,${(1 - Math.pow(.87, dt * 60)).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+      // Light adds up on a dark sky; on a forced-light night it would wash out to white.
+      ctx.globalCompositeOperation = document.documentElement.dataset.theme === 'dark' ? 'lighter' : 'source-over';
+      ctx.lineCap = 'round';
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const f = flashes[i]; f.age += dt;
+        if (f.age > .22) { flashes.splice(i, 1); continue; }
+        const a = (1 - f.age / .22) * .34, g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+        g.addColorStop(0, `rgba(255,250,235,${a.toFixed(3)})`); g.addColorStop(.35, `rgba(255,240,210,${(a * .25).toFixed(3)})`); g.addColorStop(1, 'rgba(255,240,210,0)');
+        ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.3); ctx.fill();
+      }
+      for (let i = shells.length - 1; i >= 0; i--) {
+        const sh = shells[i], px = sh.x, py = sh.y;
+        sh.vy += 2.1 * (-sh.vy) * dt * .5 + 30 * dt;   // slows as it climbs
+        sh.x += sh.vx * dt + Math.sin(t / 60 + i) * .25; sh.y += sh.vy * dt;
+        ctx.globalAlpha = .9; ctx.strokeStyle = '#FFE2A8'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sh.x, sh.y); ctx.stroke();
+        if (Math.random() < .5) stars.push({ x: sh.x, y: sh.y, px: sh.x, py: sh.y, vx: rnd(-12, 12), vy: rnd(10, 40), drag: 2, g: 60, age: 0, life: rnd(.2, .45), col: '#FFC97A', w: 1, tw: 0, spark: true });
+        if (sh.y <= sh.ty || sh.vy > -40) { shells.splice(i, 1); burst(sh); }
+      }
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const s = stars[i]; s.age += dt;
+        if (s.age >= s.life) {
+          if (s.crackle) for (let k = 0; k < 3; k++) stars.push({ x: s.x, y: s.y, px: s.x, py: s.y, vx: rnd(-60, 60), vy: rnd(-60, 60), drag: 4, g: 40, age: 0, life: rnd(.15, .35), col: '#FFF3C4', w: 1.1, tw: 0, spark: true });
+          stars.splice(i, 1); continue;
+        }
+        const k = Math.exp(-s.drag * dt);
+        s.px = s.x; s.py = s.y;
+        s.vx *= k; s.vy = s.vy * k + s.g * dt;
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        const left = 1 - s.age / s.life;
+        let a = Math.min(1, left * 2.4);
+        if (!s.spark && left < .3) a *= .5 + .5 * Math.sin(s.age * 38 + s.tw);   // the dying twinkle
+        a = Math.max(0, a);
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = ctx.fillStyle = s.col;
+        ctx.lineWidth = s.w * (.7 + .5 * left);
+        ctx.beginPath(); ctx.moveTo(s.px, s.py); ctx.lineTo(s.x, s.y); ctx.stroke();
+        if (!s.spark) {
+          // the burning head: a soft halo, and a pale core while it is still hot
+          ctx.globalAlpha = a * .09; ctx.beginPath(); ctx.arc(s.x, s.y, s.w * 2.2, 0, 6.3); ctx.fill();
+          if (left > .7) { ctx.globalAlpha = a * .5; ctx.fillStyle = '#FFF8E8'; ctx.beginPath(); ctx.arc(s.x, s.y, s.w * .45, 0, 6.3); ctx.fill(); }
+        }
+      }
+      ctx.globalAlpha = 1;
+      stat.stars = stars.length; dirty = true;
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
   }
 
   function renderPetHome() {
@@ -8116,14 +8293,17 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     chip.classList.toggle('due', older || t.getDate() >= last - 2);
   }
 
-  /* ＋ 记一笔 — who, plus or minus, which category, one tap to save */
+  /* ＋ 记一笔 — who, plus or minus, then tick as many as happened and save once */
   function openQuickAdd(fromBtn) {
     if (document.querySelector('.u3d-sheet')) return;
-    let who = S.activeChar === 'char2' ? 'char2' : 'char1', sign = 1, pick = 0;
-    const cats = () => (S.categories || []).filter(c => c.active !== false && (sign > 0 ? c.pts >= 0 : c.pts < 0));
+    let who = S.activeChar === 'char2' ? 'char2' : 'char1', sign = 1;
+    const picked = new Set();   // category ids, kept across 加分/扣分
+    const all = () => (S.categories || []).filter(c => c.active !== false);
+    const cats = () => all().filter(c => (sign > 0 ? c.pts >= 0 : c.pts < 0));
+    const chosen = () => all().filter(c => picked.has(c.id));
     document.body.insertAdjacentHTML('beforeend', `<div class="u3d-sheet-veil" data-u3d></div>
       <div class="u3d-sheet" data-u3d role="dialog" aria-modal="true" aria-label="记一笔">
-        <div class="u3d-grab"></div><h3>记一笔</h3>
+        <div class="u3d-grab"></div><h3>记一笔 <small>可以多选</small></h3>
         <div class="u3d-seg"><button type="button" data-c="char1">给 ${_escHtml(charDisplayName('char1'))}</button><button type="button" data-c="char2">给 ${_escHtml(charDisplayName('char2'))}</button></div>
         <div class="u3d-seg"><button type="button" data-s="1">💙 加分</button><button type="button" data-s="-1">💔 扣分</button></div>
         <div class="u3d-cats"></div>
@@ -8134,15 +8314,23 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const grid = sheet.querySelector('.u3d-cats'), go = sheet.querySelector('.u3d-go');
     const render = () => {
       sheet.querySelectorAll('[data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === who));
-      sheet.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', +b.dataset.s === sign));
+      const sel = chosen();
+      sheet.querySelectorAll('[data-s]').forEach(b => {
+        b.classList.toggle('on', +b.dataset.s === sign);
+        // picks on the tab you are not looking at would otherwise be invisible
+        const n = sel.filter(c => (+b.dataset.s > 0 ? c.pts >= 0 : c.pts < 0)).length;
+        b.querySelector('i') && b.querySelector('i').remove();
+        if (n) b.insertAdjacentHTML('beforeend', `<i>${n}</i>`);
+      });
       const list = cats();
-      if (pick >= list.length) pick = 0;
       grid.innerHTML = list.length
-        ? list.map((c, i) => `<button type="button" class="u3d-cat${c.pts < 0 ? ' neg' : ''}${i === pick ? ' on' : ''}" data-i="${i}"><span class="ic">${_escHtml(c.icon || '📌')}</span>${_escHtml(c.name)}<b>${c.pts > 0 ? '+' : ''}${c.pts}</b></button>`).join('')
+        ? list.map(c => `<button type="button" class="u3d-cat${c.pts < 0 ? ' neg' : ''}${picked.has(c.id) ? ' on' : ''}" data-id="${_escHtml(c.id)}" aria-pressed="${picked.has(c.id)}"><span class="ic">${_escHtml(c.icon || '📌')}</span>${_escHtml(c.name)}<b>${c.pts > 0 ? '+' : ''}${c.pts}</b></button>`).join('')
         : `<div class="u3d-empty">还没有${sign > 0 ? '加分' : '扣分'}项目 · 在「快速记分 › 管理」里加</div>`;
-      const c = list[pick];
-      go.disabled = !c;
-      go.textContent = c ? `记给 ${charDisplayName(who)} · ${c.pts > 0 ? '+' : ''}${c.pts} 分` : '记录';
+      const sum = sel.reduce((n, c) => n + c.pts, 0), pts = `${sum > 0 ? '+' : ''}${sum} 分`;
+      go.disabled = !sel.length;
+      go.textContent = !sel.length ? '点一下选项目，可以多选'
+        : sel.length === 1 ? `记给 ${charDisplayName(who)} · ${pts}`
+        : `记给 ${charDisplayName(who)} · ${sel.length} 项 · ${pts}`;
     };
     render();
     requestAnimationFrame(() => { veil.classList.add('on'); sheet.classList.add('on'); });
@@ -8158,17 +8346,21 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const b = e.target.closest('button');
       if (!b) return;
       if (b.dataset.c) { who = b.dataset.c; render(); return; }
-      if (b.dataset.s) { sign = +b.dataset.s; pick = 0; render(); return; }
-      if (b.dataset.i !== undefined) { pick = +b.dataset.i; render(); return; }
+      if (b.dataset.s) { sign = +b.dataset.s; render(); return; }
+      if (b.dataset.id !== undefined) {
+        picked.has(b.dataset.id) ? picked.delete(b.dataset.id) : picked.add(b.dataset.id);
+        const top = grid.scrollTop; render(); grid.scrollTop = top;
+        return;
+      }
       if (b.classList.contains('u3d-more')) { close(); if (S.activeChar !== who) selectChar(who); openAddModal(); return; }
       if (b === go && !go.disabled) {
-        const c = cats()[pick];
-        if (!c) return;
+        const sel = chosen();
+        if (!sel.length) return;
         go.disabled = true;
         close();
         if (S.activeChar !== who) selectChar(who);
-        _u3dFly(fromBtn, who, c.pts);
-        await quickEntry(c.id);
+        _u3dFly(fromBtn, who, sel.reduce((n, c) => n + c.pts, 0));
+        await quickEntries(sel.map(c => c.id));
       }
     });
   }
@@ -8385,7 +8577,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     connect, register, switchTab, onRegCharChange, demoMode,
     playAnniversary: () => openAnniversary(null, false), closeAnniversary, openWhisper,
     toggleMode, selectChar,
-    quickEntry, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
+    quickEntry, quickEntries, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, changePassword, logout,
     clearDemoData, resetPet,
@@ -8468,7 +8660,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
-    _publishWeatherTest: (k) => publishWeather(k),
+    _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat,
     // lets a test put a partner's reading in the other slot and re-render
     _setPartnerWxTest: (raw) => { if (_me() === 'char2') S.wx1 = raw; else S.wx2 = raw;
       renderPartnerWeather(); },

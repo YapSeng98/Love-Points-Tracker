@@ -204,7 +204,7 @@ const shot = (p, name) => p.screenshot({ path: `${SHOTS}/season_${name}.png` });
     ['2026-12-20T21:00:00', 'xmas', '.sky-bg .fairy-light', 8, 'lights'],
     ['2026-12-23T10:00:00', 'xmas', '.sky-bg .sleigh', 1, 'lights'],
     ['2026-12-25T10:00:00', 'xmas', '.sky-bg .sleigh', 1, 'lights'],
-    ['2026-12-31T23:00:00', 'nye', '.sky-bg .firework', 5, 'fireworks'],
+    ['2026-12-31T23:00:00', 'nye', '.sky-bg .fw-canvas', 1, 'fireworks'],
     ['2027-02-06T12:00:00', 'cny', '.sky-bg .confetti', 9, 'fireworks'],
     ['2027-02-14T20:00:00', 'vday', '.sky-bg .hero-heart', 1, 'hearts'],
     ['2027-06-09T12:00:00', 'dragon', '.sky-bg .boat', 3, 'day'],
@@ -218,6 +218,60 @@ const shot = (p, name) => p.screenshot({ path: `${SHOTS}/season_${name}.png` });
     await shot(p, `08_${id}_${when.slice(5, 10)}`);
     ok(!errs.length, `${id}：无报错 ` + errs.join(' | '));
     await ctx.close();
+  }
+
+  console.log('\n6b. 烟花（画在 canvas 上，只在夜里放）');
+  {
+    // how much of the canvas is lit, and where
+    const lit = (p) => p.evaluate(() => {
+      const c = document.querySelector('.sky-bg .fw-canvas'); if (!c || !c.width) return null;
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
+      for (let i = 3; i < d.length; i += 16) if (d[i] > 40) n++;
+      return n;
+    });
+    for (const [when, id, theme] of [['2026-12-31T23:00:00', 'nye', 'time'], ['2027-02-06T21:00:00', 'cny', 'time'], ['2026-12-31T23:00:00', 'nye', 'light']]) {
+      const { p, ctx, errs } = await open(browser, when, { theme });
+      let most = 0;
+      for (let i = 0; i < 10; i++) { await sleep(450); most = Math.max(most, (await lit(p)) || 0); if (i === 4) await shot(p, `08b_fireworks_${id}_${theme}`); }
+      const st = await p.evaluate(() => App._fwTest());
+      ok(st && st.show === id && st.launched >= 3 && st.burst >= 2, `${id} 夜里（${theme}）：升空 ${st && st.launched} 发，炸开 ${st && st.burst} 发 ${JSON.stringify(st && st.kinds)}`);
+      ok(most > 150, `画面上真的有光（最多 ${most} 个采样点亮着）`);
+      const g = await p.evaluate(() => { const c = document.querySelector('.fw-canvas'), r = c.getBoundingClientRect(); return { pe: getComputedStyle(c).pointerEvents, skyPe: getComputedStyle(document.querySelector('.sky-bg')).pointerEvents, h: r.height / innerHeight, dots: document.querySelectorAll('.sky-bg .firework').length, hit: document.elementFromPoint(195, 60) !== c }; });
+      ok(g.pe === 'none' && g.hit && g.h < .6 && g.dots === 0, `不挡点击，只占上半屏，旧的小圆点不再出现 ${JSON.stringify(g)}`);
+      ok(!errs.length, '无报错 ' + errs.join(' | '));
+      await ctx.close();
+    }
+    {
+      const { p, ctx } = await open(browser, '2027-02-06T12:00:00');
+      await sleep(2500);
+      const st = await p.evaluate(() => App._fwTest());
+      ok(st && st.launched === 0 && (await lit(p)) === 0, '白天不放烟花（彩纸才是白天的主角）');
+      ok(await p.evaluate(() => getComputedStyle(document.querySelector('.sky-bg .confetti')).display !== 'none'), '白天的彩纸还在');
+      await ctx.close();
+    }
+    {
+      const { p, ctx } = await open(browser, '2026-12-31T23:00:00', { reduced: true });
+      await sleep(1200);
+      const r = await p.evaluate(() => ({ cv: document.querySelectorAll('.fw-canvas').length, dots: document.querySelectorAll('.sky-bg .firework').length, st: App._fwTest() }));
+      ok(r.cv === 0 && r.dots === 5 && !r.st, `减少动态效果：没有 canvas，保留 5 个静止光点 ${JSON.stringify(r)}`);
+      await ctx.close();
+    }
+    for (const [when, id] of [['2026-12-24T21:00:00', 'anniv'], ['2027-02-14T21:00:00', 'vday']]) {
+      const { p, ctx, errs } = await open(browser, when);
+      await sleep(5200);
+      const st = await p.evaluate(() => App._fwTest());
+      ok(st && st.show === 'love' && st.launched >= 1 && st.launched <= 4, `${id} 夜里：慢一点的烟花（${st && st.launched} 发 / 5 秒）`);
+      await shot(p, `08b_fireworks_${id}`);
+      ok(!errs.length, `${id}：无报错 ` + errs.join(' | '));
+      await ctx.close();
+    }
+    {
+      // an ordinary night: no canvas, no loop
+      const { p, ctx } = await open(browser, '2027-03-10T22:00:00');
+      await sleep(600);
+      ok(await p.evaluate(() => !document.querySelector('.fw-canvas') && !App._fwTest()), '平常的夜晚：没有 canvas，也没有循环在跑');
+      await ctx.close();
+    }
   }
 
   console.log('\n7. 买过的限定家具永远留着');

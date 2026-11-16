@@ -149,6 +149,36 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     ok(await p.evaluate(() => !document.querySelector('.u3d-sheet') && !document.querySelector('.u3d-fly')), 'the sheet closed and the flying number landed');
     ok(await p.evaluate(() => /惊喜礼物/.test(document.querySelector('.entry-day-items .entry-item')?.textContent || '')), 'the new entry is first in 本月记录');
 
+    // several at once: tick, untick, one from each tab, one save
+    await p.click('.u3d-add'); await sleep(600);
+    ok(await p.evaluate(() => document.querySelector('.u3d-go').disabled && !document.querySelector('.u3d-cat.on')), `nothing is ticked on opening, and the button waits: 「${await p.textContent('.u3d-go')}」`);
+    const names = await p.evaluate(() => [...document.querySelectorAll('.u3d-cat')].map(b => ({ id: b.dataset.id, pts: parseInt(b.querySelector('b').textContent, 10) })));
+    await p.click('.u3d-cat >> nth=0'); await p.click('.u3d-cat >> nth=1'); await p.click('.u3d-cat >> nth=2'); await sleep(100);
+    ok(await p.evaluate(() => !!document.querySelector('.u3d-sheet.on') && document.querySelectorAll('.u3d-cat.on').length === 3), 'three taps tick three tiles and the sheet stays open');
+    await p.click('.u3d-cat >> nth=1'); await sleep(100);
+    ok(await p.evaluate(() => document.querySelectorAll('.u3d-cat.on').length === 2), 'tapping a ticked tile unticks it');
+    await p.click('.u3d-seg [data-s="-1"]'); await sleep(150);
+    const negPts = await p.evaluate(() => parseInt(document.querySelector('.u3d-cat b').textContent, 10));
+    await p.click('.u3d-cat >> nth=0'); await sleep(100);
+    const want = names[0].pts + names[2].pts + negPts;
+    const goTxt = await p.textContent('.u3d-go');
+    ok(goTxt.includes('3 项') && goTxt.includes(`${want > 0 ? '+' : ''}${want} 分`), `the button adds up both tabs: 「${goTxt}」 (want ${want})`);
+    ok(await p.evaluate(() => document.querySelector('.u3d-seg [data-s="1"] i')?.textContent === '2' && document.querySelector('.u3d-seg [data-s="-1"] i')?.textContent === '1'), 'each tab shows how many are ticked on it');
+    const tick = await p.evaluate(() => { const b = document.querySelector('.u3d-cat.on'), a = getComputedStyle(b, '::after'); return a.content.includes('✓') && a.pointerEvents === 'none'; });
+    ok(tick, 'a ticked tile carries a ✓ that does not take taps');
+    await p.screenshot({ path: `${SHOTS}/ui3d_01b_multi.png` });
+    const who2 = await p.evaluate(() => document.querySelector('.u3d-seg [data-c].on').dataset.c);
+    const sBefore = parseInt(await p.textContent(`#${who2}-score-badge`), 10);
+    const nBefore = (await stored(p)).entries['2026-11'].length;
+    await p.click('.u3d-go'); await sleep(2000);
+    const dm = await stored(p), added = dm.entries['2026-11'].slice().sort((a, b) => (a.id > b.id ? 1 : -1));
+    ok(dm.entries['2026-11'].length === nBefore + 3, `three entries stored (${nBefore} → ${dm.entries['2026-11'].length})`);
+    ok(new Set(dm.entries['2026-11'].map(x => x.id)).size === dm.entries['2026-11'].length, 'each with its own id');
+    ok(dm.entries['2026-11'].every(x => x.month === String(x.date).slice(0, 7)), 'every one labelled with the month of its date');
+    const sAfter = parseInt(await p.textContent(`#${who2}-score-badge`), 10);
+    ok(sAfter === sBefore + want, `the score moved by the total: ${sBefore} → ${sAfter}`);
+    ok(await p.evaluate(() => !document.querySelector('.u3d-sheet')), 'and the sheet closed after the save');
+
     await p.click('.u3d-add'); await sleep(500);
     await p.click('.u3d-seg [data-c="char1"]'); await p.click('.u3d-more'); await sleep(700);
     ok(await p.evaluate(() => document.getElementById('modal-add')?.classList.contains('open')), '「写备注或换日期」 opens the full form');
@@ -260,7 +290,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     ok(await p.evaluate(() => !document.querySelector('.together-hero').classList.contains('u3d-tilt')), 'no tilt');
     await p.mouse.up(); await sleep(200);
     await p.evaluate(() => App.closeLovePage && App.closeLovePage()); await sleep(300);
-    await p.click('.u3d-add'); await sleep(200); await p.click('.u3d-go'); await sleep(500);
+    await p.click('.u3d-add'); await sleep(200); await p.click('.u3d-cat:has-text("陪伴时光")'); await p.click('.u3d-go'); await sleep(500);
     ok(await p.evaluate(() => !document.querySelector('.u3d-fly') && !document.querySelector('.u3d-confetti')), 'no flying number, no confetti');
     ok((await stored(p)).entries['2026-11'].some(e => e.catName === '陪伴时光' && e.date === '2026-11-15'), '…and the entry is still saved');
     await ctx.close();

@@ -12,6 +12,16 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-17 — Tick several in 记一笔; real fireworks
+
+The ＋ sheet now lets you tick as many items as happened — from 加分 and 扣分
+together — and saves them all with one tap; the button shows how many and the
+total. Nothing is ticked when it opens.
+
+On 跨年 and 春节 nights the home sky has real fireworks: shells that climb,
+burst, hang and fade, in several kinds. 周年 and 情人节 nights get a slower show
+with heart-shaped ones. Daytime is unchanged, and 减少动态效果 keeps it still.
+
 ## 2026-11-16 — The rest of the app joins 新外观
 
 积分表, 历史, 设置, 商店/背包, 情书 and 我们的时光 now match the new look. The
