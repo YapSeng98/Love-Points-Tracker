@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.15-64';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.16-65';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2265,13 +2265,14 @@ const App = (() => {
     document.getElementById('add-desc').value = '';
     const sel = document.getElementById('add-cat-select');
     sel.innerHTML = S.categories.filter(c=>c.active!==false).map(c =>
-      `<option value="${c.id}" data-pts="${c.pts}">${c.icon || '📌'} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
+      `<option value="${c.id}" data-pts="${c.pts}">${_escHtml(c.icon || '📌')} ${_escHtml(c.name)} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');
     sel.onchange = () => {
       const opt = sel.selectedOptions[0];
       document.getElementById('add-pts').value = opt?.dataset.pts || '10';
     };
     if (sel.selectedOptions[0]) document.getElementById('add-pts').value = sel.selectedOptions[0].dataset.pts;
+    _u3dAddForm();
     openModal('modal-add');
   }
 
@@ -2297,14 +2298,15 @@ const App = (() => {
     const keepName = (entry.catName && entry.catName !== 'undefined') ? entry.catName : '自定义';
     const keepIcon = entry.icon && !keepName.includes(entry.icon) ? entry.icon + ' ' : (entry.icon ? '' : '📌 ');
     const keepOpt = inList ? '' :
-      `<option value="__original__" data-pts="${entry.pts || 0}" selected>${keepIcon}${keepName}（原分类）</option>`;
+      `<option value="__original__" data-pts="${entry.pts || 0}" selected>${_escHtml(keepIcon)}${_escHtml(keepName)}（原分类）</option>`;
     sel.innerHTML = keepOpt + activeCats.map(c =>
-      `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${c.icon || '📌'} ${c.name} (${c.pts>=0?'+':''}${c.pts})</option>`
+      `<option value="${c.id}" data-pts="${c.pts}" ${c.id === entry.catId ? 'selected' : ''}>${_escHtml(c.icon || '📌')} ${_escHtml(c.name)} (${c.pts>=0?'+':''}${c.pts})</option>`
     ).join('');
     sel.onchange = () => {
       const opt = sel.selectedOptions[0];
       document.getElementById('add-pts').value = opt?.dataset.pts || '10';
     };
+    _u3dAddForm();
     openModal('modal-add');
   }
 
@@ -8044,6 +8046,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       root.classList.remove('ui3d');
       document.querySelectorAll('[data-u3d]').forEach(n => n.remove());
       document.querySelectorAll('.u3d-tilt, .u3d-open, .u3d-hop').forEach(n => n.classList.remove('u3d-tilt', 'u3d-open', 'u3d-hop'));
+      _u3dAddForm();                                   // unwraps the stepper, shows the <select> again
       return;
     }
     if (!document.getElementById('ui3d-css')) {
@@ -8220,6 +8223,50 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     h.className = 'u3d-heart'; h.dataset.u3d = ''; h.textContent = glyph;
     h.style.left = x + 'px'; h.style.top = y + 'px'; h.style.setProperty('--dx', (Math.random() * 40 - 20) + 'px');
     document.body.appendChild(h); setTimeout(() => h.remove(), 1200);
+  }
+
+  /* 自定义记分 under the new look: the <select>, number box and date input stay
+     the source of truth (submitEntry reads them); chips, a stepper and 今天/昨天
+     just drive them. Rebuilt on every open, removed with everything data-u3d. */
+  function _u3dAddForm() {
+    const sheet = document.querySelector('#modal-add .modal-sheet'), sel = document.getElementById('add-cat-select');
+    const pts = document.getElementById('add-pts'), date = document.getElementById('add-date');
+    if (!sheet || !sel || !pts || !date) return;
+    sheet.querySelectorAll('[data-u3d]').forEach(n => n.remove());
+    const stepWrap = pts.parentElement.classList.contains('u3d-stepper') ? pts.parentElement : null;
+    if (stepWrap) stepWrap.replaceWith(pts);
+    sel.classList.remove('u3d-has-chips');
+    if (!_u3d.on) return;
+    // category chips
+    const chips = document.createElement('div');
+    chips.className = 'u3d-chips'; chips.dataset.u3d = '';
+    const paint = () => chips.querySelectorAll('.u3d-chip').forEach(c => c.classList.toggle('on', c.dataset.v === sel.value));
+    [...sel.options].forEach(o => {
+      const b = document.createElement('button'), p = +o.dataset.pts || 0;
+      b.type = 'button'; b.className = 'u3d-chip' + (p < 0 ? ' neg' : ''); b.dataset.v = o.value;
+      b.textContent = o.textContent.replace(/\s*\([+\-−]?\d+\)\s*$/, '') + ' ';
+      const n = document.createElement('b'); n.textContent = (p > 0 ? '+' : '') + p; b.appendChild(n);
+      b.addEventListener('click', () => { sel.value = o.value; sel.onchange && sel.onchange(); paint(); });
+      chips.appendChild(b);
+    });
+    sel.classList.add('u3d-has-chips'); sel.after(chips); paint();
+    chips.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
+    // points stepper
+    const wrap = document.createElement('div'); wrap.className = 'u3d-stepper';
+    const mk = (t, d, label) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'u3d-step'; b.dataset.u3d = ''; b.textContent = t; b.setAttribute('aria-label', label);
+      b.addEventListener('click', () => { pts.value = String((parseInt(pts.value, 10) || 0) + d); }); return b; };
+    pts.replaceWith(wrap); wrap.append(mk('−', -1, '减一分'), pts, mk('＋', 1, '加一分'));
+    // 今天 / 昨天
+    const days = document.createElement('div'); days.className = 'u3d-days'; days.dataset.u3d = '';
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const paintDays = () => days.querySelectorAll('.u3d-chip').forEach(c => c.classList.toggle('on', c.dataset.v === date.value));
+    [['今天', todayStr()], ['昨天', todayStr(y)]].forEach(([t, v]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'u3d-chip'; b.dataset.v = v; b.textContent = t;
+      b.addEventListener('click', () => { date.value = v; date.oninput && date.oninput(); });
+      days.appendChild(b);
+    });
+    date.before(days); paintDays();
+    date.oninput = () => { _renderAddDateHint(); paintDays(); };   // _wireAddDate resets this on every open
   }
 
   /* 小窝: light falls from the window, down and away from it, onto the floor */

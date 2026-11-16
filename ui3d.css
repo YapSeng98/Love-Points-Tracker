@@ -425,6 +425,123 @@ html.ui3d .reg-char-opt.c2:has(input:checked) { border-color: #F2669F; box-shado
 html.ui3d .reg-char-opt:has(input:focus-visible) { outline: 2px solid #E0559A; outline-offset: 2px; }
 html.ui3d .demo-link { text-decoration: none; opacity: .8; font-weight: 600; padding: 8px; }
 
+/* ── sheets and pages (积分表, 历史, 设置, 自定义记分, 商店/背包, 情书, 我们的时光) ──
+   Selectors carry :root so they beat the classic dark rules whichever order the
+   stylesheets load in (the pre-paint link sits BEFORE the page's own styles). */
+html.ui3d { --u-sheet: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(247, 243, 255, .97)); --u-row: rgba(255, 255, 255, .78); --u-row-line: rgba(120, 110, 180, .14); --u-sub: #6A6385; }
+html.ui3d[data-theme="dark"] { --u-sheet: linear-gradient(180deg, rgba(40, 36, 62, .98), rgba(28, 25, 46, .98)); --u-row: rgba(255, 255, 255, .06); --u-row-line: rgba(255, 255, 255, .10); --u-sub: #AFA7C6; }
+html.ui3d:root .modal-overlay { background: rgba(20, 14, 30, .42); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+html.ui3d:root .modal-sheet {
+  background: var(--u-sheet); border-radius: 28px 28px 0 0; color: var(--u-ink);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 -20px 44px -20px rgba(var(--u-shade), .5);
+  transition: transform .55s var(--u-spring);
+}
+html.ui3d:root .modal-handle { width: 40px; height: 5px; background: rgba(120, 110, 150, .3); margin-bottom: 16px; }
+html.ui3d:root .modal-title { color: var(--u-ink); font-weight: 800; }
+html.ui3d:root .modal-field label { color: var(--u-sub); }
+html.ui3d:root .modal-field input, html.ui3d:root .modal-field select, html.ui3d:root .modal-field textarea {
+  min-height: 48px; border-radius: 16px; font-size: 15px; color: var(--u-ink);
+  background: var(--u-field); border: 1.5px solid var(--u-field-line);
+  box-shadow: inset 0 2px 4px rgba(var(--u-shade), .06); transition: border-color .2s, box-shadow .25s;
+}
+html.ui3d:root .modal-field input:focus, html.ui3d:root .modal-field select:focus, html.ui3d:root .modal-field textarea:focus {
+  border-color: #E0559A; box-shadow: inset 0 2px 4px rgba(var(--u-shade), .06), 0 0 0 4px rgba(242, 102, 159, .18);
+}
+html.ui3d:root .modal-sheet .btn-primary {
+  min-height: 52px; border-radius: 18px; font-size: 16px; font-weight: 800;
+  background: linear-gradient(180deg, #F57FB0, #E0508F 55%, #C8427F);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45), inset 0 -3px 6px rgba(110, 20, 60, .25), 0 14px 26px -12px rgba(220, 70, 140, .8);
+  transition: transform .45s var(--u-spring);
+}
+html.ui3d:root .modal-sheet .btn-secondary {
+  min-height: 52px; border-radius: 18px; color: var(--u-ink); background: var(--u-row); border: 1.5px solid var(--u-row-line);
+  box-shadow: inset 0 1px 0 var(--u-hi); transition: transform .45s var(--u-spring);
+}
+html.ui3d:root .modal-sheet .btn-primary:active, html.ui3d:root .modal-sheet .btn-secondary:active { transform: scale(.96); }
+html.ui3d:root .manage-btn, html.ui3d:root .shop-manage-btn, html.ui3d:root .letter-compose-btn {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--u-row-line);
+  background: linear-gradient(180deg, var(--u-chip-a), var(--u-chip-b)); box-shadow: inset 0 1px 0 var(--u-hi), 0 6px 12px -8px rgba(var(--u-shade), .5);
+}
+/* rows rise in one after another when a sheet or page opens */
+@keyframes u3d-row { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+html.ui3d:root .modal-overlay.open :is(.tier-row, .history-item), html.ui3d:root :is(.shop-page, .letter-page).open :is(.shop-item, .bag-item, .letter-card) { animation: u3d-row .5s var(--u-spring) both; }
+html.ui3d:root :is(.tier-row, .history-item, .shop-item, .bag-item, .letter-card):nth-child(2) { animation-delay: .05s; }
+html.ui3d:root :is(.tier-row, .history-item, .shop-item, .bag-item, .letter-card):nth-child(3) { animation-delay: .1s; }
+html.ui3d:root :is(.tier-row, .history-item, .shop-item, .bag-item, .letter-card):nth-child(4) { animation-delay: .15s; }
+html.ui3d:root :is(.tier-row, .history-item, .shop-item, .bag-item, .letter-card):nth-child(n+5) { animation-delay: .2s; }
+html.ui3d:root .tier-row, html.ui3d:root .history-item {
+  background: var(--u-row); border: 1.5px solid var(--u-row-line); border-radius: 18px;
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 10px 18px -14px rgba(var(--u-shade), .45);
+}
+html.ui3d:root .tier-row.current-tier { border-color: #F2669F; background: linear-gradient(135deg, rgba(255, 190, 215, .35), rgba(200, 180, 255, .28)); box-shadow: 0 0 0 4px rgba(242, 102, 159, .16), 0 12px 20px -12px rgba(220, 70, 140, .55); }
+html.ui3d:root .tier-icon {
+  width: 46px; height: 46px; min-width: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+  background: radial-gradient(circle at 32% 26%, var(--u-bubble-a), var(--u-bubble-b) 46%, var(--u-bubble-c));
+  box-shadow: inset -3px -4px 8px rgba(var(--u-shade), .12), 0 6px 10px -5px rgba(70, 110, 200, .45);
+}
+html.ui3d:root .tier-name, html.ui3d:root .history-result { color: var(--u-ink); }
+html.ui3d:root .tier-desc, html.ui3d:root .history-score { color: var(--u-sub); }
+html.ui3d:root .tier-pts-label { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 12px -6px rgba(240, 160, 30, .7); }
+html.ui3d:root .tier-claim-btn { min-height: 36px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 8px 14px -6px rgba(67, 160, 71, .7); transition: transform .45s var(--u-spring); }
+
+/* 商店 / 情书 pages */
+html.ui3d:root .shop-page, html.ui3d:root .letter-page {
+  background:
+    radial-gradient(48% 34% at 16% 14%, var(--u-p1), transparent 72%),
+    radial-gradient(44% 32% at 86% 22%, var(--u-p2), transparent 72%),
+    radial-gradient(52% 36% at 74% 88%, var(--u-p3), transparent 74%),
+    linear-gradient(165deg, var(--u-sp-a), var(--u-sp-b) 50%, var(--u-sp-c));
+}
+html.ui3d:root .shop-header, html.ui3d:root .letter-header {
+  background: var(--u-glass); -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--u-edge); box-shadow: 0 10px 20px -16px rgba(var(--u-shade), .5);
+}
+html.ui3d:root .shop-title, html.ui3d:root .letter-title { color: var(--u-ink); }
+html.ui3d:root .shop-score-banner { margin: 12px 14px 0; border-radius: 18px; background: var(--u-row); border: 1px solid var(--u-row-line); box-shadow: inset 0 1px 0 var(--u-hi), 0 10px 18px -14px rgba(var(--u-shade), .45); }
+html.ui3d:root .shop-score-num { font-size: 26px; color: var(--u-num); text-shadow: 0 1px 0 #F3A6C8, 0 2px 0 #E481AD, 0 6px 10px rgba(190, 40, 110, .28); }
+html.ui3d[data-theme="dark"]:root .shop-score-num { text-shadow: 0 1px 0 #C2618C, 0 2px 0 #904068, 0 6px 12px rgba(0, 0, 0, .5); }
+html.ui3d:root .shop-tabs { margin: 12px 14px 0; padding: 4px; gap: 0; border-radius: 14px; background: rgba(var(--u-shade), .07); }
+html.ui3d[data-theme="dark"]:root .shop-tabs { background: rgba(255, 255, 255, .06); }
+html.ui3d:root .shop-tab { min-height: 40px; border-radius: 11px; border-bottom: 0; color: var(--u-sub); transition: all .35s var(--u-spring); }
+html.ui3d:root .shop-tab.active { color: #2E6DA6; background: linear-gradient(180deg, #FFFFFF, #EEF3FF); box-shadow: inset 0 1px 0 #fff, 0 6px 14px -6px rgba(70, 110, 200, .55); }
+html.ui3d[data-theme="dark"]:root .shop-tab.active { color: #A9CDF5; background: linear-gradient(180deg, #4A4470, #34305A); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 14px -6px rgba(0, 0, 0, .6); }
+html.ui3d:root :is(.shop-item, .bag-item, .letter-card, .shop-manage-item) {
+  background: var(--u-row); border: 1.5px solid var(--u-row-line); border-radius: 18px;
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 12px 20px -14px rgba(var(--u-shade), .45);
+  transition: transform .45s var(--u-spring);
+}
+html.ui3d:root :is(.shop-item, .letter-card):active { transform: scale(.97); }
+html.ui3d:root .letter-card.sealed { border: 1.5px dashed rgba(242, 102, 159, .55); background: linear-gradient(135deg, rgba(255, 200, 220, .32), var(--u-row)); }
+html.ui3d:root :is(.shop-item-name, .bag-item-name, .letter-card-sender, .shop-manage-name) { color: var(--u-ink); }
+html.ui3d:root .shop-item-buy { min-height: 40px; border-radius: 14px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 8px 14px -8px rgba(70, 110, 200, .7); transition: transform .45s var(--u-spring); }
+html.ui3d:root .shop-item-buy:active { transform: scale(.94); }
+
+/* 我们的时光: already its own night sky — add the glass and the raised number */
+html.ui3d:root .love-days-num { filter: drop-shadow(0 2px 0 rgba(160, 40, 110, .7)) drop-shadow(0 4px 0 rgba(120, 20, 90, .6)) drop-shadow(0 14px 18px rgba(0, 0, 0, .45)); }
+html.ui3d:root :is(.love-since-card, .love-names-row) { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 16px 28px -18px rgba(0, 0, 0, .6); }
+
+/* 自定义记分: chips for the category, a stepper for the points, 今天/昨天 for the date */
+html.ui3d:root #modal-add #add-cat-select.u3d-has-chips { position: absolute; opacity: 0; pointer-events: none; height: 0; min-height: 0; padding: 0; border: 0; }
+.u3d-chips { display: flex; flex-wrap: wrap; gap: 8px; max-height: 148px; overflow-y: auto; padding: 2px; }
+.u3d-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 0 12px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--u-row-line, rgba(120,110,180,.14)); background: var(--u-row, rgba(255,255,255,.78)); color: var(--u-ink, #2D2A45);
+  font: 600 13.5px/1 inherit; font-family: inherit; white-space: nowrap; transition: transform .4s var(--u-spring, ease), border-color .2s, box-shadow .2s;
+}
+.u3d-chip b { font-weight: 800; color: #2E6DA6; }
+.u3d-chip.neg b { color: #C0392F; }
+html[data-theme="dark"] .u3d-chip b { color: #85B3E6; } html[data-theme="dark"] .u3d-chip.neg b { color: #FF9C93; }
+.u3d-chip.on { border-color: #F2669F; box-shadow: 0 0 0 3px rgba(242, 102, 159, .18); transform: translateY(-1px); }
+.u3d-stepper { display: grid; grid-template-columns: 52px minmax(0, 1fr) 52px; gap: 8px; align-items: stretch; }
+.u3d-stepper input { text-align: center; font-size: 20px !important; font-weight: 800; font-variant-numeric: tabular-nums; }
+.u3d-step {
+  border: 0; border-radius: 16px; cursor: pointer; font: 800 24px/1 system-ui, sans-serif; color: var(--u-ink, #2D2A45);
+  background: linear-gradient(180deg, var(--u-chip-a, #fff), var(--u-chip-b, #EEF2FF)); box-shadow: inset 0 1px 0 var(--u-hi, #fff), 0 6px 12px -8px rgba(var(--u-shade, 86, 64, 150), .5);
+  transition: transform .35s var(--u-spring, ease);
+}
+.u3d-step:active { transform: scale(.9); }
+.u3d-days { display: flex; gap: 8px; margin-bottom: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
   html.ui3d body::before, html.ui3d .together-hero, html.ui3d .u3d-add::before, html.ui3d .char-img-wrap::after, html.ui3d .u3d-mote, html.ui3d .u3d-room-light, html.ui3d .u3d-settle-chip.due, html.ui3d .sp-paw-logo, html.ui3d .setup-logo, html.ui3d .sp-btn { animation: none !important; }
   .u3d-sheet, .u3d-sheet-veil { transition-duration: .01ms; }

@@ -742,6 +742,16 @@ everyone should be a default, not an instruction.
   full strength read as smudges on the splash; those screens use their own
   translucent pools (`--u-p1…4`).
 
+- **Sheets and pages joined it on 2026-11-16** (积分表, 历史, 设置, 商店/背包,
+  情书, 我们的时光): glass sheets, lit rows that rise in one after another, pill
+  tabs. Those rules carry `:root` in the selector — the pre-paint stylesheet
+  link sits BEFORE the page's own styles, so an equal-specificity rule would
+  lose to the classic dark rules until app.js loads the second link.
+- **自定义记分 gets chips, a −/＋ stepper and 今天/昨天** (`_u3dAddForm`). The
+  `<select>`, number box and date input stay the source of truth — `submitEntry`
+  reads them — and the new controls only drive them, so the save path and the
+  （原分类） placeholder are untouched. Rebuilt on every open; 经典 unwraps it.
+
 Two fixes found on the same walk apply to BOTH looks: entry notes and
 category names were inserted unescaped (a note with `<b>` rendered bold on both
 phones), and two strings still said ServiceNow — one in the confirm when

@@ -12,6 +12,12 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-16 — The rest of the app joins 新外观
+
+积分表, 历史, 设置, 商店/背包, 情书 and 我们的时光 now match the new look. The
+自定义记分 form is quicker: tap a category instead of opening a dropdown, nudge
+the points with − and ＋, and pick 今天 or 昨天 with one tap.
+
 ## 2026-11-16 — 新外观 is now the default
 
 Every phone now opens in 新外观 without switching anything. If one of you

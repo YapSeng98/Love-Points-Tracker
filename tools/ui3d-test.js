@@ -386,6 +386,43 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     }
   }
 
+  console.log('\n10. Sheets and pages in the new look; the quicker 自定义记分 form');
+  {
+    const { p, ctx, errs } = await phone(browser, '2026-11-15T15:00:00+08:00');
+    await cssReady(p);
+    await p.evaluate(() => App.openAddModal()); await sleep(700);
+    const f = await p.evaluate(() => ({ chips: [...document.querySelectorAll('#modal-add .u3d-chips .u3d-chip')].map(c => c.textContent.trim()), on: document.querySelector('#modal-add .u3d-chips .on')?.dataset.v, sel: document.getElementById('add-cat-select').value,
+      glass: getComputedStyle(document.querySelector('#modal-add .modal-sheet')).borderTopLeftRadius, step: document.querySelectorAll('#modal-add .u3d-step').length }));
+    ok(f.chips.length === 8 && f.on === f.sel && !f.chips.some(c => /停用/.test(c)), `categories are chips, the picked one lit (${f.chips.length}): ${f.chips.slice(0, 3).join(' · ')}…`);
+    await p.click('#modal-add .u3d-chip:has-text("忘记约定")'); await sleep(150);
+    ok(await p.evaluate(() => document.getElementById('add-cat-select').value === 'c8' && document.getElementById('add-pts').value === '-10'), 'tapping a chip picks the category and fills its points (−10)');
+    await p.click('#modal-add .u3d-step:last-of-type'); await p.click('#modal-add .u3d-step:last-of-type'); await p.click('#modal-add .u3d-step:first-of-type');
+    ok(await p.$eval('#add-pts', i => i.value) === '-9', '− and ＋ nudge the points (−10 → −9)');
+    await p.click('#modal-add .u3d-days .u3d-chip:has-text("昨天")'); await sleep(150);
+    ok(await p.$eval('#add-date', i => i.value) === '2026-11-14', '「昨天」 sets the date to 11-14');
+    await p.screenshot({ path: `${SHOTS}/ui3d_08_addform.png` });
+    await p.evaluate(() => App.submitEntry()); await sleep(1500);
+    const e = (await stored(p)).entries['2026-11'].find(x => x.catId === 'c8' && x.date === '2026-11-14' && x.pts === -9);
+    ok(!!e && e.month === '2026-11' && e.charId === 'char1', `saved as chosen: ${JSON.stringify(e && { cat: e.catName, pts: e.pts, date: e.date })}`);
+    // edit keeps what it was
+    await p.evaluate(() => App.openEditEntryModal('e1')); await sleep(600);
+    const ed = await p.evaluate(() => ({ on: document.querySelector('#modal-add .u3d-chips .on')?.textContent.trim(), pts: document.getElementById('add-pts').value, days: document.querySelectorAll('#modal-add .u3d-days').length, steps: document.querySelectorAll('#modal-add .u3d-step').length }));
+    ok(/惊喜礼物/.test(ed.on || '') && ed.pts === '15' && ed.days === 1 && ed.steps === 2, `editing opens on the entry's own category and points, controls not doubled ${JSON.stringify(ed)}`);
+    await p.evaluate(() => App.closeModal('modal-add'));
+    // sheets
+    await p.evaluate(() => App.nav('tables')); await sleep(900);
+    const tier = await p.evaluate(() => { const i = document.querySelector('.tier-icon'); return i ? Math.round(i.getBoundingClientRect().width) : 0; });
+    await p.evaluate(() => document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')));
+    ok(f.glass === '28px' && f.step === 2, 'sheets are rounded glass');
+    // turning the look off puts the plain form back
+    await p.evaluate(() => App.setLook('classic')); await sleep(300);
+    await p.evaluate(() => App.openAddModal()); await sleep(500);
+    const off = await p.evaluate(() => ({ chips: document.querySelectorAll('#modal-add .u3d-chip').length, wrap: !!document.querySelector('#modal-add .u3d-stepper'), sel: getComputedStyle(document.getElementById('add-cat-select')).opacity, h: document.getElementById('add-cat-select').getBoundingClientRect().height }));
+    ok(off.chips === 0 && !off.wrap && off.sel === '1' && off.h > 30, `经典 gets the dropdown and plain number box back ${JSON.stringify(off)}`);
+    ok(!errs.length, 'no errors ' + errs.join(' | '));
+    await ctx.close();
+  }
+
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
