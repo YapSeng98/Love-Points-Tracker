@@ -805,13 +805,22 @@ treats for 20s) and 记忆翻牌 (six pairs from their own photos). Doors: a but
 in 小窝's panel and one beside 播放回忆, both added from JS; styles are injected
 (`mg-*`), so there is no index.html change and nothing for a stale page to miss.
 
-- **A game pays each person at most once a day** (接零食 10/20/28 → +1/+2/+3;
-  翻牌 ≤9/≤13/any → +3/+2/+1), then it is just for fun. Under the lowest tier
-  nothing is paid *and the day is not used up*.
+- **Levels, asked for the same day** (「not so easy to finish」). 接零食 has no
+  last level: each wants more treats in the same 15s, falls faster, and adds a
+  hazard (⭐ = 3 from level 2, 💣 = one of three hearts from level 3); short of
+  the target when time runs out, or out of hearts, ends the run. 翻牌 has four:
+  6, 8, 10 pairs under a move limit, then the same 10 with fewer moves.
+- **A game pays each person at most +3 a day**, by levels cleared (接零食
+  1/3/5 → +1/+2/+3; 翻牌 1/2/3). A better run later the same day is paid the
+  **difference**, so a weak first try does not use the day up; nothing cleared
+  pays nothing. Leaving mid-run banks the levels already cleared (`g.bank`).
+- **Records** (levels cleared, then count or moves) are per person and stay on
+  the phone (`mg_best_<game>_<who>`); the payout row's description carries the
+  run, which is what the partner sees.
 - **The payout is an ordinary entry** — `🎮 小游戏`, desc `接零食 · 接到 21 个`,
   sent through `Data.addEntry` like a check-in — so both phones see it, settle
-  archives it, and "already paid today" is **derived from the entries** (§4).
-  A per-phone flag (`mg_done_<game>_<who>_<date>`) is only the backstop for a
+  archives it, and "paid today" is **summed from the entries** (§4).
+  A per-phone number (`mg_done_<game>_<who>_<date>`) is only the backstop for a
   month settled the same day, and is set *before* the request so a second
   finish in flight cannot pay twice.
 - **The player is `_me()`** (§6), never the whose-points switch.
@@ -828,8 +837,9 @@ in 小窝's panel and one beside 播放回忆, both added from JS; styles are in
   小窝. The home page now has a 小游戏 card under 每日签到, built from that
   card's own classes so it shares the stack's width, inset and gap (§7.255).
 
-`tools/games-test.js` plays both: the pet really catches what it is under, a
-chilli costs two, the payout row, no second payout (also with the flag wiped),
+`tools/games-test.js` plays both: the pet really catches what it is under, each
+hazard, every level's shape, running out of time / hearts / moves, the payout
+row, the top-up and the cap (also with the flag wiped), banking on close,
 tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login

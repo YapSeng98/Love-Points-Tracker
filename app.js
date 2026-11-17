@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-68';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-69';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1996,28 +1996,52 @@ const App = (() => {
      装扮 sheet (140) (§1.3). */
   const GAME_CAT = '🎮 小游戏';
   const GAMES = {
-    catch: { name: '接零食',   icon: '🦴', how: '20 秒，左右滑动接住零食，辣椒要躲开', max: 3 },
-    cards: { name: '记忆翻牌', icon: '🃏', how: '用你们的照片，找出 6 对一样的', max: 3 },
+    catch: { name: '接零食',   icon: '🦴', how: '一关比一关快：接够数量就过关，躲开辣椒和炸弹', max: 3, unit: '个' },
+    cards: { name: '记忆翻牌', icon: '🃏', how: '用你们的照片找出一样的一对，步数有限，一共 4 关', max: 3, unit: '步' },
   };
+  // 接零食 never ends by itself: each level asks for more, falls faster and adds a hazard.
+  const catchLevel = (n) => ({
+    time: 15,
+    need: Math.min(16, n <= 3 ? 6 + n * 2 : 9 + n),          // 8, 10, 12, 13, 14, 15, 16…
+    speed: 120 + n * 24,
+    gap: Math.max(.26, .64 - n * .06),
+    chilli: Math.min(.3, .1 + n * .035),
+    bomb: n >= 3 ? Math.min(.14, .05 + (n - 3) * .03) : 0,   // costs a heart
+    star: n >= 2 ? .07 : 0,                                   // worth three
+  });
+  // 翻牌: more pairs, then the same pairs with fewer moves to spare.
+  const CARD_LEVELS = [
+    { pairs: 6,  cols: 3, limit: 14 },
+    { pairs: 8,  cols: 4, limit: 20 },
+    { pairs: 10, cols: 4, limit: 25 },
+    { pairs: 10, cols: 4, limit: 21 },
+  ];
   const _mgFlag = (g, who) => `mg_done_${g}_${who}_${todayStr()}`;
-  function gameRewardedToday(g, who = _me()) {
+  // Points this person has already been paid for this game today. Derived from
+  // the entries (§4); the per-phone number only covers a month settled today.
+  function gamePaidToday(g, who = _me()) {
     const today = todayStr();
-    if ((S.entries || []).some(e => e.catName === GAME_CAT && e.date === today
-        && (e.charId || 'char1') === who && String(e.desc || '').startsWith(GAMES[g].name))) return true;
-    try { return localStorage.getItem(_mgFlag(g, who)) === '1'; } catch (e) { return false; }
+    const fromLedger = (S.entries || []).filter(e => e.catName === GAME_CAT && e.date === today
+        && (e.charId || 'char1') === who && String(e.desc || '').startsWith(GAMES[g].name))
+      .reduce((n, e) => n + (parseInt(e.pts) || 0), 0);
+    let local = 0;
+    try { local = parseInt(localStorage.getItem(_mgFlag(g, who))) || 0; } catch (e) {}
+    return Math.min(GAMES[g].max, Math.max(fromLedger, local));
   }
-  // 接零食: n = caught. 翻牌: n = moves used (6 is perfect).
-  function gamePoints(g, n) {
-    if (g === 'catch') return n >= 28 ? 3 : n >= 20 ? 2 : n >= 10 ? 1 : 0;
-    return n <= 9 ? 3 : n <= 13 ? 2 : 1;
+  // lv = levels CLEARED in the run. 接零食: 1 / 3 / 5 关 → +1 / +2 / +3. 翻牌: 1 / 2 / 3 关.
+  function gamePoints(g, lv) {
+    if (g === 'catch') return lv >= 5 ? 3 : lv >= 3 ? 2 : lv >= 1 ? 1 : 0;
+    return Math.max(0, Math.min(3, lv));
   }
-  async function _mgAward(g, pts, detail) {
-    const who = _me();
-    if (pts <= 0 || gameRewardedToday(g, who)) return 0;
+  // Pays the DIFFERENCE up to what this run earned, so a better run later the
+  // same day tops the day up — but a day never pays more than the game's max.
+  async function _mgAward(g, want, detail) {
+    const who = _me(), paid = gamePaidToday(g, who), pts = Math.min(GAMES[g].max, want) - paid;
+    if (pts <= 0) return 0;
     const flag = _mgFlag(g, who);
     try {   // set BEFORE the request: a second finish while it is in flight must not pay twice
       Object.keys(localStorage).filter(k => k.startsWith('mg_done_') && !k.endsWith(todayStr())).forEach(k => localStorage.removeItem(k));
-      localStorage.setItem(flag, '1');
+      localStorage.setItem(flag, String(paid + pts));
     } catch (e) {}
     try {
       const date = todayStr();
@@ -2028,10 +2052,22 @@ const App = (() => {
       await refresh();
       return pts;
     } catch (err) {
-      try { localStorage.removeItem(flag); } catch (e) {}
+      try { paid ? localStorage.setItem(flag, String(paid)) : localStorage.removeItem(flag); } catch (e) {}
       showToast('分数没记上: ' + err.message);
       return 0;
     }
+  }
+  // Personal records — per person, kept on this phone. { lv, n }: levels cleared,
+  // then 接零食's total caught (more is better) or 翻牌's total moves (fewer is better).
+  const _mgBestKey = (g, who = _me()) => `mg_best_${g}_${who}`;
+  function gameBest(g) {
+    try { const b = JSON.parse(localStorage.getItem(_mgBestKey(g)) || 'null'); return b && b.lv >= 0 ? b : null; } catch (e) { return null; }
+  }
+  function _mgRecord(g, lv, n) {
+    const b = gameBest(g);
+    const better = !b || lv > b.lv || (lv === b.lv && lv > 0 && (g === 'catch' ? n > b.n : n < b.n));
+    if (better && (lv > 0 || !b)) { try { localStorage.setItem(_mgBestKey(g), JSON.stringify({ lv, n })); } catch (e) {} }
+    return better && lv > 0 && !!b;   // "new record" only when there was one to beat
   }
 
   function _mgStyle() {
@@ -2076,8 +2112,12 @@ html[data-theme="dark"] .mg-line.mg-win{color:#FF9CC4}
 .mg-btn{min-height:50px;padding:0 26px;border:0;border-radius:17px;cursor:pointer;color:#fff;font:800 16px/1 inherit;font-family:inherit;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 10px 18px -10px rgba(220,70,140,.8)}
 .mg-btn:active{transform:scale(.97)}
 .mg-btn.mg-ghost{background:transparent;box-shadow:none;color:inherit;border:1.5px solid rgba(150,120,190,.4)}
-.mg-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;perspective:900px}
-@media (min-width:600px){.mg-cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.mg-cards{display:grid;grid-template-columns:repeat(var(--mg-cols,3),minmax(0,1fr));gap:8px;perspective:900px;width:100%;max-width:calc(var(--mg-cols,3) * 112px);margin:0 auto}
+.mg-hearts{letter-spacing:1px}
+.mg-hud span{white-space:nowrap}
+.mg-banner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);padding:12px 22px;border-radius:18px;background:rgba(255,255,255,.92);color:#3A2F4F;font-weight:800;font-size:19px;text-align:center;pointer-events:none;box-shadow:0 12px 24px -12px rgba(90,60,150,.6);animation:mg-in .25s ease-out;white-space:nowrap}
+html[data-theme="dark"] .mg-banner{background:rgba(44,38,70,.94);color:#EEE8F6}
+.mg-best{font-size:12.5px;opacity:.8;margin:0}
 .mg-card{position:relative;aspect-ratio:1;border:0;padding:0;background:transparent;cursor:pointer;border-radius:16px}
 .mg-card i{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .42s cubic-bezier(.3,.8,.3,1);display:grid;place-items:center;overflow:hidden;font-style:normal;pointer-events:none}
 .mg-card .mg-back{background:linear-gradient(145deg,#F9A8C9,#C9A2F5);box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 8px 14px -10px rgba(120,60,160,.7);font-size:24px;color:#fff}
@@ -2109,13 +2149,15 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       card = document.getElementById('mg-home');
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGames(); } });
     }
-    const leftToday = Object.keys(GAMES).filter(g => !gameRewardedToday(g)).length;
+    const leftToday = Object.keys(GAMES).filter(g => gamePaidToday(g) < GAMES[g].max).length;
     document.getElementById('mg-home-sub').textContent = leftToday
-      ? '接零食 · 记忆翻牌 · 今天还能拿分' : '今天的分拿过啦 · 还能随便玩';
+      ? '接零食 · 记忆翻牌 · 今天还能拿分' : '今天的分拿满啦 · 还能随便玩';
   }
 
   let _mg = null;   // the game in play; read (and nudged) by the tests
   function closeGames() {
+    // Leaving mid-run still banks the levels already cleared.
+    if (_mg && _mg.bank && !_mg.settled) { try { _mg.bank(); } catch (e) {} }
     if (_mg) _mg.over = true;
     _mg = null;
     document.removeEventListener('keydown', _mgKey);
@@ -2140,81 +2182,119 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     document.addEventListener('keydown', _mgKey);
     return root;
   }
-  const _mgPayLine = (g) => gameRewardedToday(g)
-    ? `<span class="mg-pay mg-paid">今天的分拿过啦 · 还可以随便玩</span>`
-    : `<span class="mg-pay">今天第一次玩，最多 +${GAMES[g].max} 分</span>`;
+  const _mgPayLine = (g) => {
+    const paid = gamePaidToday(g), max = GAMES[g].max, b = gameBest(g);
+    const best = b && b.lv > 0 ? `<span class="mg-best">🏆 最高纪录：过了 ${b.lv} 关${g === 'catch' ? ` · 接到 ${b.n} 个` : ` · 用了 ${b.n} 步`}</span>` : '';
+    return (paid >= max ? `<span class="mg-pay mg-paid">今天的 +${max} 分拿满啦 · 还可以随便玩</span>`
+      : paid ? `<span class="mg-pay">今天已拿 +${paid} 分 · 玩得更好还能再拿 +${max - paid}</span>`
+      : `<span class="mg-pay">今天最多 +${max} 分</span>`) + best;
+  };
 
   function openGames() {
     _mgShell('🎮 小游戏', Object.keys(GAMES).map(g =>
       `<button type="button" class="mg-pick" data-g="${g}" onclick="App.playGame('${g}')">`
       + `<span class="mg-ic">${GAMES[g].icon}</span><span><b>${GAMES[g].name}</b><span>${GAMES[g].how}</span>${_mgPayLine(g)}</span></button>`
-    ).join('') + `<p class="mg-how">每个游戏每人每天记一次分，会出现在「本月记录」里，两个人都看得到。</p>`);
+    ).join('') + `<p class="mg-how">每个游戏每人每天最多 +3 分，会出现在「本月记录」里，两个人都看得到。最高纪录记在这部手机上。</p>`);
   }
   function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
 
-  // What the result screen says about points — one place, so the two games agree.
-  async function _mgSettle(g, n, detail) {
-    const want = gamePoints(g, n), paidAlready = gameRewardedToday(g);
-    if (paidAlready) return `<p class="mg-line">今天的分已经拿过了，这局是纯玩 😄</p>`;
-    if (!want) return `<p class="mg-line">接到 10 个才有分，再来一次？</p>`;
-    const got = await _mgAward(g, want, detail);
-    return got ? `<p class="mg-line mg-win">💙 +${got} 分，记给 ${_escHtml(charDisplayName(_me()))}</p>`
-               : `<p class="mg-line">这次没记上分，等下再试试</p>`;
+  // What the result screen says about points and records — one place, so the two games agree.
+  async function _mgSettle(g, lv, n, detail) {
+    const record = _mgRecord(g, lv, n);
+    const want = gamePoints(g, lv), paid = gamePaidToday(g), max = GAMES[g].max;
+    let line;
+    if (paid >= max) line = `<p class="mg-line">今天的分已经拿满了，这局是纯玩 😄</p>`;
+    else if (!want) line = `<p class="mg-line">过了第 1 关才有分，再来一次？</p>`;
+    else if (want <= paid) line = `<p class="mg-line">今天已经拿过 +${paid} 分，要比上一局过更多关才会加</p>`;
+    else {
+      const got = await _mgAward(g, want, detail);
+      line = got ? `<p class="mg-line mg-win">💙 +${got} 分，记给 ${_escHtml(charDisplayName(_me()))}</p>`
+                 : `<p class="mg-line">这次没记上分，等下再试试</p>`;
+    }
+    return (record ? `<p class="mg-line mg-win">🏆 新纪录！</p>` : '') + line;
   }
 
-  /* 接零食 */
+  /* 接零食 — levels. Each one wants more treats in the same 15 seconds, falls
+     faster, and from level 3 drops bombs that cost one of three hearts. Run out
+     of time short of the target, or out of hearts, and the run is over. */
   function _mgCatch() {
     let art = '';
     try { art = S.petSpecies ? petSvg(petStageInfo().idx) : ''; } catch (e) {}
     const root = _mgShell('🦴 接零食',
-      `<div class="mg-hud"><span class="mg-score">接到 0</span><span class="mg-time">20 秒</span></div>`
+      `<div class="mg-hud"><span class="mg-lv">第 1 关</span><span class="mg-score">0 / 8</span><span class="mg-hearts">❤️❤️❤️</span><span class="mg-time">15 秒</span></div>`
       + `<div class="mg-field" tabindex="0" aria-label="游戏区域，左右滑动或用方向键"><canvas></canvas>`
       + `<div class="mg-pet">${art || '<div style="font-size:52px;text-align:center">🐶</div>'}</div>`
-      + `<div class="mg-cover"><div><p class="mg-big">准备好了吗？</p><p class="mg-line">${GAMES.catch.how}。接到 10 / 20 / 28 个：+1 / +2 / +3 分。</p>`
+      + `<div class="mg-cover"><div><p class="mg-big">准备好了吗？</p><p class="mg-line">${GAMES.catch.how}。⭐ 算 3 个，🌶️ 扣 2 个，💣 掉一颗心。过 1 / 3 / 5 关：+1 / +2 / +3 分。</p>`
       + `<button type="button" class="mg-btn mg-start">开始</button></div></div></div>`);
     const field = root.querySelector('.mg-field'), cv = field.querySelector('canvas'), ctx = cv.getContext('2d');
     const pet = field.querySelector('.mg-pet'), cover = field.querySelector('.mg-cover');
     const TREATS = ['🦴', '🍖', '🍪', '🧀', '🍓'];
-    const g = _mg = { game: 'catch', x: .5, score: 0, left: 20, over: true, items: [], pops: [] };
-    let W = 0, H = 0, last = 0, spawn = 0;
+    const g = _mg = { game: 'catch', x: .5, lv: 1, got: 0, total: 0, hearts: 3, left: 15, over: true, pause: 0, items: [], pops: [], settled: true };
+    let W = 0, H = 0, last = 0, spawn = 0, L = catchLevel(1);
     const fit = () => {
       const w = cv.clientWidth, h = cv.clientHeight;
       if (w === W && h === H) return;
       W = w; H = h; const d = Math.min(2, window.devicePixelRatio || 1);
       cv.width = Math.round(W * d); cv.height = Math.round(H * d); ctx.setTransform(d, 0, 0, d, 0, 0);
     };
+    const hud = () => {
+      root.querySelector('.mg-lv').textContent = `第 ${g.lv} 关`;
+      root.querySelector('.mg-score').textContent = `${Math.min(g.got, L.need)} / ${L.need}`;
+      root.querySelector('.mg-hearts').textContent = '❤️'.repeat(Math.max(0, g.hearts)) + '🤍'.repeat(Math.max(0, 3 - g.hearts));
+      root.querySelector('.mg-time').textContent = `${Math.max(0, Math.ceil(g.left))} 秒`;
+    };
+    const banner = (t) => {
+      field.querySelector('.mg-banner')?.remove();
+      const b = document.createElement('div'); b.className = 'mg-banner'; b.textContent = t; field.appendChild(b);
+      setTimeout(() => b.remove(), 1200);
+    };
     const move = (e) => { const r = field.getBoundingClientRect(); g.x = Math.max(.08, Math.min(.92, (e.clientX - r.left) / r.width)); pet.style.left = (g.x * 100) + '%'; };
     field.addEventListener('pointerdown', move); field.addEventListener('pointermove', move);
-    const finish = async () => {
+    const cleared = () => g.lv - 1;
+    // Banks the run: record + points. Also called by closeGames() for a run left half way.
+    g.bank = () => { g.settled = true; return _mgSettle('catch', cleared(), g.total, `过了 ${cleared()} 关 · 接到 ${g.total} 个`); };
+    const finish = async (why) => {
       g.over = true;
-      cover.hidden = false; cover.style.display = '';
-      cover.innerHTML = `<div><p class="mg-big">接到 ${g.score} 个！</p><p class="mg-line">算分中…</p></div>`;
-      const line = await _mgSettle('catch', g.score, `接到 ${g.score} 个`);
+      const head = `<p class="mg-big">过了 ${cleared()} 关</p><p class="mg-line">${why} · 一共接到 ${g.total} 个</p>`;
+      cover.style.display = '';
+      cover.innerHTML = `<div>${head}<p class="mg-line">算分中…</p></div>`;
+      const line = await g.bank();
       if (_mg !== g) return;   // closed while the entry was saving
       g.done = true;
-      cover.innerHTML = `<div><p class="mg-big">接到 ${g.score} 个！</p>${line}`
+      cover.innerHTML = `<div>${head}${line}`
         + `<button type="button" class="mg-btn mg-start">再玩一次</button>`
-        + `<button type="button" class="mg-btn mg-ghost" onclick="App.closeGames()">回小窝</button></div>`;
+        + `<button type="button" class="mg-btn mg-ghost" onclick="App.closeGames()">不玩了</button></div>`;
+    };
+    const nextLevel = () => {
+      g.lv++; L = catchLevel(g.lv);
+      Object.assign(g, { got: 0, left: L.time, items: [], pause: 1.2 });
+      spawn = .2;
+      banner(`🎉 过关！第 ${g.lv} 关 · 要接 ${L.need} 个`);
     };
     const tick = (t) => {
       if (_mg !== g || g.over) return;
       const dt = last ? Math.min(.05, (t - last) / 1000) : .016; last = t;
       fit();
-      g.left -= dt; spawn -= dt;
-      const pace = 1 - Math.max(0, g.left) / 20;   // 0 → 1: it gets busier
-      if (spawn <= 0) {
-        g.items.push({ x: .08 + Math.random() * .84, y: -18, v: 120 + Math.random() * 70 + pace * 90, e: Math.random() < .18 ? '🌶️' : TREATS[(Math.random() * TREATS.length) | 0] });
-        spawn = .62 - pace * .3 + Math.random() * .2;
-      }
       pet.style.left = (g.x * 100) + '%';
+      if (g.pause > 0) { g.pause -= dt; ctx.clearRect(0, 0, W, H); hud(); requestAnimationFrame(tick); return; }
+      g.left -= dt; spawn -= dt;
+      if (spawn <= 0) {
+        const r = Math.random();
+        const e = r < L.bomb ? '💣' : r < L.bomb + L.chilli ? '🌶️' : r < L.bomb + L.chilli + L.star ? '⭐' : TREATS[(Math.random() * TREATS.length) | 0];
+        g.items.push({ x: .08 + Math.random() * .84, y: -18, v: (L.speed + Math.random() * 70) * (e === '⭐' ? 1.35 : 1), e });
+        spawn = L.gap + Math.random() * .2;
+      }
       const pr = pet.getBoundingClientRect(), fr = field.getBoundingClientRect();
       const top = pr.top - fr.top, reach = pr.width * .5;
       g.items = g.items.filter(o => {
         o.y += o.v * dt;
         if (o.y > top + 6 && o.y < top + pr.height * .6 && Math.abs(o.x - g.x) * W < reach) {
-          const bad = o.e === '🌶️';
-          g.score = Math.max(0, g.score + (bad ? -2 : 1));
-          g.pops.push({ x: o.x * W, y: top, t: 0, s: bad ? '−2' : '+1', bad });
+          const bad = o.e === '🌶️' || o.e === '💣';
+          let s;
+          if (o.e === '💣') { g.hearts--; s = '💔'; }
+          else if (o.e === '🌶️') { g.got = Math.max(0, g.got - 2); s = '−2'; }
+          else { const n = o.e === '⭐' ? 3 : 1; g.got += n; g.total += n; s = '+' + n; }
+          g.pops.push({ x: o.x * W, y: top, t: 0, s, bad });
           if (bad) { pet.classList.remove('mg-ouch'); void pet.offsetWidth; pet.classList.add('mg-ouch'); }
           return false;
         }
@@ -2226,39 +2306,56 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       g.items.forEach(o => ctx.fillText(o.e, o.x * W, o.y));
       ctx.font = '800 17px sans-serif';
       g.pops = g.pops.filter(p => { p.t += dt; ctx.globalAlpha = Math.max(0, 1 - p.t / .6); ctx.fillStyle = p.bad ? '#D9534F' : '#E0508F'; ctx.fillText(p.s, p.x, p.y - p.t * 50); ctx.globalAlpha = 1; return p.t < .6; });
-      root.querySelector('.mg-score').textContent = `接到 ${g.score}`;
-      root.querySelector('.mg-time').textContent = `${Math.max(0, Math.ceil(g.left))} 秒`;
-      if (g.left <= 0) { ctx.clearRect(0, 0, W, H); finish(); return; }
+      hud();
+      if (g.hearts <= 0) { ctx.clearRect(0, 0, W, H); finish('三颗心都没了'); return; }
+      if (g.got >= L.need) nextLevel();
+      else if (g.left <= 0) { ctx.clearRect(0, 0, W, H); finish(`第 ${g.lv} 关差 ${L.need - g.got} 个`); return; }
       requestAnimationFrame(tick);
     };
     cover.addEventListener('click', (e) => {
       if (!e.target.closest('.mg-start')) return;
-      Object.assign(g, { score: 0, left: 20, over: false, done: false, items: [], pops: [] });
+      L = catchLevel(1);
+      Object.assign(g, { lv: 1, got: 0, total: 0, hearts: 3, left: L.time, over: false, done: false, settled: false, pause: 0, items: [], pops: [] });
       last = 0; spawn = .3;
       cover.style.display = 'none';
       field.focus({ preventScroll: true });
+      hud();
       requestAnimationFrame(tick);
     });
   }
 
-  /* 记忆翻牌 */
+  /* 记忆翻牌 — four levels: 6, 8, then 10 pairs, each with a limit on moves; the
+     last asks for the same 10 pairs with fewer moves to spare. Out of moves with
+     pairs still hidden and the run is over. */
   async function _mgCards() {
-    const root = _mgShell('🃏 记忆翻牌', `<p class="mg-how">${GAMES.cards.how}。9 步以内 +3 分，13 步以内 +2 分，找齐就有 +1 分。</p>`
-      + `<div class="mg-hud"><span class="mg-moves">0 步</span><span class="mg-found">0 / 6 对</span></div>`
-      + `<div class="mg-cards" aria-label="12 张牌"></div><div class="mg-result" aria-live="polite"></div>`);
-    const g = _mg = { game: 'cards', moves: 0, found: 0, over: false, photos: 0 };
+    const root = _mgShell('🃏 记忆翻牌', `<p class="mg-how">${GAMES.cards.how}。过 1 / 2 / 3 关：+1 / +2 / +3 分。</p>`
+      + `<div class="mg-hud"><span class="mg-lv">第 1 关</span><span class="mg-moves">0 / 14 步</span><span class="mg-found">0 / 6 对</span></div>`
+      + `<div class="mg-cards"></div><div class="mg-result" aria-live="polite"></div>`);
+    const g = _mg = { game: 'cards', lv: 1, moves: 0, total: 0, found: 0, over: false, settled: true, photos: 0 };
     // The couple's own photos when there are any (§5: only the once-per-session load, never a refetch).
     if (!(S.photos || []).length) { try { await _loadStatsSources(); } catch (e) {} }
     if (_mg !== g) return;
-    const FALLBACK = ['🌅', '🎡', '🍰', '🏖️', '🎄', '🌸'];
+    const FALLBACK = ['🌅', '🎡', '🍰', '🏖️', '🎄', '🌸', '🎈', '🍦', '🌙', '🎁'];
     const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
-    const deal = () => {
-      const pics = shuffle((S.photos || []).filter(p => p && p.image).slice()).slice(0, 6);
+    const grid = root.querySelector('.mg-cards'), res = root.querySelector('.mg-result');
+    let open = [], lock = false, L = CARD_LEVELS[0];
+    const cleared = () => g.lv - 1 + (g.found === L.pairs ? 1 : 0);
+    g.bank = () => { g.settled = true; const lv = cleared(); return _mgSettle('cards', lv, g.total, `过了 ${lv} 关 · 用了 ${g.total} 步`); };
+    const paint = () => {
+      root.querySelector('.mg-lv').textContent = `第 ${g.lv} 关`;
+      root.querySelector('.mg-moves').textContent = `${g.moves} / ${L.limit} 步`;
+      root.querySelector('.mg-found').textContent = `${g.found} / ${L.pairs} 对`;
+    };
+    const deal = (lv) => {
+      L = CARD_LEVELS[lv - 1];
+      const pics = shuffle((S.photos || []).filter(p => p && p.image).slice()).slice(0, L.pairs);
       g.photos = pics.length;
-      const faces = FALLBACK.map((e, i) => ({ k: i, e, img: pics[i] ? pics[i].image : '' }));
+      const faces = FALLBACK.slice(0, L.pairs).map((e, i) => ({ k: i, e, img: pics[i] ? pics[i].image : '' }));
       const deck = shuffle([...faces, ...faces]);
-      Object.assign(g, { moves: 0, found: 0, over: false, done: false, deck: deck.map(f => f.k) });
-      const grid = root.querySelector('.mg-cards');
+      Object.assign(g, { lv, moves: 0, found: 0, over: false, done: false, pairs: L.pairs, limit: L.limit });
+      open = []; lock = false;
+      grid.style.setProperty('--mg-cols', L.cols);
+      grid.setAttribute('aria-label', `${deck.length} 张牌`);
       grid.innerHTML = deck.map((f, i) =>
         `<button type="button" class="mg-card" data-k="${f.k}" aria-label="第 ${i + 1} 张牌"><i class="mg-back">💗</i>`
         + `<i class="mg-face">${f.img ? `<img src="${_escHtml(f.img)}" alt="" data-e="${f.e}">` : f.e}</i></button>`).join('');
@@ -2266,20 +2363,24 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       grid.querySelectorAll('img').forEach(im => im.addEventListener('error', () => {
         grid.querySelectorAll(`.mg-card[data-k="${im.closest('.mg-card').dataset.k}"] .mg-face`).forEach(f => { f.textContent = im.dataset.e; });
       }));
-      root.querySelector('.mg-result').innerHTML = '';
+      res.innerHTML = '';
       paint();
     };
-    const paint = () => {
-      root.querySelector('.mg-moves').textContent = `${g.moves} 步`;
-      root.querySelector('.mg-found').textContent = `${g.found} / 6 对`;
+    const end = async (head) => {
+      g.over = true;
+      res.innerHTML = `${head}<p class="mg-line">算分中…</p>`;
+      const line = await g.bank();
+      if (_mg !== g) return;
+      g.done = true;
+      res.innerHTML = `${head}${line}<button type="button" class="mg-btn mg-again">从第 1 关再来</button>`;
+      res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     };
-    let open = [], lock = false;
-    root.querySelector('.mg-cards').addEventListener('click', async (e) => {
+    grid.addEventListener('click', (e) => {
       const b = e.target.closest('.mg-card');
-      if (!b || lock || g.over || b.classList.contains('mg-up')) return;
+      if (!b || lock || g.over || g.waiting || b.classList.contains('mg-up')) return;
       b.classList.add('mg-up'); open.push(b);
       if (open.length < 2) return;
-      const [a, c] = open; open = []; g.moves++;
+      const [a, c] = open; open = []; g.moves++; g.total++;
       if (a.dataset.k === c.dataset.k) {
         a.classList.add('mg-ok'); c.classList.add('mg-ok'); g.found++;
       } else {
@@ -2287,20 +2388,23 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         setTimeout(() => { a.classList.remove('mg-up'); c.classList.remove('mg-up'); lock = false; }, 800);
       }
       paint();
-      if (g.found === 6) {
-        g.over = true;
-        const res = root.querySelector('.mg-result');
-        res.innerHTML = `<p class="mg-big">🎉 ${g.moves} 步找齐！</p><p class="mg-line">算分中…</p>`;
-        const line = await _mgSettle('cards', g.moves, `${g.moves} 步找齐`);
-        if (_mg !== g) return;
-        g.done = true;
-        res.innerHTML = `<p class="mg-big">🎉 ${g.moves} 步找齐！</p>${line}`
-          + `<button type="button" class="mg-btn mg-again">再玩一次</button>`;
+      if (g.found === L.pairs) {
+        if (g.lv === CARD_LEVELS.length) return end(`<p class="mg-big">🎉 4 关全部通关！</p><p class="mg-line">一共用了 ${g.total} 步</p>`);
+        g.waiting = true;   // the level is cleared; the next one starts when they are ready
+        const nx = CARD_LEVELS[g.lv];
+        res.innerHTML = `<p class="mg-big">🎉 第 ${g.lv} 关过了！</p><p class="mg-line">下一关：${nx.pairs} 对，${nx.limit} 步以内</p>`
+          + `<button type="button" class="mg-btn mg-next">下一关</button>`;
         res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (g.moves >= L.limit) {
+        end(`<p class="mg-big">步数用完了</p><p class="mg-line">第 ${g.lv} 关还差 ${L.pairs - g.found} 对 · 过了 ${g.lv - 1} 关</p>`);
       }
     });
-    root.querySelector('.mg-result').addEventListener('click', (e) => { if (e.target.closest('.mg-again')) { open = []; lock = false; deal(); } });
-    deal();
+    res.addEventListener('click', (e) => {
+      if (e.target.closest('.mg-next')) { g.waiting = false; deal(g.lv + 1); grid.scrollIntoView({ block: 'nearest' }); }
+      if (e.target.closest('.mg-again')) { g.total = 0; g.settled = false; g.waiting = false; deal(1); }
+    });
+    g.total = 0; g.settled = false;
+    deal(1);
   }
 
   // The doors: one in 小窝's panel, one beside 播放回忆. Added from JS so a
@@ -8940,7 +9044,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, _mgTest: () => _mg, _gamePointsTest: gamePoints,
+    openGames, closeGames, playGame, _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,

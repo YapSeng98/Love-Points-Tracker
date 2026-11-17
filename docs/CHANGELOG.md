@@ -12,6 +12,15 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-17 — The mini games get levels and records
+
+接零食 now goes level by level: each level wants more treats in 15 seconds and
+falls faster, with ⭐ worth three, 🌶️ costing two and 💣 costing one of three
+hearts. 记忆翻牌 has four levels (6, 8 and 10 pairs) with a limit on moves.
+Points follow the levels you clear, up to +3 a day per game; a better run later
+the same day adds the difference. Each game remembers your best run on your
+phone, and 小游戏 is now a card on the home page.
+
 ## 2026-11-17 — Two mini games
 
 小窝 has a new button, 「和它玩小游戏」. 接零食: slide your pet to catch treats
