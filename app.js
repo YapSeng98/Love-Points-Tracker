@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-69';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-70';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -7370,8 +7370,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
 
     layer.innerHTML = particles + hero;
     sky.appendChild(layer);
-    // 跨年 and 春节 get the full show; 周年 and 情人节 a slower one with hearts in it.
-    const show = { nye: 'nye', cny: 'cny', anniv: 'love', vday: 'love' }[active.id];
+    // 跨年, 春节 and the couple's own 周年 get the full show — 周年 in pink and gold
+    // with hearts in it; 情人节 a slower one, since it already has its big heart.
+    const show = { nye: 'nye', cny: 'cny', anniv: 'anniv', vday: 'love' }[active.id];
     if (show && !_fwReduce()) _fireworksStart(layer, show);
   }
 
@@ -7392,6 +7393,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     nye:  ['#FFD75E', '#FF7BA8', '#7EC8FF', '#B18CFF', '#6BE0A6', '#FF9E6B', '#FFFFFF'],
     cny:  ['#FF4A3D', '#FFC94A', '#FF3B30', '#FF8A3D', '#FF5E7A'],
     love: ['#FF8FB8', '#FFD08F', '#FF6FA0', '#F6C760', '#FFC2DA'],
+    anniv: ['#FF8FB8', '#FFD75E', '#FF6FA0', '#F6C760', '#FFC2DA', '#C9A2F5', '#FFFFFF'],
   };
   let _fwStat = null;   // read by the tests: what has flown so far
   function _fireworksStart(layer, show) {
@@ -7402,7 +7404,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     layer.appendChild(cv);
     const ctx = cv.getContext('2d');
     if (!ctx) { cv.remove(); return; }
-    const pal = FW_PALETTE[show], gentle = show === 'love';
+    const pal = FW_PALETTE[show], gentle = show === 'love', hearts = gentle || show === 'anniv';
     const shells = [], stars = [], flashes = [];
     const stat = _fwStat = { show, launched: 0, burst: 0, kinds: {}, stars: 0 };
     let W = 0, H = 0, dpr = 1, last = 0, nextAt = 0, opening = gentle ? 1 : 3, dirty = false;
@@ -7424,7 +7426,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const burst = (sh) => {
       const R = Math.min(W, 520) * rnd(.23, .34) * (gentle ? .85 : 1);   // how far the stars get, in px
       const r = Math.random();
-      const kind = (gentle && r < .4) ? 'heart' : r < .34 ? 'peony' : r < .54 ? 'duo' : r < .7 ? 'willow' : r < .85 ? 'ring' : 'crackle';
+      const kind = (hearts && r < (gentle ? .4 : .3)) ? 'heart' : r < .34 ? 'peony' : r < .54 ? 'duo' : r < .7 ? 'willow' : r < .85 ? 'ring' : 'crackle';
       stat.burst++; stat.kinds[kind] = (stat.kinds[kind] || 0) + 1;
       const c1 = sh.col, c2 = pick(pal.filter(c => c !== c1));
       const willow = kind === 'willow';

@@ -546,7 +546,9 @@ evenly spaced dots is what made the old one look like a loading spinner), which
 slow, sag, twinkle and die. Peony, two-colour, ring, gold willow, crackle, and
 a heart on the couple's days.
 
-- 跨年 and 春节 get the full show; 周年 and 情人节 a slower one with hearts.
+- 跨年, 春节 and 周年 get the full show (周年 in pink and gold, hearts among
+  them — the user called 12-24's fireworks the most important thing in the
+  app); 情人节 a slower one, since it already has its big heart.
 - **Night only, by `data-period`** (§7.15) — by day the loop idles on a 1s
   timer and confetti stays the hero. Light adds up (`lighter`) on a dark sky;
   on a forced-light night that washes out to white, so it paints `source-over`.

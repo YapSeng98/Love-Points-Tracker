@@ -256,13 +256,26 @@ const shot = (p, name) => p.screenshot({ path: `${SHOTS}/season_${name}.png` });
       ok(r.cv === 0 && r.dots === 5 && !r.st, `减少动态效果：没有 canvas，保留 5 个静止光点 ${JSON.stringify(r)}`);
       await ctx.close();
     }
-    for (const [when, id] of [['2026-12-24T21:00:00', 'anniv'], ['2027-02-14T21:00:00', 'vday']]) {
+    for (const [when, id, show, lo, hi] of [['2026-12-24T21:00:00', 'anniv', 'anniv', 3, 12], ['2026-12-24T00:20:00', 'anniv', 'anniv', 3, 12], ['2027-02-14T21:00:00', 'vday', 'love', 1, 4]]) {
       const { p, ctx, errs } = await open(browser, when);
-      await sleep(5200);
+      let most = 0;
+      for (let i = 0; i < 10; i++) { await sleep(520); most = Math.max(most, (await lit(p)) || 0); }
       const st = await p.evaluate(() => App._fwTest());
-      ok(st && st.show === 'love' && st.launched >= 1 && st.launched <= 4, `${id} 夜里：慢一点的烟花（${st && st.launched} 发 / 5 秒）`);
-      await shot(p, `08b_fireworks_${id}`);
+      ok(st && st.show === show && st.launched >= lo && st.launched <= hi && most > 100, `${when.slice(5, 16)} ${id}：${show === 'love' ? '慢一点的' : '完整的'}烟花（${st && st.launched} 发 / 5 秒，${JSON.stringify(st && st.kinds)}，亮点 ${most}）`);
+      if (id === 'anniv') {
+        const top = await p.evaluate(() => ({ num: document.querySelector('.sky-bg .anniv-num')?.textContent, bal: document.querySelectorAll('.sky-bg .anniv-balloon').length, fest: document.documentElement.dataset.festival }));
+        ok(top.num === '2' && top.bal === 4 && top.fest === 'anniv', `周年当晚：金色「${top.num}」和气球还在，烟花在它们后面`);
+      }
+      await shot(p, `08b_fireworks_${id}_${when.slice(11, 13)}`);
       ok(!errs.length, `${id}：无报错 ` + errs.join(' | '));
+      await ctx.close();
+    }
+    {
+      // 12-24 by day: balloons only, and the show starts by itself when night comes
+      const { p, ctx } = await open(browser, '2026-12-24T12:00:00');
+      await sleep(2500);
+      const st = await p.evaluate(() => App._fwTest());
+      ok(st && st.launched === 0, '12-24 白天：不放烟花，只有气球');
       await ctx.close();
     }
     {
