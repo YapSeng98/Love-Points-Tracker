@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-67';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-68';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2092,6 +2092,26 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
 .mg-open{margin-top:10px}
 @media (prefers-reduced-motion:reduce){.mg-root{animation:none}.mg-card i{transition:none}.mg-pet.mg-ouch{animation:none}}`;
     document.head.appendChild(st);
+  }
+
+  // The home card. Reported the same day the games shipped: 「why can't I see
+  // the mini game」 — the only door was inside 小窝. It wears 每日签到's own
+  // classes, so it cannot drift from the home stack's width, inset and gap (§7.255).
+  function _mgHomeCard() {
+    const after = document.getElementById('checkin-banner');
+    if (!after) return;
+    let card = document.getElementById('mg-home');
+    if (!card) {
+      after.insertAdjacentHTML('afterend', `<div class="checkin-banner" id="mg-home" role="button" tabindex="0" onclick="App.openGames()">`
+        + `<div class="checkin-banner-left"><span style="font-size:22px">🎮</span><div>`
+        + `<div class="checkin-banner-title">小游戏</div><div class="checkin-banner-sub" id="mg-home-sub"></div></div></div>`
+        + `<div class="checkin-banner-badge">去玩</div></div>`);
+      card = document.getElementById('mg-home');
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGames(); } });
+    }
+    const leftToday = Object.keys(GAMES).filter(g => !gameRewardedToday(g)).length;
+    document.getElementById('mg-home-sub').textContent = leftToday
+      ? '接零食 · 记忆翻牌 · 今天还能拿分' : '今天的分拿过啦 · 还能随便玩';
   }
 
   let _mg = null;   // the game in play; read (and nudged) by the tests
@@ -6566,6 +6586,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
 
   /* ── Home banner ── */
   function renderPetBanner() {
+    try { _mgHomeCard(); } catch (e) {}
     const el = document.getElementById('pet-banner');
     if (!el) return;
     if (!S.petSpecies) {

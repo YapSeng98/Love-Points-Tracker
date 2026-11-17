@@ -823,6 +823,11 @@ in 小窝's panel and one beside 播放回忆, both added from JS; styles are in
   signed URL has died falls back on **both** of its cards.
 - The overlay is z-index 150: above 小窝 (125) and the 装扮 sheet (140) (§1.3).
 
+- **A feature whose only door is two screens deep does not exist.** The day it
+  shipped the user asked why they couldn't see it: the button was only inside
+  小窝. The home page now has a 小游戏 card under 每日签到, built from that
+  card's own classes so it shares the stack's width, inset and gap (§7.255).
+
 `tools/games-test.js` plays both: the pet really catches what it is under, a
 chilli costs two, the payout row, no second payout (also with the flag wiped),
 tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.

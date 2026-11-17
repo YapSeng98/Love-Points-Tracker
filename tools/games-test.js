@@ -92,6 +92,13 @@ const solve = async (p, wrongFirst = 0) => {
   console.log('\n2. 从小窝进去');
   {
     const { p, ctx, errs } = await open(browser);
+    const home = await p.evaluate(() => { const a = document.getElementById('checkin-banner').getBoundingClientRect(), c = document.getElementById('mg-home'), b = c && c.getBoundingClientRect(); return c && { n: document.querySelectorAll('#mg-home').length, same: Math.abs(a.left - b.left) < 1 && Math.abs(a.width - b.width) < 1, gap: Math.round(b.top - a.bottom), sub: document.getElementById('mg-home-sub').textContent }; });
+    ok(home && home.n === 1 && home.same && home.gap === 12 && /今天还能拿分/.test(home.sub), `首页有「小游戏」卡片，和签到卡片同宽同边距 ${JSON.stringify(home)}`);
+    await p.evaluate(() => App.nav('home')); await sleep(200);
+    ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '首页重画以后还是只有一张');
+    await p.evaluate(() => document.getElementById('mg-home').click()); await sleep(300);
+    ok(await p.evaluate(() => document.querySelectorAll('.mg-pick').length === 2), '点它打开选游戏的页面');
+    await p.evaluate(() => App.closeGames());
     await p.evaluate(() => App.showPetHome()); await sleep(600);
     const door = await p.evaluate(() => { const b = document.querySelector('.pet-panel .mg-open'); const r = b && b.getBoundingClientRect(); return b && { n: document.querySelectorAll('.pet-panel .mg-open').length, h: r.height, vis: r.bottom <= innerHeight && r.width > 200 }; });
     ok(door && door.n === 1 && door.h >= 40 && door.vis, `小窝里有一个「和它玩小游戏」按钮 ${JSON.stringify(door)}`);
@@ -148,6 +155,8 @@ const solve = async (p, wrongFirst = 0) => {
     await p.evaluate(() => { const g = App._mgTest(); g.score = 30; g.left = .05; });
     await p.waitForFunction(() => App._mgTest().done); await sleep(200);
     ok((await gameRows(p)).length === 1, '清掉手机上的标记也拿不到第二次：是按记录算的');
+    await p.evaluate(() => App.closeGames()); await p.evaluate(() => App.playGame('cards')); await sleep(400); await solve(p, 0); await p.evaluate(() => App.closeGames()); await sleep(200);
+    ok(/拿过啦/.test(await p.textContent('#mg-home-sub')), `两个游戏都拿过分以后，首页卡片改口：「${await p.textContent('#mg-home-sub')}」`);
     ok(!errs.length, '无报错 ' + errs.join(' | '));
     await ctx.close();
   }
