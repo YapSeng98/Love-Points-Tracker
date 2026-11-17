@@ -12,6 +12,13 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-17 — Two mini games
+
+小窝 has a new button, 「和它玩小游戏」. 接零食: slide your pet to catch treats
+for 20 seconds. 记忆翻牌: find six pairs made from your own photos (also
+reachable from 我们的时光). Each game gives each of you a few points once a day
+— up to +3 — and shows up in 本月记录; after that you can keep playing for fun.
+
 ## 2026-11-17 — Tick several in 记一笔; real fireworks
 
 The ＋ sheet now lets you tick as many items as happened — from 加分 and 扣分

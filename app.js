@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-66';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-67';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1979,6 +1979,324 @@ const App = (() => {
     doCheckin(S.activeChar === 'char1' ? 'char2' : 'char1');
   }
 
+
+  /* ── 小游戏 — 接零食 (the couple's own pet) and 记忆翻牌 (their own photos) ──
+     Asked for 2026-11-17 after a try-out page. Two rules shape all of it:
+
+     · Points are small and capped: each game pays each PERSON at most once a
+       day (接零食 up to +3, 翻牌 up to +3), and after that it is just for fun.
+       The payout is an ordinary entry — 「🎮 小游戏」 in 本月记录, on both
+       phones — so "already paid today" is derived from the ledger (§4), with
+       a per-phone flag only as the backstop for a month settled the same day.
+     · The player is the login, _me(), never S.activeChar (§6): a game played
+       with the whose-points switch on the partner still pays the player.
+
+     Styles are injected from here (mg-*), so a stale cached index.html can't
+     leave it unstyled (§7.27), and the overlay sits above 小窝 (125) and the
+     装扮 sheet (140) (§1.3). */
+  const GAME_CAT = '🎮 小游戏';
+  const GAMES = {
+    catch: { name: '接零食',   icon: '🦴', how: '20 秒，左右滑动接住零食，辣椒要躲开', max: 3 },
+    cards: { name: '记忆翻牌', icon: '🃏', how: '用你们的照片，找出 6 对一样的', max: 3 },
+  };
+  const _mgFlag = (g, who) => `mg_done_${g}_${who}_${todayStr()}`;
+  function gameRewardedToday(g, who = _me()) {
+    const today = todayStr();
+    if ((S.entries || []).some(e => e.catName === GAME_CAT && e.date === today
+        && (e.charId || 'char1') === who && String(e.desc || '').startsWith(GAMES[g].name))) return true;
+    try { return localStorage.getItem(_mgFlag(g, who)) === '1'; } catch (e) { return false; }
+  }
+  // 接零食: n = caught. 翻牌: n = moves used (6 is perfect).
+  function gamePoints(g, n) {
+    if (g === 'catch') return n >= 28 ? 3 : n >= 20 ? 2 : n >= 10 ? 1 : 0;
+    return n <= 9 ? 3 : n <= 13 ? 2 : 1;
+  }
+  async function _mgAward(g, pts, detail) {
+    const who = _me();
+    if (pts <= 0 || gameRewardedToday(g, who)) return 0;
+    const flag = _mgFlag(g, who);
+    try {   // set BEFORE the request: a second finish while it is in flight must not pay twice
+      Object.keys(localStorage).filter(k => k.startsWith('mg_done_') && !k.endsWith(todayStr())).forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(flag, '1');
+    } catch (e) {}
+    try {
+      const date = todayStr();
+      await Data.addEntry({
+        id: 'e' + Date.now(), catId: '', catName: GAME_CAT, icon: '🎮', pts,
+        desc: `${GAMES[g].name} · ${detail}`, charId: who, month: date.slice(0, 7), date,
+      });
+      await refresh();
+      return pts;
+    } catch (err) {
+      try { localStorage.removeItem(flag); } catch (e) {}
+      showToast('分数没记上: ' + err.message);
+      return 0;
+    }
+  }
+
+  function _mgStyle() {
+    if (document.getElementById('mg-style')) return;
+    const st = document.createElement('style');
+    st.id = 'mg-style';
+    st.textContent = `
+.mg-root{position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;align-items:center;background:linear-gradient(180deg,#FFF3F8,#F1EBFF);color:#3A2F4F;font-family:inherit;padding:calc(10px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));box-sizing:border-box;overflow-y:auto;animation:mg-in .28s ease-out}
+html[data-theme="dark"] .mg-root{background:linear-gradient(180deg,#1E1A33,#2A1C36);color:#EEE8F6}
+@keyframes mg-in{from{opacity:0;transform:translateY(14px)}}
+.mg-col{width:100%;max-width:460px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.mg-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mg-title{font-size:20px;font-weight:800;margin:0}
+.mg-x{width:44px;height:44px;border-radius:50%;border:0;background:rgba(120,100,160,.14);color:inherit;font-size:18px;cursor:pointer}
+.mg-how{font-size:14px;opacity:.78;margin:0;line-height:1.5}
+.mg-pick{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border-radius:20px;border:1.5px solid rgba(160,130,200,.28);background:rgba(255,255,255,.82);color:inherit;font-family:inherit;cursor:pointer;box-shadow:0 10px 20px -14px rgba(90,60,150,.5)}
+html[data-theme="dark"] .mg-pick{background:rgba(255,255,255,.07);border-color:rgba(200,180,255,.2)}
+.mg-pick:active{transform:scale(.98)}
+.mg-pick .mg-ic{min-width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:linear-gradient(180deg,#FFE3EE,#FFD0E2)}
+html[data-theme="dark"] .mg-pick .mg-ic{background:linear-gradient(180deg,#4A2A52,#3B2248)}
+.mg-pick b{display:block;font-size:16.5px;margin-bottom:2px}
+.mg-pick span{font-size:13px;opacity:.78;line-height:1.45;display:block}
+.mg-pick .mg-pay{margin-top:5px;font-weight:700;opacity:1;color:#B23A72}
+html[data-theme="dark"] .mg-pick .mg-pay{color:#FF9CC4}
+.mg-pick .mg-pay.mg-paid{color:#5E7A68}
+html[data-theme="dark"] .mg-pick .mg-pay.mg-paid{color:#8FD0A8}
+.mg-hud{display:flex;justify-content:space-between;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.mg-field{position:relative;flex:1;min-height:260px;max-height:68vh;border-radius:22px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:linear-gradient(180deg,#FFE9D6 0%,#FBDCC2 72%,#E9C3A0 72.2%,#DDB08A 100%)}
+html[data-theme="dark"] .mg-field{background:linear-gradient(180deg,#3B3260 0%,#362C58 72%,#2E2547 72.2%,#271F3D 100%)}
+.mg-field canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+.mg-pet{position:absolute;bottom:4%;left:50%;width:24%;max-width:120px;transform:translateX(-50%);pointer-events:none;filter:drop-shadow(0 6px 5px rgba(60,30,20,.28))}
+.mg-pet svg{width:100%;height:auto;display:block}
+.mg-pet.mg-ouch{animation:mg-ouch .35s}
+@keyframes mg-ouch{25%{transform:translateX(-50%) rotate(-9deg)}75%{transform:translateX(-50%) rotate(9deg)}}
+.mg-cover{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,246,250,.72);text-align:center;padding:18px}
+html[data-theme="dark"] .mg-cover{background:rgba(24,20,40,.74)}
+.mg-cover>div{display:flex;flex-direction:column;gap:10px;align-items:center;max-width:300px}
+.mg-big{font-size:24px;font-weight:800;margin:0}
+.mg-line{font-size:14.5px;margin:0;line-height:1.5}
+.mg-line.mg-win{font-weight:800;color:#B23A72}
+html[data-theme="dark"] .mg-line.mg-win{color:#FF9CC4}
+.mg-btn{min-height:50px;padding:0 26px;border:0;border-radius:17px;cursor:pointer;color:#fff;font:800 16px/1 inherit;font-family:inherit;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 10px 18px -10px rgba(220,70,140,.8)}
+.mg-btn:active{transform:scale(.97)}
+.mg-btn.mg-ghost{background:transparent;box-shadow:none;color:inherit;border:1.5px solid rgba(150,120,190,.4)}
+.mg-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;perspective:900px}
+@media (min-width:600px){.mg-cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.mg-card{position:relative;aspect-ratio:1;border:0;padding:0;background:transparent;cursor:pointer;border-radius:16px}
+.mg-card i{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .42s cubic-bezier(.3,.8,.3,1);display:grid;place-items:center;overflow:hidden;font-style:normal;pointer-events:none}
+.mg-card .mg-back{background:linear-gradient(145deg,#F9A8C9,#C9A2F5);box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 8px 14px -10px rgba(120,60,160,.7);font-size:24px;color:#fff}
+.mg-card .mg-face{background:#fff;transform:rotateY(180deg);font-size:38px;box-shadow:0 8px 14px -10px rgba(120,60,160,.7)}
+html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
+.mg-card .mg-face img{width:100%;height:100%;object-fit:cover;display:block}
+.mg-card.mg-up .mg-back{transform:rotateY(180deg)}
+.mg-card.mg-up .mg-face{transform:rotateY(360deg)}
+.mg-card.mg-ok .mg-face{outline:3px solid #5BC08A;outline-offset:-3px}
+.mg-card:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
+.mg-result{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;padding:6px 0 4px}
+.mg-open{margin-top:10px}
+@media (prefers-reduced-motion:reduce){.mg-root{animation:none}.mg-card i{transition:none}.mg-pet.mg-ouch{animation:none}}`;
+    document.head.appendChild(st);
+  }
+
+  let _mg = null;   // the game in play; read (and nudged) by the tests
+  function closeGames() {
+    if (_mg) _mg.over = true;
+    _mg = null;
+    document.removeEventListener('keydown', _mgKey);
+    document.querySelector('.mg-root')?.remove();
+  }
+  function _mgKey(e) {
+    if (e.key === 'Escape') return closeGames();
+    if (_mg && _mg.game === 'catch' && !_mg.over && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      _mg.x = Math.max(.08, Math.min(.92, _mg.x + (e.key === 'ArrowLeft' ? -.07 : .07)));
+      e.preventDefault();
+    }
+  }
+  function _mgShell(title, inner) {
+    _mgStyle();
+    closeGames();
+    const root = document.createElement('div');
+    root.className = 'mg-root';
+    root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', title);
+    root.innerHTML = `<div class="mg-col"><div class="mg-top"><h3 class="mg-title">${title}</h3>`
+      + `<button type="button" class="mg-x" aria-label="关闭" onclick="App.closeGames()">✕</button></div>${inner}</div>`;
+    document.body.appendChild(root);
+    document.addEventListener('keydown', _mgKey);
+    return root;
+  }
+  const _mgPayLine = (g) => gameRewardedToday(g)
+    ? `<span class="mg-pay mg-paid">今天的分拿过啦 · 还可以随便玩</span>`
+    : `<span class="mg-pay">今天第一次玩，最多 +${GAMES[g].max} 分</span>`;
+
+  function openGames() {
+    _mgShell('🎮 小游戏', Object.keys(GAMES).map(g =>
+      `<button type="button" class="mg-pick" data-g="${g}" onclick="App.playGame('${g}')">`
+      + `<span class="mg-ic">${GAMES[g].icon}</span><span><b>${GAMES[g].name}</b><span>${GAMES[g].how}</span>${_mgPayLine(g)}</span></button>`
+    ).join('') + `<p class="mg-how">每个游戏每人每天记一次分，会出现在「本月记录」里，两个人都看得到。</p>`);
+  }
+  function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
+
+  // What the result screen says about points — one place, so the two games agree.
+  async function _mgSettle(g, n, detail) {
+    const want = gamePoints(g, n), paidAlready = gameRewardedToday(g);
+    if (paidAlready) return `<p class="mg-line">今天的分已经拿过了，这局是纯玩 😄</p>`;
+    if (!want) return `<p class="mg-line">接到 10 个才有分，再来一次？</p>`;
+    const got = await _mgAward(g, want, detail);
+    return got ? `<p class="mg-line mg-win">💙 +${got} 分，记给 ${_escHtml(charDisplayName(_me()))}</p>`
+               : `<p class="mg-line">这次没记上分，等下再试试</p>`;
+  }
+
+  /* 接零食 */
+  function _mgCatch() {
+    let art = '';
+    try { art = S.petSpecies ? petSvg(petStageInfo().idx) : ''; } catch (e) {}
+    const root = _mgShell('🦴 接零食',
+      `<div class="mg-hud"><span class="mg-score">接到 0</span><span class="mg-time">20 秒</span></div>`
+      + `<div class="mg-field" tabindex="0" aria-label="游戏区域，左右滑动或用方向键"><canvas></canvas>`
+      + `<div class="mg-pet">${art || '<div style="font-size:52px;text-align:center">🐶</div>'}</div>`
+      + `<div class="mg-cover"><div><p class="mg-big">准备好了吗？</p><p class="mg-line">${GAMES.catch.how}。接到 10 / 20 / 28 个：+1 / +2 / +3 分。</p>`
+      + `<button type="button" class="mg-btn mg-start">开始</button></div></div></div>`);
+    const field = root.querySelector('.mg-field'), cv = field.querySelector('canvas'), ctx = cv.getContext('2d');
+    const pet = field.querySelector('.mg-pet'), cover = field.querySelector('.mg-cover');
+    const TREATS = ['🦴', '🍖', '🍪', '🧀', '🍓'];
+    const g = _mg = { game: 'catch', x: .5, score: 0, left: 20, over: true, items: [], pops: [] };
+    let W = 0, H = 0, last = 0, spawn = 0;
+    const fit = () => {
+      const w = cv.clientWidth, h = cv.clientHeight;
+      if (w === W && h === H) return;
+      W = w; H = h; const d = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = Math.round(W * d); cv.height = Math.round(H * d); ctx.setTransform(d, 0, 0, d, 0, 0);
+    };
+    const move = (e) => { const r = field.getBoundingClientRect(); g.x = Math.max(.08, Math.min(.92, (e.clientX - r.left) / r.width)); pet.style.left = (g.x * 100) + '%'; };
+    field.addEventListener('pointerdown', move); field.addEventListener('pointermove', move);
+    const finish = async () => {
+      g.over = true;
+      cover.hidden = false; cover.style.display = '';
+      cover.innerHTML = `<div><p class="mg-big">接到 ${g.score} 个！</p><p class="mg-line">算分中…</p></div>`;
+      const line = await _mgSettle('catch', g.score, `接到 ${g.score} 个`);
+      if (_mg !== g) return;   // closed while the entry was saving
+      g.done = true;
+      cover.innerHTML = `<div><p class="mg-big">接到 ${g.score} 个！</p>${line}`
+        + `<button type="button" class="mg-btn mg-start">再玩一次</button>`
+        + `<button type="button" class="mg-btn mg-ghost" onclick="App.closeGames()">回小窝</button></div>`;
+    };
+    const tick = (t) => {
+      if (_mg !== g || g.over) return;
+      const dt = last ? Math.min(.05, (t - last) / 1000) : .016; last = t;
+      fit();
+      g.left -= dt; spawn -= dt;
+      const pace = 1 - Math.max(0, g.left) / 20;   // 0 → 1: it gets busier
+      if (spawn <= 0) {
+        g.items.push({ x: .08 + Math.random() * .84, y: -18, v: 120 + Math.random() * 70 + pace * 90, e: Math.random() < .18 ? '🌶️' : TREATS[(Math.random() * TREATS.length) | 0] });
+        spawn = .62 - pace * .3 + Math.random() * .2;
+      }
+      pet.style.left = (g.x * 100) + '%';
+      const pr = pet.getBoundingClientRect(), fr = field.getBoundingClientRect();
+      const top = pr.top - fr.top, reach = pr.width * .5;
+      g.items = g.items.filter(o => {
+        o.y += o.v * dt;
+        if (o.y > top + 6 && o.y < top + pr.height * .6 && Math.abs(o.x - g.x) * W < reach) {
+          const bad = o.e === '🌶️';
+          g.score = Math.max(0, g.score + (bad ? -2 : 1));
+          g.pops.push({ x: o.x * W, y: top, t: 0, s: bad ? '−2' : '+1', bad });
+          if (bad) { pet.classList.remove('mg-ouch'); void pet.offsetWidth; pet.classList.add('mg-ouch'); }
+          return false;
+        }
+        return o.y < H + 24;
+      });
+      ctx.clearRect(0, 0, W, H);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '28px serif';
+      g.items.forEach(o => ctx.fillText(o.e, o.x * W, o.y));
+      ctx.font = '800 17px sans-serif';
+      g.pops = g.pops.filter(p => { p.t += dt; ctx.globalAlpha = Math.max(0, 1 - p.t / .6); ctx.fillStyle = p.bad ? '#D9534F' : '#E0508F'; ctx.fillText(p.s, p.x, p.y - p.t * 50); ctx.globalAlpha = 1; return p.t < .6; });
+      root.querySelector('.mg-score').textContent = `接到 ${g.score}`;
+      root.querySelector('.mg-time').textContent = `${Math.max(0, Math.ceil(g.left))} 秒`;
+      if (g.left <= 0) { ctx.clearRect(0, 0, W, H); finish(); return; }
+      requestAnimationFrame(tick);
+    };
+    cover.addEventListener('click', (e) => {
+      if (!e.target.closest('.mg-start')) return;
+      Object.assign(g, { score: 0, left: 20, over: false, done: false, items: [], pops: [] });
+      last = 0; spawn = .3;
+      cover.style.display = 'none';
+      field.focus({ preventScroll: true });
+      requestAnimationFrame(tick);
+    });
+  }
+
+  /* 记忆翻牌 */
+  async function _mgCards() {
+    const root = _mgShell('🃏 记忆翻牌', `<p class="mg-how">${GAMES.cards.how}。9 步以内 +3 分，13 步以内 +2 分，找齐就有 +1 分。</p>`
+      + `<div class="mg-hud"><span class="mg-moves">0 步</span><span class="mg-found">0 / 6 对</span></div>`
+      + `<div class="mg-cards" aria-label="12 张牌"></div><div class="mg-result" aria-live="polite"></div>`);
+    const g = _mg = { game: 'cards', moves: 0, found: 0, over: false, photos: 0 };
+    // The couple's own photos when there are any (§5: only the once-per-session load, never a refetch).
+    if (!(S.photos || []).length) { try { await _loadStatsSources(); } catch (e) {} }
+    if (_mg !== g) return;
+    const FALLBACK = ['🌅', '🎡', '🍰', '🏖️', '🎄', '🌸'];
+    const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const deal = () => {
+      const pics = shuffle((S.photos || []).filter(p => p && p.image).slice()).slice(0, 6);
+      g.photos = pics.length;
+      const faces = FALLBACK.map((e, i) => ({ k: i, e, img: pics[i] ? pics[i].image : '' }));
+      const deck = shuffle([...faces, ...faces]);
+      Object.assign(g, { moves: 0, found: 0, over: false, done: false, deck: deck.map(f => f.k) });
+      const grid = root.querySelector('.mg-cards');
+      grid.innerHTML = deck.map((f, i) =>
+        `<button type="button" class="mg-card" data-k="${f.k}" aria-label="第 ${i + 1} 张牌"><i class="mg-back">💗</i>`
+        + `<i class="mg-face">${f.img ? `<img src="${_escHtml(f.img)}" alt="" data-e="${f.e}">` : f.e}</i></button>`).join('');
+      // A signed photo URL can have expired (4h): that pair falls back to its emoji, on both cards.
+      grid.querySelectorAll('img').forEach(im => im.addEventListener('error', () => {
+        grid.querySelectorAll(`.mg-card[data-k="${im.closest('.mg-card').dataset.k}"] .mg-face`).forEach(f => { f.textContent = im.dataset.e; });
+      }));
+      root.querySelector('.mg-result').innerHTML = '';
+      paint();
+    };
+    const paint = () => {
+      root.querySelector('.mg-moves').textContent = `${g.moves} 步`;
+      root.querySelector('.mg-found').textContent = `${g.found} / 6 对`;
+    };
+    let open = [], lock = false;
+    root.querySelector('.mg-cards').addEventListener('click', async (e) => {
+      const b = e.target.closest('.mg-card');
+      if (!b || lock || g.over || b.classList.contains('mg-up')) return;
+      b.classList.add('mg-up'); open.push(b);
+      if (open.length < 2) return;
+      const [a, c] = open; open = []; g.moves++;
+      if (a.dataset.k === c.dataset.k) {
+        a.classList.add('mg-ok'); c.classList.add('mg-ok'); g.found++;
+      } else {
+        lock = true;
+        setTimeout(() => { a.classList.remove('mg-up'); c.classList.remove('mg-up'); lock = false; }, 800);
+      }
+      paint();
+      if (g.found === 6) {
+        g.over = true;
+        const res = root.querySelector('.mg-result');
+        res.innerHTML = `<p class="mg-big">🎉 ${g.moves} 步找齐！</p><p class="mg-line">算分中…</p>`;
+        const line = await _mgSettle('cards', g.moves, `${g.moves} 步找齐`);
+        if (_mg !== g) return;
+        g.done = true;
+        res.innerHTML = `<p class="mg-big">🎉 ${g.moves} 步找齐！</p>${line}`
+          + `<button type="button" class="mg-btn mg-again">再玩一次</button>`;
+        res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+    root.querySelector('.mg-result').addEventListener('click', (e) => { if (e.target.closest('.mg-again')) { open = []; lock = false; deal(); } });
+    deal();
+  }
+
+  // The doors: one in 小窝's panel, one beside 播放回忆. Added from JS so a
+  // stale cached page still gets them (§7.27).
+  function _mgDoors() {
+    _mgStyle();
+    const decor = document.querySelector('.pet-panel .pet-decor-open:not(.mg-open)');
+    if (decor && !document.querySelector('.pet-panel .mg-open')) {
+      decor.insertAdjacentHTML('afterend', `<button type="button" class="pet-decor-open mg-open" onclick="App.openGames()">🎮 和它玩小游戏</button>`);
+    }
+    const play = document.getElementById('lp-mem-play');
+    if (play && !document.getElementById('mg-cards-open')) {
+      play.insertAdjacentHTML('afterend', `<button type="button" class="lp-mem-play" id="mg-cards-open" style="margin-top:8px" onclick="App.playGame('cards')">🃏 用照片玩翻牌</button>`);
+    }
+  }
+
   /* ── Public API ── */
   async function connect() {
     const username = document.getElementById('sn-username').value.trim();
@@ -3198,6 +3516,7 @@ const App = (() => {
       </label>`;
     const play = document.getElementById('lp-mem-play');
     if (play) play.style.display = (S.photos || []).length ? '' : 'none';
+    _mgDoors();
   }
 
   async function pickMemoryPhoto(input) {
@@ -6331,6 +6650,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     await _loadStatsSources();
     try { S.decorOwned = await Data.getDecorOwned(); } catch { S.decorOwned = []; }
     renderPetHome();
+    _mgDoors();
     _markRoomSynced();
     startPetSync();
     _u3dRoom();
@@ -8599,6 +8919,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
+    openGames, closeGames, playGame, _mgTest: () => _mg, _gamePointsTest: gamePoints,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,

@@ -798,6 +798,35 @@ the login screens, and 360/390/820 in both themes. The other browser suites now
 run in the new look by default; run them again with
 `APP_URL=…/index.html?look=classic` — they must pass in both.
 
+## 7.32 🎮 小游戏 — small, capped, and paid through the ledger
+
+Added 2026-11-17, after a try-out page: 接零食 (the couple's own pet catches
+treats for 20s) and 记忆翻牌 (six pairs from their own photos). Doors: a button
+in 小窝's panel and one beside 播放回忆, both added from JS; styles are injected
+(`mg-*`), so there is no index.html change and nothing for a stale page to miss.
+
+- **A game pays each person at most once a day** (接零食 10/20/28 → +1/+2/+3;
+  翻牌 ≤9/≤13/any → +3/+2/+1), then it is just for fun. Under the lowest tier
+  nothing is paid *and the day is not used up*.
+- **The payout is an ordinary entry** — `🎮 小游戏`, desc `接零食 · 接到 21 个`,
+  sent through `Data.addEntry` like a check-in — so both phones see it, settle
+  archives it, and "already paid today" is **derived from the entries** (§4).
+  A per-phone flag (`mg_done_<game>_<who>_<date>`) is only the backstop for a
+  month settled the same day, and is set *before* the request so a second
+  finish in flight cannot pay twice.
+- **The player is `_me()`** (§6), never the whose-points switch.
+- There is no server rule behind the cap: any phone can already add any entry,
+  and what keeps this honest is the same thing that keeps the rest honest — it
+  shows in 本月记录 on both phones. Do not raise the payouts without adding one.
+- 翻牌 uses `S.photos` as loaded (the once-per-session load, never a refetch —
+  §5); fewer than six photos are topped up with pictures, and a photo whose
+  signed URL has died falls back on **both** of its cards.
+- The overlay is z-index 150: above 小窝 (125) and the 装扮 sheet (140) (§1.3).
+
+`tools/games-test.js` plays both: the pet really catches what it is under, a
+chilli costs two, the payout row, no second payout (also with the flag wiped),
+tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -1269,7 +1298,7 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js — serve the repo
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
@@ -1364,6 +1393,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/ui3d-test.js` | 新外观 and the login screens: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=classic` in `APP_URL` (they run in the new look by default) |
 | `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
+| `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
