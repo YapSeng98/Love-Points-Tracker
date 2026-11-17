@@ -12,6 +12,15 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-17 — Fireworks you set off for each other
+
+On a firework night (周年, 跨年, 春节, 情人节), tap the open sky at the top of
+the home page to launch a firework where you tapped. If your partner has the
+app open, the same firework goes off on their phone a moment later, and it
+tells them who sent it. 周年 now gets the full show, in pink and gold with
+hearts. Also fixed: after signing in fresh, your weather was not sent to your
+partner until up to 20 minutes later.
+
 ## 2026-11-17 — The mini games get levels and records
 
 接零食 now goes level by level: each level wants more treats in 15 seconds and

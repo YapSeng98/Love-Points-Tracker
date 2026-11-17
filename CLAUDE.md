@@ -560,6 +560,36 @@ a heart on the couple's days.
   cards), and takes no taps.
 - Reduced motion keeps the five still dots and starts nothing.
 
+### Shared: one taps, the other sees it
+
+On a firework night, a tap on the open sky launches a shell where the finger
+was — and the partner's phone draws **the same one**. What travels is five
+numbers: place (as fractions of the sky, since the phones differ in size),
+colour, kind, and a seed; each phone grows the identical shell from them
+(`_seeded`). Nothing is stored anywhere.
+
+- **The couple's live channel** is Supabase Realtime Broadcast on a *private*
+  channel, `couple:<match id>`, spoken over a plain WebSocket (no library).
+  Two policies on `realtime.messages` (`supabase/sql/2026-11-17-live-channel.sql`)
+  let a session join, hear and send only on its own couple's channel. The
+  *public* door to the same topic name is a different channel that anyone can
+  use — which is exactly why nothing of ours does.
+- It is open **only while a show is on screen**, closed in the background, and
+  silent when it fails; an ordinary night opens no connection at all. A refused
+  join refreshes the access token once (they last an hour, §0.0) and retries.
+- **Never trust the wire**: a place outside 0–1 or an unknown kind is dropped.
+- Only the empty header counts as sky. Portraits, ♫, ⚙️, the mode switch and
+  anything behind an open sheet keep their own taps.
+- Found building it: **the sign-in path never called the session-up hook**
+  (`flushWeather`) — register and a resumed session did. So after a fresh
+  sign-in the weather held at module load (§7.215) waited for the next
+  20-minute refresh, and the channel had nothing to open it. Every "the session
+  is up" consumer now hangs off that one hook, called from all three paths.
+
+`supabase/test-live.mjs` attacks the channel (no login, another couple's login,
+a made-up id, the public door); `tools/fireworks-live-test.js` logs two phones
+in and checks the same shell arrives both ways, on different screen sizes.
+
 `tools/season-test.js` §6b reads the canvas pixels back: lit at night in both
 themes, dark by day, absent under reduced motion and on ordinary nights.
 
@@ -1315,7 +1345,8 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
-  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js — serve the repo
+  (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
+  fireworks-live-test.js, smooth-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
@@ -1410,6 +1441,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/ui3d-test.js` | 新外观 and the login screens: off by default, the 设置 switch, the ＋ sheet saving a real entry, the 月末结算 chip, entry actions on tap, tilt, the room's light letting taps through and never moving furniture, turning it off cleanly, reduced motion, 360/390/820 both themes. Run the other browser suites again with `?look=classic` in `APP_URL` (they run in the new look by default) |
 | `node tools/identity-test.js` | "Who am I" with the whose-points switch on the partner: weather slots, letter/photo authorship (server-stamped), who may open, rewrite or delete a letter — live backend, local app |
 | `node tools/room-test.js` | 小窝 taps and placement: a piece behind the pet can be picked up, the pet still reacts, bubble/rug don't block, new pieces land in view (360/390/820) |
+| `node supabase/test-live.mjs` | The couple's live channel, attacked: both partners join and hear each other; no login, another couple, a made-up id and the public door are all shut out |
+| `node tools/fireworks-live-test.js` | Shared fireworks with two logged-in phones on the live backend: the same shell both ways, different screen sizes, one toast per volley, taps that are not for the sky, junk on the wire, background/foreground, ordinary nights open no connection |
+| `node tools/smooth-test.js` | Frame pacing with the CPU slowed 4×: home, scrolling, the ＋ sheet, sheets, 小窝, both games, 我们的时光, and each firework show while tapping and scrolling. Fails under 50 fps or on a stall over 120 ms. Run it alone |
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |

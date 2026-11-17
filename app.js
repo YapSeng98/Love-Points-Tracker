@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-70';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.17-71';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -315,6 +315,7 @@ const App = (() => {
   // Called once the session is up (both login paths + a resumed session).
   function flushWeather() {
     if (!S.usingSN) return;
+    try { Live.sync(); } catch (e) {}   // a show that started before login can go live now
     if (_wxPending) publishWeather(_wxPending);
     else refreshWeather().catch(() => {});   // warm cache → publishes, no refetch
     try { renderPartnerWeather(); } catch (e) {}
@@ -2473,6 +2474,11 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       await Data.init();
       await refresh();
       document.getElementById('setup-overlay').classList.add('hidden');
+      // The session is up. This path never called the hook — register and a
+      // resumed session did — so after a fresh sign-in the weather held back
+      // at module load (§7.215) was not sent until the next 20-minute refresh,
+      // and the live channel had nothing to open it.
+      setTimeout(flushWeather, 0);
       if (S.needsSetup) {
         showSettings();
         showToast('欢迎！请先设置游戏规则 ⚙️');
@@ -7396,6 +7402,92 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     anniv: ['#FF8FB8', '#FFD75E', '#FF6FA0', '#F6C760', '#FFC2DA', '#C9A2F5', '#FFFFFF'],
   };
   let _fwStat = null;   // read by the tests: what has flown so far
+  let _fw = null;       // the running show, if any: { canvas, tap(), remote() }
+  const _seeded = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+  /* The couple's live channel — Supabase Realtime Broadcast on a PRIVATE
+     channel, "couple:<match id>". Policies on realtime.messages (supabase/sql/
+     2026-11-17-live-channel.sql) let a session join, hear and send only on its
+     own couple's channel; supabase/test-live.mjs attacks that. Nothing is
+     stored: a message exists only for whoever is listening at that moment.
+
+     No library: it is a WebSocket speaking Phoenix's little JSON protocol.
+     It is open ONLY while something on screen needs it (today: a firework
+     show), closed when the app is in the background, and every failure is
+     silent — without it the app is exactly what it was. Access tokens last
+     an hour (§0.0): a refused join refreshes the token once and tries again. */
+  const Live = (() => {
+    let ws = null, joined = false, hb = null, timer = null, tries = 0, ref = 0, refreshed = false;
+    const on = {};
+    const wanted = () => !!(_fw && S.usingSN && S.matchId && S.apiKey && !document.hidden && typeof WebSocket !== 'undefined');
+    const drop = () => { clearInterval(hb); hb = null; joined = false; const w = ws; ws = null; if (w) { w.onclose = w.onerror = w.onmessage = null; try { w.close(); } catch (e) {} } };
+    const later = () => { clearTimeout(timer); if (wanted()) timer = setTimeout(sync, Math.min(60000, 2000 * Math.pow(2, tries++))); };
+    function open() {
+      const topic = `realtime:couple:${S.matchId}`;
+      let sock;
+      try { sock = ws = new WebSocket(`${SB_URL.replace(/^http/, 'ws')}/realtime/v1/websocket?apikey=${SB_KEY}&vsn=1.0.0`); } catch (e) { return later(); }
+      sock.onopen = () => sock.send(JSON.stringify({ topic, event: 'phx_join', ref: 'join', join_ref: 'join',
+        payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' }, private: true }, access_token: S.apiKey } }));
+      sock.onmessage = (m) => {
+        let d; try { d = JSON.parse(m.data); } catch (e) { return; }
+        if (d.event === 'phx_reply' && d.ref === 'join') {
+          if (d.payload && d.payload.status === 'ok') {
+            joined = true; tries = 0; refreshed = false;
+            hb = setInterval(() => { try { sock.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++ref) })); } catch (e) {} }, 25000);
+          } else {
+            // Most often an access token past its hour. Refresh once, then back off.
+            drop();
+            if (!refreshed) { refreshed = true; _sbRefresh().then(ok => { ok ? sync() : later(); }); } else later();
+          }
+        } else if (d.event === 'broadcast' && d.payload && d.topic === topic) {
+          const h = on[d.payload.event];
+          if (h) { try { h(d.payload.payload || {}); } catch (e) {} }
+        } else if (d.event === 'phx_error' || d.event === 'phx_close') { drop(); later(); }
+      };
+      sock.onclose = sock.onerror = () => { if (ws === sock) { drop(); later(); } };
+    }
+    // Bring the socket in line with what the screen needs right now.
+    function sync() {
+      clearTimeout(timer);
+      if (!wanted()) { tries = 0; return drop(); }
+      if (!ws) open();
+    }
+    function send(event, payload) {
+      if (!joined || !ws) return false;
+      try { ws.send(JSON.stringify({ topic: `realtime:couple:${S.matchId}`, event: 'broadcast', payload: { type: 'broadcast', event, payload }, ref: String(++ref), join_ref: 'join' })); return true; } catch (e) { return false; }
+    }
+    document.addEventListener('visibilitychange', sync);
+    return { sync, send, on: (event, fn) => { on[event] = fn; }, state: () => ({ open: !!ws, joined }) };
+  })();
+
+  // The partner's firework arriving. Named once a minute at most, so a volley is not a wall of toasts.
+  let _fwToastAt = 0;
+  Live.on('fw', (ev) => {
+    if (!_fw || !_fw.remote(ev)) return;
+    if (Date.now() - _fwToastAt > 60000) {
+      _fwToastAt = Date.now();
+      const who = _me() === 'char1' ? 'char2' : 'char1';
+      showToast(`🎆 ${charDisplayName(who)} 给你放了烟花`);
+    }
+  });
+
+  // A tap on the open sky sends one up where the finger was, and tells the partner.
+  // Only empty header: anything that does something already (the portraits, ♫, ⚙️, cards) keeps its tap.
+  let _fwTapAt = 0;
+  document.addEventListener('click', (e) => {
+    if (!_fw || e.defaultPrevented) return;
+    const t = e.target;
+    if (!t || !t.closest || !(t === document.body || t.id === 'app' || t.closest('.header'))) return;
+    if (t.closest('button, a, input, select, textarea, label, [onclick], [role="button"], .char-wrap, .mode-row, .modal-overlay')) return;
+    if (document.querySelector('.modal-overlay.open, .u3d-sheet, .mg-root, #anv-root, .bdf-root')) return;
+    const nowMs = performance.now();
+    if (nowMs - _fwTapAt < 180) return;
+    const ev = _fw.tap(e.clientX, e.clientY);
+    if (!ev) return;
+    _fwTapAt = nowMs;
+    Live.send('fw', ev);
+  });
+
   function _fireworksStart(layer, show) {
     const cv = document.createElement('canvas');
     cv.className = 'fw-canvas';
@@ -7416,7 +7508,19 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       W = w; H = h; dpr = Math.min(2, window.devicePixelRatio || 1);
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     };
-    const launch = () => {
+    const kindOf = (r) => (hearts && r < (gentle ? .4 : .3)) ? 'heart' : r < .34 ? 'peony' : r < .54 ? 'duo' : r < .7 ? 'willow' : r < .85 ? 'ring' : 'crackle';
+    // ev: a SHARED shell (a tap here, or the partner's tap arriving) — where,
+    // which colour and kind, and a seed. Both phones draw it from those few
+    // numbers, so it is the same firework in the same place on both. Positions
+    // are fractions of the canvas, since the two screens differ in size.
+    const launch = (ev) => {
+      if (ev) {
+        fit();
+        const ty = ev.y * H;
+        shells.push({ x: ev.x * W, y: H + 6, ty, vx: 0, vy: -2.1 * (H - ty), col: pal[ev.c % pal.length], kind: ev.k, R: _seeded(ev.s) });
+        stat.launched++; stat.shared = (stat.shared || 0) + 1; stat.last = ev;
+        return;
+      }
       // Wide screens get the show across the middle, not one shell lost at an edge.
       const span = Math.min(W, 720), x0 = (W - span) / 2;
       const ty = rnd(.14, .5) * H;
@@ -7424,9 +7528,12 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       stat.launched++;
     };
     const burst = (sh) => {
+      // A shared shell takes every random choice from its seed; the rest of
+      // this function reads rnd/pick, so they are swapped for the seeded pair.
+      const R_ = sh.R || Math.random;
+      const rnd = (a, b) => a + R_() * (b - a), pick = (a) => a[(R_() * a.length) | 0];
       const R = Math.min(W, 520) * rnd(.23, .34) * (gentle ? .85 : 1);   // how far the stars get, in px
-      const r = Math.random();
-      const kind = (hearts && r < (gentle ? .4 : .3)) ? 'heart' : r < .34 ? 'peony' : r < .54 ? 'duo' : r < .7 ? 'willow' : r < .85 ? 'ring' : 'crackle';
+      const kind = sh.kind || kindOf(R_());
       stat.burst++; stat.kinds[kind] = (stat.kinds[kind] || 0) + 1;
       const c1 = sh.col, c2 = pick(pal.filter(c => c !== c1));
       const willow = kind === 'willow';
@@ -7456,8 +7563,30 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       }
       flashes.push({ x: sh.x, y: sh.y, age: 0, r: R * .55, col: c1 });
     };
+    // The doors for shared shells. Tapping needs night like the show itself; a
+    // partner's shell is drawn whenever this phone has the canvas at all.
+    const me = _fw = {
+      canvas: cv,
+      tap(clientX, clientY) {
+        if (document.documentElement.dataset.period !== 'night' || stars.length > 420) return null;
+        const r = cv.getBoundingClientRect();
+        if (!r.width || clientY > r.bottom) return null;
+        const ev = { x: +Math.max(.06, Math.min(.94, (clientX - r.left) / r.width)).toFixed(3), y: +Math.max(.1, Math.min(.82, (clientY - r.top) / r.height)).toFixed(3),
+          c: (Math.random() * pal.length) | 0, k: kindOf(Math.random()), s: (Math.random() * 2147483647) | 0 };
+        launch(ev); stat.tapped = (stat.tapped || 0) + 1;
+        return ev;
+      },
+      remote(ev) {
+        if (!ev || shells.length > 8 || stars.length > 420) return false;
+        const x = +ev.x, y = +ev.y, okKind = ['heart', 'peony', 'duo', 'willow', 'ring', 'crackle'].includes(ev.k);
+        if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1) || !okKind) return false;   // never trust the wire
+        launch({ x, y, c: Math.abs(ev.c | 0), k: ev.k, s: ev.s | 0 }); stat.heard = (stat.heard || 0) + 1;
+        return true;
+      },
+    };
+    Live.sync();
     const frame = (t) => {
-      if (!cv.isConnected) { if (_fwStat === stat) _fwStat = null; return; }
+      if (!cv.isConnected) { if (_fwStat === stat) _fwStat = null; if (_fw === me) { _fw = null; Live.sync(); } return; }
       const night = document.documentElement.dataset.period === 'night';
       const busy = shells.length || stars.length || flashes.length;
       if ((document.hidden || !night) && !busy) {
@@ -9108,7 +9237,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
-    _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat,
+    _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat, _liveTest: () => Live.state(), _fwRemoteTest: (ev) => !!(_fw && _fw.remote(ev)),
     // lets a test put a partner's reading in the other slot and re-render
     _setPartnerWxTest: (raw) => { if (_me() === 'char2') S.wx1 = raw; else S.wx2 = raw;
       renderPartnerWeather(); },
