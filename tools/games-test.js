@@ -113,9 +113,9 @@ const solve = async (p, wrongFirst = 0) => {
     await p.evaluate(() => App.showPetHome()); await sleep(500);
     await p.evaluate(() => App.playGame('catch')); await sleep(300);
     ok(await p.evaluate(() => !!document.querySelector('.mg-pet svg') && App._mgTest().over), '场上是自己的宠物，还没开始');
-    await p.click('.mg-start'); await chase(p, 5000);
+    await p.click('.mg-start'); await chase(p, 9000);
     const g1 = await p.evaluate(() => { const g = App._mgTest(); return { score: g.score, left: g.left, hud: document.querySelector('.mg-score').textContent }; });
-    ok(g1.score >= 3 && g1.left < 16 && g1.hud === `接到 ${g1.score}`, `追着零食跑 5 秒真的接到了：${g1.hud}，还剩 ${g1.left.toFixed(1)} 秒`);
+    ok(g1.score >= 4 && g1.left < 12 && g1.hud === `接到 ${g1.score}`, `追着零食跑 9 秒真的接到了：${g1.hud}，还剩 ${g1.left.toFixed(1)} 秒`);
     await p.screenshot({ path: `${SHOTS}/games_02_catch.png` });
     // a chilli costs two
     const hit = await p.evaluate(() => new Promise(done => { const g = App._mgTest(); g.items = [{ x: .5, y: 0, v: 400, e: '🌶️' }]; g.x = .5; const s = g.score; setTimeout(() => done([s, g.score]), 1500); }));
