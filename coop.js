@@ -904,7 +904,8 @@ function collect(p, it, fromNet) {
   if (it.got) return;
   it.got = true;
   if (!fromNet && ONLINE()) netEv('item', { i: G.L.items.indexOf(it), key: it.key || '' });
-  if (fromNet) { if (it.type === 'heart') addHearts(1, it.x, it.y); else if (it.type === 'star') G.stars[it.n] = true; return; }
+  // the host keeps the 💗 count; the guest hears it in the world update (adding it here too counted a resent one twice)
+  if (fromNet) { if (it.type === 'heart') { if (isHost()) addHearts(1, it.x, it.y); } else if (it.type === 'star') G.stars[it.n] = true; return; }
   if (it.type === 'heart') { addHearts(1, it.x, it.y); sparkle(it.x, it.y, '#FF8FB3', 5); sfx('heart'); }
   else if (it.type === 'star') { G.stars[it.n] = true; sparkle(it.x, it.y, '#FFD75E', 18); sfx('star'); G.fx.push({ kind: 'text', text: '⭐', x: it.x, y: it.y - 0.6, t: 1, max: 1, col: '#FFD75E' }); }
   else if (it.type === 'wings') { p.wings = true; sfx('power'); sparkle(it.x, it.y, '#FFFFFF', 12); }
@@ -1519,6 +1520,7 @@ function drawFireworks(dt, W, H) {
 function render(al, dt) {
   const L = G.L; if (!L || !V.w) return;
   V.tags = [];     // name tags drawn this frame (nameTag keeps them from overlapping)
+  V.al = al;       // how far between two physics steps this frame is drawn (the net test measures what is drawn)
   const W = cv.width, H = cv.height;
   TP = V.tile * G.cam.z * V.dpr;
   CX = G.cam.x; CY = R - H / TP;
@@ -1854,7 +1856,11 @@ function closeStage(fromNet) {
   KEYS.clear(); resetTouch(); UI.veil.hidden = true;
   if (UI.home) { UI.home.hidden = false; renderHome(); } else openHome();
 }
-function begin() { UI.veil.hidden = true; G.state = 'play'; last = 0; }
+function begin() {
+  UI.veil.hidden = true; G.state = 'play'; last = 0;
+  // silence only counts while playing: after a long pause (a phone call, a locked screen) the partner gets a fresh 25 s
+  if (ONLINE()) NET.lastRx = Math.max(NET.lastRx, performance.now());
+}
 function togglePause(fromNet) {
   if (G.state === 'play') { G.state = 'paused'; showPause(fromNet); if (!fromNet) netEv('pause', {}); }
   else if (G.state === 'paused') { begin(); if (!fromNet) netEv('resume', {}); }
@@ -2197,7 +2203,7 @@ function renderHome() {
         <button type="button" data-mode="online" aria-pressed="${G.mode === 'online'}" ${API.online ? '' : 'disabled'}>🤝 各用自己的手机</button>
         <button type="button" data-mode="duo" aria-pressed="${G.mode === 'duo'}">👫 一部手机两个人</button>
         <button type="button" data-mode="solo" aria-pressed="${G.mode === 'solo'}">🙋 一个人玩两个</button></div>
-      ${G.mode === 'online' ? `<div class="cg-peer ${peerOn ? 'on' : ''}" data-r="peer"><i></i><span>${peerOn ? `${esc(nameOf(other(API.me)))} 也在这里 · 选一关就一起开始` : `等 ${esc(nameOf(other(API.me)))} 也打开「一起回家」，选「各用自己的手机」`}</span></div>
+      ${G.mode === 'online' ? `<div class="cg-peer ${peerOn ? 'on' : ''}" data-r="peer"><i></i><span>${peerOn ? `${esc(nameOf(other(API.me)))} 也在这里 · 选一关就一起开始` : verOff() ? VER_HINT : `等 ${esc(nameOf(other(API.me)))} 也打开「一起回家」，选「各用自己的手机」`}</span></div>
         <p class="cg-line">你是 <b>${esc(nameOf(API.me))}</b>，用这部手机控制自己。${COARSE ? '左边走，右边跳。' : '← → 走，空格跳。'}</p>`
       : G.mode === 'duo' ? `<p class="cg-line">${COARSE ? '手机横过来，一人一边：按住拖动走，往上推就跳。' : `${esc(nameOf('cs'))} 用 A D 走、W 跳；${esc(nameOf('yy'))} 用 ← → 走、↑ 跳。`}</p>`
       : `<p class="cg-line">${COARSE ? '左边走，右边跳；「换人」切换角色，「牵手」让两个人一起走（推箱子要牵手）。' : '← → 走，空格跳，Q 换人，E 牵手（推箱子要牵手）。'}</p>`}
@@ -2240,13 +2246,31 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 1, DELAY = 110;
+const NET_V = 2, DELAY = 110;   // 2: numbered events (2026-11-20); a phone on another version is told to reopen the app
+let verAt = 0;   // when a message from a different version last arrived
+const verOff = () => verAt && performance.now() - verAt < 5000;
+const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
 const NET = { n: 0, role: null, peerAt: 0, lastRx: 0, off: Infinity, offAt: 0, buf: [], wsnap: null, wrecv: 0, rtt: 120,
-  sendAt: 0, worldAt: 0, hiAt: 0, piAt: 0, stepT: 0, goAt: 0, hiTimer: 0, listening: false, lastQ: null };
+  sendAt: 0, worldAt: 0, hiAt: 0, piAt: 0, stepT: 0, goAt: 0, hiTimer: 0, listening: false, lastQ: null,
+  // one-off events are numbered, resent until the partner's phone confirms them, and applied once and in order:
+  // a socket that blips (a tunnel, a lift, a token renewal) must not leave the phones disagreeing about a win
+  tx: 0, rx: 0, pend: [], hold: new Map(), holdAt: 0, heard: false, go: null, goSent: 0, rq: null, dead: [], byeAt: 0,
+  // the partner is drawn NET.del ms in the past: enough to have two messages to slide between even on a jittery
+  // phone network, little enough to feel immediate on a good one. pt is the clock they are drawn at
+  cands: [], del: DELAY, pt: null };
 const r3 = (v) => Math.round(v * 1000) / 1000, r1 = (v) => Math.round(v * 10) / 10;
 const fin = (v) => typeof v === 'number' && isFinite(v);
 function netSend(t, data) { if (!API || !API.live) return false; return API.live.send('cg', Object.assign({ t, v: NET_V }, data)); }
-function netEv(k, data) { if (!ONLINE() || !NET.n || G.test && !G.testNet) return; netSend('ev', Object.assign({ n: NET.n, k }, data)); }
+function netEv(k, data) {
+  if (!ONLINE() || !NET.n || G.test && !G.testNet) return;
+  const m = Object.assign({ n: NET.n, k }, data), now = performance.now();
+  // a seesaw throw and the cloud's rain only make sense at that moment; everything else must arrive
+  if (k !== 'launch' && k !== 'rain') { m.q = ++NET.tx; NET.pend.push({ m, at: now, t0: now }); }
+  netSend('ev', m);
+}
+// a new level (a new n): nothing carries over
+function netFresh() { NET.tx = 0; NET.rx = 0; NET.pend = []; NET.hold = new Map(); NET.holdAt = 0; NET.heard = false; NET.go = null; NET.rq = null; }
+function netForget(n) { if (n) { NET.dead.push(n); if (NET.dead.length > 8) NET.dead.shift(); } }
 function netListen() { if (NET.listening || !API || !API.live) return; NET.listening = true; API.live.on('cg', onNet); }
 // keep the channel up while 一起回家 is open in online mode, and say hello
 function netHome(on) {
@@ -2260,58 +2284,91 @@ function netHome(on) {
     hi(); NET.hiTimer = setInterval(hi, 1500);
   }
 }
-function netLevelReset() { NET.buf = []; NET.off = Infinity; NET.wsnap = null; NET.lastRx = performance.now(); NET.sendAt = 0; NET.worldAt = 0; NET.lastQ = null; }
+function netLevelReset() { NET.buf = []; NET.off = Infinity; NET.wsnap = null; NET.lastRx = performance.now(); NET.sendAt = 0; NET.worldAt = 0; NET.lastQ = null; NET.cands = []; NET.del = DELAY; NET.pt = null; }
 function netPick(i) {
   const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500;
   if (!peerOn) { if (API.toast) API.toast(`等 ${nameOf(other(API.me))} 也打开「一起回家」`); return; }
   netStart(i, null);
 }
 function netStart(i, snap) {
+  netFresh();
   NET.n = 1 + Math.floor(Math.random() * 2e9); NET.role = 'host'; NET.goAt = performance.now();
-  netSend('go', { n: NET.n, lv: i, who: G.meIdx, cp: snap || null });
+  NET.go = { n: NET.n, lv: i, who: G.meIdx, cp: snap || null }; NET.goSent = NET.goAt;   // resent until the partner's phone answers
+  netSend('go', NET.go);
   artReady.then(() => openStage(i, { countdown: true, snap }));
 }
 function netGo(m) {
   if (!fin(m.lv) || m.lv < 0 || m.lv >= LEVELS.length || !fin(m.n) || m.who === G.meIdx) return;
-  // both picked in the same moment: CS's pick wins
-  if (NET.role === 'host' && performance.now() - NET.goAt < 2000 && G.meIdx === 0 && G.state === 'intro') return;
+  // both picked in the same moment: CS's pick wins, on both phones. (This once also asked for the countdown to be
+  // showing — but the stage opens a moment after the pick, so who won depended on timing.)
+  if (NET.role === 'host' && performance.now() - NET.goAt < 2000 && G.meIdx === 0) return;
   if (m.n === NET.n) return;
   if (G.mode !== 'online') return;
-  NET.n = m.n; NET.role = 'guest'; NET.peerAt = performance.now();
+  netFresh();
+  NET.n = m.n; NET.role = 'guest'; NET.peerAt = performance.now(); NET.heard = true;
   artReady.then(() => openStage(m.lv, { countdown: true, snap: m.cp && m.cp.cp ? m.cp : null }));
 }
 // 重来 / 下一关 from either phone; the host's phone actually starts it
 function netRequest(k) {
   if (isHost()) { const i = G.L.i; return netStart(k === 'next' ? i + 1 : i, k === 'cp' ? G.cpSnap : null); }
-  netSend('rq', { n: NET.n, k });
+  netSend('rq', { n: NET.n, k }); NET.rq = { k, at: performance.now(), t0: performance.now() };   // resent until the new level starts
   if (UI.panel) { const p = UI.panel.querySelector('.pb'); if (p) p.insertAdjacentHTML('beforebegin', `<p>等 ${esc(nameOf(other(API.me)))} 的手机开始…</p>`); }
 }
-function netBye() { if (NET.n) netSend('bye', { n: NET.n }); NET.n = 0; NET.role = null; }
+function netBye() { if (NET.n) netSend('bye', { n: NET.n }); netForget(NET.n); NET.n = 0; NET.role = null; netFresh(); }
 function partnerLeft() {
   if (!UI.stage || UI.stage.hidden) { if (UI.home) renderHome(); return; }
-  NET.n = 0; NET.role = null; G.state = 'left';
+  netForget(NET.n); NET.n = 0; NET.role = null; netFresh(); G.state = 'left';
   showPanel(`<div class="big">👋</div><h2>${esc(nameOf(other(API.me)))} 离开了这一关</h2><p>回到选关，等 TA 回来再一起选一关吧。</p><div class="pb"><button type="button" data-a="menu">回到选关</button></div>`, () => closeStage(true));
 }
 function onNet(m) {
-  if (!m || m.v !== NET_V) return;
+  if (!m) return;
+  if (m.v !== NET_V) { if (m.t === 'hi' && !verOff() && UI.home && !UI.home.hidden) { verAt = performance.now(); renderHome(); } else if (m.t === 'hi') verAt = performance.now(); return; }
   const now = performance.now();
-  if (m.t === 'hi') { const was = NET.peerAt && now - NET.peerAt < 4500; NET.peerAt = now; if (!was && UI.home && !UI.home.hidden) renderHome(); return; }
+  // the partner is still in a level this phone has left (it was away too long, or the bye was lost): say so again
+  if (m.n && m.n !== NET.n && NET.dead.includes(m.n) && m.t !== 'bye' && m.t !== 'go') { if (now - NET.byeAt > 1000) { NET.byeAt = now; netSend('bye', { n: m.n }); } return; }
+  if (m.t === 'hi') {
+    if (m.who === G.meIdx) return;   // the same login on another device is not the partner
+    const was = NET.peerAt && now - NET.peerAt < 4500; NET.peerAt = now;
+    if (m.n && m.n === NET.n) { NET.heard = true; NET.lastRx = now; netAck(m.ak); }
+    if (!was && UI.home && !UI.home.hidden) renderHome(); return;
+  }
   if (m.t === 'pi') { netSend('po', { a: m.a, b: now }); return; }
   if (m.t === 'po') { const rtt = now - m.a; if (rtt >= 0 && rtt < 4000) NET.rtt = NET.rtt * 0.7 + rtt * 0.3; return; }
   if (m.t === 'go') return netGo(m);
   if (m.t === 'bye') { if (m.n && m.n === NET.n) partnerLeft(); return; }
   if (!ONLINE() || !NET.n || m.n !== NET.n) return;
-  NET.lastRx = now; NET.peerAt = now;
-  if (m.t === 'st') return netState(m, now);
+  NET.lastRx = now; NET.peerAt = now; NET.heard = true;
+  if (m.t === 'st') { netAck(m.ak); return netState(m, now); }
   if (m.t === 'wd') return netWorld(m, now);
-  if (m.t === 'ev') return netEvent(m);
+  if (m.t === 'ev') {
+    if (!fin(m.q)) return netEvent(m);
+    if (m.q <= NET.rx || NET.hold.has(m.q)) return;   // a resend of one already applied
+    if (!NET.hold.size) NET.holdAt = now;
+    NET.hold.set(m.q, m);
+    while (NET.hold.has(NET.rx + 1)) { const e = NET.hold.get(NET.rx + 1); NET.hold.delete(NET.rx + 1); NET.rx++; netEvent(e); }
+    if (!NET.hold.size) NET.holdAt = 0;
+    return;
+  }
   if (m.t === 'rq' && isHost() && (m.k === 're' || m.k === 'cp' || m.k === 'next')) return netRequest(m.k);
 }
+function netAck(ak) { if (fin(ak) && NET.pend.length) NET.pend = NET.pend.filter(e => e.m.q > ak); }
 // sending: your character, and (host) the shared world
 function netTick(now) {
   if (!NET.n || !G.L) return;
   if (now - NET.piAt > 2000) { NET.piAt = now; netSend('pi', { a: now }); }
-  if (now - NET.hiAt > 1500) { NET.hiAt = now; netSend('hi', { who: G.meIdx }); }
+  if (now - NET.hiAt > 1500) { NET.hiAt = now; netSend('hi', { who: G.meIdx, n: NET.n, ak: NET.rx }); }
+  // what hasn't been confirmed goes again (in order; the other phone drops what it already has)
+  if (NET.pend.length) {
+    NET.pend = NET.pend.filter(e => now - e.t0 < 30000);
+    for (const e of NET.pend) if (now - e.at > 400) { if (netSend('ev', e.m)) e.at = now; }
+  }
+  if (NET.hold.size && now - NET.holdAt > 6000) {   // a gap that never filled: move on rather than hold everything after it
+    NET.rx = Math.min(...NET.hold.keys()) - 1;
+    while (NET.hold.has(NET.rx + 1)) { const e = NET.hold.get(NET.rx + 1); NET.hold.delete(NET.rx + 1); NET.rx++; netEvent(e); }
+    NET.holdAt = NET.hold.size ? now : 0;
+  }
+  if (NET.role === 'host' && NET.go && !NET.heard && now - NET.goSent > 800 && now - NET.goAt < 20000) { NET.goSent = now; netSend('go', NET.go); }
+  if (NET.role === 'guest' && NET.rq && now - NET.rq.at > 1200 && now - NET.rq.t0 < 20000) { NET.rq.at = now; netSend('rq', { n: NET.n, k: NET.rq.k }); }
   const live = G.state === 'play' || G.state === 'won' || G.state === 'dying' || G.state === 'paused' || G.state === 'intro';
   if (!live) return;
   if (now - NET.sendAt >= 66) {
@@ -2322,13 +2379,13 @@ function netTick(now) {
     const list = [null, null, null, L.boxes, L.movers, L.elevs, L.seesaws, L.springs][gk];
     const gi = list ? list.indexOf(p.ground.ref) : -1;
     const f = (p.grounded ? 1 : 0) | (p.dead > 0 ? 2 : 0) | (p.wings ? 4 : 0) | (p.shield ? 8 : 0) | (p.happy > 0 ? 16 : 0) | (p.strain > 0 ? 32 : 0) | (p.inv > 0 ? 64 : 0);
-    netSend('st', { n: NET.n, ts: now, p: [r3(p.x), r3(p.y), r1(p.vx), r1(p.vy), p.face, f, gk, gi, p.push ? p.push.dir : 0, p.push ? L.boxes.indexOf(p.push.box) : -1] });
+    netSend('st', { n: NET.n, ts: now, ak: NET.rx, p: [r3(p.x), r3(p.y), r1(p.vx), r1(p.vy), p.face, f, gk, gi, p.push ? p.push.dir : 0, p.push ? L.boxes.indexOf(p.push.box) : -1] });
   }
   if (isHost() && now - NET.worldAt >= 100) {
     NET.worldAt = now;
     const L = G.L, b = L.boss;
     const ST = { float: 0, warn: 1, dip: 2, rise: 3, hit: 4, dead: 5 };
-    netSend('wd', { n: NET.n, ts: now, wt: r3(G.wt), hp: G.hp, he: G.hearts, st: G.stars.reduce((m, v, k) => m | (v ? 1 << k : 0), 0), bd: G.bossDown ? 1 : 0,
+    netSend('wd', { n: NET.n, ts: now, gs: G.state === 'won' ? 1 : G.state === 'dying' ? 2 : 0, wt: r3(G.wt), hp: G.hp, he: G.hearts, st: G.stars.reduce((m, v, k) => m | (v ? 1 << k : 0), 0), bd: G.bossDown ? 1 : 0,
       en: L.enemies.map(e => [r3(e.x), r3(e.y), e.dead ? 1 : 0, e.type === 'i' ? (e.st === 'hang' ? 0 : e.st === 'shake' ? 1 : 2) : (e.onGround ? 1 : 0), r1(e.vx || 0), r1(e.vy || 0)]),
       bx: L.boxes.map(q => [r3(q.x), r3(q.y)]), bs: b ? [r3(b.x), r3(b.y), ST[b.st], b.hp, b.inv > 0 ? 1 : 0] : null });
   }
@@ -2342,10 +2399,18 @@ function netTick(now) {
 }
 function netState(m, now) {
   const a = m.p;
-  if (!Array.isArray(a) || a.length < 10 || !a.slice(0, 5).every(fin)) return;
-  const cand = now - m.ts;
-  NET.off = NET.off === Infinity ? cand : Math.min(cand, NET.off + (now - NET.offAt) * 0.02);
-  NET.offAt = now;
+  if (!Array.isArray(a) || a.length < 10 || !a.slice(0, 5).every(fin) || !fin(m.ts)) return;
+  // how late each message is (their clock to ours, plus the trip), over the last 4 s: the quickest one
+  // is the trip itself, and how much later the slow ones come is the jitter the delay has to cover
+  const C = NET.cands; C.push({ t: now, c: now - m.ts });
+  while (C.length > 2 && C[0].t < now - 4000) C.shift();
+  let lo = Infinity; for (const o of C) if (o.c < lo) lo = o.c;
+  NET.off = lo;
+  if (C.length >= 8) {
+    const late = C.map(o => o.c - lo).sort((x, y) => x - y), jit = late[Math.floor(late.length * 0.95)];
+    const want = clamp(70 + jit * 1.15, 90, 480);
+    NET.del += (want - NET.del) * (want > NET.del ? 0.35 : 0.02);   // grow quickly when the network gets worse, shrink slowly
+  }
   NET.buf.push({ ts: m.ts, x: a[0], y: a[1], vx: a[2], vy: a[3], face: a[4] < 0 ? -1 : 1, f: a[5] | 0, gk: a[6] | 0, gi: a[7] | 0, pd: a[8] | 0, pb: a[9] | 0 });
   if (NET.buf.length > 40) NET.buf.shift();
 }
@@ -2354,7 +2419,12 @@ function netRemoteStep() {
   const q = G.players[1 - G.meIdx], B = NET.buf;
   q.px = q.x; q.py = q.y;
   if (!B.length) { q.dx = q.dy = 0; return; }
-  const tr = NET.stepT - NET.off - DELAY;
+  // the drawing clock runs at the phone's own pace, nudged (at most 15% faster or slower) towards where it
+  // should be, so a change in the estimate never shows as a lurch. Only a big error (a new level, a long gap) snaps
+  const target = NET.stepT - NET.off - NET.del;
+  if (NET.pt == null || Math.abs(target - NET.pt) > 700) NET.pt = target;
+  else NET.pt += STEP * 1000 * (1 + clamp((target - NET.pt) / 400, -0.15, 0.15));
+  const tr = NET.pt;
   let s0 = B[0], s1 = null;
   for (let k = 0; k < B.length; k++) { if (B[k].ts <= tr) s0 = B[k]; else { s1 = B[k]; break; } }
   let x, y, vx, vy, s = s1 || s0;
@@ -2363,7 +2433,7 @@ function netRemoteStep() {
     x = s0.x + (s1.x - s0.x) * k; y = s0.y + (s1.y - s0.y) * k; vx = s0.vx + (s1.vx - s0.vx) * k; vy = s0.vy + (s1.vy - s0.vy) * k;
     if (Math.abs(s1.x - s0.x) > 3 || Math.abs(s1.y - s0.y) > 3) { x = s1.x; y = s1.y; }   // a respawn: jump, don't slide
   } else {
-    const ahead = clamp(tr - s0.ts, 0, 120) / 1000;   // running ahead of the messages: coast a little, then wait
+    const ahead = clamp(tr - s0.ts, 0, 160) / 1000;   // running ahead of the messages: coast a little, then wait
     x = s0.x + s0.vx * ahead; y = s0.y; vx = s0.vx; vy = s0.vy; s = s0;
   }
   q.dx = x - q.x; q.dy = y - q.y;
@@ -2389,9 +2459,17 @@ function netWorld(m, now) {
   if (isHost()) return;
   if (!Array.isArray(m.en) || !Array.isArray(m.bx)) return;
   NET.wsnap = m; NET.wrecv = now;
-  if (fin(m.hp)) { if (m.hp < G.hp) G.shake = 0.2; G.hp = clamp(m.hp | 0, 0, HP_MAX); }
-  if (fin(m.he)) G.hearts = m.he | 0;
+  if (fin(m.hp)) {
+    // a hit this phone took that the host hasn't confirmed yet: don't let an older world give the heart back for a moment
+    const hp = clamp(m.hp | 0, 0, HP_MAX), mine = NET.pend.some(e => e.m.k === 'hit');
+    if (hp < G.hp) G.shake = 0.2;
+    G.hp = mine ? Math.min(G.hp, hp) : hp;
+  }
+  if (fin(m.he)) G.hearts = Math.max(G.hearts, m.he | 0);   // never below what this phone just picked up (the host hasn't heard yet)
   if (fin(m.st)) G.stars = [0, 1, 2].map(k => !!(m.st & (1 << k)));
+  // the win and the fail also ride the world, so a phone can never be left playing a level that is over
+  if (m.gs === 1 && (G.state === 'play' || G.state === 'paused')) win();
+  else if (m.gs === 2 && G.state === 'play') netEvent({ k: 'fail' });
   if (m.bd && !G.bossDown) { G.bossDown = true; G.rainbow = 0.01; G.proj = []; sfx('cheer'); if (G.L.boss) confetti(G.L.boss.x + 1.5, G.L.boss.y + 1, 50); }
   if (fin(m.wt)) {   // the world clock: rafts in the same place on both phones
     const target = m.wt + NET.rtt / 2000, err = target - G.wt;
@@ -2452,7 +2530,7 @@ function netEvent(m) {
       break;
     }
     case 'rain': if (!isHost() && fin(m.x) && fin(m.y) && fin(m.vy)) { const lat = Math.min(0.3, NET.rtt / 2000); G.proj.push({ x: m.x, y: m.y + m.vy * lat + 10 * lat * lat, vy: m.vy + 20 * lat }); } break;
-    case 'win': if (!isHost() && G.state === 'play') win(); break;
+    case 'win': if (!isHost() && (G.state === 'play' || G.state === 'paused')) win(); break;
     case 'fail': if (!isHost() && G.state === 'play') { G.hp = 0; G.state = 'dying'; G.failT = 0.9; } break;
     case 'pause': if (G.state === 'play') togglePause(true); break;
     case 'resume': if (G.state === 'paused') togglePause(true); break;
@@ -2510,7 +2588,7 @@ function beatRender() {
     <div class="cg-card">
       <div class="cg-seg"><button type="button" data-m="online" aria-pressed="${BT.mode === 'online'}" ${API.online ? '' : 'disabled'}>🤝 各用自己的手机</button>
         <button type="button" data-m="duo" aria-pressed="${BT.mode === 'duo'}">👫 一部手机</button><button type="button" data-m="bot" aria-pressed="${BT.mode === 'bot'}">🙋 和电脑练习</button></div>
-      ${BT.mode === 'online' ? `<div class="cg-peer ${beatPeerOn() ? 'on' : ''}" data-r="peer"><i></i><span>${beatPeerOn() ? `${esc(nameOf(other(API.me)))} 也在 · ${synced ? '两部手机的时间对好了' : '正在对时间…'}` : `等 ${esc(nameOf(other(API.me)))} 也打开「默契拍拍」，选「各用自己的手机」`}</span></div>` : ''}
+      ${BT.mode === 'online' ? `<div class="cg-peer ${beatPeerOn() ? 'on' : ''}" data-r="peer"><i></i><span>${beatPeerOn() ? `${esc(nameOf(other(API.me)))} 也在 · ${synced ? '两部手机的时间对好了' : '正在对时间…'}` : verOff() ? VER_HINT : `等 ${esc(nameOf(other(API.me)))} 也打开「默契拍拍」，选「各用自己的手机」`}</span></div>` : ''}
       <p class="cg-line">跟着心跳，两个人在同一刻拍下去。差得越少，心就越大。${BT.mode === 'duo' ? (COARSE ? '' : `（电脑：${esc(nameOf('cs'))} 按 A，${esc(nameOf('yy'))} 按 L）`) : (COARSE ? '' : '（电脑：按空格）')}</p>
       <p class="cg-pay">每一关第一次过关 +1 分 · 每天最多 +${pi.max}${pi.paid ? ` · 今天已拿 +${pi.paid}` : ''}</p>
     </div>
@@ -2532,7 +2610,7 @@ function beatClick(e) {
   if (b.dataset.a === 'go') {
     if (BT.run) { beatStop(); beatRender(); return; }
     ensureAudio();
-    if (BT.mode === 'online') { BT.n = 1 + Math.floor(Math.random() * 2e9); BT.role = 'host'; const at = performance.now() + 1600; beatSend('go', { n: BT.n, lv: BT.lv, at }); beatStart(BT.lv, at); }
+    if (BT.mode === 'online') { BT.n = 1 + Math.floor(Math.random() * 2e9); BT.role = 'host'; BT.heard = false; const at = performance.now() + 1600; BT.go = { n: BT.n, lv: BT.lv, at }; beatSend('go', BT.go); beatStart(BT.lv, at); }
     else beatStart(BT.lv, performance.now() + 400);
   }
 }
@@ -2556,9 +2634,10 @@ function beatNet(on) {
   tick(); BT.timer = setInterval(tick, 1000);
 }
 function beatOnNet(m) {
-  if (!m || m.v !== NET_V) return;
+  if (!m) return;
   const now = performance.now();
-  if (m.t === 'hi') { const was = beatPeerOn(); BT.peerAt = now; if (!was && !BT.run) beatRender(); return; }
+  if (m.v !== NET_V) { if (m.t === 'hi') { const was = verOff(); verAt = now; if (!was && !BT.run) beatRender(); } return; }
+  if (m.t === 'hi') { if (m.who === G.meIdx) return; const was = beatPeerOn(); BT.peerAt = now; if (!was && !BT.run) beatRender(); return; }
   if (m.t === 'pi') { beatSend('po', { a: m.a, b: now }); return; }
   if (m.t === 'po') {
     // their clock minus mine, from the quickest round trip lately
@@ -2573,27 +2652,44 @@ function beatOnNet(m) {
   if (m.t === 'go' && fin(m.lv) && m.lv >= 0 && m.lv < BEAT_LV.length && fin(m.at)) {
     BT.peerAt = now;
     if (BT.run && BT.role === 'host' && G.meIdx === 0) return;   // both pressed 开始 at once: CS's start wins
+    if (m.n === BT.n && (BT.run || BT.ended === m.n)) return;   // the same start again (it is resent until answered)
     BT.n = m.n; BT.role = 'guest'; BT.lv = m.lv; beatRender();
     ensureAudio(); beatStart(m.lv, m.at - BT.off);
     return;
   }
-  if (m.t === 'tap' && BT.run && m.n === BT.n && fin(m.k) && fin(m.dt)) {
-    const b = BT.run.beats[m.k | 0]; const who = other(API.me);
-    if (b && b[who] == null) { b[who] = clamp(m.dt, -2000, 2000); beatFlash(who); }
+  // the partner's whole list so far: a number is a tap that far off the beat, null is a beat they missed.
+  // Sent again and again, so a late or lost message only delays a verdict, never changes it
+  if (m.t === 'taps' && BT.run && m.n === BT.n && fin(m.up) && Array.isArray(m.d)) {
+    if (BT.role === 'host') BT.heard = true;
+    const who = other(API.me), R0 = BT.run;
+    for (let k = 0; k <= Math.min(m.up, R0.beats.length - 1); k++) {
+      const b = R0.beats[k], v = m.d[k];
+      if (b.known[who]) continue;
+      b.known[who] = true;
+      if (fin(v)) { b[who] = clamp(v, -2000, 2000); if (!b.done) beatFlash(who); }
+    }
+    return;
   }
   if (m.t === 'stop' && BT.run && m.n === BT.n) { beatStop(); beatRender(); const el = BR('msg'); if (el) el.textContent = `${nameOf(other(API.me))} 停下了`; }
 }
 function beatStart(lv, at) {
   const L = BEAT_LV[lv], iv = 60 / L.bpm * 1000, lead = 4;
-  BT.run = { lv, L, iv, t0: at, lead, beats: Array.from({ length: L.n }, (_, k) => ({ t: at + (lead + k) * iv, cs: null, yy: null, done: false })), pts: 0, combo: 0, tick: 0 };
+  BT.run = { lv, L, iv, t0: at, lead, beats: Array.from({ length: L.n }, (_, k) => ({ t: at + (lead + k) * iv, cs: null, yy: null, done: false, known: {} })), pts: 0, combo: 0, tick: 0, repAt: 0 };
   if (BT.mode === 'bot') { const bot = other(API.me); for (const b of BT.run.beats) if (Math.random() > 0.06) b['bot_' + bot] = (Math.random() + Math.random() + Math.random() - 1.5) * 70; }
   const go = BT.root && BT.root.querySelector('[data-a="go"]'); if (go) { go.textContent = '停下'; go.disabled = false; }
   requestAnimationFrame(beatFrame);
 }
 function beatStop() {
   if (!BT.run) return;
-  if (BT.mode === 'online' && BT.n) beatSend('stop', { n: BT.n });
-  BT.run = null;
+  if (BT.mode === 'online' && BT.n) { const n = BT.n; beatSend('stop', { n }); setTimeout(() => beatSend('stop', { n }), 400); setTimeout(() => beatSend('stop', { n }), 1200); }
+  BT.run = null; BT.rep = null;
+}
+// online: my taps so far, for every beat whose window has closed here (and any I have tapped)
+function beatReport(R0, now) {
+  const me = API.me; let up = -1;
+  R0.beats.forEach((b, k) => { if (b[me] != null || now > b.t + R0.iv / 2) up = k; });
+  const rep = { n: BT.n, up, d: R0.beats.slice(0, up + 1).map(b => (b[me] == null ? null : Math.round(b[me] * 10) / 10)) };
+  beatSend('taps', rep); BT.rep = rep; R0.repAt = now;
 }
 function beatFlash(who) { const el = BT.root && BT.root.querySelector(`.cgb-pad[data-who="${who}"]`); if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 90); } }
 function beatTap(who) {
@@ -2608,7 +2704,7 @@ function beatTap(who) {
   if (best < 0) return;
   const dt = now - R0.beats[best].t;
   R0.beats[best][who] = dt;
-  if (BT.mode === 'online') beatSend('tap', { n: BT.n, k: best, dt: Math.round(dt * 10) / 10 });
+  if (BT.mode === 'online') beatReport(R0, now);
 }
 function beatFrame() {
   const R0 = BT.run; if (!R0 || !BT.root) return;
@@ -2625,11 +2721,18 @@ function beatFrame() {
   const showPulse = k < R0.lead || k - R0.lead < L.blind;
   heart.style.transform = `scale(${(1 + Math.min(R0.combo, 6) * 0.06) * (showPulse && !REDUCE ? 1 + Math.max(0, 0.16 - into * 0.5) : 1)})`;
   if (BT.mode === 'bot') { const bot = other(API.me); for (const b of R0.beats) if (b['bot_' + bot] != null && b[bot] == null && now >= b.t + b['bot_' + bot]) { b[bot] = b['bot_' + bot]; beatFlash(bot); } }
-  // a beat is judged once both taps are in, or once it is too late for the other's to arrive
-  const wait = BT.mode === 'online' ? 350 : 0;
+  // a beat is judged once both taps are in, or once its window has closed. On two phones a missing
+  // tap is only a miss when the partner's phone says so (its report), never because a message is late:
+  // otherwise one phone would say 「没拍到」 while the other gave points for the same beat
+  const online = BT.mode === 'online', them = other(API.me);
+  if (online && (now - R0.repAt > 250)) beatReport(R0, now);
+  if (online && BT.role === 'host' && !BT.heard && BT.go && now - (BT.goSent || 0) > 400 && now < R0.t0) { BT.goSent = now; beatSend('go', BT.go); }
+  let late = false;
   for (const b of R0.beats) {
     if (b.done || now < b.t + R0.iv / 2 && !(b.cs != null && b.yy != null && now > b.t)) continue;
-    if (!(b.cs != null && b.yy != null) && now < b.t + R0.iv / 2 + wait) continue;
+    if (online && !b.known[them] && b[them] == null) {
+      if (now < b.t + R0.iv / 2 + 10000) { if (now > b.t + R0.iv / 2 + 2500) late = true; break; }   // wait for their report (in order), up to 10 s
+    }
     b.done = true;
     let label, pts = 0;
     if (b.cs != null && b.yy != null) {
@@ -2644,12 +2747,16 @@ function beatFrame() {
     dyy.style.left = pos(b.yy) + '%'; dyy.style.opacity = b.yy == null ? 0 : 1;
   }
   const done = R0.beats.filter(b => b.done).length;
-  BR('sub').textContent = `${done}/${L.n} 拍 · ${R0.pts} 分`;
+  BR('sub').textContent = late ? `等 ${nameOf(them)} 的网络…` : `${done}/${L.n} 拍 · ${R0.pts} 分`;
   if (done === L.n) return beatEnd(R0);
   requestAnimationFrame(beatFrame);
 }
 function beatEnd(R0) {
   const L = R0.L, score = Math.round(R0.pts / (3 * L.n) * 100), pass = score >= 55;
+  if (BT.mode === 'online') {   // the partner may still be waiting on my last beats: keep telling them for a few seconds
+    beatReport(R0, performance.now()); const rep = BT.rep; BT.ended = BT.n;
+    for (const t of [300, 800, 1600, 3000]) setTimeout(() => { if (BT.rep === rep && !BT.run) beatSend('taps', rep); }, t);
+  }
   BT.run = null; BT.last = { lv: R0.lv, score, pass, pts: R0.pts };
   BT.save.best[R0.lv] = Math.max(BT.save.best[R0.lv] || 0, score);
   if (pass && R0.lv + 2 > BT.save.unlocked) BT.save.unlocked = Math.min(BEAT_LV.length, R0.lv + 2);
@@ -2701,7 +2808,7 @@ window.CoopGames = {
     inp(i, o) { TEST_IN[i] = Object.assign({ l: false, r: false, j: false }, o || {}); },
     tp(i, x, y) { const p = G.players[i]; p.x = p.px = x; p.y = p.py = y; p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; },
     set(k, v) { G[k] = v; }, swap, toggleHold, closeStage: () => closeStage(), render: () => render(1, 0),
-    solidCell, oneWayCell, surfTop, home: () => UI.home, stage: () => UI.stage, beatTap,
+    solidCell, oneWayCell, surfTop, home: () => UI.home, stage: () => UI.stage, beatTap, al: () => (V.al == null ? 1 : V.al),
   },
 };
 })();

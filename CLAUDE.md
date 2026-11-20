@@ -903,17 +903,59 @@ The same private channel as the fireworks (§7.235), `couple:<match id>`;
 
 - **Each phone is in charge of its own character.** It moves at the tap
   (no waiting for the network) and says where it is ~15 times a second. The
-  partner's character is drawn from those messages 110 ms in the past, so
-  there are always two to slide between.
+  partner's character is drawn from those messages a little in the past, so
+  there are always two to slide between: 90 ms on a good connection, up to
+  480 ms on a jittery one (95th-percentile lateness over the last 4 s). The
+  drawing clock is nudged at most 15% faster or slower, never jumped.
 - **The phone that picked the level (the host) runs the world**: enemies,
   boxes, the big cloud, hearts, stars and the door — 10 times a second. The
   other phone asks for anything that changes the world (a heart taken, a stomp,
   a hit on the cloud) and the host answers for both. CS wins a tie.
+- **One-off events are numbered and resent until confirmed** (`q`, acked by
+  `ak` in the other phone's position messages), applied once and in order.
+  The level start (`go`) and 重来/下一关 (`rq`) are resent until answered. The
+  win and the fail also ride the world update (`gs`). A socket that drops for
+  a few seconds therefore loses nothing; before this, a lost 「win」 left one
+  phone playing a level that was over.
 - **Never trust the wire** (§7.235): a message for another level or round
-  (`NET.n`) is dropped.
+  (`NET.n`) is dropped, and the same login on another device (`who`) is not
+  the partner. A phone on another message version (`NET_V`) is told to
+  reopen the app instead of half-working.
 - 默契拍拍 lines the clocks up first (round trips; the shortest one wins), then
   each phone sends how far its tap was from the beat, so both phones judge the
   same taps and give the same verdict.
+
+### What a bad network turned up (`tools/coop-net-test.js`)
+
+The first two-phone test ran on a good connection and passed; a simulated
+phone network (delay, jitter, stalls, dropped sockets, a locked screen) found
+all of this:
+
+- **On a jittery connection the partner stuttered**: 70% of frames even, 367 ms
+  freezes. A fixed 110 ms delay was smaller than the jitter, and the clock
+  estimate lurched whenever a fast message arrived. With the adaptive delay it
+  is 90–100% even and freezes under 50 ms.
+- **Locking the phone desynced the game.** `Live` closed the socket on
+  `visibilitychange` before the game's own listener sent its 「暂停」, so one
+  phone paused and the other played on alone. The close now waits 400 ms.
+- **After a phone call both phones said the other had left.** The silence
+  timer kept counting through the pause, so the moment 继续 was tapped each saw
+  25 s of silence. `begin()` restarts it.
+- **A resent heart was counted twice** on the guest (it arrived after a world
+  update that already had it). The host owns 💗 and ❤; the guest predicts its
+  own pickups and hits and otherwise takes the host's number.
+- **A partner who came back after being given up on played on alone.** A
+  phone now answers a message for a level it has left with `bye`.
+- **Who won a simultaneous pick depended on timing** (it asked whether the
+  countdown was already showing). CS's pick wins, always.
+- **The same login on an iPad counted as the partner**, so a lone phone could
+  start a level nobody else was in.
+- **默契拍拍 could give two verdicts.** A tap that arrived late was 「没拍到」 on
+  one phone and points on the other. Each phone now sends its whole tap list
+  for the round a few times a second, and a beat is judged only when the
+  partner's list covers it (or after 10 s).
+- **Tokens:** the channel is handed a fresh token (`access_token`) before the
+  old one expires, so an hour-long game doesn't go quiet for a few seconds.
 
 ### Points
 
@@ -954,8 +996,10 @@ two people and alone, 20/20 each), the payouts, 默契拍拍, the no-pet case, a
 live backend and checks every cross-phone mechanic: moves mirrored, hearts,
 standing on each other, the gate held from the other phone, pause, the win paying
 each person, the two-person box, the seesaw, the guest's stomp on the cloud,
-leaving, and 默契拍拍 giving one verdict. `tools/coop-bot.js` is the bot both
-use. `smooth-test.js` measures both games.
+leaving, and 默契拍拍 giving one verdict. `tools/coop-net-test.js` does it again
+over a simulated phone network (see above; `PHONE_B=webkit` puts the partner on
+WebKit, `ONLY=smooth,cuts,…` runs sections). `tools/coop-bot.js` is the bot.
+`smooth-test.js` measures both games.
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
@@ -1484,7 +1528,7 @@ What made the difference, and what must not come back:
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
-  coop-live-test.js — serve the repo
+  coop-live-test.js, coop-net-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -1593,6 +1637,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 20 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, leaving, 默契拍拍's shared verdict |
+| `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |

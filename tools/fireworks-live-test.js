@@ -100,7 +100,7 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
 
   console.log('\n6. In the background, the line is closed; back in front, it reopens');
   await B.p.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
-  await sleep(300);
+  await sleep(700);   // the socket closes 400 ms after hiding, so a game can tell the partner it paused (§7.33)
   const quiet = (await stat(B.p)).heard;
   ok(await B.p.evaluate(() => !App._liveTest().open), 'hidden: socket closed');
   await A.p.mouse.click(195, 120); await sleep(800);

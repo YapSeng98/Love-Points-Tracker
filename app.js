@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.20-73';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.20-74';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -7634,8 +7634,8 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
         let d; try { d = JSON.parse(m.data); } catch (e) { return; }
         if (d.event === 'phx_reply' && d.ref === 'join') {
           if (d.payload && d.payload.status === 'ok') {
-            joined = true; tries = 0; refreshed = false;
-            hb = setInterval(() => { try { sock.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++ref) })); } catch (e) {} }, 25000);
+            joined = true; tries = 0; refreshed = false; sentToken = S.apiKey;
+            hb = setInterval(() => { try { sock.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++ref) })); } catch (e) {} keepToken(sock, topic); }, 25000);
           } else {
             // Most often an access token past its hour. Refresh once, then back off.
             drop();
@@ -7648,6 +7648,16 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       };
       sock.onclose = sock.onerror = () => { if (ws === sock) { drop(); later(); } };
     }
+    // The server closes a channel whose token has expired (they last an hour,
+    // §0.0), which mid-game is a few seconds of silence. So a token close to
+    // its end is refreshed while the channel is up, and any new token is
+    // handed to the channel (\`access_token\`, as supabase-js does).
+    let sentToken = '';
+    const tokenLeft = () => { try { return JSON.parse(atob(S.apiKey.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000 - Date.now(); } catch (e) { return Infinity; } };
+    function keepToken(sock, topic) {
+      const hand = () => { if (ws !== sock || !joined || S.apiKey === sentToken) return; sentToken = S.apiKey; try { sock.send(JSON.stringify({ topic, event: 'access_token', payload: { access_token: S.apiKey }, ref: String(++ref), join_ref: 'join' })); } catch (e) {} };
+      if (tokenLeft() < 180000) _sbRefresh().then(ok => { if (ok) hand(); }); else hand();
+    }
     // Bring the socket in line with what the screen needs right now.
     function sync() {
       clearTimeout(timer);
@@ -7658,9 +7668,13 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       if (!joined || !ws) return false;
       try { ws.send(JSON.stringify({ topic: `realtime:couple:${S.matchId}`, event: 'broadcast', payload: { type: 'broadcast', event, payload }, ref: String(++ref), join_ref: 'join' })); return true; } catch (e) { return false; }
     }
-    document.addEventListener('visibilitychange', sync);
+    // Going to the background closes the socket, but not before the page has had
+    // its say: a game pauses itself on hide and must be able to tell the partner.
+    // (Closing at once, this listener ran first and the 「暂停」 never left.)
+    document.addEventListener('visibilitychange', () => { if (document.hidden) setTimeout(sync, 400); else sync(); });
     return { sync, send, on: (event, fn) => { on[event] = fn; }, state: () => ({ open: !!ws, joined }),
-      want: (why, yes) => { if (yes) want.add(why); else want.delete(why); sync(); } };
+      want: (why, yes) => { if (yes) want.add(why); else want.delete(why); sync(); },
+      _test: { drop: () => { const w = ws; if (w) try { w.close(); } catch (e) {} }, tokenLeft, keep: () => ws && joined && keepToken(ws, `realtime:couple:${S.matchId}`), setToken: (t) => { S.apiKey = t; } } };
   })();
 
   // The partner's firework arriving. Named once a minute at most, so a volley is not a wall of toasts.
@@ -9463,7 +9477,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     _applyWeatherTest: (k) => applyWeather(k),
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
-    _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat, _liveTest: () => Live.state(), _fwRemoteTest: (ev) => !!(_fw && _fw.remote(ev)),
+    _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat, _liveTest: () => Live.state(), _liveCtl: () => Live._test, _fwRemoteTest: (ev) => !!(_fw && _fw.remote(ev)),
     // init() asks for /entries early; a write after that must make getEntries ask again
     _entriesAheadTest: async (row) => { await Data.init(); await Data.addEntry(row); return (await Data.getEntries()).some(e => e.desc === row.desc); },
     _inFlightTest: () => [..._inFlight.keys()],

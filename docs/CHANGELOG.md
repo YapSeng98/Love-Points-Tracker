@@ -12,6 +12,18 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-20 — Playing on two phones holds up on a phone network
+
+Tested again over a simulated phone network, which turned up problems a good
+connection hides. Your partner now moves smoothly on your screen even on a
+patchy connection (before, they could stutter and jump). Nothing is lost if a
+connection drops for a few seconds: hearts, stars, flags, hits and the win all
+reach the other phone when it comes back. Locking your phone or taking a call
+pauses the game on both phones, and after 继续 nobody is told the other has
+left. 默契拍拍 always gives both phones the same score, even when a tap
+arrives late. If both of you pick a level at the same moment, CS's pick wins.
+If the other phone still has the old app, the game says to reopen it.
+
 ## 2026-11-20 — 一起回家 and 默契拍拍: games for two
 
 Two new games at the top of 🎮 小游戏, made to be played together, each on
