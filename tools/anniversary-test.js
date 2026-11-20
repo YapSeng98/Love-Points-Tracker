@@ -37,7 +37,7 @@ function seed(opts = {}) {
   };
 }
 
-async function page(browser, when, { data = seed(), char, extraLS = {}, demo = true, w = 390, h = 844, install = false } = {}) {
+async function page(browser, when, { data = seed(), char, extraLS = {}, demo = true, w = 390, h = 844, install = false, routes = [] } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, timezoneId: 'Asia/Singapore', deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   const errs = [];
@@ -46,6 +46,7 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
   if (install) await p.clock.install({ time: new Date(when) });
   else await p.clock.setFixedTime(new Date(when));
   await p.route(/open-meteo|supabase\.co/, r => r.abort());
+  for (const [re, fn] of routes) await p.route(re, fn);   // before the page loads: the envelope can show (and check its song) during boot
   await p.addInitScript(([d, ls]) => {
     if (!sessionStorage.getItem('seeded')) {
       localStorage.clear();
@@ -352,8 +353,8 @@ async function page(browser, when, { data = seed(), char, extraLS = {}, demo = t
 
   console.log('\n16. 配乐');
   for (const has of [false, true]) {
-    const { p, ctx } = await page(browser, '2026-12-24T09:00:00+08:00');
-    if (!has) await p.route(/A%20Thousand%20Years/, r => r.fulfill({ status: 404, body: 'missing' }));
+    // a missing file is missing from the start: on 12-24 the envelope shows during boot and checks its song then
+    const { p, ctx } = await page(browser, '2026-12-24T09:00:00+08:00', { routes: has ? [] : [[/A%20Thousand%20Years/, r => r.fulfill({ status: 404, body: 'missing' })]] });
     await p.evaluate(() => { HTMLMediaElement.prototype.play = function () { window.__played = this.getAttribute('src'); return Promise.resolve(); }; });
     await p.evaluate(() => { App.closeAnniversary(); }); await sleep(600);
     await p.evaluate(() => App.playAnniversary()); await sleep(800);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.11.15c">
+  <meta name="app-html-v" content="2026.11.18a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -4851,15 +4851,29 @@
   </div>
 </div>
 
-<audio id="bg-audio" src="Right Here Waiting (Piano Version).mp3" loop preload="auto"></audio>
+<!-- preload="none": the song starts on the splash tap, and fetching all
+     2.6 MB at page load raced app.js for the phone's bandwidth -->
+<audio id="bg-audio" src="Right Here Waiting (Piano Version).mp3" loop preload="none"></audio>
 <script>
-  // Cache-bust app.js so phones always load the latest deployed logic
-  // (mobile Safari caches JS aggressively). A fresh index.html always pulls
-  // a current app.js; no manual version bumps needed.
+  // app.js must always be the deployed one (mobile Safari caches JS hard), but
+  // a ?v=Date.now() URL downloaded all 170 KB on every open. Instead, ask the
+  // server which app.js is live — a HEAD, a few hundred bytes — and load that
+  // version's own URL: the same version comes from the phone's cache, a deploy
+  // changes the URL. Anything unexpected falls back to cache-busting.
   (function () {
-    var s = document.createElement('script');
-    s.src = 'app.js?v=' + Date.now();
-    document.body.appendChild(s);
+    function load(q) {
+      var s = document.createElement('script');
+      s.src = 'app.js?' + q;
+      document.body.appendChild(s);
+    }
+    var bust = function () { load('v=' + Date.now()); };
+    if (!window.fetch) return bust();
+    fetch('app.js', { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        var tag = r.ok && (r.headers.get('ETag') || r.headers.get('Last-Modified'));
+        tag ? load('e=' + encodeURIComponent(tag)) : bust();
+      })
+      .catch(bust);
   })();
 </script>
 </body>

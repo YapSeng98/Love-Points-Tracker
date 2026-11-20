@@ -124,7 +124,7 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await p.evaluate(() => App.nav('home')); await sleep(200);
     ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '首页重画以后还是只有一张');
     await p.evaluate(() => document.getElementById('mg-home').click()); await sleep(300);
-    ok(await p.evaluate(() => document.querySelectorAll('.mg-pick').length === 2), '点它打开选游戏的页面');
+    ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,catch,cards'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面）');
     await p.evaluate(() => App.closeGames());
     await p.evaluate(() => App.showPetHome()); await sleep(600);
     const door = await p.evaluate(() => { const b = document.querySelector('.pet-panel .mg-open'); const r = b && b.getBoundingClientRect(); return b && { n: document.querySelectorAll('.pet-panel .mg-open').length, h: r.height, vis: r.bottom <= innerHeight && r.width > 200 }; });
@@ -132,7 +132,7 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await p.evaluate(() => { App.closePetHome(); return App.showPetHome(); }); await sleep(500);
     ok(await p.evaluate(() => document.querySelectorAll('.pet-panel .mg-open').length === 1), '再进一次小窝，按钮不会变成两个');
     await p.click('.pet-panel .mg-open'); await sleep(400);
-    const pick = await p.evaluate(() => ({ n: document.querySelectorAll('.mg-pick').length, top: !!document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('.mg-root'), pay: [...document.querySelectorAll('.mg-pay')].map(x => x.textContent) }));
+    const pick = await p.evaluate(() => ({ n: document.querySelectorAll('.mg-pick[data-g="catch"], .mg-pick[data-g="cards"]').length, top: !!document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('.mg-root'), pay: [...document.querySelectorAll('.mg-pick[data-g="catch"] .mg-pay, .mg-pick[data-g="cards"] .mg-pay')].map(x => x.textContent) }));
     ok(pick.n === 2 && pick.top && pick.pay.every(t => /最多 \+3 分/.test(t)), `选游戏的页面盖在小窝上面，两个游戏都写着今天能拿多少 ${JSON.stringify(pick.pay)}`);
     await p.screenshot({ path: `${SHOTS}/games_01_pick.png` });
     await p.keyboard.press('Escape'); await sleep(200);
@@ -190,7 +190,7 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await p.evaluate(() => App.closeGames()); await sleep(200);
     ok(/🎮 小游戏/.test(await p.evaluate(() => document.querySelector('.entry-day-items')?.textContent || '')), '这些分出现在首页「本月记录」里');
     await p.evaluate(() => App.openGames()); await sleep(200);
-    const pay = await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(x => x.textContent));
+    const pay = await p.evaluate(() => [...document.querySelectorAll('.mg-pick[data-g="catch"], .mg-pick[data-g="cards"]')].map(x => x.textContent));
     ok(/拿满啦/.test(pay[0]) && /最高纪录：过了 7 关/.test(pay[0]) && /今天最多 \+3/.test(pay[1]), '选游戏页：接零食写「拿满啦」和最高纪录，翻牌还能拿');
     // the flag alone is not the rule: clear it and the ledger still says paid
     await p.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('mg_done_')).forEach(k => localStorage.removeItem(k)));

@@ -1,3 +1,7 @@
+# Required by the Supabase CLI from 3.x. A local name only — deploys go to the
+# linked project (yvllstktmjoedfsgojgs).
+project_id = "love-points-tracker"
+
 
 [functions.smoke-test]
 enabled = true

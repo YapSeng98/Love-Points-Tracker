@@ -12,6 +12,28 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-20 — 一起回家 and 默契拍拍: games for two
+
+Two new games at the top of 🎮 小游戏, made to be played together, each on
+your own phone (or both on one phone, or one person switching between the
+two). 一起回家 is a 20-level adventure through spring, summer, autumn, winter
+and a starry night where you can only get home by helping each other: stand
+on each other's heads, hold buttons open, push a box together, throw each
+other with the seesaw, and stomp the big cloud. Your own 小窝 pet comes along.
+默契拍拍 is five rounds of tapping on the same heartbeat. The first clear of
+each level gives +1 to whoever is holding the phone, up to +3 a day per game.
+
+## 2026-11-20 — Everything answers the tap
+
+Points now land the moment you tap: the score moves, the toast shows, and the
+save finishes in the background. If the save fails, the points are taken back
+and the app tells you, and a 自定义记分 that fails reopens with your note still
+in it. 积分表 and 历史 open instantly instead of after a second. After 继续, the
+app no longer loads everything a second time (the opening screen already did),
+so you're on the home page about twice as fast. Opening the app no longer
+downloads all of app.js every time, and the music no longer downloads before
+you tap.
+
 ## 2026-11-17 — Fireworks you set off for each other
 
 On a firework night (周年, 跨年, 春节, 情人节), tap the open sky at the top of

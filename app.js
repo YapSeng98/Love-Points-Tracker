@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.17-71';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.20-73';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -495,7 +495,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.11.15c';
+  const HTML_V = '2026.11.18a';
 
   (function ensureFreshHtml() {
     try {
@@ -810,8 +810,11 @@ const App = (() => {
     } catch { return false; }
   }
 
+  // Bumped by every write, so a list fetched before one is never served after it.
+  let _writeGen = 0;
   async function snFetch(path, opts = {}) {
     const url = _sbUrl(path);
+    if (opts.method && opts.method !== 'GET') _writeGen++;
     const send = () => _fetchWithRetry(url, {
       ...opts,
       headers: {
@@ -916,19 +919,34 @@ const App = (() => {
   // They're fetched once per data source and then kept current by the flows
   // that change them (loadLetters / loadMemories write straight into S).
   let _heavyStatsLoaded = false;
+  // /entries, asked for alongside the four in init() — refresh() always wants
+  // it straight after, and waiting for init first cost a whole round trip on
+  // every open (CLAUDE.md §7.4). Used once, only if nothing was written since.
+  let _entriesAhead = null;
+  // S.historyRecords starts as [] — "not loaded yet" must not read as "none".
+  let _historyFetched = false;
+  // S.letters came from the current session (home's stats load, or 情书 itself)
+  let _lettersFresh = false;
 
   const Data = {
-    async init() {
+    // { entries: false } when nothing will read the ledger next (the room's sync).
+    async init({ entries = true } = {}) {
       // We're (re)connecting to a data source, so any cached letters/photos
       // belong to the previous one. boot() runs a refresh BEFORE login, which
       // would otherwise latch the cache on an empty dataset and leave the pet
       // and badges under-counting for the rest of the session.
       _heavyStatsLoaded = false;
+      _lettersFresh = false;
       _bdayReset();
       if (S.usingSN) {
         // All four at once. They don't depend on each other, and one after
         // another they were most of a 6-second login (≈1s each, measured on
         // the live site): auth → config → categories → rewards → punishments.
+        if (entries) {
+          const ahead = { gen: _writeGen, at: Date.now(), p: snFetch(`/entries?month=${monthKey()}`) };
+          ahead.p.catch(() => {});        // a failure here just means getEntries asks again
+          _entriesAhead = ahead;
+        }
         const [cfg, cats, rws, pns] = await Promise.all([
           snFetch('/config'), snFetch('/categories'), snFetch('/rewards'), snFetch('/punishments'),
         ]);
@@ -1013,7 +1031,13 @@ const App = (() => {
         // so the app doesn't hard-crash against an instance that hasn't had
         // r04 re-pasted yet (the OLD script's no-param fallback throws:
         // GlideDate has no .substring()). Harmless once r04 is updated.
-        const entries = await snFetch(`/entries?month=${monthKey()}`);
+        const ahead = _entriesAhead;
+        _entriesAhead = null;
+        let entries = null;
+        if (ahead && ahead.gen === _writeGen && Date.now() - ahead.at < 10000) {
+          entries = await ahead.p.catch(() => null);
+        }
+        if (!entries) entries = await snFetch(`/entries?month=${monthKey()}`);
         return entries.map(e => ({ ...e, icon: decodeFromSN(e.icon) }));
       }
       const d = LS.load();
@@ -1242,8 +1266,9 @@ const App = (() => {
     // have claimed or settled from their own device)
     async reloadTiers() {
       if (!S.usingSN) return;
-      S.rewards     = (await snFetch('/rewards')).map(_normTier);
-      S.punishments = (await snFetch('/punishments')).map(_normTier);
+      const [rws, pns] = await Promise.all([snFetch('/rewards'), snFetch('/punishments')]);
+      S.rewards     = rws.map(_normTier);
+      S.punishments = pns.map(_normTier);
     },
 
     // `seen` is what this phone counted — [id, pts, charId] per entry. The
@@ -1440,8 +1465,11 @@ const App = (() => {
   /* ── UI Renders ── */
   function renderScore(score) {
     const el = document.getElementById('score-number');
-    el.textContent = score >= 0 ? `+${score}` : `${score}`;
+    const txt = score >= 0 ? `+${score}` : `${score}`;
+    const moved = el.textContent !== txt;   // a catch-up refresh with the same number stays still
+    el.textContent = txt;
     el.className = 'score-number ' + (score >= 0 ? 'positive' : 'negative');
+    if (!moved) return;
     el.classList.add('score-bump');
     setTimeout(() => el.classList.remove('score-bump'), 400);
   }
@@ -1778,21 +1806,8 @@ const App = (() => {
     applyTheme();
 
     const entries = await Data.getEntries();
-    S.entries = entries;
-    const { char1, char2, neg1, neg2 } = calcCharScores(entries);
-    S.char1Score = char1; S.char2Score = char2;
-    S.char1NegPts = neg1; S.char2NegPts = neg2;
-    S.score = activeScore();
-
-    renderCharSelector();
-    renderScore(S.score);
-    const info = progressInfo(S.score, S.mode, activeNegPts());
-    renderProgress(S.score);
-    renderEntryCounts();
-    renderCharacterMood(info.pct);
-    renderEntries(entries);
-    renderCategories();
-    renderCheckinBanner();
+    S.entries = _withInFlight(entries);
+    _renderLedger();
     // Needs settled history for the lifetime total — fetch in the background
     // so the home page never blocks on it.
     // Needs settled history + letters/photos for the lifetime totals the goal
@@ -1806,6 +1821,72 @@ const App = (() => {
     renderBdayCard();
     _bdayArmMidnight();
     renderPartnerWeather();
+  }
+
+  // Everything on home that is worked out from the ledger. refresh() calls it
+  // after a fetch; a save calls it the moment it is tapped (_saveRows).
+  function _renderLedger() {
+    const { char1, char2, neg1, neg2 } = calcCharScores(S.entries);
+    S.char1Score = char1; S.char2Score = char2;
+    S.char1NegPts = neg1; S.char2NegPts = neg2;
+    S.score = activeScore();
+
+    renderCharSelector();
+    renderScore(S.score);
+    const info = progressInfo(S.score, S.mode, activeNegPts());
+    renderProgress(S.score);
+    renderEntryCounts();
+    renderCharacterMood(info.pct);
+    renderEntries(S.entries);
+    renderCategories();
+    renderCheckinBanner();
+  }
+
+  /* ── Points land the moment you tap (CLAUDE.md §7.4) ──
+     A save was two round trips — the POST, then a fresh /entries — and the
+     score sat still for 1–1.5 s on a phone. Now the rows join the ledger at
+     once under a local id and the score moves; when the server answers, each
+     row takes its real id, or is taken back out if it failed. refresh() is
+     still the only reader of the server's list: it keeps any row still in
+     flight, and an id seen twice (a refresh that lands mid-save) counts once.
+     Edit and delete wait for the real id — the server has never heard of a
+     local one. */
+  const _inFlight = new Map();   // local id → row
+  function _withInFlight(list) {
+    const ids = new Set(list.map(e => e.id));
+    const extra = [..._inFlight.values()].filter(r => !ids.has(r.id));
+    return extra.length ? _byDate([...extra, ...list]) : list;
+  }
+  // newest date first; same-day rows keep their order (new ones lead)
+  const _byDate = (list) => list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const _stillSaving = (id) => {
+    if (!_inFlight.has(id)) return false;
+    showToast('还在保存，稍等一下 ⏳');
+    return true;
+  };
+  // Resolves to Promise.allSettled's answer, one per row.
+  async function _saveRows(rows) {
+    rows.forEach(r => _inFlight.set(r.id, r));
+    S.entries = _byDate([...rows, ...S.entries]);
+    _renderLedger();
+    const done = await Promise.allSettled(rows.map(r => Data.addEntry(r)));
+    rows.forEach((r, i) => {
+      _inFlight.delete(r.id);
+      if (done[i].status === 'fulfilled') {
+        const id = done[i].value && done[i].value.id;
+        if (id) r.id = id;
+      } else {
+        S.entries = S.entries.filter(e => e !== r);
+      }
+    });
+    const seen = new Set();
+    S.entries = S.entries.filter(e => !seen.has(e.id) && seen.add(e.id));
+    _renderLedger();
+    if (_heavyStatsLoaded) { renderSharedGoal(); renderPetBanner(); }
+    // Catch up with the server behind the screen: real ids everywhere, and
+    // anything the partner logged meanwhile.
+    if (done.some(d => d.status === 'fulfilled')) refresh().catch(() => {});
+    return done;
   }
 
   /* ── Daily check-in (签到) ── */
@@ -1957,23 +2038,20 @@ const App = (() => {
     const btnId = forPartner ? 'checkin-btn-partner' : 'checkin-btn';
     const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.textContent = '签到中…'; }
-    try {
-      const date = todayStr();
-      await Data.addEntry({
-        id: 'e' + Date.now(),
-        catId: '', catName: CHECKIN_CAT, icon: '📅', pts,
-        desc: isSun ? '周日签到 🎉' : '每日签到',
-        charId, month: date.slice(0, 7), date,
-      });
-      spawnParticles(true);
-      const who = forPartner ? `帮 ${charDisplayName(charId)} ` : '';
-      showToast(`📅 ${who}签到成功！+${pts} 分${isSun ? ' 🎉 周日加倍' : ''}`);
-      await refresh();
-      renderCheckinCalendar();
-    } catch (err) {
-      showToast('签到失败: ' + err.message);
-      renderCheckinCalendar();
-    }
+    const date = todayStr();
+    spawnParticles(true);
+    const who = forPartner ? `帮 ${charDisplayName(charId)} ` : '';
+    showToast(`📅 ${who}签到成功！+${pts} 分${isSun ? ' 🎉 周日加倍' : ''}`);
+    const saving = _saveRows([{
+      id: 'e' + Date.now() + '_' + (++_qeSeq),
+      catId: '', catName: CHECKIN_CAT, icon: '📅', pts,
+      desc: isSun ? '周日签到 🎉' : '每日签到',
+      charId, month: date.slice(0, 7), date,
+    }]);
+    renderCheckinCalendar();          // the day is ticked already; a second tap says so
+    const [res] = await saving;
+    if (res.status === 'rejected') showToast('签到失败: ' + ((res.reason && res.reason.message) || res.reason));
+    renderCheckinCalendar();
   }
   // Check in on behalf of the partner (the non-active character)
   function doCheckinPartner() {
@@ -2000,6 +2078,13 @@ const App = (() => {
     catch: { name: '接零食',   icon: '🦴', how: '一关比一关快：接够数量就过关，躲开辣椒和炸弹', max: 3, unit: '个' },
     cards: { name: '记忆翻牌', icon: '🃏', how: '用你们的照片找出一样的一对，步数有限，一共 4 关', max: 3, unit: '步' },
   };
+  // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
+  // the FIRST clear of each level pays once, so replaying never farms points.
+  const TOGETHER = {
+    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 20 关：叠罗汉、按按钮、一起推箱子、跷跷板……都进小屋才算过关', max: 3 },
+    beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3 },
+  };
+  const _gameDef = (g) => GAMES[g] || TOGETHER[g];
   // 接零食 never ends by itself: each level asks for more, falls faster and adds a hazard.
   const catchLevel = (n) => ({
     time: 15,
@@ -2023,11 +2108,11 @@ const App = (() => {
   function gamePaidToday(g, who = _me()) {
     const today = todayStr();
     const fromLedger = (S.entries || []).filter(e => e.catName === GAME_CAT && e.date === today
-        && (e.charId || 'char1') === who && String(e.desc || '').startsWith(GAMES[g].name))
+        && (e.charId || 'char1') === who && String(e.desc || '').startsWith(_gameDef(g).name))
       .reduce((n, e) => n + (parseInt(e.pts) || 0), 0);
     let local = 0;
     try { local = parseInt(localStorage.getItem(_mgFlag(g, who))) || 0; } catch (e) {}
-    return Math.min(GAMES[g].max, Math.max(fromLedger, local));
+    return Math.min(_gameDef(g).max, Math.max(fromLedger, local));
   }
   // lv = levels CLEARED in the run. 接零食: 1 / 3 / 5 关 → +1 / +2 / +3. 翻牌: 1 / 2 / 3 关.
   function gamePoints(g, lv) {
@@ -2150,9 +2235,9 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       card = document.getElementById('mg-home');
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGames(); } });
     }
-    const leftToday = Object.keys(GAMES).filter(g => gamePaidToday(g) < GAMES[g].max).length;
+    const leftToday = Object.keys(GAMES).concat(Object.keys(TOGETHER)).filter(g => gamePaidToday(g) < _gameDef(g).max).length;
     document.getElementById('mg-home-sub').textContent = leftToday
-      ? '接零食 · 记忆翻牌 · 今天还能拿分' : '今天的分拿满啦 · 还能随便玩';
+      ? '一起回家 · 默契拍拍 · 今天还能拿分' : '今天的分拿满啦 · 还能随便玩';
   }
 
   let _mg = null;   // the game in play; read (and nudged) by the tests
@@ -2192,10 +2277,79 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   };
 
   function openGames() {
-    _mgShell('🎮 小游戏', Object.keys(GAMES).map(g =>
+    const together = Object.keys(TOGETHER).map(g => {
+      const paid = gamePaidToday(g), max = TOGETHER[g].max;
+      return `<button type="button" class="mg-pick" data-g="${g}" onclick="App.openCoop('${g === 'coop' ? 'home' : 'beat'}')">`
+        + `<span class="mg-ic">${TOGETHER[g].icon}</span><span><b>${TOGETHER[g].name}</b><span>${TOGETHER[g].how}</span>`
+        + `<span class="mg-pay${paid >= max ? ' mg-paid' : ''}">${paid >= max ? `今天的 +${max} 分拿满啦 · 还可以随便玩` : `每一关第一次过关 +1 · 今天最多 +${max}${paid ? ` · 已拿 +${paid}` : ''}`}</span>`
+        + `<span class="mg-best">🤝 可以各用自己的手机一起玩</span></span></button>`;
+    }).join('');
+    _mgShell('🎮 小游戏', together + Object.keys(GAMES).map(g =>
       `<button type="button" class="mg-pick" data-g="${g}" onclick="App.playGame('${g}')">`
       + `<span class="mg-ic">${GAMES[g].icon}</span><span><b>${GAMES[g].name}</b><span>${GAMES[g].how}</span>${_mgPayLine(g)}</span></button>`
     ).join('') + `<p class="mg-how">每个游戏每人每天最多 +3 分，会出现在「本月记录」里，两个人都看得到。最高纪录记在这部手机上。</p>`);
+  }
+
+  /* ── 一起回家 and 默契拍拍 live in coop.js, fetched the first time either opens ── */
+  let _coopP = null;
+  function _coopLoad() {
+    if (window.CoopGames) return Promise.resolve();
+    if (_coopP) return _coopP;
+    _coopP = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'coop.js?v=' + encodeURIComponent(APP_VERSION);
+      s.onload = () => (window.CoopGames ? res() : rej(new Error('coop.js')));
+      s.onerror = () => { _coopP = null; rej(new Error('coop.js')); };
+      document.head.appendChild(s);
+    });
+    return _coopP;
+  }
+  const _cgKey = (g, who) => `cg_paid_${g}_${who}`;
+  function _cgPaidKeys(g, who = _me()) { try { return JSON.parse(localStorage.getItem(_cgKey(g, who)) || '[]'); } catch (e) { return []; } }
+  // +1 for the FIRST clear of a level, for the person holding this phone (§6),
+  // at most +3 a day. Remembered before the request, like _mgAward, so two
+  // finishes in flight can't both pay.
+  async function _cgPay(g, key, detail) {
+    const who = _me(), keys = _cgPaidKeys(g, who);
+    if (keys.includes(key)) return { pts: 0, why: 'again' };
+    const paid = gamePaidToday(g, who);
+    if (paid >= TOGETHER[g].max) return { pts: 0, why: 'cap' };
+    try { localStorage.setItem(_cgKey(g, who), JSON.stringify(keys.concat(key))); localStorage.setItem(_mgFlag(g, who), String(paid + 1)); } catch (e) {}
+    try {
+      const date = todayStr();
+      await Data.addEntry({ id: 'e' + Date.now(), catId: '', catName: GAME_CAT, icon: '🎮', pts: 1,
+        desc: `${TOGETHER[g].name} · ${detail}`, charId: who, month: date.slice(0, 7), date });
+      refresh().catch(() => {});
+      return { pts: 1 };
+    } catch (err) {
+      try { localStorage.setItem(_cgKey(g, who), JSON.stringify(keys)); paid ? localStorage.setItem(_mgFlag(g, who), String(paid)) : localStorage.removeItem(_mgFlag(g, who)); } catch (e) {}
+      showToast('分数没记上: ' + err.message);
+      return { pts: 0, why: 'error' };
+    }
+  }
+  function _coopApi() {
+    let pet = null;
+    try { if (S.petSpecies) pet = { svg: petSvg(petStageInfo().idx), name: S.petName || '' }; } catch (e) {}
+    return {
+      me: _me() === 'char2' ? 'yy' : 'cs',
+      names: { cs: charDisplayName('char1'), yy: charDisplayName('char2') },
+      online: !!(S.usingSN && S.matchId && S.apiKey),
+      pet,
+      live: { want: (on) => Live.want('coop', on), send: (e, p) => Live.send(e, p), on: (e, f) => Live.on(e, f), state: () => Live.state() },
+      pay: _cgPay,
+      payInfo: (g) => ({ paid: gamePaidToday(g), max: TOGETHER[g].max, done: _cgPaidKeys(g) }),
+      toast: showToast,
+      onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} },
+    };
+  }
+  async function openCoop(kind = 'home') {
+    try {
+      const slow = window.CoopGames ? 0 : setTimeout(() => showToast(kind === 'beat' ? '💓 打开默契拍拍…' : '🏠 打开一起回家…'), 350);
+      await _coopLoad();
+      clearTimeout(slow);
+      closeGames();
+      await window.CoopGames.open(kind, _coopApi());
+    } catch (e) { showToast('游戏没打开，网络好像不太好，再试一次'); }
   }
   function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
 
@@ -2445,6 +2599,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       S.matchId    = result.matchId   || '';
       S.activeChar = result.charId    || 'char1';
       S.usingSN    = true;
+      _logins++;
 
       if (S.activeChar === 'char1') {
         S.charName1 = username;
@@ -2471,8 +2626,15 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         return;
       }
 
-      await Data.init();
-      await refresh();
+      // Behind the splash, boot() already loaded this couple with the saved
+      // session. Loading it all again was ~1.5 s of 「验证中…」 on every open,
+      // for data that had arrived seconds before: use it, and catch up behind
+      // the open home page instead.
+      const warm = _bootWarm && _bootWarm.match === S.matchId && _bootWarm.char === S.activeChar ? _bootWarm : null;
+      _bootWarm = null;
+      const reused = warm ? await warm.ready.then(() => true, () => false) : false;
+      if (reused) refresh().catch(() => {});
+      else { await Data.init(); await refresh(); }
       document.getElementById('setup-overlay').classList.add('hidden');
       // The session is up. This path never called the hook — register and a
       // resumed session did — so after a fresh sign-in the weather held back
@@ -2670,22 +2832,23 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       date,
     }));
 
-    // Every one is tried: a failure in the middle must not hide the ones that saved.
-    const done = await Promise.allSettled(rows.map(r => Data.addEntry(r)));
-    const bad = done.filter(d => d.status === 'rejected');
-    const saved = cats.filter((c, i) => done[i].status === 'fulfilled');
-    if (saved.length === 1 && !bad.length) {
-      const cat = saved[0];
+    // Said at once — the score has already moved (_saveRows). Only a failure
+    // speaks again, once the server has answered.
+    if (cats.length === 1) {
+      const cat = cats[0];
       showToast(`${cat.icon || '📌'} ${cat.name} ${cat.pts >= 0 ? '+' : ''}${cat.pts} 分！`);
-    } else if (saved.length) {
-      const sum = saved.reduce((n, c) => n + c.pts, 0);
-      showToast(`记了 ${saved.length} 项 ${sum >= 0 ? '+' : ''}${sum} 分` + (bad.length ? ` · ${bad.length} 项没记上` : '！'));
     } else {
+      showToast(`记了 ${cats.length} 项 ${total >= 0 ? '+' : ''}${total} 分！`);
+    }
+    // Every one is tried: a failure in the middle must not hide the ones that saved.
+    const done = await _saveRows(rows);
+    const bad = done.filter(d => d.status === 'rejected');
+    if (bad.length === rows.length) {
       showToast('记录失败: ' + ((bad[0].reason && bad[0].reason.message) || bad[0].reason));
+    } else if (bad.length) {
+      showToast(`${bad.length} 项没记上，已经撤回`);
     }
-    if (saved.length) {
-      try { await refresh(); checkThreshold(); } catch (err) { showToast('刷新失败: ' + err.message); }
-    }
+    if (bad.length < rows.length) checkThreshold();
   }
 
   // Backdating is how a 9/30 说晚安 gets logged on 10/1, and it is fine — as
@@ -2744,6 +2907,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
 
   function openEditEntryModal(id) {
+    if (_stillSaving(id)) return;
     const entry = S.entries.find(e => e.id === id);
     if (!entry) return;
     document.getElementById('add-entry-id').value = id;
@@ -2807,7 +2971,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         showToast('已更新 ✅');
       } else {
         const entry = {
-          id: 'e' + Date.now(),
+          id: 'e' + Date.now() + '_' + (++_qeSeq),
           catId, catName: cat.name || '自定义',
           icon: cat.icon || '📌',
           pts, desc, date,
@@ -2815,11 +2979,18 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
           month,
         };
         spawnParticles(pts >= 0);
-        await Data.addEntry(entry);
         closeModal('modal-add');
         document.getElementById('add-desc').value = '';
         showToast(`已记录 ${pts>=0?'+':''}${pts} 分 ✅`);
+        const [res] = await _saveRows([entry]);
+        if (res.status === 'rejected') {
+          // the sheet closed on the tap; put it back with the note they wrote
+          document.getElementById('add-desc').value = desc;
+          openModal('modal-add');
+          throw res.reason;
+        }
         checkThreshold();
+        return;
       }
       await refresh();
     } catch (err) {
@@ -2829,6 +3000,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
 
   async function deleteEntry(id) {
+    if (_stillSaving(id)) return;
     if (!(await showConfirm('确认删除这条记录？'))) return;
     try {
       await Data.deleteEntry(id);
@@ -3049,12 +3221,21 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     }
   }
 
+  // Opens on what this phone already has, then asks the server for the claim
+  // states (the partner may have claimed or settled) and redraws only if
+  // something changed — waiting first left the tab dead for a second.
   async function showTables() {
+    const sig = () => JSON.stringify([S.rewards, S.punishments]);
+    _renderTables();
+    openModal('modal-tables');
+    const before = sig();
+    try { await Data.reloadTiers(); } catch {}
+    if (sig() !== before && document.getElementById('modal-tables').classList.contains('open')) _renderTables();
+  }
+
+  function _renderTables() {
     const content = document.getElementById('modal-tables-content');
     const title   = document.getElementById('modal-tables-title');
-
-    // Always show current claim states — partner may have claimed or settled
-    try { await Data.reloadTiers(); } catch {}
     const outcome = getOutcome(outcomeScoreFor(S.activeChar), S.mode);
 
     if (S.mode === 'reward') {
@@ -3102,7 +3283,6 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
           </div>`).join('')
       }</div>`;
     }
-    openModal('modal-tables');
   }
 
   async function claimReward(rewardId) {
@@ -3125,8 +3305,20 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
 
   async function showHistory() {
-    const records = await Data.getHistory();
+    const content = document.getElementById('history-content');
+    const known = _historyFetched ? S.historyRecords : null;
+    if (known) _renderHistory(known);
+    else content.innerHTML = `<div class="empty-state"><div class="es-icon">⏳</div>加载中…</div>`;
+    openModal('modal-history');
+    let records;
+    try { records = await Data.getHistory(); } catch (err) { if (!known) content.innerHTML = `<div class="empty-state"><div class="es-icon">📅</div>历史加载失败</div>`; return; }
+    const changed = !known || JSON.stringify(records) !== JSON.stringify(known);
     S.historyRecords = records;
+    _historyFetched = true;
+    if (changed && document.getElementById('modal-history').classList.contains('open')) _renderHistory(records);
+  }
+
+  function _renderHistory(records) {
     const content = document.getElementById('history-content');
 
     if (!records.length) {
@@ -3160,7 +3352,6 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         </div>`;
       }).join('');
     }
-    openModal('modal-history');
   }
 
   async function setCharImg(n, input) {
@@ -3475,8 +3666,12 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   async function showLetters() {
     const pg = document.getElementById('letter-page');
     if (!pg) return;
+    // Home already loaded them (_loadStatsSources): show those at once and
+    // redraw only if the server's list differs (§7.41).
+    const had = _lettersFresh ? JSON.stringify(S.letters) : null;
+    if (had) renderLetters();
     pg.classList.add('open');
-    await loadLetters();
+    await loadLetters(had);
   }
 
   function closeLetters() {
@@ -3486,13 +3681,15 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     renderLetterBanner();
   }
 
-  async function loadLetters() {
+  async function loadLetters(had = null) {
     try {
       S.letters = await Data.getLetters();
+      _lettersFresh = true;
     } catch (err) {
+      if (had) return;                 // what is on screen is still right enough
       showToast('情书加载失败: ' + err.message);
     }
-    renderLetters();
+    if (JSON.stringify(S.letters) !== had) renderLetters();
   }
 
   function _letterTimeLabel(iso) {
@@ -3924,15 +4121,19 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   // before anything that reports across all of them.
   async function _loadStatsSources(force = false) {
     try {
-      S.historyRecords = (await Data.getHistory().catch(() => [])) || [];
-      if (force || !_heavyStatsLoaded) {
-        const [letters, photos] = await Promise.all([
-          Data.getLetters().catch(() => []),
-          Data.getPhotos().catch(() => []),
-        ]);
+      const heavy = force || !_heavyStatsLoaded;
+      const [history, letters, photos] = await Promise.all([
+        Data.getHistory().catch(() => []),
+        heavy ? Data.getLetters().catch(() => []) : null,
+        heavy ? Data.getPhotos().catch(() => []) : null,
+      ]);
+      S.historyRecords = history || [];
+      _historyFetched = true;
+      if (heavy) {
         S.letters = letters || [];
         S.photos  = photos  || [];
         _heavyStatsLoaded = true;
+        _lettersFresh = true;
       }
       renderLetterBanner();
     } catch (e) { /* best effort — badges just show what we do have */ }
@@ -6778,8 +6979,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   async function showPetHome() {
     if (!S.petSpecies) { openPetAdopt(); return; }
     document.getElementById('pet-page')?.classList.add('open');
-    await _loadStatsSources();
-    try { S.decorOwned = await Data.getDecorOwned(); } catch { S.decorOwned = []; }
+    // Both before the room can be drawn; neither waits for the other.
+    const [, owned] = await Promise.all([_loadStatsSources(), Data.getDecorOwned().catch(() => null)]);
+    S.decorOwned = owned || [];
     renderPetHome();
     _mgDoors();
     _markRoomSynced();
@@ -6965,7 +7167,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   async function refreshRoom(quiet) {
     const el = document.getElementById('room-sync-banner');
     try {
-      await Data.init();                       // re-reads config → equipped/pet
+      await Data.init({ entries: false });     // re-reads config → equipped/pet
       S.decorOwned = await Data.getDecorOwned();
       S.decorSel = null;
       renderPetHome();
@@ -7418,8 +7620,8 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
      an hour (§0.0): a refused join refreshes the token once and tries again. */
   const Live = (() => {
     let ws = null, joined = false, hb = null, timer = null, tries = 0, ref = 0, refreshed = false;
-    const on = {};
-    const wanted = () => !!(_fw && S.usingSN && S.matchId && S.apiKey && !document.hidden && typeof WebSocket !== 'undefined');
+    const on = {}, want = new Set();   // reasons besides a firework show: 'coop' (一起回家 / 默契拍拍 open)
+    const wanted = () => !!((_fw || want.size) && S.usingSN && S.matchId && S.apiKey && !document.hidden && typeof WebSocket !== 'undefined');
     const drop = () => { clearInterval(hb); hb = null; joined = false; const w = ws; ws = null; if (w) { w.onclose = w.onerror = w.onmessage = null; try { w.close(); } catch (e) {} } };
     const later = () => { clearTimeout(timer); if (wanted()) timer = setTimeout(sync, Math.min(60000, 2000 * Math.pow(2, tries++))); };
     function open() {
@@ -7457,7 +7659,8 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       try { ws.send(JSON.stringify({ topic: `realtime:couple:${S.matchId}`, event: 'broadcast', payload: { type: 'broadcast', event, payload }, ref: String(++ref), join_ref: 'join' })); return true; } catch (e) { return false; }
     }
     document.addEventListener('visibilitychange', sync);
-    return { sync, send, on: (event, fn) => { on[event] = fn; }, state: () => ({ open: !!ws, joined }) };
+    return { sync, send, on: (event, fn) => { on[event] = fn; }, state: () => ({ open: !!ws, joined }),
+      want: (why, yes) => { if (yes) want.add(why); else want.delete(why); sync(); } };
   })();
 
   // The partner's firework arriving. Named once a minute at most, so a volley is not a wall of toasts.
@@ -8439,18 +8642,29 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">本地演示模式没有积分商店 · 登录后就能用</div></div>';
       return;
     }
-    el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
+    // What this phone already has, at once (§7.41); the spinner is only for
+    // the first open, and an unchanged answer doesn't redraw.
+    const had = _shopFetched ? JSON.stringify(S.shopItems) : null;
+    if (had) _drawShopItems(el);
+    else el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
     try {
       S.shopItems = await ShopData.getItems();
+      _shopFetched = true;
     } catch(e) {
-      const isNetErr = e.message.includes('fetch') || e.message.includes('network');
+      if (had) return;                       // keep showing what we had
+      const isNetErr = /fetch|network|load failed/i.test(e.message);
       el.innerHTML = `<div class="shop-empty">
-        <div class="shop-empty-icon">${isNetErr ? '🔧' : '😕'}</div>
-        <div class="shop-empty-text">${isNetErr ? '商品功能尚未在 SN 配置\n请先添加 u_love_shop 表和 API 资源' : '加载失败: ' + e.message}</div>
-        <div style="margin-top:12px"><button class="btn-primary" style="font-size:13px;padding:10px 20px" onclick="App.openShopManage()">⚙️ 管理商品</button></div>
+        <div class="shop-empty-icon">${isNetErr ? '📶' : '😕'}</div>
+        <div class="shop-empty-text">${isNetErr ? '网络不太好，商品没加载出来' : '加载失败: ' + _escHtml(e.message)}</div>
+        <div style="margin-top:12px"><button class="btn-primary" style="font-size:13px;padding:10px 20px" onclick="App.shopTabSwitch('shop')">🔄 再试一次</button></div>
       </div>`;
       return;
     }
+    if (JSON.stringify(S.shopItems) !== had) _drawShopItems(el);
+  }
+
+  let _shopFetched = false;
+  function _drawShopItems(el) {
     const myScore = S.activeChar === 'char2' ? S.char2Score : S.char1Score;
     const active  = S.shopItems.filter(i => i.active !== false);
     if (!active.length) {
@@ -8475,7 +8689,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const el = document.getElementById('shop-content-bag');
     if (!el) return;
     if (!S.usingSN) {
-      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用背包功能</div></div>';
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">本地演示模式没有背包 · 登录后就能用</div></div>';
       return;
     }
     el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
@@ -8504,7 +8718,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     const el = document.getElementById('shop-content-bag-history');
     if (!el) return;
     if (!S.usingSN) {
-      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">请连接 ServiceNow 使用此功能</div></div>';
+      el.innerHTML = '<div class="shop-empty"><div class="shop-empty-icon">🔌</div><div class="shop-empty-text">本地演示模式没有兑换记录 · 登录后就能用</div></div>';
       return;
     }
     el.innerHTML = '<div class="loading"><div class="spinner"></div> 加载中…</div>';
@@ -8696,6 +8910,11 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   }
 
   /* ── Boot ── */
+  // The saved session's load behind the splash: { match, char, ready }. 继续
+  // waits on it instead of loading the same couple a second time.
+  let _bootWarm = null;
+  let _logins = 0;          // fresh sign-ins (继续) since the page opened
+
   async function boot() {
     _lastDay = todayStr();
     console.log('%c恋爱积分簿 ' + APP_VERSION, 'color:#5B9BD5;font-weight:bold');
@@ -8728,20 +8947,27 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       S.charName1  = localStorage.getItem('sn_charname1') || S.charName1;
       S.charName2  = localStorage.getItem('sn_charname2') || S.charName2;
       S.usingSN    = true;
+      const ready = (async () => { await Data.init(); await refresh(); })();
+      _bootWarm = { match: S.matchId, char: S.activeChar, ready };
+      const logins = _logins;
       try {
-        await Data.init();
-        await refresh();
+        await ready;
         flushWeather();
         maybeShowAnniversary();
       } catch (err) {
-        S.usingSN = false;
-        localStorage.removeItem('sn_api_key');
-        localStorage.removeItem('sn_refresh');
-        localStorage.removeItem('sn_username');
-        localStorage.removeItem('sn_char');
-        localStorage.removeItem('sn_match');
-        await Data.init();
-        await refresh();
+        // 继续 may have signed in afresh while this was failing; that session
+        // is good and is not this one to throw away.
+        if (_logins === logins) {
+          _bootWarm = null;
+          S.usingSN = false;
+          localStorage.removeItem('sn_api_key');
+          localStorage.removeItem('sn_refresh');
+          localStorage.removeItem('sn_username');
+          localStorage.removeItem('sn_char');
+          localStorage.removeItem('sn_match');
+          await Data.init();
+          await refresh();
+        }
       }
     } else {
       S.usingSN    = false;
@@ -9175,7 +9401,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
+    openGames, closeGames, playGame, openCoop, _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,
@@ -9238,6 +9464,9 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     _roomWeatherTest: () => _wxKind,
     _partnerWxTest: () => partnerWeather(),
     _publishWeatherTest: (k) => publishWeather(k), _fwTest: () => _fwStat, _liveTest: () => Live.state(), _fwRemoteTest: (ev) => !!(_fw && _fw.remote(ev)),
+    // init() asks for /entries early; a write after that must make getEntries ask again
+    _entriesAheadTest: async (row) => { await Data.init(); await Data.addEntry(row); return (await Data.getEntries()).some(e => e.desc === row.desc); },
+    _inFlightTest: () => [..._inFlight.keys()],
     // lets a test put a partner's reading in the other slot and re-render
     _setPartnerWxTest: (raw) => { if (_me() === 'char2') S.wx1 = raw; else S.wx2 = raw;
       renderPartnerWeather(); },

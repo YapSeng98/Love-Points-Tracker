@@ -98,6 +98,24 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
       for (let i = 0; i < 8; i++) { await p.evaluate((i) => document.querySelectorAll('.mg-card')[i].click(), i); await sleep(140); }
     }));
     await p.evaluate(() => { App.closeGames(); App.closePetHome(); });
+    // 一起回家: a busy level (rafts, enemies, the seesaw, crumbling clouds), one person running both
+    report('一起回家 opens', await watch(p, 2500, async () => { await p.evaluate(() => App.openCoop('home')); await p.waitForFunction(() => document.querySelector('.cg-home')); }));
+    // the menu taps (which also make the sound context) happen before the watch; what is measured is the start and the run
+    await p.click('.cg-home [data-mode="solo"]'); await sleep(200);
+    await p.evaluate(() => { CoopGames.test.G.save.unlocked = 20; }); await p.click('.cg-worlds [data-w="4"]'); await sleep(200);
+    await p.click('.cg-lv[data-i="18"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, running and jumping (5-3)', await watch(p, 5000, async () => {
+      await p.click('.cg-panel [data-a="go"]');
+      await p.keyboard.down('ArrowRight'); for (let i = 0; i < 9; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
+    }));
+    await p.evaluate(() => CoopGames.close());
+    report('默契拍拍 opens', await watch(p, 2000, async () => { await p.evaluate(() => App.openCoop('beat')); await p.waitForFunction(() => document.querySelector('.cg-home [data-m="bot"]')); }));
+    await p.click('.cg-home [data-m="bot"]'); await sleep(300);
+    report('默契拍拍, a round with the computer', await watch(p, 5000, async () => {
+      await p.click('.cg-home [data-a="go"]');
+      for (let i = 0; i < 6; i++) { await sleep(600); await p.keyboard.press('Space'); }
+    }));
+    await p.evaluate(() => CoopGames.close());
     report('我们的时光 opens', await watch(p, 3000, async () => { await p.evaluate(() => App.showLovePage()); }));
     console.log(errs.length ? `  ❌ page errors: ${errs.join(' | ')}` : '  ✅ no page errors'); errs.length ? fail++ : pass++;
     await ctx.close();

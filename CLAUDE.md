@@ -874,6 +874,89 @@ hazard, every level's shape, running out of time / hearts / moves, the payout
 row, the top-up and the cap (also with the flag wiped), banking on close,
 tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.
 
+## 7.33 🤝 一起回家 and 默契拍拍 — two phones, one game
+
+Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer, 20
+levels in five worlds (春/夏/秋/冬/夜), that only works if the two of them help
+each other: stand on your partner's head, hold a button so the other can pass,
+push a box that one person can't move, throw each other with the seesaw, and
+both stomp the big cloud in 5-4. 默契拍拍 is five rounds of tapping on the same
+heartbeat. Both open from the 小游戏 list (first two cards) and from the home
+card.
+
+- **Everything lives in `coop.js`**, loaded by app.js the first time either
+  game opens (`coop.js?v=APP_VERSION`), styles injected (`cg-` / `cgb-`). No
+  index.html change, so a stale cached page can't miss it (§7.27). The overlay
+  is z-index 150, the stage 160 (§1.3).
+- **Three ways to play**: 🤝 each on their own phone (needs a login), 👫 two
+  people on one phone (split controls), and 🙋 one person switching between
+  the two characters. Demo mode has no partner, so 各用自己的手机 is off there.
+- **The companion is the couple's own 小窝 pet** (or 宝宝), drawn from the
+  app's own `petSvg()` picture and named with its name. No pet adopted, no
+  companion, and the home screen says how to get one. Nobody else's pet ever
+  appears.
+
+### Two phones over the couple's live channel
+
+The same private channel as the fireworks (§7.235), `couple:<match id>`;
+`Live.want('coop', on)` keeps it open only while a game is on screen.
+
+- **Each phone is in charge of its own character.** It moves at the tap
+  (no waiting for the network) and says where it is ~15 times a second. The
+  partner's character is drawn from those messages 110 ms in the past, so
+  there are always two to slide between.
+- **The phone that picked the level (the host) runs the world**: enemies,
+  boxes, the big cloud, hearts, stars and the door — 10 times a second. The
+  other phone asks for anything that changes the world (a heart taken, a stomp,
+  a hit on the cloud) and the host answers for both. CS wins a tie.
+- **Never trust the wire** (§7.235): a message for another level or round
+  (`NET.n`) is dropped.
+- 默契拍拍 lines the clocks up first (round trips; the shortest one wins), then
+  each phone sends how far its tap was from the beat, so both phones judge the
+  same taps and give the same verdict.
+
+### Points
+
+**+1 for the FIRST clear of each level, for the person holding the phone
+(`_me()`, §6), at most +3 a day per game.** Replays pay nothing. Like §7.32
+it is an ordinary entry (`🎮 小游戏`, `一起回家 · 1-1 樱花小路 通关`), the day's
+cap is summed from the entries, and the level is remembered *before* the request
+so two finishes in flight can't both pay. Which levels have paid is per phone
+(`cg_paid_<game>_<who>`), so a second phone could pay a level once more. Still
+no server rule, so the §7.32 warning stands: don't raise the payouts without one.
+
+### What building it turned up
+
+- **A hidden stage still took taps.** `.cg-stage{display:grid}` beat the
+  `hidden` attribute, so the closed stage sat over the menu and swallowed
+  every tap. A component that sets `display` needs its own `[hidden]` rule.
+- **"Am I the host?" has one answer, `NET.role`.** One check read `G.net`,
+  which the guest also had, so both phones ran the enemies and each undid the
+  other.
+- **A box pushed from two phones barely moved.** Each phone saw only its own
+  push, which is never enough, so it gave up. The host now counts a push it
+  heard about in the last 0.25 s.
+- **Respawning at the flag put a player behind a gate** that only opens with
+  two people, with the partner already through: stuck for good. A fallen
+  player now comes back beside their partner when the partner stands on solid
+  ground, waits (up to 4 s) while the partner is in the air or riding
+  something, and only uses the flag when there is no one to come back to.
+- **The first sound and the first text cost a dropped frame.** Creating the
+  `AudioContext` takes ~50 ms (200 at 4× CPU) and happened at the level start;
+  it is now made on the first tap in the menu. Canvas text used the try-out's
+  `Nunito`, which the app never loads — it uses the app's own font stack now —
+  and the sign and the name tags are drawn once and reused instead of
+  outlined every frame.
+
+`tools/coop-test.js` plays every level in the real app with a bot (one phone,
+two people and alone, 20/20 each), the payouts, 默契拍拍, the no-pet case, and
+360/390/820 in both themes. `tools/coop-live-test.js` logs two phones in on the
+live backend and checks every cross-phone mechanic: moves mirrored, hearts,
+standing on each other, the gate held from the other phone, pause, the win paying
+each person, the two-person box, the seesaw, the guest's stomp on the cloud,
+leaving, and 默契拍拍 giving one verdict. `tools/coop-bot.js` is the bot both
+use. `smooth-test.js` measures both games.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -1331,6 +1414,60 @@ at 2780 nodes, the slowest screen switch is 13ms, and the heap sits at 6MB.
 DOM plateaus: 48 open/close cycles of the pet room and 20 weather flips add
 zero nodes. If a change pushes any of these materially, find out why.
 
+### 7.41 Answer the tap first (2026-11-18)
+
+A logged-in call costs 0.5–1s even when it returns `[]` — most of it is the
+function checking who you are, not the data — so nothing a person taps may
+wait on one. Measured with `tools/speed-test.js` (CPU 4×, 4G, a GitHub-Pages
+copy of the headers), before → after:
+
+| | before | after |
+|---|---|---|
+| 继续 → home | 2.6 s | 1.2 s |
+| tap a tile → the score moves | 1.1 s | 0.04 s |
+| 积分表 / 历史 / 情书 / 商店 open with content | 1.3 / 0.8 / 0.6 / 0.7 s | instant from the second open |
+| 小窝 furnished | 1.5 s | 0.85 s |
+| API calls per open | 15 → 10 |
+| downloaded per open | 195 KB | 16 KB |
+
+What made the difference, and what must not come back:
+
+- **Show what the phone has, then catch up.** 积分表, 历史, 情书 and the
+  shop open on the cached lists and redraw only if the server's answer differs (a redraw
+  replays the rows' rise-in, so an unchanged answer must not cause one). 历史
+  shows 加载中 until it has really fetched — `S.historyRecords` starts as
+  `[]`, which must not read as "no history".
+- **Points are optimistic** (`_saveRows`). Rows join the ledger under a
+  local id at the tap; the POST's answer gives each its real id, or takes it
+  back out with a toast. `refresh()` stays the only reader of the server's
+  list: it keeps rows still in flight (`_inFlight`) and a row seen twice — a
+  refresh that lands after the insert but before the answer — counts once.
+  Edit and delete wait for the real id. A refused 自定义记分 reopens the form
+  with the note. `tools/instant-test.js` holds saves back, refuses them and
+  races refreshes against them on the live backend.
+- **Never load the same thing twice.** The splash already loaded the couple
+  with the saved session; 继续 still checks the password (on purpose, §0 —
+  commit 5c88fff) but then reuses that load (`_bootWarm`) and refreshes
+  behind the open home page. If that early load fails after 继续 has signed
+  in, it must not log the new session out (`_logins`).
+- **Independent requests go together.** `/entries` goes out with the four in
+  `Data.init()` (used once, and only if nothing was written since —
+  `_writeGen`, bumped by every non-GET); rewards with punishments; history
+  with letters and photos; the room's stats with its furniture.
+- **app.js is loaded by its ETag.** A HEAD asks which app.js is live and the
+  script tag loads `app.js?e=<etag>`: the same version comes from the cache, a
+  deploy changes the URL. `?v=Date.now()` downloaded 170 KB on every open. Two
+  traps found on the way (`tools/loader-test.js`, Chrome + WebKit): a
+  `Cache-Control: no-cache` *request header* on fetch() makes Chrome skip its
+  cache entirely, and WebKit's fetch() did not use the cache at all where a
+  plain script tag did.
+- **The song is `preload="none"`** — it starts on the splash tap anyway, and
+  pulling 2.6 MB at page load raced app.js for the phone's bandwidth.
+- **Measuring:** `page.route()` turns the browser's HTTP cache off, so a test
+  that routes anything sees every open as a first visit. `speed-test.js` keeps
+  weather out by DNS instead, and serves the repo with GitHub Pages' headers
+  (python's http.server sends none).
+
 ---
 
 ## 8. 🚀 Shipping checklist
@@ -1346,8 +1483,10 @@ zero nodes. If a change pushes any of these materially, find out why.
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
-  fireworks-live-test.js, smooth-test.js — serve the repo
-  on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html)
+  fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
+  coop-live-test.js — serve the repo
+  on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
+  loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
 □ git commit + push (GitHub Pages auto-deploys)
 ```
@@ -1361,6 +1500,10 @@ Two things that are still true:
 - **A function is deployed independently of the frontend.** Deploy the
   function first when a change spans both, or the pushed app calls an
   endpoint that doesn't answer yet.
+- **Supabase CLI 3.x** (2026-11-18) refuses to read `supabase/config.toml`
+  without a top-level `project_id` (now there — a local name only), and when
+  an agent runs it, it will not deploy to production until the user has said
+  yes (`--yes`). Ask; don't pass it on your own.
 - **The service-role key lives only in the function runtime.** It must never
   reach `app.js`, which ships publicly. The client gets the publishable key,
   which is safe precisely because RLS is `SELECT`-only.
@@ -1444,7 +1587,12 @@ whoever was already signed in keeps using a half-updated build).
 | `node supabase/test-live.mjs` | The couple's live channel, attacked: both partners join and hear each other; no login, another couple, a made-up id and the public door are all shut out |
 | `node tools/fireworks-live-test.js` | Shared fireworks with two logged-in phones on the live backend: the same shell both ways, different screen sizes, one toast per volley, taps that are not for the sky, junk on the wire, background/foreground, ordinary nights open no connection |
 | `node tools/smooth-test.js` | Frame pacing with the CPU slowed 4×: home, scrolling, the ＋ sheet, sheets, 小窝, both games, 我们的时光, and each firework show while tapping and scrolling. Fails under 50 fps or on a stall over 120 ms. Run it alone |
+| `node tools/instant-test.js` | Taps that answer at once (§7.41), on the live backend: points move before the POST answers, a refused save is taken back, a refresh mid-save neither loses nor doubles a row, 签到 double taps, a refused 自定义记分 keeps its note, 积分表/历史 open before the server answers, 继续 doesn't reload the couple, an early /entries is dropped after a write |
+| `node tools/speed-test.js` | Not pass/fail except for a few budgets — the table of what a phone waits for (CPU 4×, 4G, GitHub Pages headers): open, 继续, a tile, each screen, KB and calls per open. Compare medians, never one run. `ROOT=<dir>` measures another copy (e.g. the live version) |
+| `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
+| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 20 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, leaving, 默契拍拍's shared verdict |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
