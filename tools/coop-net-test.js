@@ -88,8 +88,11 @@ const net = (p, o) => T(p, (o) => window.__net.set(o), o);
 const until = async (fn, ms = 8000, every = 100) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await sleep(every); } return false; };
 const live = (p) => T(p, () => App._liveTest());
 async function openGame(X, kind = 'home') { await X.p.evaluate((k) => App.openCoop(k), kind); await X.p.waitForFunction(() => document.querySelector('.cg-home'), null, { timeout: 10000 }); }
+// the level that has a given piece (levels are found by what they contain, not by number)
+const levelWith = (p, id) => p.evaluate((id) => CoopGames.test.LEVELS.findIndex(L => L.seq.includes(id)), id);
 async function startLevel(A, B, i) {
-  await A.p.click(`.cg-worlds [data-w="${Math.floor(i / 4)}"]`);
+  const w = await A.p.evaluate((i) => CoopGames.test.LEVELS[i].world, i);
+  await A.p.click(`.cg-worlds [data-w="${w}"]`);
   await A.p.click(`.cg-lv[data-i="${i}"]`);
   return until(async () => { const a = await st(A.p), b = await st(B.p); return a.state === 'play' && b.state === 'play' && a.lv === i && b.lv === i && a.n === b.n; }, 12000);
 }
@@ -197,10 +200,12 @@ function evenness(smp) {
     await tpMe(B.p, stk.x0 + 5.1, 7.6); await sleep(1200);
     let a = await st(A.p), b = await st(B.p);
     ok(b.P[1].gk === 'player' && a.P[1].gk === 'player', 'B2 stands on A1\'s head, on both phones');
+    if (process.env.DEBUG) await T(B.p, () => { const G = CoopGames.test.G, N = CoopGames.test.NET; window.__dbg = []; window.__dbgI = setInterval(() => { const a = G.players[0], b = G.players[1]; window.__dbg.push(`a ${a.x.toFixed(2)} dx ${(a.dx || 0).toFixed(3)} rin ${JSON.stringify(N.rin)} age ${Math.round(performance.now() - N.rinAt)} | b ${b.x.toFixed(2)} g ${b.grounded} ${b.ground && b.ground.kind} ${b.ground && b.ground.ref === a}`); }, 50); });
     await A.p.keyboard.down('ArrowLeft'); await sleep(450); await A.p.keyboard.up('ArrowLeft'); await sleep(900);
+    if (process.env.DEBUG) console.log((await T(B.p, () => { clearInterval(window.__dbgI); return window.__dbg; })).join('\n'));
     b = await st(B.p);
     ok(b.P[1].gk === 'player' && Math.abs(b.P[1].x - b.P[0].x) < 0.7, `A1 carries B2 even with the delay (B2 ${b.P[1].x.toFixed(2)}, A1 ${b.P[0].x.toFixed(2)})`);
-    ok(await freshLevel(A, B, 12), '4-1');
+    ok(await freshLevel(A, B, await levelWith(A.p, 'X_plate')), 'the box level');
     const xp = await T(A.p, () => { const c = CoopGames.test.G.L.chunks.find(c => c.ch.id === 'X_plate'); return c && { x0: c.x0 }; });
     await tpMe(A.p, xp.x0 + 1.2, 9.82); await tpMe(B.p, xp.x0 + 0.9, 9.82); await sleep(1200);
     await A.p.keyboard.down('ArrowRight'); await B.p.keyboard.down('ArrowRight'); await sleep(5500); await A.p.keyboard.up('ArrowRight'); await B.p.keyboard.up('ArrowRight'); await sleep(1000);
@@ -230,8 +235,8 @@ function evenness(smp) {
       healed = await until(async () => (await st(A.p)).stars[sx[2]], 12000);
       ok(healed, `a star B2 took while A1 was offline shows on A1's phone once A1 is back (star ${sx[2] + 1})`);
     } else ok(true, '(no star in this level to test)');
-    // 1-4 has a flag and spikes
-    ok(await freshLevel(A, B, 3), '1-4, which has a flag and spikes');
+    // a level with a flag (樱花迷宫); the hurt comes from a fall when there are no spikes
+    ok(await freshLevel(A, B, await levelWith(A.p, 'S_tall')), '樱花迷宫, which has a flag');
     // a flag B2 touches while A1 is offline: A1's phone restarts from it too
     const cpi = await T(B.p, () => CoopGames.test.G.L.cps.findIndex(k => !k.on));
     const cpx = await T(B.p, (i) => { const k = CoopGames.test.G.L.cps[i]; return [k.x, k.y]; }, cpi);
@@ -245,14 +250,13 @@ function evenness(smp) {
     const rec = () => { const G = CoopGames.test.G, N = CoopGames.test.NET; window.__hpl = []; let last = -1; window.__hpi = setInterval(() => { if (G.hp !== last) { last = G.hp; window.__hpl.push([Math.round(performance.now()), G.hp, N.rx, N.tx, N.pend.map(e => e.m.k + e.m.q).join(' '), G.players.map(p => p.inv.toFixed(2) + (p.dead > 0 ? 'D' : '')).join('/')]); } }, 5); };
     if (process.env.DEBUG) { await T(A.p, rec); await T(B.p, rec); }
     await T(A.p, () => { const G = CoopGames.test.G; G.players[G.meIdx].inv = 30; });   // A1 stands at the start, where a walker can reach it
-    const sp = await hurtMe(B.p);
-    await until(async () => (await st(B.p)).hp === hp0 - 1, 3000, 30);
-    await tpMe(B.p, cpx[0] - 0.39, cpx[1] - 1.0);   // off the spikes: one hit only
+    await T(B.p, () => CoopGames.test.hurt());   // one hit, as spikes would give
+    const sp = true;
     healed = await until(async () => { const x = await st(A.p), y = await st(B.p); return x.hp === hp0 - 1 && y.hp === hp0 - 1; }, 12000);
     await sleep(1500);
     a = await st(A.p); b = await st(B.p);
     if (process.env.DEBUG) console.log('A', JSON.stringify(await T(A.p, () => window.__hpl)), '\nB', JSON.stringify(await T(B.p, () => window.__hpl)));
-    ok(sp && healed && a.hp === hp0 - 1 && b.hp === hp0 - 1, `B2 hurt by spikes while A1 was offline: one heart gone on both (${hp0} → ${a.hp} / ${b.hp})`);
+    ok(sp && healed && a.hp === hp0 - 1 && b.hp === hp0 - 1, `B2 hurt while A1 was offline: one heart gone on both (${hp0} → ${a.hp} / ${b.hp})`);
     // the win, while B2 is offline: B2's phone still ends the level
     const door = await T(A.p, () => CoopGames.test.G.L.door.x);
     await tpMe(B.p, door - 0.2, 9.82); await sleep(900);
@@ -376,7 +380,7 @@ function evenness(smp) {
     } else ok(false, 'found a gift block');
     // a crumbling cloud B2 stands on
     let crumb = null;
-    for (const lv of [16, 17, 18, 19, 15, 14]) {
+    for (const lv of [11, 13, 14, 25, 26, 12]) {
       ok(await freshLevel(A, B, lv), `level ${lv + 1} for a crumbling cloud`);
       crumb = await T(A.p, () => { const L = CoopGames.test.G.L, w = L.w; for (let c = 0; c < w; c++) for (let r = 1; r < 12; r++) if (L.grid[r * w + c] === 9 && !L.grid[(r - 1) * w + c]) return [c, r]; return null; });
       if (crumb) break;

@@ -12,7 +12,7 @@ function apply() {
 }
 const over = () => G.state === 'won' || G.state === 'result' || G.state === 'fail' || G.state === 'dying';
 const ring = [];
-function tick() { apply(); C.stepFn(C.STEP); steps++; if (steps % 20 === 0) { ring.push(steps + ': ' + G.players.map((p, i) => `${'AB'[i]} ${p.x.toFixed(2)},${p.y.toFixed(2)}${p.grounded ? 'g:' + (p.ground && p.ground.kind) : ''}${p.dead > 0 ? ' DEAD' : ''} in=${JSON.stringify(IN[i])}`).join(' | ') + ` hp${G.hp} chan${Array.from(G.chanOn).join('')}`); if (ring.length > 14) ring.shift(); } return !over(); }
+function tick() { apply(); C.stepFn(C.STEP); steps++; if (steps % 20 === 0) { ring.push(steps + ': ' + G.players.map((p, i) => `${'AB'[i]} ${p.x.toFixed(2)},${p.y.toFixed(2)}${p.grounded ? 'g:' + (p.ground && p.ground.kind) : ''}${p.dead > 0 ? ' DEAD' : ''} in=${JSON.stringify(IN[i])}`).join(' | ') + ` hp${G.hp} chan${Array.from(G.chanOn).join('')}`); if (ring.length > (window.__ringN || 14)) ring.shift(); } return !over(); }
 function until(cond, fn, max = 3000) {
   for (let k = 0; k < max; k++) { if (cond()) return true; fn(); if (!tick()) return cond(); }
   return false;
@@ -68,7 +68,8 @@ function runInput(i, tx, tol = 0.18) {
   for (const e of G.L.enemies) if (!e.dead && (e.type === 'p' || e.type === 'n' || e.type === 'a') && Math.abs(e.y + e.h - feet) < 1.6 && (e.x + e.w / 2 - x) * dir > 0 && Math.abs(e.x + e.w / 2 - x) < 2.1) foe = true;
   if (edge) {
     // a raft in the gap: wait until it is close
-    const movers = G.L.movers.filter(m => (dir > 0 ? m.ox + 3 + m.range >= ax && m.ox - m.range <= ax + 7 : m.ox - m.range <= ax && m.ox + 3 + m.range >= ax - 7));
+    // a raft in the gap at about this height (one far below a high ledge is not the way across)
+    const movers = G.L.movers.filter(m => m.axis !== 'o' && m.y > feet - 3.5 && m.y < feet + 3 && (dir > 0 ? m.ox + 3 + m.range >= ax && m.ox - m.range <= ax + 7 : m.ox - m.range <= ax && m.ox + 3 + m.range >= ax - 7));
     if (movers.length) {
       const ok = movers.some(m => { const d = dir > 0 ? m.x0 - ax : ax - m.x1, toward = dir > 0 ? m.dx >= -1e-4 : m.dx <= 1e-4; return d < 0.6 && d > -2.4 && toward && m.y > feet - 3.3 && m.y < feet + 2.5; });
       if (!ok) return {};
@@ -78,7 +79,7 @@ function runInput(i, tx, tol = 0.18) {
   }
   const sc = Math.floor(ax), sr = Math.floor(feet - 0.5);
   if (sr >= 0 && sr < 13 && sc >= 0 && sc < G.L.w && G.L.grid[sr * G.L.w + sc] === 5) { AIM[i] = null; inp.j = true; }
-  if (wall || foe) inp.j = true;
+  if ((wall || foe) && Math.abs(tx - x) > 1.0) inp.j = true;   // right by the target (a box to push), walk up to it
   return inp;
 }
 const LR = [null, null], AIM = [null, null], RUNV = 7.5;
@@ -120,7 +121,8 @@ function solo(i, t, max = 2500, tol = 0.25) { if (G.mode === 'solo') unstack(i);
 function climbOn(top, bottom) {
   take(top);
   const b = P(bottom), dir = cx(P(top)) < cx(b) ? 1 : -1;
-  if (!solo(top, cx(b) - dir * 1.0, 1500, 0.2)) return false;
+  // a tile from the partner; close is enough (beside a box the exact spot can be out of reach)
+  if (!solo(top, cx(b) - dir * 1.0, 1500, 0.2) && Math.abs(cx(P(top)) - cx(b)) > 1.8) return false;
   let k = 0;
   IN[top] = {}; tick();
   return until(() => P(top).grounded && P(top).ground && P(top).ground.ref === P(bottom), () => {
@@ -140,6 +142,53 @@ function leapTo(i, tx, maxFeet = 99, max = 400) {
     IN[1 - i] = {};
     IN[i] = { j: k++ < 45, r: dx > 0.15, l: dx < -0.15 };
   }, max);
+}
+const idle = () => { IN[0] = {}; IN[1] = {}; };
+// walk into an updraft, rise until the feet are above feetUp, then drift across to tx and land
+function rideWind(i, fx, feetUp, tx, max = 900) {
+  if (G.mode === 'solo') unstack(i);
+  take(i);
+  if (!until(() => !P(i).grounded && P(i).y + P(i).h < feetUp, () => { const dx = fx - cx(P(i)); IN[i] = { l: dx < -0.1, r: dx > 0.1, j: true }; IN[1 - i] = {}; }, max)) return false;
+  return until(() => P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.5, () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.15, r: dx > 0.15 }; IN[1 - i] = {}; }, max);
+}
+// stand under the wheel, hop into a cabin as it comes round the bottom, ride it up, and leap for (offX, offFeet)
+function rideWheel(i, wh, offX, offFeet) {
+  if (G.mode === 'solo') unstack(i);
+  take(i);
+  const cabins = G.L.movers.filter(m => m.wheel === wh);
+  if (!solo(i, wh.cx - 0.2, 1500, 0.3)) return false;
+  let k = 0, cab = null;
+  const on = () => (cab = cabins.find(m => P(i).grounded && P(i).ground && P(i).ground.ref === m)) != null;
+  if (!until(on, () => {
+    const low = cabins.find(m => Math.abs(m.x + m.w / 2 - cx(P(i))) < 0.8 && m.y > wh.cy + 2.4);
+    IN[1 - i] = {}; IN[i] = { j: !!low && k++ % 30 < 14 };
+  }, 4000)) return false;
+  // up and round to the top-right quarter (it turns that way), then jump right
+  if (!until(() => !on() || (cab.x + cab.w / 2 > wh.cx + 0.9 && cab.y < wh.cy + 0.2 && cab.dy > 0), () => { IN[i] = {}; IN[1 - i] = {}; }, 4000)) return false;
+  let j = 0;
+  return until(() => j > 10 && P(i).grounded && !cabins.includes(P(i).ground && P(i).ground.ref) && Math.abs(cx(P(i)) - offX) < 1.2 && P(i).y + P(i).h <= offFeet,
+    () => { const dx = offX - cx(P(i)); IN[i] = { j: j++ < 40, r: dx > 0.15, l: dx < -0.15 }; IN[1 - i] = {}; }, 500);
+}
+function pushBox(n, x0, x1, stopAt) {
+  const box = G.L.boxes.find(q => q.ox >= x0 && q.ox < x1), lx = box.x - 0.39;
+  if (!both(lx - 0.05, lx - 0.05, 2000, 0.3)) return null;
+  if (G.mode === 'solo') { take(0); if (!G.hold) C.toggleHold(); if (!G.hold) return null; }
+  const ok = until(() => box.x >= (stopAt != null ? stopAt : box.maxX) - 0.02, () => { IN[0] = { r: true }; IN[1] = { r: true }; }, 1500);
+  if (G.mode === 'solo' && G.hold) C.toggleHold();
+  return ok ? box : null;
+}
+function seesawThrow(n, x0) {   // the N_seesaw way: CS on the low end, YY lands on the high end, CS flies up
+  const s = G.L.seesaws.find(q => q.px > x0 && q.px < x0 + 24);
+  if (!solo(0, x0 + 8.2, 1500, 0.3)) return 'reach';
+  let k = 0;
+  take(0);
+  if (!until(() => P(0).grounded && P(0).ground && P(0).ground.ref === s, () => { IN[0] = { j: k++ < 12, l: cx(P(0)) > s.px + 1.8 }; IN[1] = {}; }, 300)) return 'low-end';
+  if (!solo(1, x0 + 0.9, 1500, 0.25)) return 'reach-b';
+  k = 0;
+  take(1);
+  if (!until(() => P(0).launch || !P(0).grounded, () => { IN[0] = {}; IN[1] = { j: k++ < 45, r: cx(P(1)) < s.px - 1.9 }; }, 300)) return 'no-throw';
+  if (!until(() => P(0).grounded, idle, 400)) return 'no-land';
+  return P(0).y > 4 ? 'launch-missed' : true;
 }
 function stepChunk(n) {
   const c = G.L.chunks[n], id = c.ch.id, x0 = c.x0, x1 = c.x0 + c.ch.w;
@@ -233,11 +282,154 @@ function stepChunk(n) {
       if (!solo(A, x1 + 0.5, 2000)) return false;
       return both(x1 + 1, x1 + 2);
     }
+    // ── 2026-11-22 ──
+    case 'S_pair1':
+      if (!both(x0 + 3.5, x0 + 9.5, 2000, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'S_tall':
+      if (!solo(A, x0 + 5.5, 1500, 0.3)) return false;
+      if (P(A).y + P(A).h > 10.1) return 'not-on-step';
+      if (!climbOn(B, A)) return 'climb';
+      if (!leapTo(B, x0 + 7.5, 5.1)) return 'leap';
+      if (!solo(B, x0 + 7.5, 400, 0.3)) return false;
+      if (!until(() => G.chanOn[n], idle, 60)) return 'gate';
+      if (!solo(A, x0 + 10)) return false;
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'S_pair2':
+      if (!both(x0 + 4.0, x0 + 2.4, 2000, 0.3)) return false;
+      if (!climbOn(B, A)) return 'climb';
+      if (!leapTo(B, x0 + 4.5, 6.1)) return 'leap';
+      if (!solo(B, x0 + 4.5, 400, 0.3)) return false;
+      if (!solo(A, x0 + 11.5, 2000, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'U_pair': case 'U_bridge2': {
+      const sx0 = x0 + (id === 'U_pair' ? 6.5 : 7.5), cloud = x0 + (id === 'U_pair' ? 2.5 : 10.5), floor = x0 + (id === 'U_pair' ? 9.5 : 3.5);
+      if (id === 'U_bridge2' && !solo(A, floor, 2000, 0.3)) return false;
+      take(B);
+      if (!until(() => !P(B).grounded && P(B).vy < -15, () => { go(B, sx0, 0.05); IN[A] = {}; }, 900)) return 'no-spring';
+      if (!until(() => P(B).grounded && P(B).y + P(B).h <= 6.1, () => { const dx = cloud - cx(P(B)); IN[B] = { j: true, l: dx < -0.15, r: dx > 0.15 }; IN[A] = {}; }, 400)) return 'missed-cloud';
+      if (!solo(B, cloud, 300, 0.3)) return false;
+      if (id === 'U_pair' && !solo(A, floor, 2000, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'U_tower': {
+      const e = G.L.elevs.find(q => q.x0 >= x0 && q.x0 < x1);
+      take(B);   // step onto the lift (it is level with the floor; no hop)
+      if (!until(() => P(B).grounded && P(B).ground && P(B).ground.ref === e && Math.abs(cx(P(B)) - (x0 + 6.5)) < 0.5, () => { const dx = x0 + 6.5 - cx(P(B)); IN[B] = { r: dx > 0.15, l: dx < -0.15 }; IN[A] = {}; }, 800)) return 'onto-lift';
+      if (!solo(A, x0 + 2.5, 1500, 0.3)) return false;
+      if (!until(() => e.y <= e.yTop + 0.02, idle, 600)) return 'lift';
+      if (!solo(B, x0 + 11.5, 600, 0.3)) return false;
+      if (!until(() => G.chanOn[n], idle, 60)) return 'bridge';
+      if (!solo(A, x1 + 0.5, 2000)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    }
+    case 'F_fan2':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWind(B, x0 + 6.5, 9, x0 + 17.5)) return 'wind-b';
+      if (!solo(B, x0 + 17.5, 600, 0.3)) return false;
+      if (!rideWind(A, x0 + 6.5, 9, x1 + 0.5)) return 'wind-a';
+      return both(x1 + 1.5, x1 + 0.8);
+    case 'K_pair':
+      if (!leapTo(A, x0 + 4.5, 9.1)) return 'blue';
+      if (!solo(A, x0 + 4.5, 300, 0.3)) return false;
+      if (!solo(B, x0 + 10.6, 2000, 0.3)) return false;
+      if (!leapTo(B, x0 + 13.5, 9.1)) return 'pink';
+      if (!solo(B, x0 + 13.5, 300, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'F_tower':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWind(B, x0 + 6.0, 3.7, x0 + 17.5)) return 'wind';
+      if (!solo(B, x0 + 17.5, 600, 0.3)) return false;
+      if (!until(() => G.chanOn[n], idle, 60)) return 'gate';
+      if (!solo(A, x1 + 0.5, 2000)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    case 'W_portal2':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!solo(B, x0 + 14.5, 2500, 0.3)) return false;
+      if (!solo(A, x1 + 0.5, 2500)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    case 'X_bridge': case 'W_portal3':
+      if (!pushBox(n, x0, x1)) return 'box';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'plate';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'X_pair': {
+      const box = pushBox(n, x0, x1); if (!box) return 'box';
+      if (!leapTo(A, box.x + 1.0, 9.1)) return 'onto-box';
+      if (!leapTo(A, x0 + 14.5, 6.1)) return 'cloud';
+      if (!solo(A, x0 + 14.5, 300, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'Y_wheel1': {
+      const wh = G.L.wheels.find(w => w.cx > x0 && w.cx < x1);
+      if (!rideWheel(A, wh, x0 + 13.5, 4.1)) return 'wheel-a';
+      if (!rideWheel(B, wh, x0 + 13.5, 4.1)) return 'wheel-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'Y_wheel2': {
+      const wh = G.L.wheels.find(w => w.cx > x0 && w.cx < x1);
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWheel(B, wh, x0 + 17.5, 11.1)) return 'wheel';
+      if (!solo(B, x0 + 17.5, 600, 0.3)) return false;
+      if (!until(() => G.chanOn[n], idle, 60)) return 'gate';
+      if (!solo(A, x1 + 0.5, 2500)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    }
+    case 'Y_wheel3': {
+      const wh = G.L.wheels.find(w => w.cx > x0 && w.cx < x1);
+      if (!rideWheel(B, wh, x0 + 11.5, 5.1)) return 'wheel';
+      if (!solo(B, x0 + 11.5, 300, 0.3)) return false;
+      if (!solo(A, x0 + 3.5, 2500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'Y_photo':
+      if (!solo(A, x0 + 6.6, 1500, 0.3)) return false;
+      if (!solo(B, x0 + 12.4, 2500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 120)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Y_lift':
+      if (!rideWind(B, x0 + 4.9, 3.8, x0 + 8.5)) return 'wind';
+      if (!solo(B, x0 + 8.5, 300, 0.3)) return false;
+      if (!solo(A, x0 + 13.5, 2500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Y_finale':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWind(B, x0 + 6.9, 3.8, x0 + 11.5)) return 'wind-b';
+      if (!solo(B, x0 + 11.5, 300, 0.3)) return false;
+      if (!solo(A, x0 + 5.5, 1500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      if (!solo(B, x0 + 14.5, 1500, 0.3)) return false;
+      if (!rideWind(A, x0 + 6.9, 3.8, x0 + 10.5)) return 'wind-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Y_maze2':   // in at the floor mirror, out on the cloud; walk LEFT into the purple one, out past the wall
+      for (const i of [A, B]) {
+        if (G.mode === 'solo') unstack(i);
+        take(i);
+        if (!until(() => cx(P(i)) > x0 + 15 && P(i).grounded, () => { const p = P(i), up = p.y + p.h < 8 && cx(p) < x0 + 14; IN[i] = up ? { l: true } : { r: true }; IN[1 - i] = {}; }, 1500)) return 'maze' + i;
+      }
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'D_pair':
+      if (!both(x0 + 5.5, x0 + 16.5, 2500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'N_seesaw2': {
+      const r = seesawThrow(n, x0); if (r !== true) return r;
+      if (!solo(A, x0 + 10.5, 400, 0.3)) return false;
+      if (!solo(B, x0 + 12.5, 2000, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
     case 'boss': {
       const b = G.L.boss;
       if (!both(x0 + 8, x0 + 9)) return false;
       let top = B, bot = A;
-      for (let round = 0; round < (G.mode === 'solo' ? 40 : 14) && b.hp > 0; round++) {
+      for (let round = 0; round < (G.mode === 'solo' ? 40 : 24) && b.hp > 0; round++) {
         const onHead = (t, u) => P(t).grounded && P(t).ground && P(t).ground.ref === P(u);
         if (onHead(A, B)) { top = A; bot = B; } else if (onHead(B, A)) { top = B; bot = A; }
         else { top = B; bot = A; if (!climbOn(B, A)) return 'no-stack'; }

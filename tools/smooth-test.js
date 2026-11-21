@@ -102,11 +102,20 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     report('一起回家 opens', await watch(p, 2500, async () => { await p.evaluate(() => App.openCoop('home')); await p.waitForFunction(() => document.querySelector('.cg-home')); }));
     // the menu taps (which also make the sound context) happen before the watch; what is measured is the start and the run
     await p.click('.cg-home [data-mode="solo"]'); await sleep(200);
-    await p.evaluate(() => { CoopGames.test.G.save.unlocked = 20; }); await p.click('.cg-worlds [data-w="4"]'); await sleep(200);
-    await p.click('.cg-lv[data-i="18"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
-    report('一起回家, running and jumping (5-3)', await watch(p, 5000, async () => {
+    // 摩天轮: the wheel, two pairs of portals, conveyors
+    await p.evaluate(() => { CoopGames.test.G.save.unlocked = CoopGames.test.LEVELS.length; }); await p.click('.cg-worlds [data-w="4"]'); await sleep(200);
+    await p.click('.cg-lv[data-i="21"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, running and jumping (5-2 摩天轮)', await watch(p, 5000, async () => {
       await p.click('.cg-panel [data-a="go"]');
       await p.keyboard.down('ArrowRight'); for (let i = 0; i < 9; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
+    }));
+    // a night level: the darkness is a full-screen layer with holes of light cut in it every frame
+    await p.evaluate(() => CoopGames.test.closeStage()); await sleep(300);
+    await p.click('.cg-worlds [data-w="5"]'); await sleep(200);
+    await p.click('.cg-lv[data-i="26"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, a night level (6-2 萤火森林)', await watch(p, 4500, async () => {
+      await p.click('.cg-panel [data-a="go"]');
+      await p.keyboard.down('ArrowRight'); for (let i = 0; i < 7; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
     }));
     await p.evaluate(() => CoopGames.close());
     report('默契拍拍 opens', await watch(p, 2000, async () => { await p.evaluate(() => App.openCoop('beat')); await p.waitForFunction(() => document.querySelector('.cg-home [data-m="bot"]')); }));

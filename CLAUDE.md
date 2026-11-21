@@ -876,11 +876,12 @@ tomorrow pays again, photos / too few photos / dead photos, 360–820 both theme
 
 ## 7.33 🤝 一起回家 and 默契拍拍 — two phones, one game
 
-Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer, 20
-levels in five worlds (春/夏/秋/冬/夜), that only works if the two of them help
-each other: stand on your partner's head, hold a button so the other can pass,
-push a box that one person can't move, throw each other with the seesaw, and
-both stomp the big cloud in 5-4. 默契拍拍 is five rounds of tapping on the same
+Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer — 30
+levels in six worlds (春/夏/秋/冬/游乐园/夜) since 2026-11-22 — that only works if
+the two of them help each other: stand on your partner's head, hold a button so
+the other can pass, push a box that one person can't move, throw each other
+with the seesaw, press two 同心锁 hearts at once, ride the wind or the Ferris
+wheel, and both stomp the big cloud in the last level. 默契拍拍 is five rounds of tapping on the same
 heartbeat. Both open from the 小游戏 list (first two cards) and from the home
 card.
 
@@ -901,12 +902,37 @@ card.
 The same private channel as the fireworks (§7.235), `couple:<match id>`;
 `Live.want('coop', on)` keeps it open only while a game is on screen.
 
-- **Each phone is in charge of its own character.** It moves at the tap
-  (no waiting for the network) and says where it is ~15 times a second. The
-  partner's character is drawn from those messages a little in the past, so
-  there are always two to slide between: 90 ms on a good connection, up to
-  480 ms on a jittery one (95th-percentile lateness over the last 4 s). The
-  drawing clock is nudged at most 15% faster or slower, never jumped.
+- **Each phone is in charge of its own character, and simulates the
+  partner's** (since 2026-11-22). A phone sends what its player is *pressing*
+  the moment it changes (`i`), with where they are; otherwise every 200 ms
+  while moving and once a second standing still. The other phone runs the
+  partner through the same `updatePlayer` with those buttons (`ghostStep`,
+  `G.ghost = 1`: no sounds, no crumbs, no gifts, no falls — the owner's phone
+  has those). Each message is carried forward by its own age (min-RTT/2 plus
+  how late it was, to the last physics step) through the same physics, the
+  ghost moves there, and its DRAWING glides (`vox/voy`) over 0.18–0.42 s —
+  longer on a jittery line (`NET.jit`); a correction under 0.04 tiles is
+  ignored.
+  Measured (coop-net-test): drawn 165 / 305 / 691 ms behind before, ~10 / ~20
+  / ~90 ms after (good / 4G / poor). Standing on the partner or on something
+  moving sends `rx`, the offset on it, so a rider is drawn ON it.
+- **A correction carries whoever stands on the thing corrected**
+  (`carryRiders`). Only real movement carried a rider before, and the first
+  message after the partner starts walking moves them a step or more at once:
+  the one on their head was left in mid-air every time (found by the 4G
+  carry check). Boxes the host corrects carry their riders the same way.
+- **Messages cost money.** Supabase bills a broadcast once sent and once per
+  receiver, the Free plan has 2 M a month and 100 a second, and going over can
+  restrict the whole project (402s), not just the game. Two phones in a level
+  went from 25.9 + 16.8 to ~8 + 6 messages a second — ~100 k billed per hour of
+  play. coop-net-test fails above 12 a second per phone; don't loosen it
+  without doing that sum again. The host's world rides on its own position
+  messages (`w`) instead of a stream of its own.
+- **The guest simulates boxes and enemies too**; the host's world (every
+  0.3 s while something moves, 0.12 s in the boss level, at once when hearts,
+  stars or the level's fate change) corrects them gently. The host's door also
+  wants the partner's own last report (`repX`), so a prediction that runs a
+  step past where they stopped can't end the level.
 - **The phone that picked the level (the host) runs the world**: enemies,
   boxes, the big cloud, hearts, stars and the door — 10 times a second. The
   other phone asks for anything that changes the world (a heart taken, a stomp,
@@ -957,6 +983,51 @@ all of this:
 - **Tokens:** the channel is handed a fresh token (`access_token`) before the
   old one expires, so an hour-long game doesn't go quiet for a few seconds.
 
+### 30 levels, each with its own puzzles (2026-11-22)
+
+Reported: some levels felt duplicated — they were. 20 levels were stitched from
+~40 pieces and the puzzle pieces came back again and again (the stack wall in
+4 levels, the relay in 5, the bridge in 5, the lift ending every summer level).
+Now 30 levels in six worlds, **no puzzle piece used twice** (plain platforming
+pieces may appear in two worlds), and new two-person mechanics:
+
+| | piece chars | what it is |
+|---|---|---|
+| 同心锁 | `q` | all of a piece's heart plates down at the same moment → its gates/bridges open for good (`G.latch`, event `latch`) |
+| 风扇 | `f` | a vent; an updraft up to 8 tiles while that piece's button is held (always, with no button). Not solid: you fall through a fan that is off |
+| 传送带 | `<` `>` | carries whoever stands on it 2.6 tiles/s |
+| 传送门 | `P` `R` | the two blue (P) / purple (R) portals of a piece are twins; powered by its button if it has one |
+| 摩天轮 | `O` | four cabins on a rim; on the world clock, or turning only while its piece's button is held (angle in the host's world, `wa`) |
+| 夜里的灯 | `l`, `dark: true` | darkness except round the two of you, the pet, lit lanterns, stars and the house |
+| 暴风雨 | `chase: {x0, start, speed}` | a storm wall on the world clock; touching it costs a heart and shoves you on |
+
+Only **ordinary** buttons power fans, portals and wheels — a 同心锁 heart that you
+need a fan to reach would otherwise never start the fan. Your pet repeats the
+current piece's sign after 25 s without progress (not while you stand at it).
+Saves moved to `cg_save2_*` (records start fresh, what was unlocked stays) and
+payouts to keys `M1…M30` (new levels pay their first clear once).
+
+What playing all 30 with the bot found — each a thing a person would hit too:
+- **A spring's launch was cut in half by a jump pressed just after it** (the
+  ground's grace time was still running). A spring now uses it up. And walking
+  onto a spring bounces you; before, you had to jump onto it.
+- **A lift's button sat on the path to the lift**: walking over it raised the
+  lift a little, the next step missed it, and the shaft had no bottom. Shafts
+  have floors now and the button is off the path.
+- **Coming back after a fall put you on your partner's head**, and a carrier
+  can't jump — in 一个人玩 the next gap killed both, again and again. You come
+  back beside them when there is ground.
+- **Taking off from ice**, landing on 3 tiles of ice at a run (you slide ~9
+  tiles), a portal that came out over thin air, an updraft one tile short of
+  its wall, a two-tile island after a moving raft, a pit right where the last
+  piece's exit lands: all redrawn.
+
+`tools/coop-bot.js` has a script for every puzzle piece (`rideWind`,
+`rideWheel`, `pushBox`, `seesawThrow` are the shared moves) and the general
+runner for the rest; it finishes all 30 in both one-phone modes, and 29 with
+real damage (the boss rains on a bot that never dodges). The live test checks
+every new piece across two phones.
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -991,7 +1062,7 @@ no server rule, so the §7.32 warning stands: don't raise the payouts without on
   outlined every frame.
 
 `tools/coop-test.js` plays every level in the real app with a bot (one phone,
-two people and alone, 20/20 each), the payouts, 默契拍拍, the no-pet case, and
+two people and alone, 30/30 each), the payouts, 默契拍拍, the no-pet case, and
 360/390/820 in both themes. `tools/coop-live-test.js` logs two phones in on the
 live backend and checks every cross-phone mechanic: moves mirrored, hearts,
 standing on each other, the gate held from the other phone, pause, the win paying
@@ -1635,8 +1706,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/speed-test.js` | Not pass/fail except for a few budgets — the table of what a phone waits for (CPU 4×, 4G, GitHub Pages headers): open, 继续, a tile, each screen, KB and calls per open. Compare medians, never one run. `ROOT=<dir>` measures another copy (e.g. the live version) |
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
-| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 20 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
-| `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, leaving, 默契拍拍's shared verdict |
+| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 30 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |

@@ -35,7 +35,7 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
 
 (async () => {
   const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
-  const only = process.env.LEVELS ? process.env.LEVELS.split(',').map(Number) : Array.from({ length: 20 }, (_, k) => k + 1);
+  const only = process.env.LEVELS ? process.env.LEVELS.split(',').map(Number) : Array.from({ length: 30 }, (_, k) => k + 1);   // every level (30 since 2026-11-22)
 
   console.log('\n1. The doors and the home screen');
   {
@@ -49,7 +49,7 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
     const home = await p.evaluate(() => ({ online: document.querySelector('.cg-home [data-mode="online"]').disabled, text: document.querySelector('.cg-home').textContent, locked: [...document.querySelectorAll('.cg-lv')].map(b => b.disabled) }));
     ok(home.online, 'not signed in (demo): 各用自己的手机 is off');
     ok(/豆豆 会跟着你们/.test(home.text), 'your own pet is named as the one who comes along');
-    ok(JSON.stringify(home.locked) === '[false,true,true,true]', 'one phone: only 1-1 is open at first');
+    ok(JSON.stringify(home.locked) === '[false,true,true,true,true]', 'one phone: only 1-1 is open at first (5 levels in a world)');
     ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no sideways scroll at 390');
     ok(await p.evaluate(() => !!CoopGames.test.G.petImg), 'the pet is drawn from the app\'s own pet picture');
     await p.click('.cg-x'); await sleep(200);
@@ -102,9 +102,9 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
   ok(es.length === 1 && /char1:1:一起回家 · 1-1 樱花小路 通关/.test(es[0]), `one ledger row, for the person holding this phone: ${es.join(' | ')}`);
   const w2 = await winOnce();
   ok(/以前通关过了/.test(w2.line || '') && (await entries()).length === 1, 'clearing the same level again pays nothing');
-  const r2 = await p.evaluate(() => App._cgPayTest('coop', 'L2', 'test 2')), r3 = await p.evaluate(() => App._cgPayTest('coop', 'L3', 'test 3')), r4 = await p.evaluate(() => App._cgPayTest('coop', 'L4', 'test 4'));
+  const r2 = await p.evaluate(() => App._cgPayTest('coop', 'M2', 'test 2')), r3 = await p.evaluate(() => App._cgPayTest('coop', 'M3', 'test 3')), r4 = await p.evaluate(() => App._cgPayTest('coop', 'M4', 'test 4'));
   ok(r2.pts === 1 && r3.pts === 1 && r4.pts === 0 && r4.why === 'cap', `new levels pay until +3 for the day, then stop: ${[r2, r3, r4].map(r => r.pts || r.why).join(' ')}`);
-  ok((await p.evaluate(() => App._cgPaidKeysTest('coop'))).join() === 'L1,L2,L3', 'and the capped one is still unpaid, so it can pay another day');
+  ok((await p.evaluate(() => App._cgPaidKeysTest('coop'))).join() === 'M1,M2,M3', 'and the capped one is still unpaid, so it can pay another day (levels are keyed M1… since the new map)');
   await p.evaluate(() => CoopGames.test.closeStage());
   await p.click('.cg-x');
 

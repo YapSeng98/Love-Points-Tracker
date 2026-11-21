@@ -12,6 +12,21 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-22 — 一起回家: no more lag, 30 levels, new ways to help each other
+
+On two phones, your partner now moves on your screen almost exactly when they
+move on theirs (before, they trailed a quarter of a second or more), and the
+game sends about a third of the messages it did. There are now 30 levels in
+six worlds — the new one is a date at the 游乐园 — and no puzzle repeats.
+New things to do together: 同心锁 hearts you both have to press at the same
+moment, fans that blow only while your partner holds the button, portals,
+conveyor belts, a Ferris wheel, a night forest where only the two of you give
+light, and a storm that chases you both. Springs now bounce you when you walk
+onto them, coming back after a fall puts you beside your partner instead of on
+their head, and if you are stuck your pet reminds you of the hint. Old records
+start fresh for the new levels, but nothing you had unlocked is locked again,
+and each new level pays its first clear.
+
 ## 2026-11-20 — Playing on two phones holds up on a phone network
 
 Tested again over a simulated phone network, which turned up problems a good

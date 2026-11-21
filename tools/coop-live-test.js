@@ -42,8 +42,11 @@ const st = (p) => T(p, () => { const G = CoopGames.test.G, N = CoopGames.test.NE
 const chunk = (p, id) => T(p, (id) => { const c = CoopGames.test.G.L.chunks.find(c => c.ch.id === id); return c && { x0: c.x0, w: c.ch.w }; }, id);
 const tpMe = (p, x, y) => T(p, ([x, y]) => { const T2 = CoopGames.test, G = T2.G; T2.tp(G.meIdx, x, y); }, [x, y]);
 const until = async (fn, ms = 8000, every = 120) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await sleep(every); } return false; };
+// the level that has a given piece (levels are found by what they contain, not by number)
+const levelWith = (p, id) => p.evaluate((id) => CoopGames.test.LEVELS.findIndex(L => L.seq.includes(id)), id);
 async function startLevel(A, B, i) {
-  await A.p.click(`.cg-worlds [data-w="${Math.floor(i / 4)}"]`);
+  const w = await A.p.evaluate((i) => CoopGames.test.LEVELS[i].world, i);
+  await A.p.click(`.cg-worlds [data-w="${w}"]`);
   await A.p.click(`.cg-lv[data-i="${i}"]`);
   const both = await until(async () => { const a = await st(A.p), b = await st(B.p); return a.state === 'play' && b.state === 'play' && a.lv === i && b.lv === i && a.n === b.n; }, 9000);
   return both;
@@ -130,10 +133,10 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   const rows = (await call('/entries', { token: r1.data.accessToken })).data.filter(e => /一起回家/.test(e.desc || ''));
   ok(rows.some(e => e.charId === 'char1') && rows.some(e => e.charId === 'char2') && rows.every(e => e.pts === 1), `each phone paid its own person +1: ${rows.map(e => `${e.charId} +${e.pts}`).join(', ')}`);
 
-  console.log('\n8. Two people, one box (4-1)');
+  console.log('\n8. Two people, one box');
   await T(B.p, () => { const b = document.querySelector('.cg-panel [data-a="next"]'); }, null);
   await backToHome(A); await backToHome(B); await sleep(800);
-  ok(await startLevel(A, B, 12), '4-1 starts on both');
+  ok(await startLevel(A, B, await levelWith(A.p, 'X_plate')), 'the box level starts on both');
   const xp = await chunk(A.p, 'X_plate');
   await tpMe(A.p, xp.x0 + 1.2, 9.82); await tpMe(B.p, xp.x0 + 0.9, 9.82); await sleep(900);
   await A.p.keyboard.down('ArrowRight'); await sleep(1500);
@@ -146,9 +149,9 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   const xi = await T(A.p, (id) => CoopGames.test.G.L.chunks.findIndex(c => c.ch.id === id), 'X_plate');
   ok(a.chan[xi] === 1 && b.chan[xi] === 1, 'its button holds the gate open on both');
 
-  console.log('\n9. The seesaw throws the partner (5-1)');
+  console.log('\n9. The seesaw throws the partner');
   await backToHome(A); await backToHome(B); await sleep(800);
-  ok(await startLevel(A, B, 16), '5-1 starts on both');
+  ok(await startLevel(A, B, await levelWith(A.p, 'N_seesaw')), 'the seesaw level starts on both');
   const ss = await chunk(A.p, 'N_seesaw');
   const px = await T(A.p, () => CoopGames.test.G.L.seesaws[0].px);
   await tpMe(A.p, px + 1.4, 9.0); await sleep(1200);
@@ -160,9 +163,9 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   a = await st(A.p);
   ok(a.P[0].g && a.P[0].y < 3, `…and lands on the high platform (y ${a.P[0].y.toFixed(2)})`);
 
-  console.log('\n10. The guest\'s stomp hurts the big cloud (5-4)');
+  console.log('\n10. The guest\'s stomp hurts the big cloud');
   await backToHome(A); await backToHome(B); await sleep(800);
-  ok(await startLevel(A, B, 19), '5-4 starts on both');
+  ok(await startLevel(A, B, await levelWith(A.p, 'boss')), 'the last level starts on both');
   const bossC = await chunk(A.p, 'boss');
   await tpMe(A.p, bossC.x0 + 6, 9.82); await tpMe(B.p, bossC.x0 + 8, 9.82);
   const dip = await until(async () => { const y = await st(B.p); return y.boss && y.boss.st === 'dip' && y.boss.y > 6; }, 15000, 100);
@@ -173,6 +176,72 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   ok(hurt, 'B2 lands on it on B2\'s phone → A1\'s phone (which runs the cloud) counts the hit');
   await sleep(500);
   ok((await st(B.p)).boss.hp === 2, '…and B2\'s phone shows 2 left');
+
+  console.log('\n10b. The new pieces, across two phones');
+  {   // 同心锁: one heart each, at the same moment → the gate opens on both, and stays open
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'S_pair1')), '蝴蝶花园 starts on both');
+    const c = await chunk(A.p, 'S_pair1'), ci = await T(A.p, () => CoopGames.test.G.L.chunks.findIndex(c => c.ch.id === 'S_pair1'));
+    await tpMe(A.p, c.x0 + 3.11, 9.82); await sleep(500);
+    await tpMe(B.p, c.x0 + 9.11, 9.82);
+    const latched = await until(async () => T(A.p, (n) => !!CoopGames.test.G.latch[n], ci) && T(B.p, (n) => !!CoopGames.test.G.latch[n], ci), 4000, 60);
+    ok(latched, '同心锁: A1 on one heart, B2 on the other → it opens on both phones');
+    await tpMe(A.p, c.x0 + 6, 9.82); await tpMe(B.p, c.x0 + 7, 9.82); await sleep(900);
+    ok((await st(A.p)).chan[ci] === 1 && (await st(B.p)).chan[ci] === 1, '…and stays open on both after they step off');
+  }
+  {   // wind: A1 holds the fan's button, B2 floats across the pit; A1's phone sees B2 in the air and landing over there
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'F_fan2')), '秋风起 starts on both');
+    const c = await chunk(A.p, 'F_fan2');
+    await tpMe(A.p, c.x0 + 3.11, 9.82); await sleep(600);
+    await tpMe(B.p, c.x0 + 4.1, 9.82); await sleep(400);
+    let high = false;
+    await B.p.keyboard.down('ArrowRight');
+    for (let k = 0; k < 40; k++) { const a = await st(A.p); if (a.P[1].y < 7) high = true; await sleep(60); if ((await st(B.p)).P[1].x > c.x0 + 15) break; }
+    await B.p.keyboard.up('ArrowRight'); await sleep(1200);
+    const a = await st(A.p), b = await st(B.p);
+    ok(high, 'B2 rides the updraft: A1\'s phone shows B2 high above the pit');
+    ok(b.P[1].x > c.x0 + 14 && b.P[1].g && Math.abs(a.P[1].x - b.P[1].x) < 0.4 && !a.P[1].dead, `…and landing on the far side on both phones (${b.P[1].x.toFixed(2)} / ${a.P[1].x.toFixed(2)})`);
+  }
+  {   // a portal: B2 steps in on B2's phone; A1's phone sees B2 come out of its twin past the wall
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'W_portal1')), '冰镜洞 starts on both');
+    const c = await chunk(A.p, 'W_portal1');
+    await tpMe(B.p, c.x0 + 2.0, 9.82); await sleep(500);
+    await B.p.keyboard.down('ArrowRight'); await sleep(450); await B.p.keyboard.up('ArrowRight'); await sleep(1000);
+    const a = await st(A.p), b = await st(B.p);
+    ok(b.P[1].x > c.x0 + 10 && a.P[1].x > c.x0 + 10 && Math.abs(a.P[1].x - b.P[1].x) < 0.4, `B2 walks into the portal and comes out past the wall, on both phones (${b.P[1].x.toFixed(2)} / ${a.P[1].x.toFixed(2)})`);
+  }
+  {   // a wheel with a button turns only while it is held, and the two phones' wheels agree
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'Y_wheel2')), '摩天轮 starts on both');
+    const c = await chunk(A.p, 'Y_wheel2');
+    const ang = (p) => T(p, () => CoopGames.test.G.L.wheels[0].ang);
+    const a0 = await ang(A.p); await sleep(1500);
+    ok(Math.abs((await ang(A.p)) - a0) < 0.01, 'nobody on its button: the wheel stands still');
+    await tpMe(A.p, c.x0 + 3.11, 9.82); await sleep(3500);
+    const wa = await ang(A.p), wb = await ang(B.p);
+    ok(wa - a0 > 1 && Math.abs(wa - wb) < 0.2, `A1 holds the button: it turns, and in step on both phones (${wa.toFixed(2)} / ${wb.toFixed(2)} rad)`);
+    await tpMe(A.p, c.x0 + 1, 9.82); await sleep(1200);
+    const sa = await ang(A.p), sb = await ang(B.p); await sleep(1000);
+    ok(Math.abs((await ang(A.p)) - sa) < 0.01 && Math.abs(sa - sb) < 0.2, `let go: it stops, at the same place on both (${sa.toFixed(2)} / ${sb.toFixed(2)})`);
+  }
+  {   // the storm runs on the shared world clock: the same place on both phones
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'R_run1')), '快跑！暴风雨 starts on both');
+    await sleep(6500);
+    const ca = await T(A.p, () => CoopGames.test.G.chaseX), cb = await T(B.p, () => CoopGames.test.G.chaseX);
+    ok(ca != null && cb != null && ca > 2 && Math.abs(ca - cb) < 0.5, `the storm is coming, at the same spot on both phones (${ca && ca.toFixed(2)} / ${cb && cb.toFixed(2)})`);
+  }
+  {   // the night: B2 lights a lantern on B2's phone; it is lit on A1's too (A1's phone simulates B2 walking past it)
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'D_lamps1')), '萤火森林 starts on both');
+    const lamp = await T(A.p, () => { const L = CoopGames.test.G.L, l = L.lamps.find(l => l.x > 10); return l && { x: l.x, y: l.y, i: L.lamps.indexOf(l) }; });
+    await tpMe(B.p, lamp.x - 2.4, lamp.y - 1.18); await sleep(500);
+    await B.p.keyboard.down('ArrowRight'); await sleep(450); await B.p.keyboard.up('ArrowRight'); await sleep(1200);
+    const la = await T(A.p, (i) => CoopGames.test.G.L.lamps[i].lit, lamp.i), lb = await T(B.p, (i) => CoopGames.test.G.L.lamps[i].lit, lamp.i);
+    ok(la && lb, 'B2 walks past a lantern: it is lit on both phones');
+  }
 
   console.log('\n11. Leaving reaches the other phone');
   await T(B.p, () => CoopGames.test.closeStage()); await sleep(1200);
