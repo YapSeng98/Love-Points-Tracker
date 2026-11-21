@@ -308,7 +308,7 @@ const T_GROUND = 1, T_BLOCK = 2, T_PLAT = 3, T_ICE = 4, T_SPIKE = 5, T_GIFT = 6,
 const TILE_OF = { '#': 1, B: 2, '=': 3, I: 4, '^': 5, G: 6, Q: 7, C: 9, u: 10, k: 11, D: 12, b: 13, o: 14, d: 15 };
 
 const G = {
-  L: null, mode: 'duo', petImg: null, petName: '', meIdx: 0, wt: 0,
+  L: null, mode: 'duo', petImg: null, petName: '', meIdx: 0, wt: 0, ghost: 0,
   active: 0, hold: false, state: 'off', test: false, players: [], chanOn: null, chanA: null, crumbs: new Map(),
   hp: HP_MAX, hearts: 0, stars: [false, false, false], time: 0, clock: 0, cp: null, bossDown: false, rainbow: 0,
   proj: [], parts: [], fx: [], amb: [], shells: [], sparks: [], cam: { x: 0, z: 1 }, hint: null, wonT: 0, shake: 0,
@@ -572,7 +572,7 @@ function soloRaw() {
 }
 function inputFor(p) {
   if (G.state !== 'play') return NONE;
-  if (ONLINE()) return p.idx === G.meIdx ? soloRaw() : NONE;
+  if (ONLINE()) return p.idx === G.meIdx ? soloRaw() : G.ghost === 2 ? NET.simIn : performance.now() - NET.rinAt < 600 ? NET.rin : NONE;
   if (G.mode === 'duo') return duoRaw(p.idx);
   return p.idx === G.active || G.hold ? soloRaw() : NONE;
 }
@@ -588,7 +588,7 @@ function doJump(p, v) {
   const g = p.ground && p.ground.ref;
   if (g && g.dx) p.vx += g.dx / STEP * 0.9;   // leave a moving thing with its speed
   p.vy = -v; p.grounded = false; p.ground = null; p.coyote = 0; p.jbuf = 0;
-  sfx('jump'); dust(p.x + p.w / 2, p.y + p.h, 4);
+  sfx('jump'); if (G.ghost !== 2) dust(p.x + p.w / 2, p.y + p.h, 4);
 }
 
 function updatePlayer(p, dt) {
@@ -652,11 +652,12 @@ function updatePlayer(p, dt) {
   const res = moveY(p, p.vy * dt, p.k, surfsFor(p));
   if (res.land) {
     p.vy = 0; p.grounded = true; p.ground = res.land; p.usedDouble = false; p.launch = null; p.springy = false;
-    if (!was && vyIn > 7) { p.an.squash = Math.min(1, vyIn / 22); dust(p.x + p.w / 2, p.y + p.h, 3); }
+    if (!was && vyIn > 7) { p.an.squash = Math.min(1, vyIn / 22); if (G.ghost !== 2) dust(p.x + p.w / 2, p.y + p.h, 3); }
     landOn(p, res.land, vyIn);
   } else { p.grounded = false; p.ground = null; }
-  if (res.head) { p.vy = Math.max(0, p.vy); if (res.head.code === T_GIFT || res.head.code === T_GIFTQ) hitGift(res.head.c, res.head.r); }
-  if (p.y > R + 0.6) fall(p);
+  // the partner's own phone decides what they bump and when they fall; here they only move
+  if (res.head) { p.vy = Math.max(0, p.vy); if (!G.ghost && (res.head.code === T_GIFT || res.head.code === T_GIFTQ)) hitGift(res.head.c, res.head.r); }
+  if (p.y > R + 0.6) { if (!G.ghost) fall(p); else { p.y = R + 0.6; p.vy = 0; } }
   // looks
   const a = p.an;
   a.run = approach(a.run, p.grounded ? Math.min(1, Math.abs(p.vx) / RUN) : 0, dt * 8);
@@ -671,6 +672,10 @@ function updatePlayer(p, dt) {
 }
 
 function landOn(p, land, vyIn) {
+  if (G.ghost) {   // the partner: a spring still throws them, but clouds, seesaw throws and sounds come from their phone
+    if (land.kind === 'spring') { if (G.ghost === 1) land.ref.squash = 1; p.vy = -SPRING_V; p.grounded = false; p.ground = null; p.springy = true; }
+    return;
+  }
   if (land.kind === 'tile' && land.code === T_CRUMB) triggerCrumb(land.c, land.r);
   if (land.kind === 'spring') {
     const s = land.ref; s.squash = 1;
@@ -683,7 +688,7 @@ function landOn(p, land, vyIn) {
       // the partner on the other end is thrown; on their own phone if they are not on this one
       if (ONLINE()) netEv('launch', { s: G.L.seesaws.indexOf(s), side, vy: Math.min(33, 13 + vyIn * 0.9) });
       for (const q of G.players) {
-        if (q === p || q.dead || !q.grounded || !q.ground || q.ground.ref !== s || !isLocal(q)) continue;
+        if (q === p || q.dead || !q.grounded || !q.ground || q.ground.ref !== s) continue;
         if (Math.sign(q.x + q.w / 2 - s.px) !== -side) continue;
         q.vy = -Math.min(33, 13 + vyIn * 0.9); q.grounded = false; q.ground = null; q.launch = { vx: -side * 4 }; q.happy = 1;
         sparkle(q.x + q.w / 2, q.y + q.h, '#FFE08A', 12);
@@ -855,7 +860,7 @@ function bossDamage() {
   if (b.hp <= 0) { b.st = 'dead'; b.dead = 0; G.bossDown = true; G.rainbow = 0.01; G.proj = []; sfx('cheer'); confetti(b.x + 1.5, b.y + 1, 50); }
   else { b.st = 'hit'; b.t = 0.6; }
 }
-function spawnDrop(x, y, vy) { G.proj.push({ x, y, vy }); if (ONLINE() && isHost()) netEv('rain', { x: +x.toFixed(2), y: +y.toFixed(2), vy }); }
+function spawnDrop(x, y, vy) { if (ONLINE() && !isHost()) return; G.proj.push({ x, y, vy }); if (ONLINE() && isHost()) netEv('rain', { x: +x.toFixed(2), y: +y.toFixed(2), vy }); }
 function updateBoss(dt) {
   const b = G.L.boss;
   b.px = b.x; b.py = b.y;
@@ -929,27 +934,32 @@ function checkDoor(dt) {
   const inZone = (p) => !p.dead && p.grounded && Math.abs(p.x + p.w / 2 - d.x) < 1.2;
   const a = inZone(G.players[0]), b = inZone(G.players[1]);
   d.wait = a && !b ? 0 : b && !a ? 1 : -1;
-  if (a && b && isHost()) { netEv('win', {}); win(); }   // online, the host's phone says when you are both in
+  // online the host's phone says when you are both in — and the partner's own last report must agree, so a
+  // prediction that runs a step past where they stopped can't end the level for them
+  const q = G.players[1 - G.meIdx], told = !ONLINE() || (q.repG && Math.abs(q.repX - d.x) < 1.2);
+  if (a && b && isHost() && told) { netEv('win', {}); win(); }
 }
 
 function step(dt) {
   const L = G.L;
   G.clock += dt; G.wt += dt;
   if (G.state === 'play') G.time += dt;
-  if (ONLINE()) netRemoteStep();   // the partner's character goes where their phone says it is
   updatePlates();
   for (const p of G.players) if (!p.dead && isLocal(p) && overlapsSolid(p, p.k)) unstick(p, p.k);
   for (const m of L.movers) updateMover(m);
   for (const e of L.elevs) updateElev(e, dt);
   for (const s of L.seesaws) updateSeesaw(s, dt);
   for (const s of L.springs) s.squash = Math.max(0, s.squash - dt * 5);
-  if (isHost()) for (const b of L.boxes) updateBox(b, dt); else netWorldStep(dt);
+  // boxes and enemies run on both phones (the host's world corrects the other phone a few times a second),
+  // so pushing a box or dodging a walker never waits for a round trip
+  for (const b of L.boxes) updateBox(b, dt);
   const [a, b] = G.players;
-  for (const p of (a.grounded && a.ground && a.ground.ref === b ? [b, a] : [a, b])) if (isLocal(p)) updatePlayer(p, dt);
+  for (const p of (a.grounded && a.ground && a.ground.ref === b ? [b, a] : [a, b])) { if (isLocal(p)) updatePlayer(p, dt); else ghostStep(p, dt); }
   keepTogether();
   updateHold();
-  if (isHost()) { for (const e of L.enemies) updateEnemy(e, dt); if (L.boss) updateBoss(dt); }
-  else if (L.boss) bossTouch();
+  for (const e of L.enemies) updateEnemy(e, dt);
+  if (isHost()) { if (L.boss) updateBoss(dt); }
+  else if (L.boss) { netBossStep(dt); bossTouch(); }
   updateProj(dt);
   if (G.state === 'play') { enemyHits(); spikeHits(); updateItems(dt); checkpoints(); }
   updateCrumbs(dt);
@@ -1172,7 +1182,7 @@ function midTree(wd, X, Y, s, i) {
 function foot(x, y, c) { ell(ctx, x, y, 11, 6); ctx.fillStyle = c.body; ctx.fill(); ctx.lineWidth = 2.6; ctx.strokeStyle = c.edge; ctx.stroke(); }
 function drawChar(p, al) {
   if (p.dead > 0 || p.hide) return;
-  const x = p.px + (p.x - p.px) * al, y = p.py + (p.y - p.py) * al;
+  const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0);
   const X = sx(x + p.w / 2), Y = sy(y + p.h), s = TP * 1.5 / 112, a = p.an, c = CH[p.k];
   let bob = 0, rot = 0, kx = 1, ky = 1, f1x = 0, f1y = 0, f2x = 0, f2y = 0;
   if (!p.grounded) { if (p.vy < 0) { kx = 0.93; ky = 1.07; f1y = f2y = -3; f1x = 3; f2x = -3; } else { kx = 1.03; ky = 0.98; f1y = f2y = -1; } }
@@ -1199,7 +1209,7 @@ function drawChar(p, al) {
 // who is who: the one you steer in 一个人玩, and both names for the first seconds
 function drawTag(p, al) {
   if (p.dead > 0) return;
-  const x = p.px + (p.x - p.px) * al, y = p.py + (p.y - p.py) * al, X = sx(x + p.w / 2), Y = sy(y + p.h), c = CH[p.k];
+  const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0), X = sx(x + p.w / 2), Y = sy(y + p.h), c = CH[p.k];
   const showTag = (G.mode === 'solo' && p.idx === G.active) || (ONLINE() && p.idx === G.meIdx && G.time < 6) || G.time < 3.5;
   if (showTag && G.state === 'play') {
     const ty = Y - TP * 1.72 + (REDUCE ? 0 : Math.sin(G.clock * 5) * TP * 0.05);
@@ -2128,6 +2138,7 @@ function noise(dur, vol, delay = 0) {
 }
 const _sfxAt = {};
 function sfx(n) {
+  if (G.ghost) return;
   if (!AU.on || !AU.ctx || G.test || AU.ctx.state !== 'running') return;
   const now = performance.now(); if (_sfxAt[n] && now - _sfxAt[n] < 45) return; _sfxAt[n] = now;
   const arp = (fs, gap, type = 'triangle', vol = 0.09, dur = 0.14) => fs.forEach((f, k) => tone(f, f * 1.01, dur, type, vol, k * gap));
@@ -2246,7 +2257,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 2, DELAY = 110;   // 2: numbered events (2026-11-20); a phone on another version is told to reopen the app
+const NET_V = 3, DELAY = 110;   // 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -2257,7 +2268,7 @@ const NET = { n: 0, role: null, peerAt: 0, lastRx: 0, off: Infinity, offAt: 0, b
   tx: 0, rx: 0, pend: [], hold: new Map(), holdAt: 0, heard: false, go: null, goSent: 0, rq: null, dead: [], byeAt: 0,
   // the partner is drawn NET.del ms in the past: enough to have two messages to slide between even on a jittery
   // phone network, little enough to feel immediate on a good one. pt is the clock they are drawn at
-  cands: [], del: DELAY, pt: null };
+  cands: [], del: DELAY, pt: null, rtts: [], rttMin: 120, rin: { l: false, r: false, j: false }, rinAt: 0, simIn: { l: false, r: false, j: false }, seen: false, lastSig: '', wsig: '' };
 const r3 = (v) => Math.round(v * 1000) / 1000, r1 = (v) => Math.round(v * 10) / 10;
 const fin = (v) => typeof v === 'number' && isFinite(v);
 function netSend(t, data) { if (!API || !API.live) return false; return API.live.send('cg', Object.assign({ t, v: NET_V }, data)); }
@@ -2284,7 +2295,7 @@ function netHome(on) {
     hi(); NET.hiTimer = setInterval(hi, 1500);
   }
 }
-function netLevelReset() { NET.buf = []; NET.off = Infinity; NET.wsnap = null; NET.lastRx = performance.now(); NET.sendAt = 0; NET.worldAt = 0; NET.lastQ = null; NET.cands = []; NET.del = DELAY; NET.pt = null; }
+function netLevelReset() { NET.piAt = 0; NET.off = Infinity; NET.wsnap = null; NET.lastRx = performance.now(); NET.sendAt = 0; NET.worldAt = 0; NET.lastQ = null; NET.cands = []; NET.seen = false; NET.rinAt = 0; NET.lastSig = ''; NET.wsig = ''; for (const p of G.players) { p.vox = p.voy = 0; p.netDead = false; } }
 function netPick(i) {
   const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500;
   if (!peerOn) { if (API.toast) API.toast(`等 ${nameOf(other(API.me))} 也打开「一起回家」`); return; }
@@ -2333,7 +2344,14 @@ function onNet(m) {
     if (!was && UI.home && !UI.home.hidden) renderHome(); return;
   }
   if (m.t === 'pi') { netSend('po', { a: m.a, b: now }); return; }
-  if (m.t === 'po') { const rtt = now - m.a; if (rtt >= 0 && rtt < 4000) NET.rtt = NET.rtt * 0.7 + rtt * 0.3; return; }
+  if (m.t === 'po') {
+    const rtt = now - m.a; if (!(rtt >= 0 && rtt < 4000)) return;
+    NET.rtt = NET.rtt * 0.7 + rtt * 0.3;
+    // the quickest recent trip is the network's real delay; anything slower was a slow message, which each
+    // position message measures for itself (now − ts − off). Averaging jitter into the delay misplaced the partner
+    NET.rtts.push(rtt); if (NET.rtts.length > 8) NET.rtts.shift(); NET.rttMin = Math.min(...NET.rtts);
+    return;
+  }
   if (m.t === 'go') return netGo(m);
   if (m.t === 'bye') { if (m.n && m.n === NET.n) partnerLeft(); return; }
   if (!ONLINE() || !NET.n || m.n !== NET.n) return;
@@ -2352,11 +2370,20 @@ function onNet(m) {
   if (m.t === 'rq' && isHost() && (m.k === 're' || m.k === 'cp' || m.k === 'next')) return netRequest(m.k);
 }
 function netAck(ak) { if (fin(ak) && NET.pend.length) NET.pend = NET.pend.filter(e => e.m.q > ak); }
-// sending: your character, and (host) the shared world
+const GKIND = [null, 'tile', 'player', 'box', 'mover', 'elev', 'seesaw', 'spring'];
+const GK = { tile: 1, player: 2, box: 3, mover: 4, elev: 5, seesaw: 6, spring: 7 };
+const gList = (gk) => { const L = G.L; return [null, null, null, L.boxes, L.movers, L.elevs, L.seesaws, L.springs][gk] || null; };
+const inBits = (i) => (i.l ? 1 : 0) | (i.r ? 2 : 0) | (i.j ? 4 : 0);
+const bitsIn = (b) => ({ l: !!(b & 1), r: !!(b & 2), j: !!(b & 4) });
+// sending: what this phone's player is doing, and (host) the shared world.
+// Not a fixed stream: a message goes the moment a button changes or the player lands, leaves the ground,
+// is hurt, falls, comes back; otherwise every 200 ms while moving and once a second standing still. The
+// other phone runs the player through the same physics in between (ghostStep), so it needs to hear only
+// what it could not have worked out. Supabase bills every message twice (sent + received), §7.33.
 function netTick(now) {
   if (!NET.n || !G.L) return;
-  if (now - NET.piAt > 2000) { NET.piAt = now; netSend('pi', { a: now }); }
-  if (now - NET.hiAt > 1500) { NET.hiAt = now; netSend('hi', { who: G.meIdx, n: NET.n, ak: NET.rx }); }
+  if (now - NET.piAt > 4000) { NET.piAt = now; netSend('pi', { a: now }); }
+  if (now - NET.hiAt > 3000) { NET.hiAt = now; netSend('hi', { who: G.meIdx, n: NET.n, ak: NET.rx }); }
   // what hasn't been confirmed goes again (in order; the other phone drops what it already has)
   if (NET.pend.length) {
     NET.pend = NET.pend.filter(e => now - e.t0 < 30000);
@@ -2371,23 +2398,28 @@ function netTick(now) {
   if (NET.role === 'guest' && NET.rq && now - NET.rq.at > 1200 && now - NET.rq.t0 < 20000) { NET.rq.at = now; netSend('rq', { n: NET.n, k: NET.rq.k }); }
   const live = G.state === 'play' || G.state === 'won' || G.state === 'dying' || G.state === 'paused' || G.state === 'intro';
   if (!live) return;
-  if (now - NET.sendAt >= 66) {
-    NET.sendAt = now;
-    const p = G.players[G.meIdx], L = G.L;
-    const GK = { tile: 1, player: 2, box: 3, mover: 4, elev: 5, seesaw: 6, spring: 7 };
-    const gk = p.grounded && p.ground ? (GK[p.ground.kind] || 1) : 0;
-    const list = [null, null, null, L.boxes, L.movers, L.elevs, L.seesaws, L.springs][gk];
-    const gi = list ? list.indexOf(p.ground.ref) : -1;
-    const f = (p.grounded ? 1 : 0) | (p.dead > 0 ? 2 : 0) | (p.wings ? 4 : 0) | (p.shield ? 8 : 0) | (p.happy > 0 ? 16 : 0) | (p.strain > 0 ? 32 : 0) | (p.inv > 0 ? 64 : 0);
-    netSend('st', { n: NET.n, ts: now, ak: NET.rx, p: [r3(p.x), r3(p.y), r1(p.vx), r1(p.vy), p.face, f, gk, gi, p.push ? p.push.dir : 0, p.push ? L.boxes.indexOf(p.push.box) : -1] });
+  const p = G.players[G.meIdx], L = G.L, ib = inBits(inputFor(p));
+  const gk = p.grounded && p.ground ? (GK[p.ground.kind] || 1) : 0, list = gList(gk), gi = list ? list.indexOf(p.ground.ref) : -1;
+  const f = (p.grounded ? 1 : 0) | (p.dead > 0 ? 2 : 0) | (p.wings ? 4 : 0) | (p.shield ? 8 : 0) | (p.happy > 0 ? 16 : 0) | (p.inv > 0 ? 64 : 0)
+    | (p.jbuf > 0 ? 128 : 0) | (p.usedDouble ? 256 : 0) | (p.springy ? 512 : 0) | (p.lock > 0 ? 1024 : 0);
+  const sig = `${ib}|${f & ~16}|${gk}:${gi}`;
+  const moving = Math.abs(p.vx) > 0.05 || !p.grounded || (p.ground && p.ground.ref && (p.ground.ref.dx || p.ground.ref.dy));
+  // the host's world: often while something in it moves, otherwise once a second, and at once when the hearts,
+  // stars or the level's fate change (those also travel as events; this is the backstop)
+  let world = null;
+  if (isHost()) {
+    const busy = L.boss || L.enemies.some(e => !e.dead) || L.boxes.some(b => Math.abs(b.dx) > 1e-4 || Math.abs(b.dy) > 1e-4);
+    const wsig = `${G.hp}|${G.hearts}|${G.stars.join()}|${G.state}|${G.bossDown}`;
+    if (now - NET.worldAt >= (L.boss ? 120 : busy ? 300 : 1000) || wsig !== NET.wsig) world = netWorldMsg(now), NET.worldAt = now, NET.wsig = wsig;
   }
-  if (isHost() && now - NET.worldAt >= 100) {
-    NET.worldAt = now;
-    const L = G.L, b = L.boss;
-    const ST = { float: 0, warn: 1, dip: 2, rise: 3, hit: 4, dead: 5 };
-    netSend('wd', { n: NET.n, ts: now, gs: G.state === 'won' ? 1 : G.state === 'dying' ? 2 : 0, wt: r3(G.wt), hp: G.hp, he: G.hearts, st: G.stars.reduce((m, v, k) => m | (v ? 1 << k : 0), 0), bd: G.bossDown ? 1 : 0,
-      en: L.enemies.map(e => [r3(e.x), r3(e.y), e.dead ? 1 : 0, e.type === 'i' ? (e.st === 'hang' ? 0 : e.st === 'shake' ? 1 : 2) : (e.onGround ? 1 : 0), r1(e.vx || 0), r1(e.vy || 0)]),
-      bx: L.boxes.map(q => [r3(q.x), r3(q.y)]), bs: b ? [r3(b.x), r3(b.y), ST[b.st], b.hp, b.inv > 0 ? 1 : 0] : null });
+  const due = sig !== NET.lastSig ? 40 : moving ? 200 : 1000;   // 40 ms: a button bounce doesn't send twice
+  if (world || now - NET.sendAt >= due) {
+    NET.sendAt = now; NET.lastSig = sig;
+    const g = gk >= 2 && p.ground.ref ? p.ground.ref : null;
+    const m = { n: NET.n, ts: now, ak: NET.rx, i: ib, p: [r3(p.x), r3(p.y), r3(p.vx), r3(p.vy), p.face, f, gk, gi, p.launch ? p.launch.vx : 0] };
+    if (g) m.rx = r3(p.x - g.x);   // where on the thing (or the partner) they stand, so it is drawn on it, not beside it
+    if (world) m.w = world;
+    netSend('st', m);
   }
   // a quiet partner: say so, and after a long while give up on them
   if (G.state === 'play') {
@@ -2397,65 +2429,73 @@ function netTick(now) {
     if (quiet > 25000) partnerLeft();
   } else if (UI.R) UI.R('net').hidden = true;
 }
+function netWorldMsg(now) {
+  const L = G.L, b = L.boss, ST = { float: 0, warn: 1, dip: 2, rise: 3, hit: 4, dead: 5 };
+  return { gs: G.state === 'won' ? 1 : G.state === 'dying' ? 2 : 0, wt: r3(G.wt), hp: G.hp, he: G.hearts, st: G.stars.reduce((m, v, k) => m | (v ? 1 << k : 0), 0), bd: G.bossDown ? 1 : 0,
+    en: L.enemies.map(e => [r3(e.x), r3(e.y), e.dead ? 1 : 0, e.type === 'i' ? (e.st === 'hang' ? 0 : e.st === 'shake' ? 1 : 2) : (e.onGround || e.up ? 1 : 0), r3(e.vx || 0), r3(e.vy || 0), r3(e.t || 0)]),
+    bx: L.boxes.map(q => [r3(q.x), r3(q.y)]), bs: b ? [r3(b.x), r3(b.y), ST[b.st], b.hp, b.inv > 0 ? 1 : 0] : null };
+}
+// the partner, simulated here: same physics, their buttons, none of the consequences (their phone has those)
+function ghostStep(q, dt) {
+  const k = Math.exp(-dt / 0.2); q.vox = (q.vox || 0) * k; q.voy = (q.voy || 0) * k;
+  if (Math.abs(q.vox) < 1e-3) q.vox = 0; if (Math.abs(q.voy) < 1e-3) q.voy = 0;
+  if (q.netDead || !NET.seen) { q.px = q.x; q.py = q.y; q.dead = q.netDead ? 1 : 0; q.dx = q.dy = 0; return; }
+  q.dead = 0;
+  G.ghost = 1; try { updatePlayer(q, dt); } finally { G.ghost = 0; }
+}
+const SIM = { p: null };
+// a message from the partner's phone: where they were when it was sent, and what they were pressing. Carried
+// forward to now (the trip took ~rtt/2) through the same physics, that is where they are; the ghost moves there
+// at once (so the two of them interact correctly) and its DRAWING glides over ~0.1 s (so nothing jumps).
 function netState(m, now) {
   const a = m.p;
-  if (!Array.isArray(a) || a.length < 10 || !a.slice(0, 5).every(fin) || !fin(m.ts)) return;
-  // how late each message is (their clock to ours, plus the trip), over the last 4 s: the quickest one
-  // is the trip itself, and how much later the slow ones come is the jitter the delay has to cover
+  if (!Array.isArray(a) || a.length < 9 || !a.slice(0, 5).every(fin) || !fin(m.ts)) return;
   const C = NET.cands; C.push({ t: now, c: now - m.ts });
-  while (C.length > 2 && C[0].t < now - 4000) C.shift();
+  while (C.length > 2 && C[0].t < now - 10000) C.shift();   // a long window: the baseline must not shift every few seconds
   let lo = Infinity; for (const o of C) if (o.c < lo) lo = o.c;
   NET.off = lo;
-  if (C.length >= 8) {
-    const late = C.map(o => o.c - lo).sort((x, y) => x - y), jit = late[Math.floor(late.length * 0.95)];
-    const want = clamp(70 + jit * 1.15, 90, 480);
-    NET.del += (want - NET.del) * (want > NET.del ? 0.35 : 0.02);   // grow quickly when the network gets worse, shrink slowly
+  const q = G.players[1 - G.meIdx], me = G.players[G.meIdx], L = G.L;
+  const ib = (m.i | 0) & 7, f = a[5] | 0;
+  NET.rin = bitsIn(ib); NET.rinAt = now; NET.seen = true;
+  q.repX = a[0] + q.w / 2; q.repG = !!(f & 1);   // where they said they were (the door asks this, not the prediction)
+  q.wings = !!(f & 4); q.shield = !!(f & 8); if (f & 16) q.happy = Math.max(q.happy || 0, 0.5); q.inv = f & 64 ? Math.max(q.inv, 0.25) : Math.min(q.inv, 0);
+  if (f & 2) { q.netDead = true; q.vox = q.voy = 0; return; }
+  const back = q.netDead; q.netDead = false;
+  // their state then
+  const s = SIM.p || (SIM.p = { an: { run: 0, t: 0, squash: 0, flap: 0, blink: 0, blinkT: 9 } });
+  for (const k in q) if (k !== 'an') s[k] = q[k];
+  s.x = a[0]; s.y = a[1]; s.vx = a[2]; s.vy = a[3]; s.face = a[4] < 0 ? -1 : 1; s.dead = 0;
+  s.grounded = !!(f & 1); s.jbuf = f & 128 ? 0.13 : 0; s.usedDouble = !!(f & 256); s.springy = !!(f & 512); s.lock = f & 1024 ? 0.1 : 0;
+  s.launch = a[8] ? { vx: +a[8] } : null; s.prevJ = !!(ib & 4); s.coyote = s.grounded ? 0.1 : 0; s.push = null;
+  const gk = a[6] | 0, gi = a[7] | 0;
+  let held = false;   // standing on something that moves: placed on it as it is NOW, not replayed
+  s.ground = null;
+  if (s.grounded) {
+    if (gk === 2) { s.ground = { kind: 'player', ref: me }; if (fin(m.rx)) s.x = me.x + m.rx; s.y = me.y - s.h; held = true; }
+    else if (gk >= 3 && gList(gk) && gList(gk)[gi]) {
+      const ref = gList(gk)[gi]; s.ground = { kind: GKIND[gk], ref };
+      if (fin(m.rx)) s.x = ref.x + m.rx;
+      s.y = surfTop(ref.kind ? ref : Object.assign({ kind: GKIND[gk] }, ref), s.x + s.w / 2) - s.h; held = true;
+    } else s.ground = { kind: 'tile', code: code(Math.floor(s.x + s.w / 2), Math.floor(s.y + s.h + 0.02)) };
   }
-  NET.buf.push({ ts: m.ts, x: a[0], y: a[1], vx: a[2], vy: a[3], face: a[4] < 0 ? -1 : 1, f: a[5] | 0, gk: a[6] | 0, gi: a[7] | 0, pd: a[8] | 0, pb: a[9] | 0 });
-  if (NET.buf.length > 40) NET.buf.shift();
-}
-// the partner's character, moved to where their phone says it was 110 ms ago
-function netRemoteStep() {
-  const q = G.players[1 - G.meIdx], B = NET.buf;
-  q.px = q.x; q.py = q.y;
-  if (!B.length) { q.dx = q.dy = 0; return; }
-  // the drawing clock runs at the phone's own pace, nudged (at most 15% faster or slower) towards where it
-  // should be, so a change in the estimate never shows as a lurch. Only a big error (a new level, a long gap) snaps
-  const target = NET.stepT - NET.off - NET.del;
-  if (NET.pt == null || Math.abs(target - NET.pt) > 700) NET.pt = target;
-  else NET.pt += STEP * 1000 * (1 + clamp((target - NET.pt) / 400, -0.15, 0.15));
-  const tr = NET.pt;
-  let s0 = B[0], s1 = null;
-  for (let k = 0; k < B.length; k++) { if (B[k].ts <= tr) s0 = B[k]; else { s1 = B[k]; break; } }
-  let x, y, vx, vy, s = s1 || s0;
-  if (s1 && s0 !== s1 && s0.ts <= tr) {
-    const k = clamp((tr - s0.ts) / Math.max(1, s1.ts - s0.ts), 0, 1);
-    x = s0.x + (s1.x - s0.x) * k; y = s0.y + (s1.y - s0.y) * k; vx = s0.vx + (s1.vx - s0.vx) * k; vy = s0.vy + (s1.vy - s0.vy) * k;
-    if (Math.abs(s1.x - s0.x) > 3 || Math.abs(s1.y - s0.y) > 3) { x = s1.x; y = s1.y; }   // a respawn: jump, don't slide
-  } else {
-    const ahead = clamp(tr - s0.ts, 0, 160) / 1000;   // running ahead of the messages: coast a little, then wait
-    x = s0.x + s0.vx * ahead; y = s0.y; vx = s0.vx; vy = s0.vy; s = s0;
+  // …carried forward to now with what they were pressing
+  if (!held && !back) {
+    // carried to the time of the last physics step here (that is where the simulated partner stands), not to now
+    const age = clamp(NET.rttMin / 2 + Math.max(0, now - m.ts - NET.off) - Math.max(0, now - NET.stepT), 0, 350);
+    const n = Math.round(age / (STEP * 1000));
+    NET.simIn = NET.rin; G.ghost = 2;
+    try { for (let k = 0; k < n; k++) updatePlayer(s, STEP); } finally { G.ghost = 0; }
   }
-  q.dx = x - q.x; q.dy = y - q.y;
-  if (Math.abs(q.dx) > 3 || Math.abs(q.dy) > 3) { q.dx = q.dy = 0; q.px = x; q.py = y; G.petPos = G.petPos; }
-  q.x = x; q.y = y; q.vx = vx; q.vy = vy; q.face = s.face;
-  const wasGround = q.grounded;
-  q.grounded = !!(s.f & 1); q.dead = s.f & 2 ? 1 : 0; q.wings = !!(s.f & 4); q.shield = !!(s.f & 8);
-  q.happy = s.f & 16 ? 1 : 0; q.strain = s.f & 32 ? 0.3 : 0; q.inv = s.f & 64 ? 0.5 : 0;
-  const L = G.L, list = [null, null, null, L.boxes, L.movers, L.elevs, L.seesaws, L.springs][s.gk];
-  const KIND = [null, 'tile', 'player', 'box', 'mover', 'elev', 'seesaw', 'spring'];
-  q.ground = !q.grounded || !s.gk ? null : s.gk === 2 ? { kind: 'player', ref: G.players[G.meIdx] } : list ? { kind: KIND[s.gk], ref: list[s.gi] || null } : { kind: 'tile', code: 1 };
-  if (q.ground && list && !q.ground.ref) q.ground = { kind: 'tile', code: 1 };
-  q.push = s.pd && L.boxes[s.pb] ? { box: L.boxes[s.pb], dir: s.pd } : null;
-  if (q.push) q.pushMem = { box: q.push.box, dir: q.push.dir, t: G.clock };
-  const an = q.an;
-  an.run = approach(an.run, q.grounded ? Math.min(1, Math.abs(vx) / RUN) : 0, STEP * 8);
-  an.t += STEP * (Math.abs(vx) / RUN) * 2.8;
-  if (!wasGround && q.grounded && vy > 7) an.squash = Math.min(1, vy / 22);
-  an.squash = Math.max(0, an.squash - STEP * 6);
-  an.blinkT -= STEP; if (an.blinkT <= 0) { an.blink = 0.12; an.blinkT = 2.4 + Math.random() * 2; } an.blink = Math.max(0, an.blink - STEP);
+  const ex = s.x - q.x, ey = s.y - q.y;
+  const ox = q.x, oy = q.y;
+  for (const k of ['x', 'y', 'vx', 'vy', 'face', 'grounded', 'ground', 'jbuf', 'usedDouble', 'springy', 'lock', 'launch', 'prevJ', 'coyote']) q[k] = s[k];
+  if (back || Math.abs(ex) > 2.5 || Math.abs(ey) > 2.5) { q.vox = q.voy = 0; q.px = q.x; q.py = q.y; }   // came back, or a long gap: just be there
+  else { q.vox = clamp((q.vox || 0) + ox - q.x, -1.5, 1.5); q.voy = clamp((q.voy || 0) + oy - q.y, -1.5, 1.5); q.px += q.x - ox; q.py += q.y - oy; }
+  if (m.w) netWorld(m.w, now, m.ts);
 }
-function netWorld(m, now) {
+// the host's world, arriving: the hearts, the stars, the level's fate, the clock — and where the enemies and
+// boxes really are. This phone has been simulating them too, so the difference is small and is closed gently.
+function netWorld(m, now, ts) {
   if (isHost()) return;
   if (!Array.isArray(m.en) || !Array.isArray(m.bx)) return;
   NET.wsnap = m; NET.wrecv = now;
@@ -2466,7 +2506,7 @@ function netWorld(m, now) {
     G.hp = mine ? Math.min(G.hp, hp) : hp;
   }
   if (fin(m.he)) G.hearts = Math.max(G.hearts, m.he | 0);   // never below what this phone just picked up (the host hasn't heard yet)
-  if (fin(m.st)) G.stars = [0, 1, 2].map(k => !!(m.st & (1 << k)));
+  if (fin(m.st)) G.stars = [0, 1, 2].map(k => G.stars[k] || !!(m.st & (1 << k)));
   // the win and the fail also ride the world, so a phone can never be left playing a level that is over
   if (m.gs === 1 && (G.state === 'play' || G.state === 'paused')) win();
   else if (m.gs === 2 && G.state === 'play') netEvent({ k: 'fail' });
@@ -2475,40 +2515,41 @@ function netWorld(m, now) {
     const target = m.wt + NET.rtt / 2000, err = target - G.wt;
     G.wt = Math.abs(err) > 0.5 ? target : G.wt + err * 0.2;
   }
-}
-// the other phone follows the host's world
-function netWorldStep(dt) {
-  const m = NET.wsnap, L = G.L; if (!m) return;
-  const age = Math.min(0.3, (performance.now() - NET.wrecv) / 1000), k = 1 - Math.exp(-14 * dt);
+  const age = clamp(NET.rttMin / 2 + Math.max(0, now - (ts || now) - NET.off), 0, 400) / 1000, L = G.L;
   L.enemies.forEach((e, i) => {
-    const r = m.en[i]; if (!r) return;
-    e.px = e.x; e.py = e.y;
-    const tx = r[0] + (r[2] ? 0 : r[4] * age), ty = r[1];
-    if (Math.abs(tx - e.x) > 2 || Math.abs(ty - e.y) > 2) { e.x = tx; e.y = ty; } else { e.x += (tx - e.x) * k; e.y += (ty - e.y) * k; }
-    e.vx = r[4]; e.vy = r[5];
-    if (e.type === 'i') e.st = ['hang', 'shake', 'fall'][r[3]] || 'hang'; else e.onGround = !!r[3];
-    if (e.type !== 'c' && e.type !== 'j' && e.type !== 'i') e.t = (e.t || 0) + dt;
-    if (r[2] && !e.dead) { e.dead = 0.45; if (e.type === 'i') e.gone = true; else e.squashed = true; }
-    else if (e.dead) e.dead = Math.max(0.0001, e.dead - dt);
-    else if (!r[2] && e.killedAt && G.clock - e.killedAt < 1.5) e.dead = 0.0001;   // a stomp from here the host hasn't heard yet
+    const r = m.en[i]; if (!Array.isArray(r) || !r.slice(0, 2).every(fin)) return;
+    if (r[2]) { if (!e.dead) { e.dead = 0.45; if (e.type === 'i') e.gone = true; else e.squashed = true; } return; }
+    if (e.dead) {
+      if (e.killedAt && G.clock - e.killedAt < 1.5) return;   // a stomp from here the host hasn't heard yet
+      e.dead = 0; e.squashed = false; e.gone = false;          // the host says it lives: that stomp didn't count there
+    }
+    if (e.type === 'i') e.st = ['hang', 'shake', 'fall'][r[3]] || 'hang';
+    else if (e.type === 'j') e.up = !!r[3]; else e.onGround = !!r[3];
+    if (fin(r[6])) e.t = r[6] + (e.type === 'c' ? age : 0);
+    const moves = e.type === 'p' || e.type === 'n' || e.type === 'a';
+    const tx = r[0] + (moves ? (r[4] || 0) * age : 0), ty = r[1];
+    if (e.type === 'c') { /* the cloud follows its own clock (e.t), set above */ }
+    else if (Math.abs(tx - e.x) > 1.5 || Math.abs(ty - e.y) > 1.5) { e.x = e.px = tx; e.y = e.py = ty; }
+    else { e.x += (tx - e.x) * 0.5; e.y += (ty - e.y) * 0.5; }
+    if (fin(r[4])) e.vx = r[4]; if (fin(r[5])) e.vy = r[5];
   });
   L.boxes.forEach((b, i) => {
-    const r = m.bx[i]; if (!r) return;
-    b.px = b.x; b.py = b.y; const ox = b.x, oy = b.y;
-    if (Math.abs(r[0] - b.x) > 2 || Math.abs(r[1] - b.y) > 2) { b.x = r[0]; b.y = r[1]; } else { b.x += (r[0] - b.x) * k; b.y += (r[1] - b.y) * k; }
-    b.dx = b.x - ox; b.dy = b.y - oy; b.x0 = b.x; b.x1 = b.x + b.w;
-    let pr = 0; for (const p of G.players) if (!p.dead && p.push && p.push.box === b) pr++;
-    b.strain = pr === 1 ? Math.min(1, b.strain + dt * 3) : Math.max(0, b.strain - dt * 2);
+    const r = m.bx[i]; if (!Array.isArray(r) || !r.every(fin)) return;
+    if (Math.abs(r[0] - b.x) > 1.2 || Math.abs(r[1] - b.y) > 1.2) { b.x = b.px = r[0]; b.y = b.py = r[1]; }
+    else { b.x += (r[0] - b.x) * 0.4; b.y += (r[1] - b.y) * 0.4; }
+    b.x0 = b.x; b.x1 = b.x + b.w;
   });
-  const b = L.boss;
-  if (b && m.bs) {
-    b.px = b.x; b.py = b.y;
-    b.x += (m.bs[0] - b.x) * k; b.y += (m.bs[1] - b.y) * k;
-    const st = ['float', 'warn', 'dip', 'rise', 'hit', 'dead'][m.bs[2]] || 'float';
-    if (st === 'dead' && b.st !== 'dead') b.dead = 0;
-    b.st = st; b.hp = m.bs[3]; b.inv = m.bs[4] ? Math.max(b.inv, 0.1) : Math.max(0, b.inv - dt);
-    if (b.st === 'dead') b.dead += dt;
-  }
+}
+// the big cloud is the host's alone: it is drawn sliding towards where the host last said it was
+function netBossStep(dt) {
+  const m = NET.wsnap, b = G.L.boss; if (!m || !b || !m.bs) return;
+  const k = 1 - Math.exp(-14 * dt);
+  b.px = b.x; b.py = b.y;
+  b.x += (m.bs[0] - b.x) * k; b.y += (m.bs[1] - b.y) * k;
+  const st = ['float', 'warn', 'dip', 'rise', 'hit', 'dead'][m.bs[2]] || 'float';
+  if (st === 'dead' && b.st !== 'dead') b.dead = 0;
+  b.st = st; b.hp = m.bs[3]; b.inv = m.bs[4] ? Math.max(b.inv, 0.1) : Math.max(0, b.inv - dt);
+  if (b.st === 'dead') b.dead += dt;
 }
 function netEvent(m) {
   const L = G.L, me = G.players[G.meIdx], them = G.players[1 - G.meIdx];
@@ -2517,7 +2558,7 @@ function netEvent(m) {
     case 'gift': if (fin(m.c) && fin(m.r)) hitGift(m.c | 0, m.r | 0, true); break;
     case 'crumb': if (fin(m.c) && fin(m.r) && code(m.c | 0, m.r | 0) === T_CRUMB) triggerCrumb(m.c | 0, m.r | 0, true); break;
     case 'cp': { const k = L.cps[m.i]; if (k) flagOn(k); break; }
-    case 'stomp': if (isHost()) { const e = L.enemies[m.i]; if (e && !e.dead && e.type !== 'n' && e.type !== 'j') { e.dead = 0.45; e.squashed = true; sfx('stomp'); } } break;
+    case 'stomp': { const e = L.enemies[m.i]; if (e && !e.dead && e.type !== 'n' && e.type !== 'j') { e.dead = 0.45; e.squashed = true; sfx('stomp'); } break; }
     case 'bosshit': if (isHost()) bossDamage(); break;
     case 'hit': if (isHost()) loseHp(true); break;
     case 'launch': {

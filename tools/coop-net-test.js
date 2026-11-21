@@ -117,10 +117,24 @@ const ground = (p) => T(p, () => {   // the longest flat, clear stretch of groun
 const sampleStart = (p, whose) => T(p, (whose) => {
   const T2 = CoopGames.test, G = T2.G, i = whose === 'them' ? 1 - G.meIdx : G.meIdx; window.__smp = []; window.__smpOn = true;
   // read after the game's own frame has drawn (rAF callbacks run in order; this one was queued later)
-  const f = (t) => { if (!window.__smpOn) return; const q = G.players[i]; window.__smp.push([t, q.px + (q.x - q.px) * T2.al()]); requestAnimationFrame(f); };
+  const f = (t) => { if (!window.__smpOn) return; const q = G.players[i]; window.__smp.push([t, q.px + (q.x - q.px) * T2.al() + (q.vox || 0), performance.timeOrigin + t]); requestAnimationFrame(f); };
   requestAnimationFrame(f);
 }, whose);
 const sampleStop = (p) => T(p, () => { window.__smpOn = false; return window.__smp; });
+// how far behind its owner's screen the partner is drawn: for each frame on the watching phone, when was
+// the runner's own screen at that spot (both pages run on one machine, so their clocks agree)
+function lag(own, seen) {
+  const o = own.filter(s => s[2]), x0 = Math.min(...o.map(s => s[1])), x1 = Math.max(...o.map(s => s[1]));
+  const ls = [];
+  for (const s of seen) {
+    if (s[1] < x0 + 1.5 || s[1] > x1 - 1.5) continue;
+    const k = o.findIndex(q => q[1] >= s[1]); if (k < 1) continue;
+    const a = o[k - 1], b = o[k], tt = a[2] + (b[2] - a[2]) * ((s[1] - a[1]) / Math.max(1e-6, b[1] - a[1]));
+    ls.push(s[2] - tt);
+  }
+  ls.sort((a, b) => a - b);
+  return ls.length ? Math.round(ls[Math.floor(ls.length / 2)]) : null;
+}
 // how evenly a running character moves on screen: the share of frames within 35% of its steady speed
 function evenness(smp) {
   if (smp.length < 30) return { frames: smp.length, smooth: 0 };
@@ -164,9 +178,11 @@ function evenness(smp) {
         await sampleStart(watcher.p, 'them'); await sampleStart(runner.p, 'me');
         await runner.p.keyboard.down('ArrowRight'); await sleep(Math.min(2200, (g.len - 2) / 7.5 * 1000)); await runner.p.keyboard.up('ArrowRight');
         await sleep(700);
-        const seen = evenness(await sampleStop(watcher.p)), own = evenness(await sampleStop(runner.p));
-        const need = name === 'poor' ? 0.85 : 0.95;
+        const seenS = await sampleStop(watcher.p), ownS = await sampleStop(runner.p);
+        const seen = evenness(seenS), own = evenness(ownS), behind = lag(ownS, seenS);
+        const need = name === 'poor' ? 0.85 : 0.95, late = { ideal: 80, '4G': 150, poor: 300 }[name];   // was 165 / 305 / 691 ms before the partner was simulated (2026-11-22)
         ok(seen.smooth >= need && seen.still < 150, `${name}: ${label} — ${Math.round(seen.smooth * 100)}% of frames even (own screen ${Math.round(own.smooth * 100)}%), longest freeze ${seen.still} ms, ${seen.stall} stalls, ${seen.jump} jumps`);
+        ok(behind != null && behind <= late, `${name}: drawn ${behind} ms behind the runner's own screen (budget ${late} ms)`);
       }
     }
     await net(A.p, {}); await net(B.p, {});
@@ -447,6 +463,8 @@ function evenness(smp) {
 
   if (want('soak')) {
     console.log('\n12. Ninety seconds of play on 4G: no drops, no stalls, still in step');
+    for (const X of [A, B]) { await home(X); await T(X.p, () => CoopGames.close()); }
+    await sleep(600);
     for (const X of [A, B]) await openGame(X);
     await sleep(2500);
     ok(await startLevel(A, B, 1), '1-2');
@@ -454,6 +472,7 @@ function evenness(smp) {
     const g = await ground(A.p);
     await tpMe(A.p, g.x0 + 2, g.r - 1.25); await tpMe(B.p, g.x0 + 4, g.r - 1.25); await sleep(800);
     const o0 = [await T(A.p, () => window.__net.opens), await T(B.p, () => window.__net.opens)];
+    const sent0 = [await T(A.p, () => window.__net.out), await T(B.p, () => window.__net.out)], tS = Date.now();
     let banner = 0, worst = 0;
     const t0 = Date.now(); let dir = 1, k = 0;
     while (Date.now() - t0 < 90000) {
@@ -469,6 +488,11 @@ function evenness(smp) {
     await sleep(1200);
     const o1 = [await T(A.p, () => window.__net.opens), await T(B.p, () => window.__net.opens)];
     const rate = await T(A.p, () => ({ out: window.__net.out, in: window.__net.in }));
+    const secs = (Date.now() - tS) / 1000, sent1 = [await T(A.p, () => window.__net.out), await T(B.p, () => window.__net.out)];
+    const ps = [(sent1[0] - sent0[0]) / secs, (sent1[1] - sent0[1]) / secs];
+    // Supabase counts a broadcast once sent and once received: two phones sending a and b a second cost 2(a+b)
+    console.log(`     messages sent while both play: A1 ${ps[0].toFixed(1)}/s, B2 ${ps[1].toFixed(1)}/s → about ${Math.round(2 * (ps[0] + ps[1]) * 3600 / 1000)}k billed per hour of play`);
+    ok(ps[0] <= +(process.env.MSG_BUDGET || 12) && ps[1] <= +(process.env.MSG_BUDGET || 12), `each phone sends at most ${process.env.MSG_BUDGET || 12} messages a second while playing (A1 ${ps[0].toFixed(1)}, B2 ${ps[1].toFixed(1)})`);
     ok(o1[0] === o0[0] && o1[1] === o0[1], `the channel never dropped (connections opened: A1 ${o1[0] - o0[0]}, B2 ${o1[1] - o0[1]})`);
     ok(banner === 0, `「等…的网络」 never showed (${banner} times)`);
     const a = await st(A.p), b = await st(B.p);
