@@ -140,16 +140,17 @@ function leapTo(i, tx, maxFeet = 99, max = 400) {
   return until(() => k > 10 && P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.7 && P(i).y + P(i).h <= maxFeet, () => {
     const p = P(i), dx = tx - cx(p);
     IN[1 - i] = {};
-    IN[i] = { j: k++ < 45, r: dx > 0.15, l: dx < -0.15 };
+    IN[i] = { j: k++ < (G.L.world.key === 'sea' ? 80 : 45), r: dx > 0.15, l: dx < -0.15 };   // a jump in the water takes longer to top out
   }, max);
 }
 const idle = () => { IN[0] = {}; IN[1] = {}; };
 // walk into an updraft, rise until the feet are above feetUp, then drift across to tx and land
-function rideWind(i, fx, feetUp, tx, max = 900) {
+function rideWind(i, fx, feetUp, tx, max = 900, maxFeet = 99) {
   if (G.mode === 'solo') unstack(i);
   take(i);
-  if (!until(() => !P(i).grounded && P(i).y + P(i).h < feetUp, () => { const dx = fx - cx(P(i)); IN[i] = { l: dx < -0.1, r: dx > 0.1, j: true }; IN[1 - i] = {}; }, max)) return false;
-  return until(() => P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.5, () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.15, r: dx > 0.15 }; IN[1 - i] = {}; }, max);
+  // up in THIS updraft (passing another one on the way lifts you too, and that does not count)
+  if (!until(() => !P(i).grounded && P(i).y + P(i).h < feetUp && Math.abs(cx(P(i)) - fx) < 1.3, () => { const dx = fx - cx(P(i)); IN[i] = { l: dx < -0.1, r: dx > 0.1, j: true }; IN[1 - i] = {}; }, max)) return false;
+  return until(() => P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.5 && P(i).y + P(i).h <= maxFeet, () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.15, r: dx > 0.15 }; IN[1 - i] = {}; }, max);
 }
 // stand under the wheel, hop into a cabin as it comes round the bottom, ride it up, and leap for (offX, offFeet)
 function rideWheel(i, wh, offX, offFeet) {
@@ -204,6 +205,11 @@ function stepChunk(n) {
       if (!until(() => G.chanOn[n], () => { IN[A] = {}; IN[B] = {}; }, 60)) return false;
       if (!solo(A, x0 + 10)) return false;
       return both(x1 + 0.5, x1 + 1.5);
+    case 'G_relay':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!solo(B, x0 + 19.5, 2000, 0.3)) return false;
+      if (!solo(A, x1 + 0.5, 2000)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
     case 'C_relay':
       if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
       if (!solo(B, x0 + 13.5, 1500, 0.3)) return false;
@@ -264,7 +270,7 @@ function stepChunk(n) {
       if (!solo(B, x1 + 0.5, 2000)) return false;
       return both(x1 + 1.5, x1 + 0.8);
     }
-    case 'N_seesaw': {
+    case 'N_seesaw': case 'O_seesaw': {
       const s = G.L.seesaws.find(q => q.px > x0 && q.px < x1);
       if (!solo(A, x0 + 8.2, 1500, 0.3)) return false;
       // hop back onto the low right end
@@ -304,14 +310,15 @@ function stepChunk(n) {
       if (!solo(A, x0 + 11.5, 2000, 0.3)) return false;
       if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
       return both(x1 + 0.5, x1 + 1.5);
-    case 'U_pair': case 'U_bridge2': {
-      const sx0 = x0 + (id === 'U_pair' ? 6.5 : 7.5), cloud = x0 + (id === 'U_pair' ? 2.5 : 10.5), floor = x0 + (id === 'U_pair' ? 9.5 : 3.5);
+    case 'U_pair': case 'U_bridge2': case 'G_pair1': {
+      const spots = { U_pair: [6.5, 2.5, 9.5], U_bridge2: [7.5, 10.5, 3.5], G_pair1: [7.5, 3.5, 11.5] }[id];
+      const sx0 = x0 + spots[0], cloud = x0 + spots[1], floor = x0 + spots[2];
       if (id === 'U_bridge2' && !solo(A, floor, 2000, 0.3)) return false;
       take(B);
       if (!until(() => !P(B).grounded && P(B).vy < -15, () => { go(B, sx0, 0.05); IN[A] = {}; }, 900)) return 'no-spring';
       if (!until(() => P(B).grounded && P(B).y + P(B).h <= 6.1, () => { const dx = cloud - cx(P(B)); IN[B] = { j: true, l: dx < -0.15, r: dx > 0.15 }; IN[A] = {}; }, 400)) return 'missed-cloud';
       if (!solo(B, cloud, 300, 0.3)) return false;
-      if (id === 'U_pair' && !solo(A, floor, 2000, 0.3)) return false;
+      if (id !== 'U_bridge2' && !solo(A, floor, 2000, 0.3)) return false;
       if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
       return both(x1 + 0.5, x1 + 1.5);
     }
@@ -413,6 +420,67 @@ function stepChunk(n) {
         take(i);
         if (!until(() => cx(P(i)) > x0 + 15 && P(i).grounded, () => { const p = P(i), up = p.y + p.h < 8 && cx(p) < x0 + 14; IN[i] = up ? { l: true } : { r: true }; IN[1 - i] = {}; }, 1500)) return 'maze' + i;
       }
+      return both(x1 + 0.5, x1 + 1.5);
+    // ── 2026-11-24: 糖果乐园, 海底世界 ──
+    case 'G_boxfan': {
+      if (!pushBox(n, x0, x1)) return 'box';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'plate';
+      if (!rideWind(A, x0 + 13.9, 3.8, x0 + 18.5)) return 'wind-a';
+      if (!rideWind(B, x0 + 13.9, 3.8, x0 + 17.5)) return 'wind-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'G_portal':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!solo(B, x0 + 19.5, 3000, 0.3)) return false;
+      if (!solo(A, x1 + 0.5, 3000)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    case 'G_wheel': {
+      const wh = G.L.wheels.find(w => w.cx > x0 && w.cx < x1);
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWheel(B, wh, x0 + 11.5, 4.1)) return 'wheel';
+      if (!solo(B, x0 + 11.5, 300, 0.3)) return false;
+      if (!solo(A, x0 + 9.5, 1500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'G_finale': {
+      if (!pushBox(n, x0, x1)) return 'box';
+      if (!rideWind(B, x0 + 14.9, 3.8, x0 + 17.5)) return 'wind';
+      if (!solo(B, x0 + 17.5, 300, 0.3)) return false;
+      if (!solo(A, x0 + 11.5, 2500, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'O_pair':
+      if (!both(x0 + 4.6, x0 + 3.0, 2000, 0.3)) return false;
+      if (!climbOn(B, A)) return 'climb';
+      if (!leapTo(B, x0 + 4.5, 5.1)) return 'leap';
+      if (!solo(B, x0 + 4.5, 400, 0.3)) return false;
+      if (!solo(A, x0 + 13.5, 2000, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'O_vent':
+      if (!solo(A, x0 + 3.5, 1500, 0.3)) return false;
+      if (!rideWind(B, x0 + 8.9, 3.8, x0 + 16.5)) return 'wind-b';
+      if (!solo(B, x0 + 16.5, 300, 0.3)) return false;
+      if (!rideWind(A, x0 + 8.9, 3.8, x0 + 14)) return 'wind-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'O_color':   // YY through the blue wall to its button; CS through the gate and the pink wall to the other; YY through
+      if (!solo(B, x0 + 3.5, 1500, 0.3)) return false;
+      if (!leapTo(B, x0 + 11.5, 11.1)) return 'blue';
+      if (!solo(B, x0 + 11.5, 300, 0.3)) return false;
+      if (!until(() => G.chanOn[n], idle, 60)) return 'gate1';
+      if (!solo(A, x0 + 13, 1500, 0.3)) return false;
+      if (!leapTo(A, x0 + 20.5, 11.1)) return 'pink';
+      if (!solo(A, x0 + 20.5, 300, 0.3)) return false;
+      if (!solo(B, x1 + 0.5, 2000)) return false;
+      return both(x1 + 1.5, x1 + 0.8);
+    case 'O_palace':
+      if (!rideWind(A, x0 + 5.9, 3.8, x0 + 8.5, 900, 4.1)) return 'wind-a';
+      if (!solo(A, x0 + 8.5, 300, 0.3)) return false;
+      if (!rideWind(B, x0 + 14.9, 3.8, x0 + 18.5, 900, 4.1)) return 'wind-b';
+      if (!solo(B, x0 + 18.5, 300, 0.3)) return false;
+      if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
       return both(x1 + 0.5, x1 + 1.5);
     case 'D_pair':
       if (!both(x0 + 5.5, x0 + 16.5, 2500, 0.3)) return false;

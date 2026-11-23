@@ -380,7 +380,7 @@ function evenness(smp) {
     } else ok(false, 'found a gift block');
     // a crumbling cloud B2 stands on
     let crumb = null;
-    for (const lv of [11, 13, 14, 25, 26, 12]) {
+    for (const lv of [11, 13, 14, 35, 36, 12]) {
       ok(await freshLevel(A, B, lv), `level ${lv + 1} for a crumbling cloud`);
       crumb = await T(A.p, () => { const L = CoopGames.test.G.L, w = L.w; for (let c = 0; c < w; c++) for (let r = 1; r < 12; r++) if (L.grid[r * w + c] === 9 && !L.grid[(r - 1) * w + c]) return [c, r]; return null; });
       if (crumb) break;

@@ -876,8 +876,8 @@ tomorrow pays again, photos / too few photos / dead photos, 360–820 both theme
 
 ## 7.33 🤝 一起回家 and 默契拍拍 — two phones, one game
 
-Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer — 30
-levels in six worlds (春/夏/秋/冬/游乐园/夜) since 2026-11-22 — that only works if
+Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer — 40
+levels in eight worlds (春/夏/秋/冬/游乐园/糖果/海底/夜) since 2026-11-24 — that only works if
 the two of them help each other: stand on your partner's head, hold a button so
 the other can pass, push a box that one person can't move, throw each other
 with the seesaw, press two 同心锁 hearts at once, ride the wind or the Ferris
@@ -1005,7 +1005,8 @@ Only **ordinary** buttons power fans, portals and wheels — a 同心锁 heart t
 need a fan to reach would otherwise never start the fan. Your pet repeats the
 current piece's sign after 25 s without progress (not while you stand at it).
 Saves moved to `cg_save2_*` (records start fresh, what was unlocked stays) and
-payouts to keys `M1…M30` (new levels pay their first clear once).
+payouts to keys `M1…M30` (new levels pay their first clear once). Since
+2026-11-24 records are `cg_save3_*`, keyed by level id (below).
 
 What playing all 30 with the bot found — each a thing a person would hit too:
 - **A spring's launch was cut in half by a jump pressed just after it** (the
@@ -1024,9 +1025,53 @@ What playing all 30 with the bot found — each a thing a person would hit too:
 
 `tools/coop-bot.js` has a script for every puzzle piece (`rideWind`,
 `rideWheel`, `pushBox`, `seesawThrow` are the shared moves) and the general
-runner for the rest; it finishes all 30 in both one-phone modes, and 29 with
+runner for the rest; it finishes all 40 in both one-phone modes, and 39 with
 real damage (the boss rains on a bot that never dodges). The live test checks
 every new piece across two phones.
+
+### Stars anyone can reach, 糖果 and 海底, a game that looks and sounds alive (2026-11-24)
+
+Reported: 「some star very hard to take and can't take even both jump」. Measured
+with `tools/coop-stars-test.js`: **seven stars hung 9–10 tiles up where nothing
+reaches** (a stack from the floor tops out at 5.4 tiles, a spring at 8.1) and
+**five more needed a perfect jump**. Stars were typed into a piece's rows by
+hand and no test ever asked whether anyone could get there — the bot's job is
+to finish a level, not to collect it. Eleven were moved, one more in the new
+worlds.
+
+- **The oracle plays it, it doesn't measure it.** In the page, with the real
+  physics, for every star and 💗: a jump from every ledge within 5 tiles, from
+  the partner's head (every pair that can stand there), springs, updrafts,
+  rafts and wheel cabins, a lift held up — first as the level is, then with the
+  partner holding every button (`G.forceChan`). **Comfortable = still taken
+  with a jump 10% weaker** than the strongest, because a thumb on glass is not
+  frame-perfect. It fails on any star that is unreachable or only perfect, and
+  on any heart that is unreachable. Every new star goes through it.
+- **糖果乐园 and 海底世界**, 5 levels each, 23 new pieces (11 puzzles, nothing
+  reused); 夜 moved to world 8. 海底 floats: gravity ×0.6, jump ×0.85, falling
+  ×0.6 (`WK()`), so a jump reaches 5.1 tiles instead of 4.2 and a stack 6.3.
+  A jump in the water takes longer to top out — let go after 0.375 s and you
+  jump short; the bot holds it 0.67 s there, and so does the oracle.
+- **Levels have ids** (`M1…M40`), and records (`cg_save3_*`) and payouts are
+  keyed by id, never by position, so a world can go in between: 糖果/海底 went
+  before 夜, whose levels kept `M26…M30`. `cg_save2` is migrated (position k →
+  `M(k+1)`). Positions moved, so `NET_V` is 4: a phone on the old version is
+  told to reopen rather than start a different level.
+- **Graphics:** every world has its own far scene (a windmill, mountains and a
+  cabin, a candy castle, a shipwreck under light shafts, a night town…), hills
+  that fade far → near, ground tiles in three variants with grass tufts, sun
+  rays, a soft vignette, dust when running. Taking a star bursts sparkles and a
+  ring and says 「⭐ n/3」, on both phones.
+- **Music:** each world plays its own short tune, written by code — key, tempo,
+  chords and a seeded melody (`SONGS`), nothing downloaded — scheduled ahead on
+  the audio clock, quiet under the sounds, and only while playing: a pause, the
+  result card or a hidden phone is silence, and 🔇 silences it. Checked by
+  counting what is played: ~20 notes per 3 s in each world, 0 paused or closed.
+
+What the bot found in the new levels: a button at the end of a conveyor (you
+stand on it and are carried off it — moved a tile off the belt); the door's
+heart past an always-on updraft (going to it lifted you away — moved to the
+near side); a portal pillar that left a 1-tile pocket between it and the wall.
 
 ### Points
 
@@ -1062,7 +1107,7 @@ no server rule, so the §7.32 warning stands: don't raise the payouts without on
   outlined every frame.
 
 `tools/coop-test.js` plays every level in the real app with a bot (one phone,
-two people and alone, 30/30 each), the payouts, 默契拍拍, the no-pet case, and
+two people and alone, 40/40 each), the payouts, 默契拍拍, the no-pet case, and
 360/390/820 in both themes. `tools/coop-live-test.js` logs two phones in on the
 live backend and checks every cross-phone mechanic: moves mirrored, hearts,
 standing on each other, the gate held from the other phone, pause, the win paying
@@ -1070,6 +1115,7 @@ each person, the two-person box, the seesaw, the guest's stomp on the cloud,
 leaving, and 默契拍拍 giving one verdict. `tools/coop-net-test.js` does it again
 over a simulated phone network (see above; `PHONE_B=webkit` puts the partner on
 WebKit, `ONLY=smooth,cuts,…` runs sections). `tools/coop-bot.js` is the bot.
+`tools/coop-stars-test.js` is the star and heart oracle (above).
 `smooth-test.js` measures both games.
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
@@ -1599,7 +1645,7 @@ What made the difference, and what must not come back:
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
-  coop-live-test.js, coop-net-test.js — serve the repo
+  coop-live-test.js, coop-net-test.js, coop-stars-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -1706,7 +1752,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/speed-test.js` | Not pass/fail except for a few budgets — the table of what a phone waits for (CPU 4×, 4G, GitHub Pages headers): open, 继续, a tile, each screen, KB and calls per open. Compare medians, never one run. `ROOT=<dir>` measures another copy (e.g. the live version) |
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
-| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 30 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 40 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |

@@ -12,6 +12,19 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-24 — 一起回家: every star can be reached, two new worlds, music
+
+Some stars were impossible: seven hung higher than anyone can reach, even
+standing on each other, and five more only worked with a perfect jump. All of
+them were moved, and a new test plays every star and heart in every level to
+make sure each one can be taken with an ordinary jump. There are two new
+worlds, 糖果乐园 and 海底世界 (where you float and jump higher), so 40 levels in
+eight worlds. Every world now has its own background scene, softer hills,
+grassier ground and dust when you run; taking a star sparkles on both phones;
+and each world plays its own little tune while you play (silent when paused or
+with the sound off). Records and progress carry over. Both phones need the new
+version to play together.
+
 ## 2026-11-22 — 一起回家: no more lag, 30 levels, new ways to help each other
 
 On two phones, your partner now moves on your screen almost exactly when they

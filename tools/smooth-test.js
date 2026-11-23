@@ -111,9 +111,9 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     }));
     // a night level: the darkness is a full-screen layer with holes of light cut in it every frame
     await p.evaluate(() => CoopGames.test.closeStage()); await sleep(300);
-    await p.click('.cg-worlds [data-w="5"]'); await sleep(200);
-    await p.click('.cg-lv[data-i="26"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
-    report('一起回家, a night level (6-2 萤火森林)', await watch(p, 4500, async () => {
+    await p.click('.cg-worlds [data-w="7"]'); await sleep(200);
+    await p.click('.cg-lv[data-i="36"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, a night level (8-2 萤火森林)', await watch(p, 4500, async () => {
       await p.click('.cg-panel [data-a="go"]');
       await p.keyboard.down('ArrowRight'); for (let i = 0; i < 7; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
     }));
