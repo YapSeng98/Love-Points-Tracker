@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.24-76';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.24-77';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -595,6 +595,27 @@ const App = (() => {
     html[data-theme="dark"] .checkin-banner-badge.done { background: #2A3448; }`;
     document.head.appendChild(st);
   })();
+
+  // A game covers the whole screen, but ~60 animations kept running underneath it (the aurora, a conic
+  // ring repainting every frame, both portraits, two closed pages sliding nowhere) — a third of a slowed
+  // phone's main thread, spent on things nobody can see. While a game is up (html.game-cover, set by
+  // _gameCover) they hold still, and once the game has faded in (0.3 s) they stop being drawn at all.
+  // A class, not body:has(… :not([hidden])): 一起回家 shows and hides its bubbles every frame, and a :has()
+  // that mentions [hidden] made Chrome restyle all ~3000 elements behind the game on each of those frames.
+  (function injectGameCoverCSS() {
+    if (document.getElementById('game-cover-css')) return;
+    const on = 'html.game-cover body';
+    // (anything that can open OVER a game stays out of it: the toast, and the anniversary / birthday films at 00:00)
+    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;
+    const st = document.createElement('style');
+    st.id = 'game-cover-css';
+    st.textContent = `${on}::before, ${on}::after, ${behind}, ${behind} *, ${behind} *::before, ${behind} *::after { animation-play-state: paused !important; }
+    ${on}::before, ${on}::after, ${behind} { visibility: hidden; transition: visibility 0s linear .3s; }`;
+    document.head.appendChild(st);
+  })();
+  function _gameCover() {
+    try { document.documentElement.classList.toggle('game-cover', !!document.querySelector('body > .mg-root, body > .cg-home, body > .cg-stage')); } catch (e) {}
+  }
 
   /* ── State ── */
   let S = {
@@ -2081,7 +2102,7 @@ const App = (() => {
   // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
   // the FIRST clear of each level pays once, so replaying never farms points.
   const TOGETHER = {
-    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 20 关：叠罗汉、按按钮、一起推箱子、跷跷板……都进小屋才算过关', max: 3 },
+    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 50 关、10 个世界：叠罗汉、按按钮、一起推箱子、大炮、喷火口……都进小屋才算过关', max: 3 },
     beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3 },
   };
   const _gameDef = (g) => GAMES[g] || TOGETHER[g];
@@ -2181,13 +2202,19 @@ html[data-theme="dark"] .mg-pick .mg-pay{color:#FF9CC4}
 .mg-pick .mg-pay.mg-paid{color:#5E7A68}
 html[data-theme="dark"] .mg-pick .mg-pay.mg-paid{color:#8FD0A8}
 .mg-hud{display:flex;justify-content:space-between;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
-.mg-field{position:relative;flex:1;min-height:260px;max-height:68vh;border-radius:22px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:linear-gradient(180deg,#FFE9D6 0%,#FBDCC2 72%,#E9C3A0 72.2%,#DDB08A 100%)}
-html[data-theme="dark"] .mg-field{background:linear-gradient(180deg,#3B3260 0%,#362C58 72%,#2E2547 72.2%,#271F3D 100%)}
+.mg-field{position:relative;flex:1;min-height:260px;max-height:68vh;border-radius:22px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:radial-gradient(circle at 84% 13%,#FFF6C8 0 5.5%,rgba(255,236,160,.45) 6% 11%,rgba(255,236,160,0) 16%),radial-gradient(ellipse 15% 4.5% at 22% 17%,rgba(255,255,255,.95) 60%,rgba(255,255,255,0) 100%),radial-gradient(ellipse 10% 3.6% at 31% 15%,rgba(255,255,255,.95) 60%,rgba(255,255,255,0) 100%),radial-gradient(ellipse 12% 3.6% at 64% 30%,rgba(255,255,255,.8) 60%,rgba(255,255,255,0) 100%),radial-gradient(circle at 12% 88%,#FFF 0 .9%,transparent 1.1%),radial-gradient(circle at 38% 93%,#FFD1E3 0 1%,transparent 1.2%),radial-gradient(circle at 71% 90%,#FFF3A8 0 .9%,transparent 1.1%),radial-gradient(circle at 90% 95%,#FFD1E3 0 1%,transparent 1.2%),radial-gradient(130% 22% at 30% 84%,#A6DE8F 49%,transparent 50%),radial-gradient(120% 20% at 85% 86%,#98D683 49%,transparent 50%),linear-gradient(180deg,#BFE6FF 0%,#E6F4FF 48%,#FFEAF3 78%,#8FCF7B 78.2%,#77BD68 100%)}
+html[data-theme="dark"] .mg-field{background:radial-gradient(circle at 82% 14%,#FFF2C6 0 5%,rgba(255,240,200,.16) 5.5% 12%,rgba(255,240,200,0) 16%),radial-gradient(circle at 15% 12%,#FFF8DC 0 .5%,transparent .7%),radial-gradient(circle at 34% 24%,#FFF8DC 0 .4%,transparent .6%),radial-gradient(circle at 58% 9%,#FFF8DC 0 .5%,transparent .7%),radial-gradient(circle at 67% 36%,#FFF8DC 0 .35%,transparent .55%),radial-gradient(circle at 26% 44%,#FFF8DC 0 .35%,transparent .55%),radial-gradient(circle at 91% 40%,#FFF8DC 0 .4%,transparent .6%),radial-gradient(130% 22% at 30% 84%,#3F3A7E 49%,transparent 50%),radial-gradient(120% 20% at 85% 86%,#38346F 49%,transparent 50%),linear-gradient(180deg,#1C2150 0%,#2C2860 50%,#3E2F6E 78%,#2F2B63 78.2%,#262256 100%)}
 .mg-field canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
-.mg-pet{position:absolute;bottom:4%;left:50%;width:24%;max-width:120px;transform:translateX(-50%);pointer-events:none;filter:drop-shadow(0 6px 5px rgba(60,30,20,.28))}
+.mg-pet{position:absolute;bottom:4%;left:0;width:24%;max-width:120px;pointer-events:none;will-change:transform}
+.mg-pet-in{transform-origin:50% 100%;filter:drop-shadow(0 6px 5px rgba(60,30,20,.28))}
 .mg-pet svg{width:100%;height:auto;display:block}
-.mg-pet.mg-ouch{animation:mg-ouch .35s}
-@keyframes mg-ouch{25%{transform:translateX(-50%) rotate(-9deg)}75%{transform:translateX(-50%) rotate(9deg)}}
+.mg-pet-in.mg-ouch{animation:mg-ouch .35s}
+@keyframes mg-ouch{25%{transform:rotate(-9deg)}75%{transform:rotate(9deg)}}
+.mg-pet-in.mg-yum{animation:mg-yum .26s ease-out}
+@keyframes mg-yum{35%{transform:scale(1.12,.86)}70%{transform:scale(.95,1.07)}}
+.mg-tbar{height:7px;margin-top:-4px;border-radius:99px;background:rgba(150,120,190,.18);overflow:hidden}
+.mg-tbar i{display:block;height:100%;border-radius:inherit;transform-origin:0 50%;background:linear-gradient(90deg,#7FD0A0,#5BB8E8)}
+.mg-tbar i.mg-low{background:linear-gradient(90deg,#FF8A7A,#F2557A)}
 .mg-cover{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,246,250,.72);text-align:center;padding:18px}
 html[data-theme="dark"] .mg-cover{background:rgba(24,20,40,.74)}
 .mg-cover>div{display:flex;flex-direction:column;gap:10px;align-items:center;max-width:300px}
@@ -2213,10 +2240,16 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
 .mg-card.mg-up .mg-back{transform:rotateY(180deg)}
 .mg-card.mg-up .mg-face{transform:rotateY(360deg)}
 .mg-card.mg-ok .mg-face{outline:3px solid #5BC08A;outline-offset:-3px}
+.mg-card.mg-ok{animation:mg-pair .5s .3s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes mg-pair{0%{transform:scale(1)}40%{transform:scale(1.09)}100%{transform:scale(1)}}
+.mg-card.mg-ok::after{content:'💗';position:absolute;left:50%;top:42%;font-size:26px;line-height:1;pointer-events:none;opacity:0;animation:mg-float .9s .35s ease-out both}
+@keyframes mg-float{0%{opacity:0;transform:translate(-50%,0) scale(.5)}25%{opacity:1;transform:translate(-50%,-14px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-56px) scale(1)}}
+.mg-card.mg-no{animation:mg-shake .32s}
+@keyframes mg-shake{25%{transform:translateX(-5px) rotate(-2deg)}75%{transform:translateX(5px) rotate(2deg)}}
 .mg-card:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
 .mg-result{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;padding:6px 0 4px}
 .mg-open{margin-top:10px}
-@media (prefers-reduced-motion:reduce){.mg-root{animation:none}.mg-card i{transition:none}.mg-pet.mg-ouch{animation:none}}`;
+@media (prefers-reduced-motion:reduce){.mg-root{animation:none}.mg-card i{transition:none}.mg-pet-in.mg-ouch,.mg-pet-in.mg-yum,.mg-card.mg-ok,.mg-card.mg-no{animation:none}.mg-card.mg-ok::after{display:none}}`;
     document.head.appendChild(st);
   }
 
@@ -2244,10 +2277,11 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   function closeGames() {
     // Leaving mid-run still banks the levels already cleared.
     if (_mg && _mg.bank && !_mg.settled) { try { _mg.bank(); } catch (e) {} }
-    if (_mg) _mg.over = true;
+    if (_mg) { _mg.over = true; if (_mg.stop) try { _mg.stop(); } catch (e) {} }
     _mg = null;
     document.removeEventListener('keydown', _mgKey);
     document.querySelector('.mg-root')?.remove();
+    _gameCover();
   }
   function _mgKey(e) {
     if (e.key === 'Escape') return closeGames();
@@ -2266,6 +2300,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       + `<button type="button" class="mg-x" aria-label="关闭" onclick="App.closeGames()">✕</button></div>${inner}</div>`;
     document.body.appendChild(root);
     document.addEventListener('keydown', _mgKey);
+    _gameCover();
     return root;
   }
   const _mgPayLine = (g) => {
@@ -2339,7 +2374,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       pay: _cgPay,
       payInfo: (g) => ({ paid: gamePaidToday(g), max: TOGETHER[g].max, done: _cgPaidKeys(g) }),
       toast: showToast,
-      onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} },
+      onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} _gameCover(); },
     };
   }
   async function openCoop(kind = 'home') {
@@ -2349,6 +2384,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       clearTimeout(slow);
       closeGames();
       await window.CoopGames.open(kind, _coopApi());
+      _gameCover();
     } catch (e) { showToast('游戏没打开，网络好像不太好，再试一次'); }
   }
   function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
@@ -2377,33 +2413,83 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     try { art = S.petSpecies ? petSvg(petStageInfo().idx) : ''; } catch (e) {}
     const root = _mgShell('🦴 接零食',
       `<div class="mg-hud"><span class="mg-lv">第 1 关</span><span class="mg-score">0 / 8</span><span class="mg-hearts">❤️❤️❤️</span><span class="mg-time">15 秒</span></div>`
+      + `<div class="mg-tbar" aria-hidden="true"><i></i></div>`
       + `<div class="mg-field" tabindex="0" aria-label="游戏区域，左右滑动或用方向键"><canvas></canvas>`
-      + `<div class="mg-pet">${art || '<div style="font-size:52px;text-align:center">🐶</div>'}</div>`
+      + `<div class="mg-pet"><div class="mg-pet-in">${art || '<div style="font-size:52px;text-align:center">🐶</div>'}</div></div>`
       + `<div class="mg-cover"><div><p class="mg-big">准备好了吗？</p><p class="mg-line">${GAMES.catch.how}。⭐ 算 3 个，🌶️ 扣 2 个，💣 掉一颗心。过 1 / 3 / 5 关：+1 / +2 / +3 分。</p>`
       + `<button type="button" class="mg-btn mg-start">开始</button></div></div></div>`);
     const field = root.querySelector('.mg-field'), cv = field.querySelector('canvas'), ctx = cv.getContext('2d');
-    const pet = field.querySelector('.mg-pet'), cover = field.querySelector('.mg-cover');
+    const pet = field.querySelector('.mg-pet'), petIn = pet.firstElementChild, cover = field.querySelector('.mg-cover');
+    const bar = root.querySelector('.mg-tbar i');
     const TREATS = ['🦴', '🍖', '🍪', '🧀', '🍓'];
+    const TINT = { '🦴': '#F3E6D2', '🍖': '#E9865A', '🍪': '#D9A066', '🧀': '#FFD45E', '🍓': '#FF6F8A', '⭐': '#FFD75E', '🌶️': '#E8483F', '💣': '#6B6B7A' };
+    const reduce = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
     const g = _mg = { game: 'catch', x: .5, lv: 1, got: 0, total: 0, hearts: 3, left: 15, over: true, pause: 0, items: [], pops: [], settled: true };
-    let W = 0, H = 0, last = 0, spawn = 0, L = catchLevel(1);
+    let W = 0, H = 0, D = 1, last = 0, spawn = 0, L = catchLevel(1), clock = 0, combo = 0, sparks = [], puffs = [];
+    // The field's size and the pet's place in it are measured when the field changes size — never in the
+    // frame: reading them there, right after moving the pet, made the browser lay the page out 60 times a second.
+    const geo = { top: 0, ph: 0, pw: 0, ground: 0 };
     const fit = () => {
-      const w = cv.clientWidth, h = cv.clientHeight;
-      if (w === W && h === H) return;
-      W = w; H = h; const d = Math.min(2, window.devicePixelRatio || 1);
-      cv.width = Math.round(W * d); cv.height = Math.round(H * d); ctx.setTransform(d, 0, 0, d, 0, 0);
+      const w = field.clientWidth, h = field.clientHeight;
+      if (!w || !h) return;
+      const d = Math.min(2, window.devicePixelRatio || 1);
+      if (w !== W || h !== H || d !== D) { W = w; H = h; D = d; cv.width = Math.round(W * d); cv.height = Math.round(H * d); ctx.setTransform(d, 0, 0, d, 0, 0); sprites.clear(); }
+      const pr = petIn.getBoundingClientRect(), fr = field.getBoundingClientRect();
+      geo.pw = pr.width; geo.ph = pr.height; geo.top = pr.top - fr.top; geo.ground = geo.top + geo.ph * .94;
+      placed = -1; place();
     };
+    const ro = window.ResizeObserver ? new ResizeObserver(fit) : null;
+    if (ro) ro.observe(field); else window.addEventListener('resize', fit);
+    // the pet moves by transform, which the GPU does, rather than by `left`, which lays the page out again
+    let placed = -1;
+    const place = () => { if (placed === g.x && W) return; placed = g.x; pet.style.transform = `translate3d(${(g.x * W - geo.pw / 2).toFixed(1)}px,0,0)`; };
+    // each emoji (and each "+1") is drawn once into a little picture and stamped after that: text with a
+    // colour emoji in it is one of the slowest things a canvas does, and a phone did it ~10 times a frame
+    const sprites = new Map(), dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const INK = dark ? { good: '#FF9CC4', bad: '#FF8A80', combo: '#C9A8FF' } : { good: '#E0508F', bad: '#D9534F', combo: '#8A5BD6' };
+    const sprite = (txt, px, col) => {
+      const key = txt + px + (col || '');
+      let c = sprites.get(key);
+      if (!c) {
+        const sz = Math.ceil(px * 1.6);
+        c = document.createElement('canvas'); c.width = c.height = Math.ceil(sz * D);
+        const x = c.getContext('2d'); x.scale(D, D); x.textAlign = 'center'; x.textBaseline = 'middle';
+        if (col) { x.font = `900 ${px}px ${getComputedStyle(root).fontFamily || 'sans-serif'}`; x.lineWidth = px * .22; x.lineJoin = 'round'; x.strokeStyle = dark ? 'rgba(28,22,52,.95)' : 'rgba(255,255,255,.95)'; x.strokeText(txt, sz / 2, sz / 2); x.fillStyle = col; }
+        else x.font = `${px}px serif`;
+        x.fillText(txt, sz / 2, sz / 2 + (col ? 0 : px * .04));
+        c.sz = sz; sprites.set(key, c);
+      }
+      return c;
+    };
+    const stamp = (c, x, y, scale = 1, rot = 0, a = 1) => {
+      const s = c.sz * scale;
+      ctx.globalAlpha = a;
+      if (rot) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(c, -s / 2, -s / 2, s, s); ctx.restore(); }
+      else ctx.drawImage(c, x - s / 2, y - s / 2, s, s);
+      ctx.globalAlpha = 1;
+    };
+    // the HUD is written only when what it says changes
+    const R = { lv: root.querySelector('.mg-lv'), score: root.querySelector('.mg-score'), hearts: root.querySelector('.mg-hearts'), time: root.querySelector('.mg-time') };
+    const said = {};
+    const say = (k, v) => { if (said[k] !== v) { said[k] = v; R[k].textContent = v; } };
+    let barK = -1, barLow = null;
     const hud = () => {
-      root.querySelector('.mg-lv').textContent = `第 ${g.lv} 关`;
-      root.querySelector('.mg-score').textContent = `${Math.min(g.got, L.need)} / ${L.need}`;
-      root.querySelector('.mg-hearts').textContent = '❤️'.repeat(Math.max(0, g.hearts)) + '🤍'.repeat(Math.max(0, 3 - g.hearts));
-      root.querySelector('.mg-time').textContent = `${Math.max(0, Math.ceil(g.left))} 秒`;
+      say('lv', `第 ${g.lv} 关`);
+      say('score', `${Math.min(g.got, L.need)} / ${L.need}`);
+      say('hearts', '❤️'.repeat(Math.max(0, g.hearts)) + '🤍'.repeat(Math.max(0, 3 - g.hearts)));
+      say('time', `${Math.max(0, Math.ceil(g.left))} 秒`);
+      const k = Math.round(Math.max(0, Math.min(1, g.left / L.time)) * 200) / 200;
+      if (k !== barK) { barK = k; bar.style.transform = `scaleX(${k})`; }
+      const low = g.left < 4;
+      if (low !== barLow) { barLow = low; bar.classList.toggle('mg-low', low); }
     };
     const banner = (t) => {
       field.querySelector('.mg-banner')?.remove();
       const b = document.createElement('div'); b.className = 'mg-banner'; b.textContent = t; field.appendChild(b);
       setTimeout(() => b.remove(), 1200);
     };
-    const move = (e) => { const r = field.getBoundingClientRect(); g.x = Math.max(.08, Math.min(.92, (e.clientX - r.left) / r.width)); pet.style.left = (g.x * 100) + '%'; };
+    const bounce = (cls) => { if (reduce) return; petIn.classList.remove('mg-ouch', 'mg-yum'); void petIn.offsetWidth; petIn.classList.add(cls); };
+    const move = (e) => { const r = field.getBoundingClientRect(); g.x = Math.max(.08, Math.min(.92, (e.clientX - r.left) / r.width)); place(); };
     field.addEventListener('pointerdown', move); field.addEventListener('pointermove', move);
     const cleared = () => g.lv - 1;
     // Banks the run: record + points. Also called by closeGames() for a run left half way.
@@ -2423,44 +2509,78 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     const nextLevel = () => {
       g.lv++; L = catchLevel(g.lv);
       Object.assign(g, { got: 0, left: L.time, items: [], pause: 1.2 });
-      spawn = .2;
+      spawn = .2; combo = 0;
       banner(`🎉 过关！第 ${g.lv} 关 · 要接 ${L.need} 个`);
+    };
+    const burst = (x, y, col, n) => {
+      if (reduce) return;
+      for (let k = 0; k < n; k++) { const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 120; sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 90, t: 0, max: .45 + Math.random() * .3, r: 2 + Math.random() * 2.6, col: Math.random() < .35 ? '#FFFFFF' : col }); }
+    };
+    const draw = (dt) => {
+      ctx.clearRect(0, 0, W, H);
+      // a soft shadow on the grass under each thing that falls, growing as it comes down: where it will land
+      for (const o of g.items) {
+        const k = Math.max(0, Math.min(1, o.y / geo.ground));
+        ctx.fillStyle = `rgba(60,40,30,${(.05 + .16 * k).toFixed(3)})`;
+        ctx.beginPath(); ctx.ellipse(o.x * W, geo.ground, 6 + 10 * k, 2 + 3 * k, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const o of g.items) {
+        let sc = 1, rot = 0;
+        if (!reduce) {
+          if (o.e === '⭐') { rot = clock * 2.4 + o.s; sc = 1.05 + .08 * Math.sin(clock * 9 + o.s); }
+          else if (o.e === '💣') { sc = 1 + .1 * Math.max(0, Math.sin(clock * 12 + o.s)); rot = Math.sin(clock * 3 + o.s) * .15; }
+          else rot = Math.sin(clock * 3 + o.s) * .28;
+        }
+        if (o.e === '⭐' && !reduce) { ctx.fillStyle = 'rgba(255,220,110,.35)'; ctx.beginPath(); ctx.arc(o.x * W, o.y, 22, 0, Math.PI * 2); ctx.fill(); }
+        stamp(sprite(o.e, 30), o.x * W, o.y, sc, rot);
+      }
+      puffs = puffs.filter(p => { p.t += dt; const k = p.t / .4; ctx.fillStyle = `rgba(255,255,255,${(.7 * (1 - k)).toFixed(3)})`; for (let j = -1; j <= 1; j++) { ctx.beginPath(); ctx.arc(p.x + j * (6 + 10 * k), geo.ground - 4 - 6 * k + Math.abs(j) * 3, 4 + 5 * k, 0, Math.PI * 2); ctx.fill(); } return k < 1; });
+      sparks = sparks.filter(p => { p.t += dt; p.vy += 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; const k = p.t / p.max; ctx.globalAlpha = Math.max(0, 1 - k); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 - k * .5), 0, Math.PI * 2); ctx.fill(); return k < 1; });
+      ctx.globalAlpha = 1;
+      g.pops = g.pops.filter(p => {
+        p.t += dt; const k = p.t / .7;
+        const sc = reduce ? 1 : Math.min(1.25, .6 + k * 4) - Math.max(0, k - .2) * .3;
+        stamp(sprite(p.s, p.big ? 26 : 20, p.bad ? INK.bad : INK.good), p.x, p.y - p.t * 60, sc, 0, Math.max(0, 1 - Math.max(0, k - .45) / .55));
+        return k < 1;
+      });
+      if (combo >= 3) stamp(sprite(`连击 ×${combo}`, 15, INK.combo), g.x * W, geo.top - 16 + (reduce ? 0 : Math.sin(clock * 6) * 2), 1, 0, .95);
     };
     const tick = (t) => {
       if (_mg !== g || g.over) return;
       const dt = last ? Math.min(.05, (t - last) / 1000) : .016; last = t;
-      fit();
-      pet.style.left = (g.x * 100) + '%';
-      if (g.pause > 0) { g.pause -= dt; ctx.clearRect(0, 0, W, H); hud(); requestAnimationFrame(tick); return; }
+      if (!W) fit();
+      place();
+      clock += dt;
+      if (g.pause > 0) { g.pause -= dt; draw(dt); hud(); requestAnimationFrame(tick); return; }
       g.left -= dt; spawn -= dt;
       if (spawn <= 0) {
         const r = Math.random();
         const e = r < L.bomb ? '💣' : r < L.bomb + L.chilli ? '🌶️' : r < L.bomb + L.chilli + L.star ? '⭐' : TREATS[(Math.random() * TREATS.length) | 0];
-        g.items.push({ x: .08 + Math.random() * .84, y: -18, v: (L.speed + Math.random() * 70) * (e === '⭐' ? 1.35 : 1), e });
+        g.items.push({ x: .08 + Math.random() * .84, y: -18, v: (L.speed + Math.random() * 70) * (e === '⭐' ? 1.35 : 1), e, s: Math.random() * 6 });
         spawn = L.gap + Math.random() * .2;
       }
-      const pr = pet.getBoundingClientRect(), fr = field.getBoundingClientRect();
-      const top = pr.top - fr.top, reach = pr.width * .5;
+      const top = geo.top, reach = geo.pw * .5;
       g.items = g.items.filter(o => {
         o.y += o.v * dt;
-        if (o.y > top + 6 && o.y < top + pr.height * .6 && Math.abs(o.x - g.x) * W < reach) {
+        if (o.y > top + 6 && o.y < top + geo.ph * .6 && Math.abs(o.x - g.x) * W < reach) {
           const bad = o.e === '🌶️' || o.e === '💣';
           let s;
           if (o.e === '💣') { g.hearts--; s = '💔'; }
           else if (o.e === '🌶️') { g.got = Math.max(0, g.got - 2); s = '−2'; }
           else { const n = o.e === '⭐' ? 3 : 1; g.got += n; g.total += n; s = '+' + n; }
-          g.pops.push({ x: o.x * W, y: top, t: 0, s, bad });
-          if (bad) { pet.classList.remove('mg-ouch'); void pet.offsetWidth; pet.classList.add('mg-ouch'); }
+          g.pops.push({ x: o.x * W, y: top, t: 0, s, bad, big: o.e === '⭐' });
+          if (bad) { combo = 0; bounce('mg-ouch'); burst(o.x * W, top + 10, TINT[o.e], 6); }
+          else { combo++; bounce('mg-yum'); burst(o.x * W, top + 8, TINT[o.e] || '#FF9EC0', o.e === '⭐' ? 14 : 8); }
           return false;
         }
-        return o.y < H + 24;
+        if (o.y >= geo.ground) {   // it lands: a puff, and a missed treat breaks the combo
+          if (!reduce) puffs.push({ x: o.x * W, t: 0 });
+          if (o.e !== '🌶️' && o.e !== '💣') combo = 0;
+          return false;
+        }
+        return true;
       });
-      ctx.clearRect(0, 0, W, H);
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = '28px serif';
-      g.items.forEach(o => ctx.fillText(o.e, o.x * W, o.y));
-      ctx.font = '800 17px sans-serif';
-      g.pops = g.pops.filter(p => { p.t += dt; ctx.globalAlpha = Math.max(0, 1 - p.t / .6); ctx.fillStyle = p.bad ? '#D9534F' : '#E0508F'; ctx.fillText(p.s, p.x, p.y - p.t * 50); ctx.globalAlpha = 1; return p.t < .6; });
+      draw(dt);
       hud();
       if (g.hearts <= 0) { ctx.clearRect(0, 0, W, H); finish('三颗心都没了'); return; }
       if (g.got >= L.need) nextLevel();
@@ -2471,12 +2591,16 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       if (!e.target.closest('.mg-start')) return;
       L = catchLevel(1);
       Object.assign(g, { lv: 1, got: 0, total: 0, hearts: 3, left: L.time, over: false, done: false, settled: false, pause: 0, items: [], pops: [] });
-      last = 0; spawn = .3;
+      last = 0; spawn = .3; combo = 0; sparks = []; puffs = [];
       cover.style.display = 'none';
       field.focus({ preventScroll: true });
-      hud();
+      fit(); hud();
       requestAnimationFrame(tick);
     });
+    g.stop = () => { if (ro) ro.disconnect(); else window.removeEventListener('resize', fit); };
+    requestAnimationFrame(fit);
+    // draw every treat once while 「准备好了吗？」 is up, so the first second of a run doesn't pay for it
+    setTimeout(() => { if (_mg === g && W) for (const e of [...TREATS, '⭐', '🌶️', '💣']) sprite(e, 30); }, 300);
   }
 
   /* 记忆翻牌 — four levels: 6, 8, then 10 pairs, each with a limit on moves; the
@@ -2540,7 +2664,8 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         a.classList.add('mg-ok'); c.classList.add('mg-ok'); g.found++;
       } else {
         lock = true;
-        setTimeout(() => { a.classList.remove('mg-up'); c.classList.remove('mg-up'); lock = false; }, 800);
+        setTimeout(() => { a.classList.add('mg-no'); c.classList.add('mg-no'); }, 430);   // once both have turned: a little shake
+        setTimeout(() => { a.classList.remove('mg-up', 'mg-no'); c.classList.remove('mg-up', 'mg-no'); lock = false; }, 800);
       }
       paint();
       if (g.found === L.pairs) {

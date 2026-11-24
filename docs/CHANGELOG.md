@@ -12,6 +12,33 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-24 — Smoother games, 沙漠 and 火山, ten more levels
+
+All four games do much less work per frame. On a phone slowed four times, the
+main thread went from 44% to 15% busy in 接零食, 38% to 9% in 翻牌, 39% to 10%
+in 默契拍拍, and from 32% to 2% with a game simply open. Most of it was the home
+screen still animating under the game (about 60 animations nobody could see);
+it now holds still while a game is up. 接零食 also stopped re-measuring the page
+every frame and draws each emoji once.
+
+一起回家 draws its far layers (sky, sun, hills) on their own lower-resolution
+canvas behind the game, which took every level from 20–34 fps to 56–60 fps when
+the canvas is drawn by the CPU, as Safari draws shapes. The night levels'
+darkness is drawn small and stretched by the GPU.
+
+Looks: 接零食 has a real scene, treats that sway with shadows, sparkles and a
+happy bounce on a catch, a time bar and a combo counter. 翻牌 bounces a found
+pair and lets a heart float up. In 一起回家 every world's far landmark (windmill,
+lighthouse, mountains, castle, shipwreck) is now actually on screen on a phone
+held upright, and the night fireflies drift instead of falling like snow.
+
+Two new worlds before 夜, 5 levels each, 50 levels in all: **沙漠绿洲** with a
+cannon (one stands in it, the other steps on the button) and quicksand (you sink
+and can only hop; your partner's head is the way out), and **火山探险** with fire
+vents that flare on a timer and go out while your partner holds the button (or
+when you push a box onto them), lava in every pit, and hot air that lifts you.
+Both phones need this version to play together.
+
 ## 2026-11-24 — 一起回家: every star can be reached, two new worlds, music
 
 Some stars were impossible: seven hung higher than anyone can reach, even

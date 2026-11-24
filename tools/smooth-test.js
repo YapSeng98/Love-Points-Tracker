@@ -104,16 +104,26 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     await p.click('.cg-home [data-mode="solo"]'); await sleep(200);
     // 摩天轮: the wheel, two pairs of portals, conveyors
     await p.evaluate(() => { CoopGames.test.G.save.unlocked = CoopGames.test.LEVELS.length; }); await p.click('.cg-worlds [data-w="4"]'); await sleep(200);
-    await p.click('.cg-lv[data-i="21"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    await p.click('.cg-lv[data-i="21"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);   // 5-2 摩天轮 (the worlds before it never move)
     report('一起回家, running and jumping (5-2 摩天轮)', await watch(p, 5000, async () => {
       await p.click('.cg-panel [data-a="go"]');
       await p.keyboard.down('ArrowRight'); for (let i = 0; i < 9; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
     }));
+    // the volcano: burning vents, lava under the pits, embers and a smoking far volcano
+    await p.evaluate(() => CoopGames.test.closeStage()); await sleep(300);
+    const volc = await p.evaluate(() => { const L = CoopGames.test.LEVELS, i = L.findIndex(q => q.id === 'M46'); return { i, w: L[i].world }; });
+    await p.click(`.cg-worlds [data-w="${volc.w}"]`); await sleep(200);
+    await p.click(`.cg-lv[data-i="${volc.i}"]`); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, the volcano (9-1 熔岩小径)', await watch(p, 4500, async () => {
+      await p.click('.cg-panel [data-a="go"]');
+      await p.keyboard.down('ArrowRight'); for (let i = 0; i < 7; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
+    }));
     // a night level: the darkness is a full-screen layer with holes of light cut in it every frame
     await p.evaluate(() => CoopGames.test.closeStage()); await sleep(300);
-    await p.click('.cg-worlds [data-w="7"]'); await sleep(200);
-    await p.click('.cg-lv[data-i="36"]'); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
-    report('一起回家, a night level (8-2 萤火森林)', await watch(p, 4500, async () => {
+    const night = await p.evaluate(() => { const L = CoopGames.test.LEVELS, i = L.findIndex(q => q.id === 'M27'); return { i, w: L[i].world }; });   // 萤火森林, wherever it sits now
+    await p.click(`.cg-worlds [data-w="${night.w}"]`); await sleep(200);
+    await p.click(`.cg-lv[data-i="${night.i}"]`); await p.waitForSelector('.cg-panel [data-a="go"]'); await sleep(400);
+    report('一起回家, a night level (10-2 萤火森林)', await watch(p, 4500, async () => {
       await p.click('.cg-panel [data-a="go"]');
       await p.keyboard.down('ArrowRight'); for (let i = 0; i < 7; i++) { await p.keyboard.down('Space'); await sleep(220); await p.keyboard.up('Space'); await sleep(200); } await p.keyboard.up('ArrowRight');
     }));

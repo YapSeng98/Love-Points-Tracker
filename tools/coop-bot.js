@@ -47,6 +47,13 @@ function runInput(i, tx, tol = 0.18) {
     return inp;
   }
   const feet = p.y + p.h, ax = x + dir * (p.w / 2 + 0.35);
+  if (G.L.jets && G.L.jets.length) {   // a fire vent just ahead: wait until it has just gone out (not when it is about to flare)
+    const front = dir > 0 ? p.x + p.w : p.x;
+    for (const j of G.L.jets) {
+      const inCol = p.x + p.w > j.c + 0.2 && p.x < j.c + 0.8, ahead = dir > 0 ? j.c + 0.2 - front : front - (j.c + 0.8);
+      if (!inCol && ahead > -0.05 && ahead < 0.5 && feet > j.top && p.y < j.r && jetSoon(j, 0.45)) return {};
+    }
+  }
   const onMover = p.ground && (p.ground.kind === 'mover');
   if (onMover) {
     const m = p.ground.ref, front = dir > 0 ? p.x + p.w : p.x;
@@ -83,6 +90,13 @@ function runInput(i, tx, tol = 0.18) {
   return inp;
 }
 const LR = [null, null], AIM = [null, null], RUNV = 7.5;
+// will this fire vent burn within t seconds (or is it burning)? the same clock and rules as the game's jetState
+function jetSoon(j, t) {
+  if (j.powered && G.chanOn[j.ch]) return false;
+  for (const b of G.L.boxes) if (b.x < j.c + 0.9 && b.x + b.w > j.c + 0.1 && Math.abs(b.y + b.h - j.r) < 0.15) return false;
+  const PER = 2.6, ph = (((G.wt / PER + j.ph) % 1) + 1) % 1 * PER;
+  return ph < 1.0 || ph + t > PER;
+}
 // where an edge jump should come down: the first thing to stand on ahead, a little way in
 function aimFor(p, dir, feet, ax) {
   const who = p.k;
@@ -191,8 +205,26 @@ function seesawThrow(n, x0) {   // the N_seesaw way: CS on the low end, YY lands
   if (!until(() => P(0).grounded, idle, 400)) return 'no-land';
   return P(0).y > 4 ? 'launch-missed' : true;
 }
+// walk into a cannon (its button already held); hands off in the air — steering back would cancel the shot
+function intoCannon(i, cn, tx) {
+  if (G.mode === 'solo') unstack(i);
+  take(i);
+  if (!until(() => P(i).launch && P(i).launch.keep, () => { go(i, cn.x, 0.15); IN[1 - i] = {}; }, 2500)) return false;
+  if (!until(() => P(i).grounded && !P(i).launch, idle, 700)) return false;
+  return tx == null || solo(i, tx, 1500, 0.3);
+}
+// the first shot: one stands in the cannon, the other steps on the button (when `ready` says so)
+function fireFrom(shooter, flyer, cn, plateX, ready) {
+  if (!solo(flyer, cn.x, 1500, 0.3)) return false;
+  if (ready) { if (!solo(shooter, plateX - 1.2, 1500, 0.25)) return false; if (!until(ready, idle, 2000)) return false; }
+  take(shooter);
+  if (!until(() => P(flyer).launch && P(flyer).launch.keep, () => { go(shooter, plateX, 0.2); IN[flyer] = {}; }, 1500)) return false;
+  return until(() => P(flyer).grounded && !P(flyer).launch, () => { IN[flyer] = {}; IN[shooter] = {}; }, 700);
+}
 function stepChunk(n) {
   const c = G.L.chunks[n], id = c.ch.id, x0 = c.x0, x1 = c.x0 + c.ch.w;
+  // a piece starts with nobody on anybody's head: the one carrying can't jump (a piece can end with one landed on the other)
+  if (P(1).grounded && P(1).ground && P(1).ground.ref === P(0)) unstack(0); else if (P(0).grounded && P(0).ground && P(0).ground.ref === P(1)) unstack(1);
   const A = 0, B = 1;   // CS, YY
   switch (id) {
     case 'goal': if (G.mode === 'solo') { solo(0, G.L.door.x - 0.3, 3000, 0.5); return solo(1, G.L.door.x + 0.3, 3000, 0.5) || G.state === 'won'; }
@@ -482,6 +514,90 @@ function stepChunk(n) {
       if (!solo(B, x0 + 18.5, 300, 0.3)) return false;
       if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
       return both(x1 + 0.5, x1 + 1.5);
+    case 'J_cannon1': case 'J_cannon2': {   // B fires A up (or over), A holds the far button, B steps in
+      const cn = G.L.cannons.find(q => q.x > x0 && q.x < x1), far = id === 'J_cannon1' ? x0 + 14.5 : x0 + 18.5, plate = id === 'J_cannon1' ? x0 + 3.5 : x0 + 7.5;
+      if (!fireFrom(B, A, cn, plate)) return 'shot-a';
+      if (!solo(A, far, 1500, 0.3)) return 'far-plate';
+      if (!intoCannon(B, cn)) return 'shot-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'J_cannon3': {   // time the shot so it comes down on the raft; from the raft, jump to the far shore
+      const cn = G.L.cannons.find(q => q.x > x0 && q.x < x1), m = G.L.movers.find(q => q.ox > x0 && q.ox < x1);
+      const raftAt = (dt) => m.ox + Math.sin(2 * Math.PI * (G.wt + dt) / m.period) * m.range;   // its left end, dt seconds from now
+      const want = x0 + 9.1;   // the shot comes down at x0+10.6, 0.64 s after it fires
+      if (!fireFrom(B, A, cn, x0 + 4.5, () => Math.abs(raftAt(0.86) - want) < 0.3)) return 'shot-a';
+      if (!(P(A).ground && P(A).ground.ref === m)) return 'missed-raft-a';
+      if (!until(() => cx(P(A)) > x0 + 13.2, idle, 900)) return 'raft-a';
+      if (!leapTo(A, x0 + 18)) return 'shore-a';
+      if (!solo(A, x0 + 18.5, 1500, 0.3)) return 'far-plate';
+      if (!solo(B, cn.x - 1.3, 1500, 0.25)) return 'b-wait';
+      if (!until(() => Math.abs(raftAt(0.8) - want) < 0.3, idle, 2000)) return 'b-time';
+      if (!intoCannon(B, cn)) return 'shot-b';
+      if (!(P(B).ground && P(B).ground.ref === m)) return 'missed-raft-b';
+      if (!until(() => cx(P(B)) > x0 + 13.2, idle, 900)) return 'raft-b';
+      if (!leapTo(B, x0 + 17.5)) return 'shore-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'J_stack': {   // in the sand: B up on A's head and out; B on the button makes steps for A
+      if (!both(x0 + 12.3, x0 + 10.6, 3000, 0.3)) return 'into-sand';
+      if (!climbOn(B, A)) return 'climb';
+      if (!leapTo(B, x0 + 14.5, 9.1)) return 'out';
+      if (!solo(A, x0 + 9.6, 1500, 0.3)) return 'a-aside';
+      if (!solo(B, x0 + 16.5, 1500, 0.3)) return 'plate';
+      if (!solo(A, x0 + 14.8, 2500, 0.4)) return 'a-out';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'J_sand2': {   // B up on A's head to the high heart, A on the low one: the lock opens for good
+      if (!both(x0 + 14.7, x0 + 15.9, 3000, 0.3)) return 'into-sand';
+      if (!climbOn(B, A)) return 'climb';
+      if (!leapTo(B, x0 + 12.4, 7.1)) return 'ledge';
+      if (!solo(B, x0 + 10.5, 1000, 0.25)) return 'heart-b';
+      if (!solo(A, x0 + 16.5, 1500, 0.25)) return 'heart-a';
+      if (!until(() => G.latch[n], idle, 120)) return 'latch';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'J_finale': {   // the box onto the button keeps the cannon ready; then in turns
+      const cn = G.L.cannons.find(q => q.x > x0 && q.x < x1);
+      if (!pushBox(n, x0, x1, x0 + 5)) return 'box';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'box-plate';
+      if (!intoCannon(A, cn, x0 + 17.5)) return 'shot-a';   // (not further: on one phone the other is still down by the box)
+      if (!intoCannon(B, cn, x0 + 16.5)) return 'shot-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'V_jets2':   // a relay: the button puts the fire out
+      if (!both(x0 + 3.5, x0 + 2.2, 2500, 0.3)) return false;
+      if (!solo(B, x0 + 15.5, 2500, 0.3)) return false;
+      if (!solo(A, x0 + 17, 2500)) return false;
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'V_heat':
+      if (!both(x0 + 8.5, x0 + 7, 2500, 0.4)) return 'gather';
+      if (!rideWind(A, x0 + 12, 4.8, x0 + 15.6)) return 'wind-a';
+      if (!rideWind(B, x0 + 12, 4.8, x0 + 14.8)) return 'wind-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'V_box':   // push the box onto the two vents, then walk over it
+      if (!pushBox(n, x0, x1, x0 + 10)) return 'box';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'V_pair': {   // both hearts sit on vents: step on together as the fire goes out, then step off
+      const jets = G.L.jets.filter(j => j.ch === n), off = () => { const t = (((G.wt / 2.6 + jets[0].ph) % 1) + 1) % 1 * 2.6; return t > 1.02 && t < 1.2; };
+      if (!both(x0 + 8.0, x0 + 10.8, 3000, 0.25)) return 'wait-spots';
+      if (!until(off, idle, 800)) return 'timing';
+      if (G.mode === 'solo') { if (!solo(A, x0 + 9.5, 200, 0.25)) return 'a-on'; if (!solo(B, x0 + 12.5, 300, 0.25)) return 'b-on'; }
+      else if (!until(() => near(A, x0 + 9.5) && near(B, x0 + 12.5), () => { go(A, x0 + 9.5, 0.18); go(B, x0 + 12.5, 0.18); }, 300)) return 'both-on';
+      if (!until(() => G.latch[n], idle, 30)) return 'latch';
+      if (G.mode === 'solo') { solo(B, x0 + 11, 200, 0.3); solo(A, x0 + 8, 200, 0.3); }
+      else both(x0 + 8, x0 + 11, 200, 0.3);
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'V_cannon': {   // onto the stone pillar in the lava, and straight on to the far shore before it crumbles
+      const cn = G.L.cannons.find(q => q.x > x0 && q.x < x1);
+      if (!fireFrom(B, A, cn, x0 + 4.5)) return 'shot-a';
+      if (!leapTo(A, x0 + 17)) return 'shore-a';
+      if (!solo(A, x0 + 17.5, 1500, 0.3)) return 'far-plate';
+      if (!until(() => G.crumbs.size === 0, idle, 900)) return 'pillar-back';
+      if (!intoCannon(B, cn)) return 'shot-b';
+      if (!leapTo(B, x0 + 16.5)) return 'shore-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
     case 'D_pair':
       if (!both(x0 + 5.5, x0 + 16.5, 2500, 0.3)) return false;
       if (!until(() => G.latch[n], idle, 60)) return 'no-latch';
@@ -517,9 +633,11 @@ function stepChunk(n) {
       // plain platforming: CS leads, YY follows a little behind
       const target = x1 + 0.6;
       if (/crumble|clouds/.test(id)) {
-        if (!solo(0, target, 3000, 0.4)) return false;
+        // gather at the start, and wait just inside the piece: two phones' worth of screen apart is one too many on one phone
+        if (!both(x0 + 1.4, x0 + 0.5, 2500, 0.4)) return false;
+        if (!solo(0, x1 - 1, 3000, 0.4)) return false;
         if (!until(() => G.crumbs.size === 0, () => { IN[0] = {}; IN[1] = {}; }, 900)) return false;
-        return solo(1, target - 1, 3000, 0.5);
+        return solo(1, x1 - 2, 3000, 0.5);
       }
       if (G.mode === 'solo') return solo(0, target, 4000, 0.4) && solo(1, target - 1, 4000, 0.5);
       const gapB = 1.6;

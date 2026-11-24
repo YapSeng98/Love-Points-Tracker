@@ -35,7 +35,7 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
 
 (async () => {
   const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
-  const only = process.env.LEVELS ? process.env.LEVELS.split(',').map(Number) : Array.from({ length: 40 }, (_, k) => k + 1);   // every level (40 since 2026-11-24)
+  const only = process.env.LEVELS ? process.env.LEVELS.split(',').map(Number) : Array.from({ length: 50 }, (_, k) => k + 1);   // every level (50 since 2026-11-24)
 
   console.log('\n1. The doors and the home screen');
   {

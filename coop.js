@@ -91,6 +91,8 @@ const WORLDS = [
   { key: 'park', name: '游 · 游乐园', icon: '🎡', sky: ['#FFB8D9', '#FFF1F7'], far: '#F6CBE4', mid: '#E9AFD6', cap: '#FF9EC0', capEdge: '#D9668F', dirt: '#C7A4E0', dirtEdge: '#9A77B8', dot: '#B690D2', plat: '#FFC97A', platEdge: '#D99A3E', block: '#FFE6F2', blockEdge: '#E0A3C2', tree: ['#FFB6D3', '#C9A2FF'], amb: 'balloon', water: null, house: '#FFF1DA', roof: '#B98AD0' },
   { key: 'candy', name: '糖 · 糖果乐园', icon: '🍬', sky: ['#B4EFDD', '#FFE4F2'], far: '#FFD0E6', mid: '#F7B2D1', cap: '#FFB6D3', capEdge: '#E07AA6', dirt: '#8B5A3C', dirtEdge: '#6A3F26', dot: '#FFE08A', plat: '#F7DDB0', platEdge: '#C99A62', block: '#FFA3C4', blockEdge: '#D9668F', tree: ['#FF8FB3', '#8FE3C4'], amb: 'sprinkle', water: null, house: '#FFF1DA', roof: '#FF8FB3' },
   { key: 'sea', name: '海 · 海底世界', icon: '🐠', sky: ['#1B6AA5', '#86D6EA'], far: '#2A80B0', mid: '#3896BF', cap: '#F4E3B5', capEdge: '#D6B97C', dirt: '#E0C58B', dirtEdge: '#BF9F63', dot: '#C9AE78', plat: '#F7A8A0', platEdge: '#C96A6A', block: '#A6DED4', blockEdge: '#5FA8A0', tree: ['#FF9E8F', '#FFC46B'], amb: 'bubble', water: null, house: '#FFF1DA', roof: '#3FA7D6' },
+  { key: 'desert', name: '沙 · 沙漠绿洲', icon: '🏜️', sky: ['#FFC98A', '#FFF1D6'], far: '#F2C98E', mid: '#E8B572', cap: '#F3D69A', capEdge: '#D2A962', dirt: '#E6B877', dirtEdge: '#BF8E4E', dot: '#D4A262', plat: '#C98D55', platEdge: '#8F5C30', block: '#E9C48A', blockEdge: '#B58A4F', tree: ['#6FAE5E', '#4F8E46'], amb: 'dust', water: null, house: '#FFF1DA', roof: '#D9785A' },
+  { key: 'volcano', name: '火 · 火山探险', icon: '🌋', sky: ['#4A2140', '#F08A5D'], far: '#6B3446', mid: '#54283A', cap: '#6E5A5A', capEdge: '#3E2F33', dirt: '#4E3B3D', dirtEdge: '#2E2226', dot: '#FF7A3C', plat: '#8A6A5E', platEdge: '#4E3A34', block: '#7A5F58', blockEdge: '#4A3631', tree: ['#3A2A30', '#2A1E24'], amb: 'ember', water: null, house: '#FFE3C2', roof: '#C2463A' },
   { key: 'night', name: '夜 · 星空', icon: '🌙', sky: ['#131A46', '#3D2F72'], far: '#2B2B62', mid: '#23234F', cap: '#8A80E0', capEdge: '#5246AE', dirt: '#3C3674', dirtEdge: '#28235A', dot: '#4B4489', plat: '#F3EFFF', platEdge: '#B9B0E8', block: '#4F4A96', blockEdge: '#332E6E', tree: ['#3B3A7A', '#2D2C66'], amb: 'firefly', water: null, house: '#FFE6B0', roof: '#C25A8C' },
 ];
 
@@ -1168,6 +1170,330 @@ const CHUNKS = {
     '.H...................D....',
     '#####ff#######ff##########',
     '##########################'] },
+  /* ── 沙漠绿洲 (2026-11-24): the cannon, quicksand, cacti ── */
+  J_dune: { rows: [
+    '....................',
+    '..............*.....',
+    '....................',
+    '....................',
+    '...........====.....',
+    '....................',
+    '....................',
+    '.....hhh............',
+    '....###.......##....',
+    '...#####.....####...',
+    '..#######.^^.#####..',
+    '####################',
+    '####################'] },
+  J_sand1: { sign: '流沙会让人走得慢、跳不高。慢慢走过去！', rows: [
+    '..................',
+    '..................',
+    '..................',
+    '..................',
+    '..................',
+    '..................',
+    '...............*..',
+    '..................',
+    '..................',
+    '.....h..h..h......',
+    '.H................',
+    '###zzzzzzzzzzz####',
+    '##################'] },
+  J_cannon1: { sign: '一个人站进大炮，另一个人去踩按钮——砰！飞上去的人再踩上面的按钮，把下面的人也打上来。', cannon: { vx: 8.5, vy: 26 }, rows: [
+    '......................',
+    '..............*.......',
+    '......................',
+    '......................',
+    '..............o.......',
+    '...........###########',
+    '...........###########',
+    '...........###########',
+    '...........###########',
+    '...........###########',
+    '.H.o..A....###########',
+    '######################',
+    '######################'] },
+  J_cactus: { rows: [
+    '..................',
+    '..................',
+    '.........*........',
+    '..................',
+    '..................',
+    '........BGB.......',
+    '....hhh...........',
+    '..................',
+    '...........==.....',
+    '..................',
+    '..n....^.....n....',
+    '##################',
+    '##################'] },
+  J_cannon2: { sign: '仙人掌太多了，跳不过去：用大炮！飞过去的人踩那边的按钮，再把另一个人打过来。', cannon: { vx: 11, vy: 26 }, rows: [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '..................*...',
+    '......................',
+    '......................',
+    '......................',
+    '.H....Ao.^^^^^^^..o...',
+    '######################',
+    '######################'] },
+  J_stack: { sign: '流沙里跳不高：站到对方头上跳出去，上去的人再踩按钮，变出台阶接对方。', rows: [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '...............*......',
+    '......................',
+    '......................',
+    '................o.....',
+    '.............#########',
+    '.H.....hhh.bb#########',
+    '###zzzzzzzzzz#########',
+    '######################'] },
+  J_pyramid: { rows: [
+    '........................',
+    '........................',
+    '...........*............',
+    '........................',
+    '..........####..........',
+    '.........######.........',
+    '........########........',
+    '.......##########.......',
+    '......###......###......',
+    '.....####......####.....',
+    '..P.#####P.hh.R#####.R..',
+    '########################',
+    '########################'] },
+  J_cannon3: { sign: '大炮会把人打到木筏上：等木筏快过来了再踩按钮！到了木筏上跳去对岸，再踩那边的按钮帮另一个人。', cannon: { vx: 8, vy: 26 }, rows: [
+    '......................',
+    '......................',
+    '...........*..........',
+    '......................',
+    '......................',
+    '..........M...........',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '.H..oA............o...',
+    '#######..........#####',
+    '#######..........#####'] },
+  J_oasis: { rows: [
+    '......................',
+    '...........*..........',
+    '......................',
+    '.........====.........',
+    '......................',
+    '......................',
+    '..hhh............hhh..',
+    '......................',
+    '......BQB.............',
+    '......................',
+    '.......S.......S......',
+    '######################',
+    '######################'] },
+  J_sand2: { sign: '两个爱心按钮要同时踩下。高处那个，只有站在对方头上才跳得上去。', rows: [
+    '....................#...',
+    '....................#...',
+    '....................#...',
+    '...........*........#...',
+    '....................#...',
+    '....................#...',
+    '..........q.........#...',
+    '.........#####......#...',
+    '.........#####......#...',
+    '....................D...',
+    '.H..............q...D...',
+    '###zzzzzzzzzzzzzzz######',
+    '########################'] },
+  J_crumble: { rows: [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '......*.......',
+    '..............',
+    '.....CCC......',
+    '..............',
+    '..............',
+    '##>>......<<##',
+    '####......####'] },
+  J_finale: { sign: '两个人一起把箱子推到按钮上压住，大炮就一直准备好了：轮流钻进去，一起飞上去！', cannon: { vx: 8, vy: 28 }, boxMax: 5, rows: [
+    '..........................',
+    '..........................',
+    '....................*.....',
+    '..........................',
+    '...............###########',
+    '...............###########',
+    '...............###########',
+    '...............###########',
+    '...............###########',
+    '..X............###########',
+    'H.....o...A....###########',
+    '##########################',
+    '##########################'] },
+  /* ── 火山探险 (2026-11-24): fire vents, lava under every pit, hot-air vents ── */
+  V_jets1: { sign: '喷火口会一阵一阵地喷火：看准火停下来的时候再走，或者从火上跳过去。', rows: [
+    '......................',
+    '......................',
+    '......................',
+    '...........*..........',
+    '......................',
+    '......................',
+    '......................',
+    '..........===.........',
+    '......................',
+    '......................',
+    '.H....................',
+    '#####v####v####v######',
+    '######################'] },
+  V_crumble: { rows: [
+    '................',
+    '................',
+    '........*.......',
+    '................',
+    '................',
+    '................',
+    '.......CCC......',
+    '................',
+    '....CC.....CC...',
+    '................',
+    '................',
+    '###...........##',
+    '###...........##'] },
+  V_jets2: { sign: '有人踩着按钮，喷火口就不喷了。一个人踩，一个人走过去；过去的人再踩那边的按钮。', rows: [
+    '....................',
+    '....................',
+    '....................',
+    '....................',
+    '....................',
+    '.......BBBBBB.......',
+    '.......BBBBBB.......',
+    '....................',
+    '.........*..........',
+    '....................',
+    '.H.o...........o....',
+    '#####vvvvvvvvv######',
+    '####################'] },
+  V_heat: { sign: '热气流会把人往上托：站进热气里，飘到高台上去！', rows: [
+    '......................',
+    '......................',
+    '......................',
+    '............*.........',
+    '......................',
+    '..............######..',
+    '..............######..',
+    '..............######..',
+    '..............######..',
+    '..............######..',
+    '.H............######..',
+    '##########....########',
+    '##########.ff.########'] },
+  V_box: { sign: '火太大，过不去：两个人一起把箱子推到喷火口上，把火压住！', boxMax: 10, jets: [0, 0.5], rows: [
+    '........#######.......',
+    '........#######.......',
+    '........#######.......',
+    '........#######.......',
+    '........#######.......',
+    '........#######.......',
+    '........#######.......',
+    '......................',
+    '............*.........',
+    '.....X................',
+    '.H....................',
+    '##########vv##########',
+    '######################'] },
+  V_rafts: { rows: [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '..........*.............',
+    '........................',
+    '........................',
+    '........................',
+    '....V.....V.............',
+    '........BB..............',
+    '........................',
+    '####............########',
+    '####............########'] },
+  V_pair: { sign: '两个爱心按钮都在喷火口上：等火停了，两个人一起踩下去，再赶快跳开！', jets: [0, 0], rows: [
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..............*...#.....',
+    '..................#.....',
+    '..................#.....',
+    '.............===..#.....',
+    '..................#.....',
+    '..................D.....',
+    '.H.......q..q.....D.....',
+    '#########v##v###########',
+    '########################'] },
+  V_steps: { rows: [
+    '......................',
+    '......................',
+    '......................',
+    '.................*....',
+    '......................',
+    '......................',
+    '..............#v##....',
+    '......................',
+    '.........#v##.........',
+    '......................',
+    '....#v##..............',
+    '###................###',
+    '###................###'] },
+  V_cannon: { sign: '炮台会把人打到熔岩里的石柱上，再从石柱跳到对岸。石柱踩过会碎：等它长回来，再打第二个人！', cannon: { vx: 8, vy: 26 }, rows: [
+    '......................',
+    '......................',
+    '..........*...........',
+    '......................',
+    '......................',
+    '.........CCC..........',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '.H..oA...........o....',
+    '#######.........######',
+    '#######.........######'] },
+  V_walk: { rows: [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '.........BQB..........',
+    '......................',
+    '..............*.......',
+    '......................',
+    '......................',
+    '...n.........n........',
+    '######v######v########',
+    '######################'] },
+  V_finale: { sign: '最后的火海！两个人把箱子推到按钮上压住，喷火口就全停了，再一起冲过去！', boxMax: 4, rows: [
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '..........BBBBBBBBBBBB......',
+    '..........BBBBBBBBBBBB......',
+    '................*...........',
+    '............................',
+    '.X..........................',
+    'H....o......................',
+    '##########vvvvvvvvvvvv######',
+    '############################'] },
   boss: { sign: '大乌云沉下来的时候，叠罗汉跳上去踩它！踩三下。', rows: [
     '.........................d',
     '.........................d',
@@ -1241,14 +1567,26 @@ const LEVELS = [
   { id: 'M38', name: '沉船宝藏', world: 6, seq: ["start", "O_ship", "cp", "O_seesaw", "goal"], stars: [1, 2, 3] },
   { id: 'M39', name: '海流', world: 6, seq: ["start", "O_current", "cp", "O_color", "goal"], stars: [1, 2, 3] },
   { id: 'M40', name: '海底宫殿', world: 6, seq: ["start", "O_crumble", "cp", "O_palace", "goal"], stars: [1, 2, 3] },
-  { id: 'M26', name: '星星路', world: 7, seq: ["start", "N_clouds", "N_seesaw", "N_float", "goal"], stars: [1, 2, 3],
+  { id: 'M41', name: '沙丘小路', world: 7, seq: ["start", "J_dune", "J_sand1", "J_cannon1", "goal"], stars: [1, 2, 3],
+    tip: { art: 'cannon', title: '大炮和流沙', text: '站进大炮，让另一个人去踩按钮——砰，会被打得又高又远！流沙会让人走得慢、跳不高。' } },
+  { id: 'M42', name: '仙人掌谷', world: 7, seq: ["start", "J_cactus", "J_cannon2", "J_stack", "goal"], stars: [1, 2, 3] },
+  { id: 'M43', name: '金字塔', world: 7, seq: ["start", "J_pyramid", "cp", "J_cannon3", "goal"], stars: [1, 2, 3] },
+  { id: 'M44', name: '绿洲', world: 7, seq: ["start", "J_oasis", "cp", "J_sand2", "goal"], stars: [1, 2, 3] },
+  { id: 'M45', name: '沙漠驼队', world: 7, seq: ["start", "J_crumble", "cp", "J_finale", "goal"], stars: [1, 2, 3] },
+  { id: 'M46', name: '熔岩小径', world: 8, seq: ["start", "V_jets1", "V_crumble", "V_jets2", "goal"], stars: [1, 2, 3],
+    tip: { art: 'fire', title: '喷火口', text: '喷火口会一阵一阵地喷火，看准火停的时候再过。旁边有按钮的，有人踩着按钮火就会停；坑底是熔岩，别掉下去！' } },
+  { id: 'M47', name: '火山口', world: 8, seq: ["start", "V_heat", "cp", "V_box", "goal"], stars: [1, 2, 3] },
+  { id: 'M48', name: '黑曜石桥', world: 8, seq: ["start", "V_rafts", "cp", "V_pair", "goal"], stars: [1, 2, 3] },
+  { id: 'M49', name: '炮台', world: 8, seq: ["start", "V_steps", "cp", "V_cannon", "goal"], stars: [1, 2, 3] },
+  { id: 'M50', name: '火山之心', world: 8, seq: ["start", "V_walk", "cp", "V_finale", "goal"], stars: [1, 2, 3] },
+  { id: 'M26', name: '星星路', world: 9, seq: ["start", "N_clouds", "N_seesaw", "N_float", "goal"], stars: [1, 2, 3],
     tip: { art: 'seesaw', title: '跷跷板', text: '一个人站在低的那头，另一个跳到高的那头，就能把 TA 弹上天。云朵站一下就会散，快走！' } },
-  { id: 'M27', name: '萤火森林', world: 7, seq: ["start", "D_lamps1", "D_pair", "D_clouds", "goal"], stars: [1, 2, 3], dark: true,
+  { id: 'M27', name: '萤火森林', world: 9, seq: ["start", "D_lamps1", "D_pair", "D_clouds", "goal"], stars: [1, 2, 3], dark: true,
     tip: { art: 'dark', title: '萤火森林', text: '夜里很黑，只有你们身边有一点光。走过的灯笼会亮起来，替后面的人照路。靠在一起走！' } },
-  { id: 'M28', name: '快跑！暴风雨', world: 7, seq: ["start", "R_run1", "R_run2", "R_run3", "goal"], stars: [1, 2, 3], chase: { x0: 2, start: 3.5, speed: 1.7 },
+  { id: 'M28', name: '快跑！暴风雨', world: 9, seq: ["start", "R_run1", "R_run2", "R_run3", "goal"], stars: [1, 2, 3], chase: { x0: 2, start: 3.5, speed: 1.7 },
     tip: { art: 'chase', title: '快跑！', text: '暴风雨从后面追上来了！两个人一起往前跑，被追上会掉一颗心，还会被推着走。' } },
-  { id: 'M29', name: '云朵阶梯', world: 7, seq: ["start", "N_clouds2", "N_seesaw2", "cp", "goal"], stars: [1, 2, 3], dark: true },
-  { id: 'M30', name: '回家的烟花', world: 7, seq: ["start", "N_stars", "cp", "boss", "goal"], stars: [1, 3], final: true,
+  { id: 'M29', name: '云朵阶梯', world: 9, seq: ["start", "N_clouds2", "N_seesaw2", "cp", "goal"], stars: [1, 2, 3], dark: true },
+  { id: 'M30', name: '回家的烟花', world: 9, seq: ["start", "N_stars", "cp", "boss", "goal"], stars: [1, 3], final: true,
     tip: { art: 'boss', title: '最后一关', text: '大乌云只有沉下来的时候才踩得到，可它还是太高：一个人站到另一个人头上再跳。踩三下，就能一起回家看烟花。' } },
 ];
 
@@ -1258,10 +1596,13 @@ const PW = 0.78, PH = 1.18;
 const RUN = 7.5, ACC = 62, DEC = 72, AIR_ACC = 42, AIR_DEC = 22, ICE_ACC = 13, ICE_DEC = 3.2;
 const GRAV = 52, JUMP_V = 21, MAXFALL = 21, SPRING_V = 29, STEP = 1 / 120, ZMIN = 0.62, HP_MAX = 5;
 const T_GROUND = 1, T_BLOCK = 2, T_PLAT = 3, T_ICE = 4, T_SPIKE = 5, T_GIFT = 6, T_GIFTQ = 7, T_USED = 8, T_CRUMB = 9, T_BLUE = 10, T_PINK = 11, T_GATE = 12, T_BRIDGE = 13, T_PLATE = 14, T_BGATE = 15;
-const TILE_OF = { '#': 1, B: 2, '=': 3, I: 4, '^': 5, G: 6, Q: 7, C: 9, u: 10, k: 11, D: 12, b: 13, o: 14, d: 15, q: 16, f: 17, '<': 18, '>': 19 };
+const TILE_OF = { '#': 1, B: 2, '=': 3, I: 4, '^': 5, G: 6, Q: 7, C: 9, u: 10, k: 11, D: 12, b: 13, o: 14, d: 15, q: 16, f: 17, '<': 18, '>': 19, z: 20, v: 21 };
 // 2026-11-22: 同心锁 plates (q: all of a piece's pair plates pressed at once open its gates for good), fans (f: an updraft above,
 // while that piece's button is held — or always, in a piece with no button), conveyor belts (< >)
 const T_PAIR = 16, T_FAN = 17, T_CONVL = 18, T_CONVR = 19;
+// 2026-11-24: quicksand (z: walk at 42%, jump 62% as hard — a partner's head is the way out) and fire vents (v: ground
+// that flares up on the shared clock; held button in its piece puts it out, so does a box sitting on it)
+const T_SAND = 20, T_VENT = 21;
 
 const G = {
   L: null, mode: 'duo', petImg: null, petName: '', meIdx: 0, wt: 0, ghost: 0,
@@ -1288,7 +1629,7 @@ function buildLevel(i) {
   spec.seq.forEach((id, n) => { const ch = CHUNKS[id]; chunks.push({ ch, x0: w, n }); w += ch.w; });
   const L = { i, spec, world, w, grid: new Uint8Array(w * R), chunkOf: new Int16Array(w), chunks, plates: [], signs: [], decor: [], spawn: [], door: null, cps: [],
     items: [], enemies: [], movers: [], elevs: [], springs: [], boxes: [], seesaws: [], boss: null, heartsTotal: 0, qCount: 0,
-    pairs: [], fans: [], portals: [], wheels: [], lamps: [] };
+    pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [] };
   const rng = mulberry(1000 + i * 7919);
   for (const c of chunks) {
     for (let x = 0; x < c.ch.w; x++) L.chunkOf[c.x0 + x] = c.n;
@@ -1321,6 +1662,16 @@ function buildLevel(i) {
     for (let k = 0; k + 1 < ps.length; k += 2) { ps[k].link = ps[k + 1]; ps[k + 1].link = ps[k]; ps[k].powered = ps[k + 1].powered = powered(c.n); }
   }
   for (const wh of L.wheels) { wh.ch = L.chunkOf[Math.floor(wh.cx)]; wh.powered = powered(wh.ch); }
+  // fire vents: a flame up to 3.5 tiles (less under a ceiling). In a piece, vents take turns (every other one is
+  // half a cycle behind) unless the piece lists its own phases; a piece with a button lets the button put them out.
+  const nth = new Map();
+  for (let x = 0; x < w; x++) for (let r = 1; r < R; r++) if (L.grid[r * w + x] === T_VENT && !solidCell2(L, x, r - 1)) {
+    let top = r - 3.5; for (let k = 1; k <= 4; k++) if (solidCell2(L, x, r - k)) { top = Math.max(top, r - k + 1); break; }
+    const n = L.chunkOf[x], k = nth.get(n) || 0; nth.set(n, k + 1);
+    const ph = chunks[n].ch.jets ? chunks[n].ch.jets[k % chunks[n].ch.jets.length] : (k % 2) * 0.5;
+    L.jets.push({ c: x, r, top, ch: n, powered: powered(n), ph });
+  }
+  L.hasSand = L.grid.includes(T_SAND);
   L.surfs = [...L.movers, ...L.elevs, ...L.springs, ...L.boxes, ...L.seesaws];
   return L;
 }
@@ -1353,6 +1704,11 @@ function marker(L, ch, x, r, c, starOn, rng) {
     case 'T': L.seesaws.push({ kind: 'seesaw', px: x + 0.5, py: r + 0.35, half: 2.5, max: 0.262, ang: 0.262, x0: x + 0.5 - 2.5, x1: x + 0.5 + 2.5, flip: 0, flipTo: 0, dx: 0, dy: 0 }); break;
     case 'P': case 'R': L.portals.push({ x: cx, foot, ch: c.n, link: null, powered: false, hue: ch === 'R' ? 1 : 0 }); break;
     case 'l': L.lamps.push({ x: cx, y: foot, lit: false }); break;
+    case 'A': case 'L': {   // 大炮, facing right (A) or left (L); its piece's button fires it
+      const k = c.ch.cannon || {};
+      L.cannons.push({ x: cx, foot, dir: ch === 'A' ? 1 : -1, ch: c.n, vx: k.vx || 8.5, vy: k.vy || 26, kick: 0 });
+      break;
+    }
     case 'O': {   // a Ferris wheel: four cabins on a rim, turning on the shared world clock
       const wh = { cx: cx, cy: r + 0.5, r: 3.4, period: 12, ang: 0, ch: 0, powered: false };
       L.wheels.push(wh);
@@ -1364,13 +1720,14 @@ function marker(L, ch, x, r, c, starOn, rng) {
 }
 
 /* ── tiles ── */
+const solidCell2 = (L, c, r) => r >= 0 && r < R && c >= 0 && c < L.w && [T_GROUND, T_BLOCK, T_ICE, T_GIFT, T_GIFTQ, T_CONVL, T_CONVR, T_SAND, T_VENT, T_BLUE, T_PINK, T_GATE].includes(L.grid[r * L.w + c]);
 const code = (c, r) => (r < 0 || r >= R ? 0 : c < 0 || c >= G.L.w ? T_GROUND : G.L.grid[r * G.L.w + c]);
 function crumbSolid(c, r) { const s = G.crumbs.get(r * G.L.w + c); return !s || s.st !== 'gone'; }
 function solidCell(c, r, who) {
   if (r < 0 || r >= R) return false;
   if (c < 0 || c >= G.L.w) return true;
   switch (G.L.grid[r * G.L.w + c]) {
-    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: return true;
+    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: case T_SAND: case T_VENT: return true;
     case T_BLUE: return who !== 'yy';
     case T_PINK: return who !== 'cs';
     case T_GATE: return !G.chanOn[G.L.chunkOf[c]];
@@ -1598,6 +1955,7 @@ const SEA = { g: 0.6, jump: 0.85, fall: 0.6 }, LAND = { g: 1, jump: 1, fall: 1 }
 const WK = () => (G.L && G.L.world.key === 'sea' ? SEA : LAND);
 function doJump(p, v) {
   v *= WK().jump;
+  if (p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND) v *= 0.62;   // quicksand: 1.6 tiles instead of 4.2
   const g = p.ground && p.ground.ref;
   if (g && g.dx) p.vx += g.dx / STEP * 0.9;   // leave a moving thing with its speed
   p.vy = -v; p.grounded = false; p.ground = null; p.coyote = 0; p.jbuf = 0;
@@ -1636,10 +1994,12 @@ function updatePlayer(p, dt) {
   let dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
   if (p.lock > 0) { p.lock -= dt; dir = 0; }
   const ice = p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_ICE;
-  if (p.launch) { if (dir) p.launch = null; else p.vx = p.launch.vx; }
+  // a seesaw throw stops the moment you steer; a cannon shot only if you steer against it (holding forward mid-shot is a reflex)
+  if (p.launch) { if (dir && !(p.launch.keep && dir === Math.sign(p.launch.vx))) p.launch = null; else p.vx = p.launch.vx; }
   if (!p.launch) {
     const acc = p.grounded ? (ice ? ICE_ACC : ACC) : AIR_ACC, dec = p.grounded ? (ice ? ICE_DEC : DEC) : AIR_DEC;
-    if (dir) { const turn = p.vx * dir < 0; p.vx = approach(p.vx, dir * RUN, (turn ? acc + (ice ? 2 : dec) : acc) * dt); p.face = dir; }
+    const sand = p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND;
+    if (dir) { const turn = p.vx * dir < 0; p.vx = approach(p.vx, dir * RUN * (sand ? 0.42 : 1), (turn ? acc + (ice ? 2 : dec) : acc) * dt); p.face = dir; }
     else p.vx = approach(p.vx, 0, dec * dt);
   }
   if (jp) p.jbuf = 0.13; else p.jbuf = Math.max(0, p.jbuf - dt);
@@ -1682,12 +2042,15 @@ function updatePlayer(p, dt) {
   }
   if (p.y > R + 0.6) { if (!G.ghost) fall(p); else { p.y = R + 0.6; p.vy = 0; } }
   if (G.L.portals.length) portalCheck(p);
+  if (G.L.cannons.length) cannonCheck(p, dt);
   // looks
   if (p.grounded && Math.abs(p.vx) > 6.5 && G.ghost !== 2 && !REDUCE && Math.random() < 0.06) dust(p.x + p.w / 2 - Math.sign(p.vx) * 0.3, p.y + p.h, 1);
   const a = p.an;
   a.run = approach(a.run, p.grounded ? Math.min(1, Math.abs(p.vx) / RUN) : 0, dt * 8);
   a.t += dt * (Math.abs(p.vx) / RUN) * 2.8;
   a.squash = Math.max(0, a.squash - dt * 6);
+  const inSand = p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND;
+  a.sink = approach(a.sink || 0, inSand ? 1 : 0, dt * (inSand ? 3 : 9));   // you sink in slowly and pop out at once
   a.flap = Math.max(0, a.flap - dt);
   a.blinkT -= dt; if (a.blinkT <= 0) { a.blink = 0.12; a.blinkT = 2 + Math.random() * 2.6; }
   a.blink = Math.max(0, a.blink - dt);
@@ -1717,6 +2080,35 @@ function portalCheck(p) {
   p.x = to.x - p.w / 2; p.y = to.foot - p.h - 0.02; p.vx *= 0.3; p.vy = 0; p.px = p.x; p.py = p.y; p.vox = p.voy = 0;
   p.grounded = false; p.ground = null; p.portalFrom = to;
   if (G.ghost !== 2) { sparkle(to.x, to.foot - 0.8, to.hue ? '#C69CFF' : '#8FC4FF', 14); sfx('portal'); }
+}
+// 大炮: stand in it while the button in its piece is held (or step in while it is held) and it fires you.
+// Each phone fires its own player; the partner's copy here is fired too, by the same rule, so it flies the same arc.
+function cannonCheck(p, dt) {
+  if (p.cannonCd > 0) { p.cannonCd -= dt; return; }
+  if (!p.grounded) return;
+  const x = p.x + p.w / 2, feet = p.y + p.h;
+  for (const cn of G.L.cannons) {
+    if (Math.abs(x - cn.x) > 0.45 || Math.abs(feet - cn.foot) > 0.12 || !G.chanOn[cn.ch]) continue;
+    p.x = cn.x - p.w / 2; p.vy = -cn.vy; p.grounded = false; p.ground = null; p.coyote = 0; p.jbuf = 0; p.springy = false;
+    p.launch = { vx: cn.dir * cn.vx, keep: true }; p.cannonCd = 1.2; cn.kick = 1;
+    if (G.ghost !== 2) { sfx('cannon'); puff(cn.x + cn.dir * 0.7, cn.foot - 1.3, 'rgba(255,244,224,.9)', 10); }
+    if (!G.ghost) p.happy = 1;
+    return;
+  }
+}
+// a fire vent: 0 quiet, 1 about to go (sparks), 2 burning. Timed on the shared world clock, so both phones agree
+const JET_PER = 2.6, JET_ON = 1.0, JET_WARN = 0.45;
+function jetState(j) {
+  if (j.powered && G.chanOn[j.ch]) return 0;
+  for (const b of G.L.boxes) if (b.x < j.c + 0.9 && b.x + b.w > j.c + 0.1 && Math.abs(b.y + b.h - j.r) < 0.15) return 0;
+  const t = (((G.wt / JET_PER + j.ph) % 1) + 1) % 1 * JET_PER;
+  return t < JET_ON ? 2 : t > JET_PER - JET_WARN ? 1 : 0;
+}
+function jetHits() {
+  for (const j of G.L.jets) {
+    if (jetState(j) !== 2) continue;
+    for (const p of G.players) if (!p.dead && isLocal(p) && p.x + p.w > j.c + 0.2 && p.x < j.c + 0.8 && p.y + p.h > j.top + 0.15 && p.y < j.r) hurt(p, j.c + 0.5);
+  }
 }
 function landOn(p, land, vyIn) {
   if (G.ghost) {   // the partner: a spring still throws them, but clouds, seesaw throws and sounds come from their phone
@@ -2041,9 +2433,10 @@ function step(dt) {
   if (isHost()) { if (L.boss) updateBoss(dt); }
   else if (L.boss) { netBossStep(dt); bossTouch(); }
   updateProj(dt);
-  if (G.state === 'play') { enemyHits(); spikeHits(); updateItems(dt); checkpoints(); if (L.spec.chase) chaseTick(); }
+  if (G.state === 'play') { enemyHits(); spikeHits(); if (L.jets.length) jetHits(); updateItems(dt); checkpoints(); if (L.spec.chase) chaseTick(); }
   for (const l of L.lamps) if (!l.lit && G.players.some(p => !p.dead && Math.abs(p.x + p.w / 2 - l.x) < 1.4 && Math.abs(p.y + p.h - l.y) < 2.2)) { l.lit = true; sfx('lamp'); sparkle(l.x, l.y - 1.5, '#FFD982', 12); }
   for (const f of L.fans) f.spin += dt * (!f.powered || G.chanOn[f.ch] ? 22 : 0);
+  for (const cn of L.cannons) cn.kick = Math.max(0, cn.kick - dt * 2.5);
   // your pet notices when you have been stuck on one puzzle for a while and reminds you what its sign said
   if (G.state === 'play' && G.petImg && G.petPos) {
     let far = -1; for (const p of G.players) if (!p.dead && p.x > far) far = p.x;
@@ -2078,7 +2471,9 @@ function updateParts(dt) {
 }
 
 /* ══════════════ drawing ══════════════ */
-let cv = null, ctx = null;
+let cv = null, ctx = null, cvB = null, bctx = null, cvD = null;
+// The far canvas's pixels per CSS pixel on a sharp (2×, 3×) screen. 1 = a quarter of the main canvas's pixels.
+const BACK_DPR = 1;
 // the app's own stack: a family the page never loads (the try-out's Nunito) costs a font hunt on the first fillText — 160 ms at 4× CPU
 const FONT = "'PingFang SC', 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif";
 const V = { w: 0, h: 0, dpr: 1, tile: 30, viewW: 14, spr: new Map(), ts: 0, world: '' };
@@ -2109,6 +2504,11 @@ function resize() {
   if (!w || !h) return;
   V.dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(w * V.dpr); cv.height = Math.round(h * V.dpr);
+  // the far layers' own canvas, at half the pixels on a sharp screen (see render)
+  V.bd = V.dpr >= 2 ? BACK_DPR : V.dpr;
+  cvB.width = Math.round(w * V.bd); cvB.height = Math.round(h * V.bd);
+  // the vignette, sized from the view the way the canvas used to draw it
+  const vg = UI.view.querySelector('.cg-vig'); if (vg) vg.style.background = `radial-gradient(circle ${Math.round(Math.max(w, h) * 0.75)}px at 50% 47%, rgba(30,10,40,0) ${Math.round(Math.min(w, h) * 0.35)}px, rgba(30,10,40,.22))`;
   V.w = w; V.h = h;
   V.tile = Math.min(h / R, w / 11, 64);   // a tall phone shows 11 tiles across, not a strip at the bottom
   V.viewW = w / V.tile;
@@ -2166,6 +2566,32 @@ function drawSprite(kind, m, ts, wd) {
       c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(10 * u, 8 * u, 50 * u, 4 * u);
       c.strokeStyle = wd.platEdge; c.lineWidth = 3 * u; c.beginPath(); c.moveTo(66 * u, 4 * u); c.lineTo(66 * u, 26 * u); c.stroke();
     }
+  } else if (kind === 'sand') {   // quicksand: darker and wetter than the desert's ground, with swirls that read as "it moves"
+    c.fillStyle = '#C08447'; c.fillRect(0, 0, ts, ts);
+    c.fillStyle = '#A86F38'; for (const [x, y, r] of [[30, 60, 15], [74, 78, 12], [62, 42, 9]]) { ell(c, x * u, y * u, r * u, r * u * 0.55); c.fill(); }
+    c.strokeStyle = 'rgba(255,226,170,.55)'; c.lineWidth = 3.5 * u; c.lineCap = 'round';
+    for (const [x, y] of [[30, 60], [74, 78]]) { c.beginPath(); c.ellipse(x * u, y * u, 9 * u, 4.5 * u, 0, Math.PI * 1.1, Math.PI * 2.4); c.stroke(); }
+    if (m & 1) { c.fillStyle = '#D9A45A'; c.beginPath(); c.moveTo(0, 20 * u); for (let x = 0; x < 100; x += 25) c.quadraticCurveTo((x + 12.5) * u, 8 * u, (x + 25) * u, 20 * u); c.lineTo(ts, 0); c.lineTo(0, 0); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(255,240,205,.6)'; rrect(c, 10 * u, 4 * u, 34 * u, 5 * u, 2.5 * u); c.fill(); rrect(c, 60 * u, 6 * u, 18 * u, 4 * u, 2 * u); c.fill(); }
+  } else if (kind === 'vent') {   // a fire vent: dark rock with a slit (its glow and the flame are drawn live)
+    c.fillStyle = '#2E2226'; rrect(c, 0, 0, ts, ts, 6 * u); c.fill();
+    c.fillStyle = '#4E3B3D'; rrect(c, 3 * u, 3 * u, ts - 6 * u, 34 * u, 8 * u); c.fill();
+    c.fillStyle = '#170E10'; rrect(c, 20 * u, 9 * u, 60 * u, 16 * u, 8 * u); c.fill();
+    c.fillStyle = 'rgba(255,122,60,.5)'; for (const [x, y] of [[20, 60], [64, 74], [44, 88]]) { ell(c, x * u, y * u, 5 * u, 4 * u); c.fill(); }
+  } else if (kind === 'spike' && wd.key === 'desert') {   // little round cacti
+    for (const x of [24, 74]) {
+      c.fillStyle = '#4F8E46'; ell(c, x * u, 72 * u, 22 * u, 26 * u); c.fill();
+      c.fillStyle = '#6FAE5E'; ell(c, x * u, 72 * u, 17 * u, 22 * u); c.fill();
+      c.strokeStyle = '#FFF4DC'; c.lineWidth = 2.6 * u; c.lineCap = 'round';
+      for (const [a, b] of [[-14, 58], [14, 58], [-20, 74], [20, 74], [0, 50], [-12, 90], [12, 90]]) { c.beginPath(); c.moveTo((x + a * 0.8) * u, b * u); c.lineTo((x + a * 1.25) * u, (b - 6) * u); c.stroke(); }
+      c.fillStyle = '#FF8FB3'; ell(c, x * u, 47 * u, 6 * u, 5 * u); c.fill();
+    }
+  } else if (kind === 'spike' && wd.key === 'volcano') {   // obsidian shards, hot at the tips
+    for (const [x, hh] of [[18, 46], [50, 56], [82, 42]]) {
+      c.fillStyle = '#2A1E2E'; c.beginPath(); c.moveTo((x - 14) * u, 98 * u); c.lineTo(x * u, (98 - hh) * u); c.lineTo((x + 14) * u, 98 * u); c.closePath(); c.fill();
+      c.fillStyle = '#4A3858'; c.beginPath(); c.moveTo(x * u, (98 - hh) * u); c.lineTo((x + 14) * u, 98 * u); c.lineTo((x + 4) * u, 98 * u); c.closePath(); c.fill();
+      c.fillStyle = '#FF8A3C'; c.beginPath(); c.moveTo((x - 3) * u, (106 - hh) * u); c.lineTo(x * u, (98 - hh) * u); c.lineTo((x + 3) * u, (106 - hh) * u); c.closePath(); c.fill();
+    }
   } else if (kind === 'spike') {
     c.fillStyle = '#E8ECF4'; c.strokeStyle = '#8A93A8'; c.lineWidth = 4 * u; c.lineJoin = 'round';
     for (const x of [16, 50, 84]) { c.beginPath(); c.moveTo((x - 15) * u, 98 * u); c.lineTo(x * u, 52 * u); c.lineTo((x + 15) * u, 98 * u); c.closePath(); c.fill(); c.stroke(); }
@@ -2200,9 +2626,8 @@ const STARS = Array.from({ length: 70 }, (_, i) => { const r = mulberry(i * 31 +
 function hash(n) { const r = mulberry(n * 977 + 13); return r(); }
 function drawBackdrop(W, H) {
   const wd = G.L.world;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, wd.sky[0]); g.addColorStop(1, wd.sky[1]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // the sky's gradient is the far canvas's CSS background: filling it here, every frame, cost more than anything else drawn
+  if (V.skyFor !== wd) { cvB.style.background = `linear-gradient(${wd.sky[0]}, ${wd.sky[1]})`; V.skyFor = wd; }
   const d = V.dpr;
   if (wd.key === 'night') {
     for (const [x, y, s, ph] of STARS) { ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(G.clock * 1.3 + ph)); ctx.fillStyle = '#FFF8DC'; ctx.fillRect(x * W, y * H, s * d, s * d); }
@@ -2218,17 +2643,17 @@ function drawBackdrop(W, H) {
         g2.addColorStop(0, 'rgba(220,250,255,.22)'); g2.addColorStop(1, 'rgba(220,250,255,0)'); ctx.fillStyle = g2;
         ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 60 * d, 0); ctx.lineTo(x0 + 200 * d, H); ctx.lineTo(x0 + 110 * d, H); ctx.closePath(); ctx.fill(); }
     }
-    else {   // soft rays turning slowly round the sun
+    else if (wd.key !== 'volcano') {   // soft rays turning slowly round the sun
       const rr = Math.max(W, H) * 0.7, a0 = REDUCE ? 0 : G.clock * 0.04, rg = ctx.createRadialGradient(sx0, sy0, r, sx0, sy0, rr);
       rg.addColorStop(0, 'rgba(255,248,215,.16)'); rg.addColorStop(1, 'rgba(255,248,215,0)'); ctx.fillStyle = rg;   // rays that fade out, not wedges
       for (let k = 0; k < 9; k++) { const a = a0 + k * Math.PI * 2 / 9; ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(sx0 + Math.cos(a) * rr, sy0 + Math.sin(a) * rr); ctx.lineTo(sx0 + Math.cos(a + 0.13) * rr, sy0 + Math.sin(a + 0.13) * rr); ctx.closePath(); ctx.fill(); }
     }
     if (wd.key !== 'sea') {
-    ctx.fillStyle = wd.key === 'autumn' ? 'rgba(255,170,90,.22)' : 'rgba(255,240,170,.28)'; ell(ctx, sx0, sy0, r * 1.55, r * 1.55); ctx.fill();
-    ctx.fillStyle = wd.key === 'winter' ? '#FFF8E8' : wd.key === 'autumn' ? '#FFB45E' : '#FFE27A'; ell(ctx, sx0, sy0, r, r); ctx.fill();
+    ctx.fillStyle = wd.key === 'autumn' ? 'rgba(255,170,90,.22)' : wd.key === 'volcano' ? 'rgba(255,120,80,.25)' : wd.key === 'desert' ? 'rgba(255,246,200,.4)' : 'rgba(255,240,170,.28)'; ell(ctx, sx0, sy0, r * (wd.key === 'desert' ? 1.9 : 1.55), r * (wd.key === 'desert' ? 1.9 : 1.55)); ctx.fill();
+    ctx.fillStyle = wd.key === 'winter' ? '#FFF8E8' : wd.key === 'autumn' ? '#FFB45E' : wd.key === 'volcano' ? '#FF8A5C' : wd.key === 'desert' ? '#FFF3C4' : '#FFE27A'; ell(ctx, sx0, sy0, r * (wd.key === 'desert' ? 1.15 : 1), r * (wd.key === 'desert' ? 1.15 : 1)); ctx.fill();
     }
     // a few slow clouds (cotton candy in 糖果乐园; none under the sea)
-    ctx.fillStyle = wd.key === 'candy' ? 'rgba(255,200,226,.85)' : 'rgba(255,255,255,.75)';
+    ctx.fillStyle = wd.key === 'candy' ? 'rgba(255,200,226,.85)' : wd.key === 'volcano' ? 'rgba(84,58,70,.62)' : wd.key === 'desert' ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.75)';   // (ash clouds over the volcano)
     for (let k = 0; k < (wd.key === 'sea' ? 0 : 4); k++) {
       const span = W / d + 300, x = ((k * 230 + G.clock * 8 - CX * TP / d * 0.08) % span + span) % span - 150, y = (40 + k * 37 % 90) ;
       const X = x * d, Y = y * d * (H / d > 500 ? 1.4 : 1), s = d * (0.8 + (k % 2) * 0.4);
@@ -2257,7 +2682,7 @@ function drawBackdrop(W, H) {
   if (wd.key === 'park') {
     const pk = 0.18, span = 46;
     for (let i = Math.floor(CX * pk / span) - 1; i <= Math.floor((CX * pk + W / TP) / span) + 1; i++) {
-      const X = (i * span + 12 - CX * pk) * TP, Y = base - 6.2 * TP, R2 = 4.6 * TP, a0 = G.clock * 0.25;
+      const X = (i * span + 8 - CX * pk) * TP, Y = base - 6.2 * TP, R2 = 4.6 * TP, a0 = G.clock * 0.25;
       ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 0.12 * TP;
       ctx.beginPath(); ctx.arc(X, Y, R2, 0, Math.PI * 2); ctx.stroke();
       for (let k = 0; k < 10; k++) { const a = a0 + k * Math.PI / 5; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X + Math.cos(a) * R2, Y + Math.sin(a) * R2); ctx.stroke(); }
@@ -2300,6 +2725,21 @@ function midTree(wd, X, Y, s, i) {
     br(X, Y, -Math.PI / 2 + sw / s, s * 0.7, 0);
     return;
   }
+  if (wd.key === 'desert') {   // saguaro cacti
+    c.fillStyle = wd.tree[i % 2]; c.strokeStyle = wd.tree[1]; c.lineCap = 'round';
+    rrect(c, X - s * 0.17, Y - s * 1.9, s * 0.34, s * 1.9, s * 0.17); c.fill();
+    c.lineWidth = s * 0.26; c.strokeStyle = wd.tree[i % 2];
+    c.beginPath(); c.moveTo(X - s * 0.1, Y - s * 0.9); c.lineTo(X - s * 0.5, Y - s * 0.9); c.lineTo(X - s * 0.5, Y - s * 1.45); c.stroke();
+    if (i % 2) { c.beginPath(); c.moveTo(X + s * 0.1, Y - s * 1.15); c.lineTo(X + s * 0.46, Y - s * 1.15); c.lineTo(X + s * 0.46, Y - s * 1.6); c.stroke(); }
+    c.fillStyle = 'rgba(255,255,255,.25)'; rrect(c, X - s * 0.08, Y - s * 1.8, s * 0.06, s * 1.4, s * 0.03); c.fill();
+    return;
+  }
+  if (wd.key === 'volcano') {   // dark rock spires with a hot seam
+    c.fillStyle = wd.tree[i % 2]; c.beginPath(); c.moveTo(X - s * 0.6, Y); c.lineTo(X - s * 0.2, Y - s * (1.6 + hash(i) * 0.8)); c.lineTo(X + s * 0.25, Y - s * (1.2 + hash(i + 3) * 0.6)); c.lineTo(X + s * 0.6, Y); c.closePath(); c.fill();
+    c.strokeStyle = REDUCE ? '#FF7A3C' : `rgba(255,${120 + Math.round(40 * Math.sin(G.clock * 2 + i))},60,.9)`; c.lineWidth = s * 0.07; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(X - s * 0.1, Y - s * 0.1); c.lineTo(X - s * 0.18, Y - s * 0.6); c.lineTo(X - s * 0.08, Y - s * 1.0); c.stroke();
+    return;
+  }
   if (wd.key === 'night') {
     c.fillStyle = '#17163F'; c.fillRect(X - s * 0.7, Y - s * 1.3, s * 1.4, s * 1.3);
     c.beginPath(); c.moveTo(X - s * 0.9, Y - s * 1.3); c.lineTo(X, Y - s * 2); c.lineTo(X + s * 0.9, Y - s * 1.3); c.closePath(); c.fill();
@@ -2326,7 +2766,7 @@ function foot(x, y, c) { ell(ctx, x, y, 11, 6); ctx.fillStyle = c.body; ctx.fill
 function drawChar(p, al) {
   if (p.dead > 0 || p.hide) return;
   const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0);
-  const X = sx(x + p.w / 2), Y = sy(y + p.h), s = TP * 1.5 / 112, a = p.an, c = CH[p.k];
+  const X = sx(x + p.w / 2), Y = sy(y + p.h) + (p.an.sink || 0) * 0.24 * TP, s = TP * 1.5 / 112, a = p.an, c = CH[p.k];
   let bob = 0, rot = 0, kx = 1, ky = 1, f1x = 0, f1y = 0, f2x = 0, f2y = 0;
   if (!p.grounded) { if (p.vy < 0) { kx = 0.93; ky = 1.07; f1y = f2y = -3; f1x = 3; f2x = -3; } else { kx = 1.03; ky = 0.98; f1y = f2y = -1; } }
   else if (a.run > 0.05) { const ph = Math.sin(a.t * Math.PI * 2); bob = -Math.abs(ph) * 3.5 * a.run; rot = -0.045 * a.run; f1y = -Math.max(0, ph) * 6 * a.run; f2y = -Math.max(0, -ph) * 6 * a.run; f1x = ph * 4 * a.run; f2x = -ph * 4 * a.run; }
@@ -2559,6 +2999,66 @@ function drawFlag(k) {
   ctx.beginPath(); ctx.moveTo(X + 4 * u, Y - 236 * u); ctx.quadraticCurveTo(X + 50 * u, Y - 226 * u + wave, X + 90 * u, Y - 214 * u); ctx.quadraticCurveTo(X + 50 * u, Y - 196 * u - wave, X + 4 * u, Y - 190 * u); ctx.closePath(); ctx.fill();
   if (k.on) { ctx.fillStyle = '#FFFFFF'; heartPath(ctx, X + 38 * u, Y - 214 * u, 10 * u); ctx.fill(); }
 }
+// a fire vent's glow and, when it is burning, its flame (drawn over the characters: you are IN it)
+function drawJet(j) {
+  const X = sx(j.c + 0.5), base = sy(j.r), u = TP / 100;
+  if (X < -TP || X > cv.width + TP) return;
+  const st = jetState(j), cooled = j.powered && G.chanOn[j.ch];
+  ctx.fillStyle = st === 2 ? '#FFC870' : st === 1 ? 'rgba(255,140,60,.9)' : cooled ? 'rgba(150,190,230,.75)' : 'rgba(255,110,50,.45)';
+  rrect(ctx, X - 28 * u, base + 10 * u, 56 * u, 12 * u, 6 * u); ctx.fill();
+  if (st === 1 && !REDUCE) { ctx.fillStyle = '#FFD27A'; for (let k = 0; k < 4; k++) { const t2 = (G.clock * 3 + k / 4) % 1; ell(ctx, X + Math.sin(k * 2.3 + G.clock * 7) * 18 * u, base - t2 * 40 * u, 3.5 * u, 3.5 * u); ctx.fill(); } }
+  if (cooled && !REDUCE) { for (let k = 0; k < 3; k++) { const t2 = (G.clock * 0.7 + k / 3) % 1; ctx.fillStyle = `rgba(235,240,250,${0.45 * (1 - t2)})`; ell(ctx, X + Math.sin(G.clock + k) * 10 * u, base - t2 * 70 * u, (8 + t2 * 14) * u, (6 + t2 * 10) * u); ctx.fill(); } }
+  if (st !== 2) return;
+  const t = (((G.wt / JET_PER + j.ph) % 1) + 1) % 1 * JET_PER, k = Math.min(1, t / 0.12, (JET_ON - t) / 0.1 + 0.25);
+  const h = (j.r - j.top) * TP * k, wob = REDUCE ? 0 : Math.sin(G.clock * 26 + j.c * 3) * 6 * u;
+  for (const [w2, hh, col] of [[40, 1, 'rgba(255,96,40,.92)'], [27, 0.78, 'rgba(255,170,60,.95)'], [13, 0.5, 'rgba(255,240,190,.95)']]) {
+    const top = base - h * hh;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(X - w2 * u, base);
+    ctx.quadraticCurveTo(X - w2 * 1.1 * u + wob, base - h * hh * 0.5, X + wob * 1.6, top);
+    ctx.quadraticCurveTo(X + w2 * 1.1 * u + wob, base - h * hh * 0.5, X + w2 * u, base); ctx.closePath(); ctx.fill();
+  }
+}
+// 大炮: a barrel aimed up its way behind whoever stands in it, and the cart's front in front of them (so they are IN it).
+// It kicks back when it fires, and its fuse fizzes while it is armed.
+function drawCannon(cn, front) {
+  const X = sx(cn.x), Y = sy(cn.foot), u = TP / 100 * 1.25, d = cn.dir, k = cn.kick;
+  if (X < -2 * TP || X > cv.width + 2 * TP) return;
+  if (!front) {
+    ctx.save(); ctx.translate(X - d * 8 * u * k, Y - 40 * u); ctx.rotate(-d * (0.82 - 0.1 * k)); ctx.scale(d, 1);
+    ctx.fillStyle = '#3E3A48'; rrect(ctx, -14 * u, -30 * u, 108 * u, 60 * u, 24 * u); ctx.fill();
+    ctx.fillStyle = '#5A5568'; rrect(ctx, -8 * u, -24 * u, 96 * u, 26 * u, 13 * u); ctx.fill();
+    ctx.fillStyle = '#E2B34E'; rrect(ctx, 80 * u, -34 * u, 22 * u, 68 * u, 9 * u); ctx.fill();
+    ctx.fillStyle = '#E2B34E'; rrect(ctx, 22 * u, -31 * u, 10 * u, 62 * u, 4 * u); ctx.fill();
+    ctx.fillStyle = '#1E1B26'; ell(ctx, 100 * u, 0, 7 * u, 24 * u); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; rrect(ctx, 4 * u, -20 * u, 56 * u, 7 * u, 3.5 * u); ctx.fill();
+    ctx.restore();
+    if (G.chanOn[cn.ch]) {   // armed: the fuse at the back fizzes
+      const fx = X - d * 40 * u, fy = Y - 62 * u;
+      ctx.strokeStyle = '#6B4A2A'; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(X - d * 22 * u, Y - 44 * u); ctx.quadraticCurveTo(X - d * 38 * u, Y - 46 * u, fx, fy); ctx.stroke();
+      ctx.fillStyle = '#FFD75E'; ell(ctx, fx, fy, (REDUCE ? 6 : 5 + Math.sin(G.clock * 30) * 2) * u, (REDUCE ? 6 : 5 + Math.cos(G.clock * 27) * 2) * u); ctx.fill();
+      ctx.fillStyle = 'rgba(255,240,180,.8)'; ell(ctx, fx, fy, 2.5 * u, 2.5 * u); ctx.fill();
+    }
+    return;
+  }
+  ctx.fillStyle = '#8C5A34'; rrect(ctx, X - 44 * u, Y - 30 * u, 88 * u, 20 * u, 8 * u); ctx.fill();
+  ctx.fillStyle = '#B07A4A'; rrect(ctx, X - 38 * u, Y - 27 * u, 76 * u, 6 * u, 3 * u); ctx.fill();
+  for (const sd of [-1, 1]) {
+    ctx.fillStyle = '#5E3B22'; ell(ctx, X + sd * 28 * u, Y - 11 * u, 12 * u, 12 * u); ctx.fill();
+    ctx.strokeStyle = '#8C5A34'; ctx.lineWidth = 2.5 * u; for (let s2 = 0; s2 < 3; s2++) { const a = s2 * Math.PI / 3 + (cn.x % 1); ctx.beginPath(); ctx.moveTo(X + sd * 28 * u - Math.cos(a) * 10 * u, Y - 11 * u - Math.sin(a) * 10 * u); ctx.lineTo(X + sd * 28 * u + Math.cos(a) * 10 * u, Y - 11 * u + Math.sin(a) * 10 * u); ctx.stroke(); }
+    ctx.fillStyle = '#E2B34E'; ell(ctx, X + sd * 28 * u, Y - 11 * u, 4 * u, 4 * u); ctx.fill();
+  }
+}
+// standing in quicksand: you sink a little (drawChar), and a lip of sand closes over your feet
+function sandRim(p, al) {
+  const k = p.an && p.an.sink || 0;
+  if (p.dead > 0 || k < 0.05) return;
+  const x = p.px + (p.x - p.px) * al + (p.vox || 0), X = sx(x + p.w / 2), Y = sy(p.py + (p.y - p.py) * al + p.h), u = TP / 100;
+  ctx.globalAlpha = Math.min(1, k * 1.5);
+  ctx.fillStyle = '#B9803F'; ell(ctx, X, Y + 6 * u, 56 * u, 16 * u); ctx.fill();
+  ctx.fillStyle = '#D9A45A'; ell(ctx, X, Y + 1 * u, 50 * u, 11 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,236,190,.55)'; ell(ctx, X - 14 * u, Y - 3 * u, 14 * u, 3.5 * u); ctx.fill();
+  ctx.globalAlpha = 1;
+}
 function drawDecor(dc) {
   const wd = G.L.world.key, X = sx(dc.x), Y = sy(dc.y), u = TP / 100 * dc.s;
   if (wd === 'spring') { ctx.strokeStyle = '#4FA35B'; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X, Y - 22 * u); ctx.stroke(); ctx.fillStyle = ['#FF8FB3', '#FFFFFF', '#FFD75E', '#C69CFF'][dc.k]; for (let k = 0; k < 5; k++) { const a = k * 1.256; ell(ctx, X + Math.cos(a) * 7 * u, Y - 24 * u + Math.sin(a) * 7 * u, 5 * u, 5 * u); ctx.fill(); } ctx.fillStyle = '#FFE27A'; ell(ctx, X, Y - 24 * u, 4 * u, 4 * u); ctx.fill(); }
@@ -2580,6 +3080,15 @@ function drawDecor(dc) {
       ctx.fillStyle = col; ell(ctx, X, Y - 42 * u + bob, 9 * u, 11 * u); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(ctx, X - 3 * u, Y - 46 * u + bob, 2.5 * u, 3.5 * u); ctx.fill(); }
     else { ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3 * u; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X, Y - 18 * u); ctx.stroke(); ctx.fillStyle = dc.k === 2 ? '#FF8FB3' : '#8FE3C4'; ell(ctx, X, Y - 22 * u, 7 * u, 7 * u); ctx.fill(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.6 * u; ctx.beginPath(); ctx.arc(X, Y - 22 * u, 4 * u, 0, 4.5); ctx.stroke(); }
   }
+  else if (wd === 'desert') {   // a tiny cactus in flower, or pebbles
+    if (dc.k < 2) { ctx.fillStyle = '#6FAE5E'; ell(ctx, X, Y - 9 * u, 8 * u, 10 * u); ctx.fill(); ctx.fillStyle = dc.k ? '#FFD75E' : '#FF8FB3'; ell(ctx, X, Y - 20 * u, 5 * u, 4 * u); ctx.fill(); }
+    else { ctx.fillStyle = '#C9A272'; ell(ctx, X - 5 * u, Y - 3 * u, 6 * u, 4 * u); ctx.fill(); ell(ctx, X + 5 * u, Y - 2 * u, 4 * u, 3 * u); ctx.fill(); }
+  }
+  else if (wd === 'volcano') {   // glowing crystals, or a warm rock
+    if (dc.k < 2) { const g = REDUCE ? 0.8 : 0.6 + 0.4 * Math.abs(Math.sin(G.clock * 2 + dc.x)); ctx.fillStyle = `rgba(255,${dc.k ? 120 : 90},70,${g.toFixed(2)})`;
+      for (const [dx, hh] of [[-6, 18], [0, 26], [6, 16]]) { ctx.beginPath(); ctx.moveTo(X + (dx - 4) * u, Y); ctx.lineTo(X + dx * u, Y - hh * u); ctx.lineTo(X + (dx + 4) * u, Y); ctx.closePath(); ctx.fill(); } }
+    else { ctx.fillStyle = '#5A4446'; ell(ctx, X, Y - 4 * u, 9 * u, 6 * u); ctx.fill(); ctx.fillStyle = 'rgba(255,120,60,.7)'; ell(ctx, X + 2 * u, Y - 5 * u, 3 * u, 2 * u); ctx.fill(); }
+  }
   else { ctx.fillStyle = `rgba(255,${200 + dc.k * 12},140,${0.5 + 0.5 * Math.abs(Math.sin(G.clock * 2 + dc.x))})`; ell(ctx, X, Y - 10 * u, 4 * u, 4 * u); ctx.fill(); ctx.strokeStyle = '#6C64C8'; ctx.lineWidth = 3 * u; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X, Y - 8 * u); ctx.stroke(); }
 }
 function drawSeesaw(s) {
@@ -2594,9 +3103,11 @@ function drawSeesaw(s) {
 }
 // far away, behind the hills: one picture for each world, drifting slower than everything else
 function drawFar(W, H, base) {
+  // (each world's landmark starts 5–8 tiles in: at 20–30 it sat off the right edge of a phone held upright — 11 tiles
+  //  across — until the last few seconds of a level, so the windmill, the lighthouse and the rest were almost never seen)
   const key = G.L.world.key, pk = 0.12, u = TP / 100;
   const each = (span, off, fn) => { for (let i = Math.floor(CX * pk / span) - 1; i <= Math.floor((CX * pk + W / TP) / span) + 1; i++) fn((i * span + off - CX * pk) * TP, i); };
-  if (key === 'spring') each(52, 20, (X, i) => {   // a windmill on a far hill
+  if (key === 'spring') each(52, 7, (X, i) => {   // a windmill on a far hill
     ctx.fillStyle = 'rgba(205,232,200,.95)'; ell(ctx, X, base - 1.2 * TP, 9 * TP, 2.6 * TP); ctx.fill();
     const tx = X + 2.2 * TP, ty = base - 3.4 * TP;
     ctx.fillStyle = '#FFF4E8'; ctx.beginPath(); ctx.moveTo(tx - 0.55 * TP, base - 1.6 * TP); ctx.lineTo(tx - 0.32 * TP, ty); ctx.lineTo(tx + 0.32 * TP, ty); ctx.lineTo(tx + 0.55 * TP, base - 1.6 * TP); ctx.closePath(); ctx.fill();
@@ -2605,7 +3116,7 @@ function drawFar(W, H, base) {
     for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.fillRect(-0.09 * TP, 0, 0.18 * TP, 1.25 * TP); }
     ctx.restore(); ctx.fillStyle = '#C9A68A'; ell(ctx, tx, ty - 0.1 * TP, 0.12 * TP, 0.12 * TP); ctx.fill();
   });
-  else if (key === 'summer') each(60, 30, (X, i) => {   // a lighthouse on its rock, boats and gulls
+  else if (key === 'summer') each(60, 8, (X, i) => {   // a lighthouse on its rock, boats and gulls
     const sea = sy(8.6);
     ctx.fillStyle = '#C9B69C'; ell(ctx, X, sea, 2.2 * TP, 0.8 * TP); ctx.fill();
     for (let k = 0; k < 4; k++) { ctx.fillStyle = k % 2 ? '#E9707F' : '#FFFFFF'; ctx.fillRect(X - (0.42 - k * 0.04) * TP, sea - (0.6 + k * 0.6) * TP, (0.84 - k * 0.08) * TP, 0.6 * TP); }
@@ -2619,7 +3130,7 @@ function drawFar(W, H, base) {
     ctx.strokeStyle = 'rgba(90,110,140,.55)'; ctx.lineWidth = 2 * u;
     for (let k = 0; k < 3; k++) { const gx = X + ((k * 9 + (REDUCE ? 0 : G.clock * 0.8)) % 26 - 13) * TP, gy = sy(2.2 + k * 0.7) + (REDUCE ? 0 : Math.sin(G.clock * 2 + k) * 4 * u); ctx.beginPath(); ctx.moveTo(gx - 10 * u, gy - 4 * u); ctx.quadraticCurveTo(gx - 4 * u, gy - 7 * u, gx, gy); ctx.quadraticCurveTo(gx + 4 * u, gy - 7 * u, gx + 10 * u, gy - 4 * u); ctx.stroke(); }
   });
-  else if (key === 'autumn') each(56, 26, (X) => {   // a red barn and its haystacks
+  else if (key === 'autumn') each(56, 7, (X) => {   // a red barn and its haystacks
     ctx.fillStyle = 'rgba(232,168,120,.9)'; ell(ctx, X, base - 1 * TP, 10 * TP, 2.4 * TP); ctx.fill();
     const by = base - 2.1 * TP;
     ctx.fillStyle = '#C8553D'; ctx.fillRect(X - 1 * TP, by - 1.2 * TP, 2 * TP, 1.4 * TP);
@@ -2627,7 +3138,7 @@ function drawFar(W, H, base) {
     ctx.strokeStyle = '#FFF4E8'; ctx.lineWidth = 3 * u; ctx.strokeRect(X - 0.35 * TP, by - 0.75 * TP, 0.7 * TP, 0.95 * TP); ctx.beginPath(); ctx.moveTo(X - 0.35 * TP, by - 0.75 * TP); ctx.lineTo(X + 0.35 * TP, by + 0.2 * TP); ctx.moveTo(X + 0.35 * TP, by - 0.75 * TP); ctx.lineTo(X - 0.35 * TP, by + 0.2 * TP); ctx.stroke();
     ctx.fillStyle = '#E8B85A'; for (const dx of [2.2, 3.2, -2.6]) { ell(ctx, X + dx * TP, by + 0.05 * TP, 0.5 * TP, 0.42 * TP); ctx.fill(); }
   });
-  else if (key === 'winter') each(48, 18, (X, i) => {   // snowy peaks and a cabin with smoke
+  else if (key === 'winter') each(48, 7, (X, i) => {   // snowy peaks and a cabin with smoke
     ctx.fillStyle = 'rgba(206,222,240,.95)'; ctx.beginPath(); ctx.moveTo(X - 7 * TP, base); ctx.lineTo(X - 2 * TP, base - 6.4 * TP); ctx.lineTo(X + 1.5 * TP, base - 3.4 * TP); ctx.lineTo(X + 4 * TP, base - 5.4 * TP); ctx.lineTo(X + 9 * TP, base); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.moveTo(X - 3.1 * TP, base - 5 * TP); ctx.lineTo(X - 2 * TP, base - 6.4 * TP); ctx.lineTo(X - 0.8 * TP, base - 4.9 * TP); ctx.lineTo(X - 1.6 * TP, base - 5.2 * TP); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(X + 3.2 * TP, base - 4.5 * TP); ctx.lineTo(X + 4 * TP, base - 5.4 * TP); ctx.lineTo(X + 4.9 * TP, base - 4.4 * TP); ctx.closePath(); ctx.fill();
@@ -2637,7 +3148,7 @@ function drawFar(W, H, base) {
     ctx.fillStyle = '#FFD982'; ctx.fillRect(cx0 - 0.15 * TP, cy0 - 0.42 * TP, 0.3 * TP, 0.25 * TP);
     if (!REDUCE) for (let k = 0; k < 4; k++) { const t2 = (G.clock * 0.5 + k / 4 + i * 0.3) % 1; ctx.fillStyle = `rgba(255,255,255,${0.6 * (1 - t2)})`; ell(ctx, cx0 + 0.45 * TP + t2 * 0.6 * TP, cy0 - 1.1 * TP - t2 * 1.6 * TP, (0.12 + t2 * 0.22) * TP, (0.12 + t2 * 0.22) * TP); ctx.fill(); }
   });
-  else if (key === 'candy') each(54, 24, (X, i) => {   // gumdrop hills and a candy castle
+  else if (key === 'candy') each(54, 7, (X, i) => {   // gumdrop hills and a candy castle
     for (const [dx, rr, col] of [[-5, 3.2, 'rgba(255,180,210,.85)'], [1, 4.2, 'rgba(200,240,225,.85)'], [7, 2.8, 'rgba(255,214,150,.85)']]) { ctx.fillStyle = col; ell(ctx, X + dx * TP, base - 0.4 * TP, rr * TP, rr * 0.8 * TP); ctx.fill(); }
     const cx0 = X + 1 * TP, cy0 = base - 3.6 * TP;
     ctx.fillStyle = '#FFF0F7'; ctx.fillRect(cx0 - 1.5 * TP, cy0, 3 * TP, 2.2 * TP);
@@ -2647,7 +3158,7 @@ function drawFar(W, H, base) {
     ctx.strokeStyle = '#FF6F9F'; ctx.lineWidth = 0.12 * TP; for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(cx0 + k * 0.6 * TP, cy0); ctx.lineTo(cx0 + k * 0.6 * TP + 0.3 * TP, cy0 + 0.4 * TP); ctx.stroke(); }
   });
   else if (key === 'sea') {   // a reef, a little sunken ship, and fish going by
-    each(50, 20, (X, i) => {
+    each(50, 7, (X, i) => {
       ctx.fillStyle = 'rgba(40,110,150,.85)'; ell(ctx, X, base, 9 * TP, 2.4 * TP); ctx.fill();
       ctx.fillStyle = '#5E4636'; const sx1 = X + 2 * TP, sy1 = base - 1.5 * TP;
       ctx.beginPath(); ctx.moveTo(sx1 - 1.6 * TP, sy1); ctx.lineTo(sx1 + 1.6 * TP, sy1 - 0.3 * TP); ctx.lineTo(sx1 + 1.2 * TP, sy1 + 0.7 * TP); ctx.lineTo(sx1 - 1.2 * TP, sy1 + 0.8 * TP); ctx.closePath(); ctx.fill();
@@ -2659,6 +3170,35 @@ function drawFar(W, H, base) {
       ell(ctx, fx, fy, 16 * u, 8 * u); ctx.fill(); ctx.beginPath(); ctx.moveTo(fx - 14 * u, fy); ctx.lineTo(fx - 26 * u, fy - 7 * u); ctx.lineTo(fx - 26 * u, fy + 7 * u); ctx.closePath(); ctx.fill();
     }
   }
+  else if (key === 'desert') each(58, 5, (X, i) => {   // pyramids on the dunes, and a little caravan going by
+    ctx.fillStyle = 'rgba(244,206,146,.95)'; ell(ctx, X - 3 * TP, base + 0.2 * TP, 12 * TP, 2.3 * TP); ctx.fill();
+    for (const [dx, hh] of [[0, 5.4], [5.6, 3.6]]) {
+      const px = X + dx * TP, top = base - hh * TP, half = hh * 0.95 * TP;
+      ctx.fillStyle = '#EDC386'; ctx.beginPath(); ctx.moveTo(px - half, base); ctx.lineTo(px, top); ctx.lineTo(px, base); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#CF9F62'; ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px + half, base); ctx.lineTo(px, base); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(160,110,60,.3)'; ctx.lineWidth = 2 * u;
+      for (let k = 1; k < 4; k++) { const yy = base - hh * TP * k / 4, hw = half * (1 - k / 4); ctx.beginPath(); ctx.moveTo(px - hw, yy); ctx.lineTo(px + hw, yy); ctx.stroke(); }
+    }
+    for (let k = 0; k < 3; k++) {   // camels: a body, a hump, a neck, four legs
+      const cx0 = X + ((k * 1.3 + (REDUCE ? 0 : G.clock * 0.35) + i * 7) % 30 - 12) * TP, cy0 = base - 0.5 * TP, st = REDUCE ? 0 : Math.sin(G.clock * 3 + k) * 3 * u;
+      ctx.fillStyle = 'rgba(150,100,60,.75)'; ell(ctx, cx0, cy0, 26 * u, 12 * u); ctx.fill(); ell(ctx, cx0 - 2 * u, cy0 - 12 * u, 12 * u, 10 * u); ctx.fill();
+      ctx.strokeStyle = 'rgba(150,100,60,.75)'; ctx.lineWidth = 6 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx0 + 22 * u, cy0 - 4 * u); ctx.quadraticCurveTo(cx0 + 34 * u, cy0 - 10 * u, cx0 + 34 * u, cy0 - 26 * u); ctx.stroke();
+      ell(ctx, cx0 + 38 * u, cy0 - 28 * u, 8 * u, 5 * u); ctx.fill();
+      ctx.lineWidth = 4 * u; for (const [lx, sw] of [[-16, st], [-8, -st], [10, st], [18, -st]]) { ctx.beginPath(); ctx.moveTo(cx0 + lx * u, cy0 + 8 * u); ctx.lineTo(cx0 + lx * u + sw, cy0 + 30 * u); ctx.stroke(); }
+    }
+  });
+  else if (key === 'volcano') each(60, 7, (X, i) => {   // a volcano, smoking, with lava running down one side
+    ctx.fillStyle = '#5E2C3C'; ctx.beginPath(); ctx.moveTo(X - 9.5 * TP, base); ctx.lineTo(X - 1.7 * TP, base - 6.6 * TP); ctx.lineTo(X + 1.7 * TP, base - 6.6 * TP); ctx.lineTo(X + 9.5 * TP, base); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4A2232'; ctx.beginPath(); ctx.moveTo(X + 0.6 * TP, base - 6.6 * TP); ctx.lineTo(X + 1.7 * TP, base - 6.6 * TP); ctx.lineTo(X + 9.5 * TP, base); ctx.lineTo(X + 4 * TP, base); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = REDUCE ? '#FF7A3C' : `rgba(255,${110 + Math.round(30 * Math.sin(G.clock * 2 + i))},60,1)`; ell(ctx, X, base - 6.6 * TP, 1.75 * TP, 0.32 * TP); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,110,50,.85)'; ctx.lineWidth = 0.32 * TP; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(X + 0.5 * TP, base - 6.4 * TP); ctx.quadraticCurveTo(X + 1.2 * TP, base - 3.6 * TP, X + 2.9 * TP, base - 1.6 * TP); ctx.quadraticCurveTo(X + 3.6 * TP, base - 0.8 * TP, X + 3.4 * TP, base); ctx.stroke();
+    for (let k = 0; k < 5; k++) {
+      const t2 = ((REDUCE ? 0.3 : G.clock * 0.1) + k / 5 + i * 0.37) % 1, rr = (0.7 + t2 * 1.8) * TP;
+      ctx.fillStyle = `rgba(104,82,92,${(0.55 * (1 - t2)).toFixed(3)})`; ell(ctx, X + (Math.sin(t2 * 5 + k) * 0.7 + t2 * 2.2) * TP, base - 7 * TP - t2 * 5.5 * TP, rr, rr * 0.8); ctx.fill();
+    }
+  });
   else if (key === 'night') {   // a sleeping town far off, and now and then a shooting star
     each(40, 0, (X, i) => {
       for (let k = 0; k < 7; k++) { const bw = (0.9 + hash(i * 7 + k) * 0.8) * TP, bh = (3.4 + hash(i * 7 + k + 50) * 3.2) * TP, bx = X + k * 1.6 * TP;
@@ -2689,6 +3229,15 @@ function drawCabin(m, al) {
 function drawWind(f) {
   const on = !f.powered || G.chanOn[f.ch]; if (!on || REDUCE) return;
   const X = sx(f.c + 0.5), top = sy(f.rTop), bot = sy(f.r), u = TP / 100;
+  if (G.L.world.key === 'volcano') {   // rising heat: wavy orange lines and a few sparks
+    ctx.lineWidth = 3 * u; ctx.lineCap = 'round';
+    for (let k = 0; k < 5; k++) {
+      const ph = (G.clock * 1.2 + k / 5) % 1, y = bot - (bot - top) * ph, x = X + Math.sin(G.clock * 4 + k * 1.9) * 14 * u;
+      ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.75; ctx.strokeStyle = k % 2 ? 'rgba(255,170,90,.9)' : 'rgba(255,220,150,.8)';
+      ctx.beginPath(); ctx.moveTo(x, y + 22 * u); ctx.quadraticCurveTo(x + 10 * u, y + 11 * u, x, y); ctx.quadraticCurveTo(x - 10 * u, y - 11 * u, x, y - 22 * u); ctx.stroke();
+    }
+    ctx.globalAlpha = 1; return;
+  }
   if (G.L.world.key === 'sea') {   // a bubble vent
     for (let k = 0; k < 7; k++) { const ph = (G.clock * 0.9 + k / 7) % 1, y = bot - (bot - top) * ph, x = X + Math.sin(G.clock * 3 + k * 1.7) * 16 * u, rr = (5 + (k % 3) * 3) * u;
       ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.9; ctx.strokeStyle = 'rgba(235,252,255,.95)'; ctx.lineWidth = 2.2 * u; ell(ctx, x, y, rr, rr); ctx.stroke(); }
@@ -2740,18 +3289,28 @@ function drawStorm(W, H) {
   }
 }
 // a night level: dark, except around the two of you, the pet, and the lanterns you have lit
+// The mask is all soft edges, so it is drawn at a quarter of the size each way, on its own canvas over the game
+// that the GPU stretches to the screen: stretching it onto the game canvas was still half of a CPU-drawn frame.
+// Fireflies get a little hole each, so they still glow; and once you are both home the lights come on.
 function drawDark(W, H) {
-  let c = V.darkCv; if (!c || c.width !== W || c.height !== H) c = V.darkCv = mk(W, H);
-  const d = c.getContext('2d');
-  d.globalCompositeOperation = 'source-over'; d.clearRect(0, 0, W, H); d.fillStyle = 'rgba(10,8,32,0.84)'; d.fillRect(0, 0, W, H);
+  const q = 4, w = Math.max(1, Math.round(W / q)), h = Math.max(1, Math.round(H / q));
+  if (cvD.width !== w || cvD.height !== h) { cvD.width = w; cvD.height = h; }
+  const d = cvD.getContext('2d');
+  const lit = G.state === 'won' ? Math.min(1, G.wonT / 1.4) : 0;
+  d.setTransform(1, 0, 0, 1, 0, 0);
+  d.globalCompositeOperation = 'source-over'; d.clearRect(0, 0, w, h);
+  if (lit >= 1) return;
+  d.fillStyle = `rgba(10,8,32,${0.84 * (1 - lit)})`; d.fillRect(0, 0, w, h);
+  d.setTransform(w / W, 0, 0, h / H, 0, 0);   // the holes below are placed in the game canvas's pixels
   d.globalCompositeOperation = 'destination-out';
-  const hole = (x, y, r) => { const X = sx(x), Y = sy(y), R2 = r * TP; if (X < -R2 || X > W + R2) return; const g = d.createRadialGradient(X, Y, R2 * 0.3, X, Y, R2); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); d.fillStyle = g; d.beginPath(); d.arc(X, Y, R2, 0, Math.PI * 2); d.fill(); };
+  const at = (X, Y, R2, core = 0.3) => { if (X < -R2 || X > W + R2 || Y < -R2 || Y > H + R2) return; const g = d.createRadialGradient(X, Y, R2 * core, X, Y, R2); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); d.fillStyle = g; d.beginPath(); d.arc(X, Y, R2, 0, Math.PI * 2); d.fill(); };
+  const hole = (x, y, r) => at(sx(x), sy(y), r * TP);
   for (const p of G.players) if (!p.dead) hole(p.x + p.w / 2 + (p.vox || 0), p.y + p.h / 2 + (p.voy || 0), 3.4);
   if (G.petPos && G.petImg) hole(G.petPos.x, G.petPos.y - 0.7, 1.5);
   for (const l of G.L.lamps) if (l.lit) hole(l.x, l.y - 1.7, 3.4 + (REDUCE ? 0 : Math.sin(G.clock * 3 + l.x) * 0.1));
   for (const it of G.L.items) if (!it.got && it.type === 'star') hole(it.x, it.y, 0.9);
   if (G.L.door) hole(G.L.door.x, G.L.door.y - 1.5, 2.6);
-  ctx.drawImage(c, 0, 0);
+  if (G.L.world.amb === 'firefly') for (const a of G.amb) at(a.x, a.y, 14 * a.s * V.dpr, 0.15);
 }
 function drawPlatformThing(m, al, kind) {
   const y = m.py + (m.y - m.py) * al, x = kind === 'mover' ? m.px + (m.x - m.px) * al : m.x0;
@@ -2791,18 +3350,20 @@ function drawSpring(s) {
 
 /* ── ambient weather, sparks and fireworks ── */
 function ambTick(dt, W, H) {
-  const kind = G.L.world.key;
-  const n = REDUCE ? 0 : kind === 'summer' ? 10 : kind === 'park' ? 12 : kind === 'sea' ? 18 : 26;
+  const kind = G.L.world.key, am = G.L.world.amb;
+  const n = REDUCE ? 0 : kind === 'summer' ? 10 : kind === 'park' ? 12 : kind === 'sea' ? 18 : kind === 'desert' ? 16 : kind === 'volcano' ? 22 : 26;
   while (G.amb.length < n) G.amb.push({ x: Math.random() * W, y: Math.random() * H, ph: Math.random() * 6, s: 0.6 + Math.random() * 0.8 });
   const d = V.dpr;
   for (const a of G.amb) {
     a.ph += dt;
-    if (kind === 'firefly') { a.x += Math.cos(a.ph * 0.7) * 12 * dt * d; a.y += Math.sin(a.ph * 0.9) * 10 * dt * d; }
+    if (am === 'firefly') { a.x += Math.cos(a.ph * 0.7) * 12 * dt * d; a.y += Math.sin(a.ph * 0.9) * 10 * dt * d; }   // (this read the world's name, 'night', so the fireflies fell like snow)
     else if (kind === 'summer') { a.y -= 14 * dt * d; }
     else if (kind === 'park') { a.y -= 16 * a.s * dt * d; a.x += Math.sin(a.ph * 0.8) * 8 * dt * d; }
     else if (kind === 'sea') { a.y -= 22 * a.s * dt * d; a.x += Math.sin(a.ph * 1.6) * 10 * dt * d; }
     else if (kind === 'candy') { a.y += 26 * a.s * dt * d; a.x += Math.sin(a.ph) * 6 * dt * d; }
-    else { a.y += (kind === 'snow' ? 22 : 30) * a.s * dt * d; a.x += (Math.sin(a.ph * 1.3) * 18 + (kind === 'leaf' ? 14 : 0)) * dt * d; }
+    else if (am === 'dust') { a.x += (26 + 16 * a.s) * dt * d; a.y += Math.sin(a.ph * 1.1) * 6 * dt * d; }
+    else if (am === 'ember') { a.y -= (18 + 20 * a.s) * dt * d; a.x += Math.sin(a.ph * 1.7) * 9 * dt * d; }
+    else { a.y += (am === 'snow' ? 22 : 30) * a.s * dt * d; a.x += (Math.sin(a.ph * 1.3) * 18 + (am === 'leaf' ? 14 : 0)) * dt * d; }
     if (a.y > H + 10) { a.y = -10; a.x = Math.random() * W; } if (a.y < -12) { a.y = H + 8; a.x = Math.random() * W; }
     if (a.x > W + 10) a.x = -10; if (a.x < -12) a.x = W + 8;
   }
@@ -2816,6 +3377,8 @@ function drawAmb() {
     else if (kind === 'winter') { ctx.fillStyle = 'rgba(255,255,255,.9)'; ell(ctx, a.x, a.y, 2.6 * s, 2.6 * s); ctx.fill(); }
     else if (kind === 'night') { ctx.fillStyle = `rgba(255,236,150,${0.3 + 0.6 * Math.abs(Math.sin(a.ph * 2))})`; ell(ctx, a.x, a.y, 2.2 * s, 2.2 * s); ctx.fill(); }
     else if (kind === 'sea') { ctx.strokeStyle = 'rgba(230,250,255,.7)'; ctx.lineWidth = 1.2 * d; ell(ctx, a.x, a.y, 3.6 * s, 3.6 * s); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(ctx, a.x - 1.2 * s, a.y - 1.2 * s, 1 * s, 1 * s); ctx.fill(); }
+    else if (kind === 'desert') { ctx.fillStyle = 'rgba(214,170,104,.55)'; ell(ctx, a.x, a.y, 2.6 * s, 1.5 * s); ctx.fill(); }
+    else if (kind === 'volcano') { ctx.fillStyle = `rgba(255,${150 + Math.round(70 * Math.abs(Math.sin(a.ph * 3)))},70,${(0.45 + 0.5 * Math.abs(Math.sin(a.ph * 2.2))).toFixed(2)})`; ell(ctx, a.x, a.y, 2.1 * s, 2.1 * s); ctx.fill(); }
     else if (kind === 'candy') { ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.ph); ctx.fillStyle = ['#FF8FB3', '#8FE3C4', '#FFE08A', '#C69CFF', '#8FC4FF'][Math.floor(a.s * 10) % 5]; rrect(ctx, -4 * s, -1.4 * s, 8 * s, 2.8 * s, 1.4 * s); ctx.fill(); ctx.restore(); }
     else if (kind === 'park') {
       const col = ['rgba(255,143,179,.8)', 'rgba(159,216,255,.8)', 'rgba(255,208,143,.8)', 'rgba(201,162,255,.8)'][Math.floor(a.ph * 7) % 4 < 0 ? 0 : Math.floor(a.s * 10) % 4];
@@ -2861,16 +3424,30 @@ function render(al, dt) {
   V.tags = [];     // name tags drawn this frame (nameTag keeps them from overlapping)
   V.al = al;       // how far between two physics steps this frame is drawn (the net test measures what is drawn)
   const W = cv.width, H = cv.height;
+  let jx = 0, jy = 0;
+  if (G.shake > 0 && !REDUCE) { jx = (Math.random() - 0.5) * G.shake * 0.35; jy = (Math.random() - 0.5) * G.shake * 0.25; }
+  // The far layers (sky, sun, hills, the middle row of trees) are soft and slow, so they are drawn on their own
+  // canvas behind this one at a quarter of the pixels, and the GPU lays one over the other. Drawn by the CPU — as
+  // Safari draws shapes — that took 樱花小路 from 29 to 50+ fps at 4× slowdown. Same camera, same world units.
+  const main = ctx, md = V.dpr;
+  try {
+    ctx = bctx; V.dpr = V.bd;
+    TP = V.tile * G.cam.z * V.bd; CX = G.cam.x + jx; CY = R - cvB.height / TP + jy;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cvB.width, cvB.height);
+    drawBackdrop(cvB.width, cvB.height);
+  } finally { ctx = main; V.dpr = md; }
   TP = V.tile * G.cam.z * V.dpr;
-  CX = G.cam.x; CY = R - H / TP;
-  if (G.shake > 0 && !REDUCE) { CX += (Math.random() - 0.5) * G.shake * 0.35; CY += (Math.random() - 0.5) * G.shake * 0.25; }
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  drawBackdrop(W, H);
+  CX = G.cam.x + jx; CY = R - H / TP + jy;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
   const c0 = Math.max(0, Math.floor(CX)), c1 = Math.min(L.w - 1, Math.ceil(CX + W / TP));
   const r0 = Math.max(0, Math.floor(CY));
-  if (L.world.water) { const wy = sy(12.15); ctx.fillStyle = L.world.water; ctx.fillRect(0, wy, W, H - wy); ctx.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 0; x < W; x += 26 * V.dpr) ctx.fillRect(x + ((G.clock * 20 * V.dpr) % (26 * V.dpr)), wy + 3 * V.dpr, 12 * V.dpr, 2 * V.dpr); }
+  if (L.world.key === 'volcano') {   // lava under every pit: a hot band at the top and slow bubbles
+    const wy = sy(12.1), d = V.dpr; ctx.fillStyle = '#B9301C'; ctx.fillRect(0, wy, W, H - wy); ctx.fillStyle = '#FF7A2E'; ctx.fillRect(0, wy, W, 5 * d);
+    ctx.fillStyle = 'rgba(255,190,90,.85)';
+    for (let k = 0; k < 9; k++) { const x = ((k * 173 + (REDUCE ? 0 : G.clock * (10 + k * 3)) * d) % (W + 40 * d)) - 20 * d, r = (3 + (k % 3) * 2 + (REDUCE ? 0 : Math.sin(G.clock * 3 + k) * 1.5)) * d; ell(ctx, x, wy + (12 + (k % 3) * 7) * d, r, r * 0.8); ctx.fill(); }
+  } else if (L.world.water) { const wy = sy(12.15); ctx.fillStyle = L.world.water; ctx.fillRect(0, wy, W, H - wy); ctx.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 0; x < W; x += 26 * V.dpr) ctx.fillRect(x + ((G.clock * 20 * V.dpr) % (26 * V.dpr)), wy + 3 * V.dpr, 12 * V.dpr, 2 * V.dpr); }
   for (const d of L.decor) if (d.x > c0 - 1 && d.x < c1 + 2) drawDecor(d);
-  const TUFT = { spring: '#5DB565', summer: '#8CC46A', autumn: '#C98A3E', winter: '#FFFFFF', park: '#F58FB8', night: '#5B54B0', candy: '#8FE3C4', sea: '#5ACBB0' }[L.world.key] || '#5DB565';
+  const TUFT = { spring: '#5DB565', summer: '#8CC46A', autumn: '#C98A3E', winter: '#FFFFFF', park: '#F58FB8', night: '#5B54B0', candy: '#8FE3C4', sea: '#5ACBB0', desert: '#C9A55E', volcano: '#6E5A5A' }[L.world.key] || '#5DB565';
   for (let r = r0; r < R; r++) {
     const Y = Math.round(sy(r)), Hh = Math.round(sy(r + 1)) - Y;
     for (let c = c0; c <= c1; c++) {
@@ -2885,6 +3462,7 @@ function render(al, dt) {
   for (const l of L.lamps) drawLamp(l);
   if (L.door) drawHouse(L.door);
   for (const s of L.signs) drawSign(s);
+  for (const cn of L.cannons) drawCannon(cn, false);
   // tufts of grass along the tops (snow lumps in winter), swaying a little; drawn over the tiles' top edge
   ctx.strokeStyle = TUFT; ctx.fillStyle = TUFT; ctx.lineCap = 'round';
   for (const t of L.tufts) {
@@ -2914,6 +3492,9 @@ function render(al, dt) {
   const [a, b] = G.players;
   const order = a.y < b.y ? [b, a] : [a, b];
   for (const p of order) drawChar(p, al);
+  if (L.hasSand) for (const p of order) sandRim(p, al);
+  for (const cn of L.cannons) drawCannon(cn, true);
+  for (const j of L.jets) drawJet(j);
   for (const p of order) drawTag(p, al);
   drawHold(al);
   for (const p of G.parts) {
@@ -2931,13 +3512,10 @@ function render(al, dt) {
     else if (f.kind === 'text') { ctx.globalAlpha = Math.min(1, k * 2); ctx.font = `900 ${Math.round(TP * 0.5)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.fillText(f.text, sx(f.x), sy(f.y)); }
   }
   ctx.globalAlpha = 1;
+  if (cvD.hidden === !!L.spec.dark) cvD.hidden = !L.spec.dark;
   if (L.spec.dark) drawDark(W, H);
   ambTick(dt, W, H); drawAmb();
-  if (!V.vig || V.vig.width !== W || V.vig.height !== H) {
-    V.vig = mk(W, H); const v = V.vig.getContext('2d'), g = v.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.35, W / 2, H * 0.5, Math.max(W, H) * 0.75);
-    g.addColorStop(0, 'rgba(30,10,40,0)'); g.addColorStop(1, 'rgba(30,10,40,.22)'); v.fillStyle = g; v.fillRect(0, 0, W, H);
-  }
-  ctx.drawImage(V.vig, 0, 0);
+  // (the soft vignette round the edges is .cg-vig, a CSS layer over the canvas: free, where a full-screen blit was not)
   if (G.flash > 0) { ctx.fillStyle = `rgba(255,248,220,${Math.min(0.35, G.flash)})`; ctx.fillRect(0, 0, W, H); G.flash -= dt * 1.6; }
   if (G.shells.length || G.sparks.length) drawFireworks(dt, W, H);
 }
@@ -2950,6 +3528,8 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
   } else if (t === T_BLOCK) ctx.drawImage(sprite('block'), X, Y, Ww, Hh);
   else if (t === T_PLAT) ctx.drawImage(sprite('plat', (code(c - 1, r) === T_PLAT ? 2 : 0) | (code(c + 1, r) === T_PLAT ? 4 : 0)), X, Y, Ww, Hh);
   else if (t === T_SPIKE) ctx.drawImage(sprite('spike'), X, Y, Ww, Hh);
+  else if (t === T_SAND) ctx.drawImage(sprite('sand', code(c, r - 1) === T_SAND || isGround(code(c, r - 1)) ? 0 : 1), X, Y, Ww, Hh);
+  else if (t === T_VENT) ctx.drawImage(sprite('vent'), X, Y, Ww, Hh);
   else if (t === T_GIFT || t === T_GIFTQ || t === T_USED) {
     const bump = G.bumps.find(g => g.c === c && g.r === r);
     const off = bump ? Math.sin((1 - bump.t / 0.22) * Math.PI) * Hh * 0.25 : 0;
@@ -2988,6 +3568,11 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
     heartPath(ctx, X + Ww / 2, Y + Hh - (lift + 18) * u, 25 * u); ctx.fill(); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.55)'; ell(ctx, X + Ww / 2 - 9 * u, Y + Hh - (lift + 28) * u, 5 * u, 3.5 * u, -0.5); ctx.fill();
     if (done && !REDUCE) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(G.clock * 4); ctx.fillStyle = '#FFFFFF'; heartPath(ctx, X + Ww / 2, Y + Hh - (lift + 20) * u, 10 * u); ctx.fill(); ctx.globalAlpha = 1; }
+  } else if (t === T_FAN && L.world.key === 'volcano') {   // a hot-air vent in the lava
+    const u = Ww / 100;
+    ctx.fillStyle = '#3A2A2E'; rrect(ctx, X + 2 * u, Y + 4 * u, Ww - 4 * u, Hh - 4 * u, 12 * u); ctx.fill();
+    ctx.fillStyle = REDUCE ? '#FF8A3C' : `rgba(255,${120 + Math.round(40 * Math.sin(G.clock * 5 + c))},60,.95)`;
+    for (let k = 0; k < 3; k++) { rrect(ctx, X + (16 + k * 24) * u, Y + 16 * u, 14 * u, Hh - 32 * u, 6 * u); ctx.fill(); }
   } else if (t === T_FAN) {
     const f = L.fans.find(q => q.c === c && q.r === r), on = f && (!f.powered || G.chanOn[f.ch]), u = Ww / 100;
     ctx.fillStyle = '#6E7F9E'; rrect(ctx, X + 2 * u, Y + 4 * u, Ww - 4 * u, Hh - 4 * u, 12 * u); ctx.fill();
@@ -3081,6 +3666,8 @@ html[data-theme="dark"] .cg-lv .co{color:#FF9CC4}
 .cg-btn{width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:17px;flex:none;cursor:pointer}
 .cg-view{position:relative;flex:1;min-height:0;overflow:hidden}
 .cg-view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cg-view canvas[hidden]{display:none}
+.cg-vig{position:absolute;inset:0;pointer-events:none}
 .cg-bubble{position:absolute;z-index:2;transform:translate(-50%,-100%);max-width:min(78vw,300px);background:#FFFDF8;color:#3A2F3C;border-radius:14px;padding:8px 12px;font:700 13.5px/1.45 sans-serif;font-family:inherit;box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none;text-align:center}
 .cg-bubble::after{content:"";position:absolute;left:50%;bottom:-6px;width:12px;height:12px;background:inherit;transform:translateX(-50%) rotate(45deg)}
 .cg-edge{position:absolute;z-index:2;top:42%;padding:4px 9px;border-radius:14px;background:rgba(20,16,40,.6);font-weight:800;font-size:13px;pointer-events:none}
@@ -3179,7 +3766,7 @@ function buildStage() {
   s.innerHTML = `<div class="cg-top2"><div class="cg-name" data-r="name"></div>
       <div class="cg-stat"><span class="cg-hp" data-r="hp"></span><span data-r="hearts">💗 0</span><span data-r="stars">⭐ 0/3</span></div>
       <button type="button" class="cg-btn" data-r="sound" aria-label="声音">🔊</button><button type="button" class="cg-btn" data-r="pause" aria-label="暂停">⏸</button></div>
-    <div class="cg-view" data-r="view"><canvas></canvas>
+    <div class="cg-view" data-r="view"><canvas class="cg-back" aria-hidden="true"></canvas><canvas class="cg-main"></canvas><canvas class="cg-dark" aria-hidden="true" hidden></canvas><div class="cg-vig" aria-hidden="true"></div>
       <div class="cg-bubble" data-r="b1" hidden></div><div class="cg-bubble" data-r="b2" hidden></div>
       <div class="cg-edge" data-r="edge" hidden></div><div class="cg-turn" data-r="turn" hidden></div><div class="cg-net" data-r="net" hidden></div>
       <div class="cg-keys" data-r="keys" hidden></div><div class="cg-rot" data-r="rot" hidden>两个人一起玩：把手机横过来，一人一边</div>
@@ -3193,7 +3780,8 @@ function buildStage() {
   document.body.appendChild(s);
   const R = (k) => s.querySelector(`[data-r="${k}"]`);
   Object.assign(UI, { stage: s, view: R('view'), veil: R('veil'), panel: R('panel'), sticks: R('sticks'), R });
-  cv = s.querySelector('canvas'); ctx = cv.getContext('2d');
+  cv = s.querySelector('.cg-main'); ctx = cv.getContext('2d');
+  cvB = s.querySelector('.cg-back'); bctx = cvB.getContext('2d'); cvD = s.querySelector('.cg-dark');
   wireControls();
 }
 
@@ -3282,7 +3870,7 @@ const lvName = (i) => `${lvNum(i)} ${LEVELS[i].name}`;
 function tipArt(kind) {
   const c = (k, st = '') => `<span style="display:inline-block;width:58px;${st}">${fullSvg(k, 'happy')}</span>`;
   if (kind === 'stack') return `<div class="tip-art" style="height:118px;position:relative;width:70px;margin:0 auto">${c('cs', 'position:absolute;left:6px;bottom:0')}${c('yy', 'position:absolute;left:6px;bottom:52px')}</div>`;
-  const icon = { plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧' }[kind] || '💞';
+  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧' }[kind] || '💞';
   return `<div class="tip-art">${c('cs')}<span style="font-size:34px;align-self:center">${icon}</span>${c('yy')}</div>`;
 }
 function controlsLine() {
@@ -3401,25 +3989,27 @@ function hud() {
   R('stars').textContent = `⭐ ${G.stars.filter(Boolean).length}/3`;
 }
 function place(el, wx, wy) { el.style.left = (sx(wx) / V.dpr) + 'px'; el.style.top = (sy(wy) / V.dpr) + 'px'; }
+const vis = (el, on) => { if (el.hidden === on) el.hidden = !on; };
 function bubbles() {
   const R = UI.R, b1 = R('b1'), b2 = R('b2'), edge = R('edge');
-  if (G.state !== 'play' && G.state !== 'won') { b1.hidden = b2.hidden = edge.hidden = true; return; }
+  // (`hidden` is set only when it changes: this runs every frame, and every write is a DOM mutation)
+  if (G.state !== 'play' && G.state !== 'won') { vis(b1, false); vis(b2, false); vis(edge, false); return; }
   const mine = G.players.filter(p => !p.dead && (isLocal(p) || G.mode !== 'online'));
   let sign = null, bd = 2.6;
   for (const s of G.L.signs) for (const p of mine) { const d = Math.abs(p.x + p.w / 2 - s.x); if (d < bd && Math.abs(p.y + p.h - s.y) < 3) { bd = d; sign = s; } }
-  if (sign && sign.text) { const tx = named(sign.text); if (b1.textContent !== tx) b1.textContent = tx; place(b1, sign.x, sign.y - 1.35); b1.hidden = false; } else b1.hidden = true;
+  if (sign && sign.text) { const tx = named(sign.text); if (b1.textContent !== tx) b1.textContent = tx; place(b1, sign.x, sign.y - 1.35); vis(b1, true); } else vis(b1, false);
   let msg = null, at = null;
   const d = G.L.door;
   if (d && d.wait >= 0 && G.state === 'play') { msg = `等 ${nameOf(G.players[1 - d.wait].k)} 一起进门 💕`; at = [d.x, d.y - 3.2]; }
   for (const bx of G.L.boxes) if (bx.strain > 0.5) { msg = G.mode === 'solo' ? '一个人推不动！先「牵手」，再一起推' : '一个人推不动，要两个人一起推！'; at = [bx.x + 1, bx.y - 0.3]; }
   if (G.hint && G.hint.t > G.clock) { msg = G.hint.text; at = G.hint.at; }
-  if (msg) { if (b2.textContent !== msg) b2.textContent = msg; place(b2, at[0], at[1]); b2.hidden = false; } else b2.hidden = true;
+  if (msg) { if (b2.textContent !== msg) b2.textContent = msg; place(b2, at[0], at[1]); vis(b2, true); } else vis(b2, false);
   // the other one, when they are off screen (one person playing both, or on their own phone)
   if (G.mode === 'solo' || ONLINE()) {
     const q = G.players[G.mode === 'solo' ? 1 - G.active : 1 - G.meIdx], vwz = V.viewW / G.cam.z;
     const off = q.x + q.w < G.cam.x ? 'l' : q.x > G.cam.x + vwz ? 'r' : '';
-    if (off && !q.dead) { edge.className = 'cg-edge ' + off; edge.textContent = off === 'l' ? `← ${nameOf(q.k)}` : `${nameOf(q.k)} →`; edge.hidden = false; } else edge.hidden = true;
-  } else edge.hidden = true;
+    if (off && !q.dead) { const ec = 'cg-edge ' + off; if (edge.className !== ec) edge.className = ec; const et = off === 'l' ? `← ${nameOf(q.k)}` : `${nameOf(q.k)} →`; if (edge.textContent !== et) edge.textContent = et; vis(edge, true); } else vis(edge, false);
+  } else vis(edge, false);
 }
 
 /* ── controls ── */
@@ -3546,6 +4136,8 @@ const SONGS = {
   park: { root: 67, bpm: 124, minor: false, chords: [0, 4, 5, 3], lead: 'square', seed: 53 },
   candy: { root: 64, bpm: 128, minor: false, chords: [0, 3, 4, 0], lead: 'square', seed: 71 },
   sea: { root: 62, bpm: 80, minor: false, chords: [0, 5, 3, 4], lead: 'sine', seed: 83 },
+  desert: { root: 62, bpm: 98, minor: true, chords: [0, 5, 6, 4], lead: 'triangle', seed: 97 },
+  volcano: { root: 55, bpm: 132, minor: true, chords: [0, 6, 5, 4], lead: 'square', seed: 109 },
   night: { root: 58, bpm: 76, minor: true, chords: [0, 3, 6, 4], lead: 'sine', seed: 67 },
 };
 const MUSIC = { timer: 0, next: 0, step: 0, key: '', song: null, gain: null };
@@ -3619,6 +4211,7 @@ function sfx(n) {
     case 'pop': tone(700, 1200, 0.08, 'sine', 0.07); break;
     case 'swap': tone(740, 980, 0.09, 'sine', 0.06); break;
     case 'boom': noise(0.35, 0.05); tone(120, 50, 0.3, 'sine', 0.06); break;
+    case 'cannon': noise(0.22, 0.07); tone(160, 60, 0.22, 'sine', 0.08); tone(520, 900, 0.18, 'triangle', 0.03); break;
     case 'bosshit': tone(260, 70, 0.3, 'square', 0.07); noise(0.2, 0.05); break;
     case 'rumble': noise(0.6, 0.04); tone(70, 50, 0.6, 'sawtooth', 0.04); break;
     case 'drip': tone(1300, 600, 0.06, 'sine', 0.03); break;
@@ -3631,8 +4224,9 @@ function sfx(n) {
 }
 
 /* ── 一起回家's own screen: how to play, the levels, your partner ── */
-const NEW_IN = { 0: '新：叠罗汉', 1: '新：按钮开门', 2: '新：按钮变桥', 3: '新：同心锁', 5: '新：电梯和弹簧', 6: '新：传送带', 7: '新：道具', 10: '新：蓝粉方块', 11: '新：风扇',
-  15: '新：一起推', 16: '新：传送门', 20: '新：摩天轮', 25: '新：糖果乐园', 30: '新：海底，跳得更高', 33: '新：两种颜色的墙', 35: '新：跷跷板', 36: '新：黑夜和灯笼', 37: '新：暴风雨', 39: '最后一关' };
+const NEW_IN = { M1: '新：叠罗汉', M2: '新：按钮开门', M3: '新：按钮变桥', M4: '新：同心锁', M6: '新：电梯和弹簧', M7: '新：传送带', M8: '新：道具', M11: '新：蓝粉方块', M12: '新：风扇',
+  M16: '新：一起推', M17: '新：传送门', M21: '新：摩天轮', M31: '新：糖果乐园', M36: '新：海底，跳得更高', M39: '新：两种颜色的墙', M41: '新：大炮和流沙', M46: '新：喷火口', M47: '新：箱子压火',
+  M26: '新：跷跷板', M27: '新：黑夜和灯笼', M28: '新：暴风雨', M30: '最后一关' };   // by level id: positions move whenever a world goes in
 // levels by world: the picker, the names (2-3) and the star counts all come from here, not from "4 per world"
 const IN_WORLD = WORLDS.map((w, k) => LEVELS.map((L, i) => (L.world === k ? i : -1)).filter(i => i >= 0));
 let menuWorld = 0;
@@ -3693,7 +4287,7 @@ function renderHome() {
       const st = rec ? (rec.sm || []).map(v => (v ? '★' : '☆')).join('') : '☆☆☆';
       return `<button type="button" class="cg-lv${rec ? ' done' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
         <span class="n">${locked ? '🔒 ' : ''}${L.world + 1}-${j + 1}</span><span class="nm">${L.name}</span><span class="st">${st}</span>
-        <span class="bt">${rec ? '最快 ' + fmtT(rec.t) : locked ? '先过前一关' : '还没玩过'}</span>${NEW_IN[i] ? `<span class="co">${NEW_IN[i]}</span>` : ''}</button>`;
+        <span class="bt">${rec ? '最快 ' + fmtT(rec.t) : locked ? '先过前一关' : '还没玩过'}</span>${NEW_IN[L.id] ? `<span class="co">${NEW_IN[L.id]}</span>` : ''}</button>`;
     }).join('')}</div>
     <p class="cg-line" style="font-size:12.5px">${G.mode === 'online' ? `各用自己的手机时，${LEVELS.length} 关都能直接选。` : '过了一关才能玩下一关。'}最高纪录和星星记在这部手机上。</p>
   </div>`;
@@ -3720,7 +4314,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 4, DELAY = 110;   // 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
+const NET_V = 5, DELAY = 110;   // 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -3880,7 +4474,7 @@ function netTick(now) {
   if (world || now - NET.sendAt >= due) {
     NET.sendAt = now; NET.lastSig = sig;
     const g = gk >= 2 && p.ground.ref ? p.ground.ref : null;
-    const m = { n: NET.n, ts: now, ak: NET.rx, i: ib, p: [r3(p.x), r3(p.y), r3(p.vx), r3(p.vy), p.face, f, gk, gi, p.launch ? p.launch.vx : 0] };
+    const m = { n: NET.n, ts: now, ak: NET.rx, i: ib, p: [r3(p.x), r3(p.y), r3(p.vx), r3(p.vy), p.face, f, gk, gi, p.launch ? p.launch.vx : 0, p.launch && p.launch.keep ? 1 : 0] };
     if (g) m.rx = r3(p.x - (g.x != null ? g.x : g.x0));   // a lift has only x0   // where on the thing (or the partner) they stand, so it is drawn on it, not beside it
     if (world) m.w = world;
     netSend('st', m);
@@ -3932,7 +4526,7 @@ function netState(m, now) {
   for (const k in q) if (k !== 'an') s[k] = q[k];
   s.x = a[0]; s.y = a[1]; s.vx = a[2]; s.vy = a[3]; s.face = a[4] < 0 ? -1 : 1; s.dead = 0;
   s.grounded = !!(f & 1); s.jbuf = f & 128 ? 0.13 : 0; s.usedDouble = !!(f & 256); s.springy = !!(f & 512); s.lock = f & 1024 ? 0.1 : 0;
-  s.launch = a[8] ? { vx: +a[8] } : null; s.prevJ = !!(ib & 4); s.coyote = s.grounded ? 0.1 : 0; s.push = null;
+  s.launch = a[8] ? { vx: +a[8], keep: !!a[9] } : null; s.prevJ = !!(ib & 4); s.coyote = s.grounded ? 0.1 : 0; s.push = null;
   const gk = a[6] | 0, gi = a[7] | 0;
   let held = false;   // standing on something that moves: placed on it as it is NOW, not replayed
   s.ground = null;
@@ -4240,7 +4834,9 @@ function beatTap(who) {
 }
 function beatFrame() {
   const R0 = BT.run; if (!R0 || !BT.root) return;
-  const now = performance.now(), L = R0.L, heart = BR('heart'), msg = BR('msg');
+  // the elements are looked up once a run (again only if the panel was redrawn), and text is written only when it changes
+  if (!R0.el || !R0.el.heart.isConnected) R0.el = { heart: BR('heart'), msg: BR('msg'), sub: BR('sub') };
+  const now = performance.now(), L = R0.L, heart = R0.el.heart, msg = R0.el.msg;
   const k = Math.floor((now - R0.t0) / R0.iv), into = (now - R0.t0) / R0.iv - k;
   if (k >= 0 && k + 1 !== R0.tick && k < R0.lead + L.n) {
     R0.tick = k + 1;
@@ -4279,7 +4875,8 @@ function beatFrame() {
     dyy.style.left = pos(b.yy) + '%'; dyy.style.opacity = b.yy == null ? 0 : 1;
   }
   const done = R0.beats.filter(b => b.done).length;
-  BR('sub').textContent = late ? `等 ${nameOf(them)} 的网络…` : `${done}/${L.n} 拍 · ${R0.pts} 分`;
+  const subT = late ? `等 ${nameOf(them)} 的网络…` : `${done}/${L.n} 拍 · ${R0.pts} 分`;
+  if (R0.el.sub.textContent !== subT) R0.el.sub.textContent = subT;
   if (done === L.n) return beatEnd(R0);
   requestAnimationFrame(beatFrame);
 }
@@ -4340,7 +4937,7 @@ window.CoopGames = {
     inp(i, o) { TEST_IN[i] = Object.assign({ l: false, r: false, j: false }, o || {}); },
     tp(i, x, y) { const p = G.players[i]; p.x = p.px = x; p.y = p.py = y; p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; },
     set(k, v) { G[k] = v; }, swap, toggleHold, closeStage: () => closeStage(), render: () => render(1, 0),
-    solidCell, oneWayCell, surfTop, home: () => UI.home, stage: () => UI.stage, beatTap, al: () => (V.al == null ? 1 : V.al),
+    solidCell, oneWayCell, surfTop, jetState, home: () => UI.home, stage: () => UI.stage, beatTap, al: () => (V.al == null ? 1 : V.al),
     hurt: () => { const p = G.players[G.meIdx]; p.inv = 0; hurt(p, p.x - 1); },   // exactly what spikes do to this phone's player
   },
 };

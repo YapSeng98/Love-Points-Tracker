@@ -233,6 +233,40 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
     const ca = await T(A.p, () => CoopGames.test.G.chaseX), cb = await T(B.p, () => CoopGames.test.G.chaseX);
     ok(ca != null && cb != null && ca > 2 && Math.abs(ca - cb) < 0.5, `the storm is coming, at the same spot on both phones (${ca && ca.toFixed(2)} / ${cb && cb.toFixed(2)})`);
   }
+  {   // 大炮: A1 stands in it, B2 steps on its button on B2's phone; A1 is fired on A1's phone and flies the same arc on B2's
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'J_cannon1')), '沙丘小路 starts on both');
+    const c = await chunk(A.p, 'J_cannon1');
+    await tpMe(A.p, c.x0 + 6.11, 9.82); await sleep(700);
+    let high = false;
+    await tpMe(B.p, c.x0 + 3.11, 9.82);
+    for (let k = 0; k < 30; k++) { if ((await st(B.p)).P[0].y < 6) high = true; await sleep(60); }
+    await sleep(900);
+    const a = await st(A.p), b = await st(B.p);
+    ok(high, 'B2 steps on the cannon\'s button: B2\'s phone sees A1 shot high into the air');
+    ok(a.P[0].x > c.x0 + 10.6 && a.P[0].y < 5 && a.P[0].g && Math.abs(a.P[0].x - b.P[0].x) < 0.5, `…and landing on the plateau, at the same place on both phones (${a.P[0].x.toFixed(2)} / ${b.P[0].x.toFixed(2)})`);
+    await tpMe(A.p, c.x0 + 14.11, 3.82); await sleep(600);
+    await tpMe(B.p, c.x0 + 5.0, 9.82); await sleep(200);
+    await B.p.keyboard.down('ArrowRight'); await sleep(300); await B.p.keyboard.up('ArrowRight'); await sleep(1500);
+    const a2 = await st(A.p), b2 = await st(B.p);
+    ok(b2.P[1].x > c.x0 + 10.6 && b2.P[1].y < 5 && Math.abs(a2.P[1].x - b2.P[1].x) < 0.5, `A1 holds the button up top: B2 walks into the cannon and lands up there too, on both (${b2.P[1].x.toFixed(2)} / ${a2.P[1].x.toFixed(2)})`);
+  }
+  {   // fire vents: the same flames at the same moment on both phones; B2 holds the button and A1 walks through unhurt
+    await backToHome(A); await backToHome(B); await sleep(800);
+    ok(await startLevel(A, B, await levelWith(A.p, 'V_jets2')), '熔岩小径 starts on both');
+    const c = await chunk(A.p, 'V_jets2'), ci = await T(A.p, () => CoopGames.test.G.L.chunks.findIndex(c => c.ch.id === 'V_jets2'));
+    const flames = (p) => T(p, (ci) => { const T2 = CoopGames.test; return { wt: T2.G.wt, s: T2.G.L.jets.filter(j => j.ch === ci).map(j => T2.jetState(j)).join('') }; }, ci);
+    let same = 0, n = 0;
+    for (let k = 0; k < 12; k++) { const [fa, fb] = await Promise.all([flames(A.p), flames(B.p)]); if (Math.abs(fa.wt - fb.wt) < 0.12) { n++; if (fa.s === fb.s) same++; } await sleep(230); }
+    ok(n >= 6 && same >= n - 1, `the vents burn and rest on the shared clock: the same flames on both phones (${same}/${n} samples)`);
+    await tpMe(A.p, c.x0 + 1.5, 9.82); await tpMe(B.p, c.x0 + 3.11, 9.82); await sleep(900);
+    const out = await T(A.p, (ci) => { const T2 = CoopGames.test; return T2.G.chanOn[ci] === 1 && T2.G.L.jets.filter(j => j.ch === ci).every(j => T2.jetState(j) === 0); }, ci);
+    ok(out, 'B2 stands on the button on B2\'s phone: on A1\'s phone every vent in that stretch goes out');
+    const hp0 = (await st(A.p)).hp;
+    await A.p.keyboard.down('ArrowRight'); await sleep(1900); await A.p.keyboard.up('ArrowRight'); await sleep(400);
+    const a = await st(A.p);
+    ok(a.P[0].x > c.x0 + 14 && a.hp === hp0, `A1 walks the whole corridor while B2 holds it, unhurt (x ${(a.P[0].x - c.x0).toFixed(1)}, hearts ${hp0} → ${a.hp})`);
+  }
   {   // the night: B2 lights a lantern on B2's phone; it is lit on A1's too (A1's phone simulates B2 walking past it)
     await backToHome(A); await backToHome(B); await sleep(800);
     ok(await startLevel(A, B, await levelWith(A.p, 'D_lamps1')), '萤火森林 starts on both');

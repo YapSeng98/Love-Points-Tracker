@@ -874,10 +874,42 @@ hazard, every level's shape, running out of time / hearts / moves, the payout
 row, the top-up and the cap (also with the flag wiped), banking on close,
 tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.
 
+### What a frame costs (2026-11-24)
+
+Asked for: 「make it more smooth and good quality」. Measured with a CPU profile
+at 4× slowdown, main thread busy, before → after: 接零食 44% → 15%, 翻牌 38% → 9%,
+默契拍拍 39% → 10%, a game simply open 32% → 2%.
+
+- **Everything behind a game holds still.** ~60 animations kept running under a
+  full-screen game (the aurora, a conic ring repainting every frame, both
+  portraits, 我们的时光 and 小窝 sliding nowhere off-screen). `_gameCover()` sets
+  `html.game-cover` while a game is up (`.mg-root`, `.cg-home`, `.cg-stage`):
+  everything else pauses at once and stops being drawn 0.3 s later, once the
+  game has faded in. **A class, not `body:has(… :not([hidden]))`**: 一起回家
+  writes `hidden` on its bubbles every frame, and a `:has()` that mentions
+  `[hidden]` made Chrome restyle all ~3000 elements behind the game on every
+  one of those frames — the first version made 一起回家 *slower* (style 66%).
+  Anything that can open *over* a game (the toast, the 00:00 films, the 🎂 tab)
+  is listed in the rule's `:not(…)`, or it would open invisible — add new ones there.
+- **No layout in the frame.** 接零食 read `clientWidth` and two
+  `getBoundingClientRect`s every frame right after moving the pet by `left`, so
+  the page was laid out 60 times a second (12% on its own). The field and the
+  pet are measured by a `ResizeObserver`, the pet moves by `transform`, and the
+  HUD writes text only when it changes.
+- **Emoji are stamped, not typeset.** A colour emoji through `fillText` is one of
+  the slowest things a canvas does; each treat and each 「+1」 is drawn once into
+  a small canvas and `drawImage`d after that.
+- **Looks:** 接零食 has a scene (sky, sun, clouds, hills; a night sky in dark
+  mode), treats that sway with a shadow on the grass where they will land, a
+  sparkle burst and a squash on a catch, a puff where a treat lands, a time bar,
+  and 「连击 ×n」 — looks only, the scoring is untouched. 翻牌: a found pair
+  bounces and a heart floats up; a wrong pair shakes. All off under reduced
+  motion.
+
 ## 7.33 🤝 一起回家 and 默契拍拍 — two phones, one game
 
-Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer — 40
-levels in eight worlds (春/夏/秋/冬/游乐园/糖果/海底/夜) since 2026-11-24 — that only works if
+Added 2026-11-20 after a try-out page. 一起回家 is a co-op platformer — 50
+levels in ten worlds (春/夏/秋/冬/游乐园/糖果/海底/沙漠/火山/夜) since 2026-11-24 — that only works if
 the two of them help each other: stand on your partner's head, hold a button so
 the other can pass, push a box that one person can't move, throw each other
 with the seesaw, press two 同心锁 hearts at once, ride the wind or the Ferris
@@ -1025,8 +1057,8 @@ What playing all 30 with the bot found — each a thing a person would hit too:
 
 `tools/coop-bot.js` has a script for every puzzle piece (`rideWind`,
 `rideWheel`, `pushBox`, `seesawThrow` are the shared moves) and the general
-runner for the rest; it finishes all 40 in both one-phone modes, and 39 with
-real damage (the boss rains on a bot that never dodges). The live test checks
+runner for the rest; it finishes all 50 in both one-phone modes, and all but
+the boss with real damage (the boss rains on a bot that never dodges). The live test checks
 every new piece across two phones.
 
 ### Stars anyone can reach, 糖果 and 海底, a game that looks and sounds alive (2026-11-24)
@@ -1073,6 +1105,50 @@ stand on it and are carried off it — moved a tile off the belt); the door's
 heart past an always-on updraft (going to it lifted you away — moved to the
 near side); a portal pillar that left a 1-tile pocket between it and the wall.
 
+### 沙漠 and 火山, and drawing it on a phone's CPU (2026-11-24)
+
+**Two worlds, ten levels (`M41…M50`), 22 pieces, nothing reused**, before 夜,
+which stays the finale (its levels keep `M26…M30`; `NET_V` is 5). New things to
+do together:
+
+| | piece chars | what it is |
+|---|---|---|
+| 大炮 | `A` (fires right) `L` (left), `cannon: {vx, vy}` | stand in it while the button in its piece is held (or step in while it is) → fired. Each phone fires its own player; the partner's copy is fired by the same rule. The shot keeps its speed while you hold *forward* (`launch.keep`, sent as `p[9]`) — only steering back cancels it, unlike a seesaw throw |
+| 流沙 | `z` | walk at 42%, jump 62% as hard (1.6 tiles): a 2-tile step traps you alone, your partner's head gets you out. You sink in, drawn only (`an.sink`) |
+| 喷火口 | `v`, `jets: [phases]` | ground that flares on the world clock (1.0 s on in 2.6, sparks 0.45 s before); in a piece every other vent is half a cycle behind unless it lists phases. A held button in its piece puts it out; so does a box sitting on it (`jetState`) |
+| 熔岩 / 热气 | world `volcano` | lava under every pit (still a fall); fans are hot-air vents |
+
+- **Keep everything that needs both of you within ~13 tiles.** On one phone the
+  two share a screen and `keepTogether` holds them one screen apart:
+  `viewW / ZMIN − 2.5`, which is **15.2 tiles on a phone held upright**. The
+  first drafts put a cannon's two buttons 16–21 tiles apart, and the bot could
+  never press the far one; a crumbling piece 22 tiles wide left whoever waited
+  for it to grow back more than a screen behind.
+- **The far layers are drawn on their own canvas.** On a CPU-drawn canvas
+  (Chrome with `--disable-accelerated-2d-canvas`, the nearest thing to how
+  Safari fills shapes) every level ran **20–34 fps at 4× slowdown**; switching
+  layers off one at a time showed the sky's gradient, the sun's rays and the
+  hill band costing the most. The sky, sun, clouds, far scene, hills and the
+  middle row of trees now go on `.cg-back`, a second canvas behind the game at a
+  quarter of the pixels (`BACK_DPR`), with the sky's gradient as its CSS
+  background; the vignette is a CSS layer (`.cg-vig`); a night level's darkness
+  is drawn at 1/16 of the pixels on `.cg-dark` and the GPU stretches it. All
+  levels **56–60 fps** on the same test. Fireflies punch little holes in the
+  dark so they still glow, and once you are both home the lights come on.
+- **The landmarks were almost never on screen.** Each world's far landmark (the
+  windmill, the lighthouse, the barn, the cabin, the castle, the shipwreck) sat
+  20–30 tiles in — off the right edge of an upright phone, 11 tiles across,
+  until the last seconds of a level. They start 5–8 tiles in now.
+- **The fireflies fell like snow.** `ambTick` chose the motion by the world's
+  name (`'night'`) where it meant the particle (`'firefly'`); the autumn leaves'
+  drift and the slower snow never applied either. It reads `world.amb` now.
+- **"New" labels are keyed by level id** (`NEW_IN.M41`): by position, every
+  world that goes in moves 夜's labels onto the wrong levels.
+- **A level's random seed is its position**, so moving 夜 changed its clouds'
+  timing: a piece ended with YY on CS's head and the seesaw after it (the one
+  carrying can't jump) never started. The bot now steps off its partner's head
+  before every piece.
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -1107,16 +1183,17 @@ no server rule, so the §7.32 warning stands: don't raise the payouts without on
   outlined every frame.
 
 `tools/coop-test.js` plays every level in the real app with a bot (one phone,
-two people and alone, 40/40 each), the payouts, 默契拍拍, the no-pet case, and
+two people and alone, 50/50 each), the payouts, 默契拍拍, the no-pet case, and
 360/390/820 in both themes. `tools/coop-live-test.js` logs two phones in on the
 live backend and checks every cross-phone mechanic: moves mirrored, hearts,
 standing on each other, the gate held from the other phone, pause, the win paying
 each person, the two-person box, the seesaw, the guest's stomp on the cloud,
-leaving, and 默契拍拍 giving one verdict. `tools/coop-net-test.js` does it again
+the cannon fired from the other phone, the vents keeping one clock and going
+out for the partner's button, leaving, and 默契拍拍 giving one verdict. `tools/coop-net-test.js` does it again
 over a simulated phone network (see above; `PHONE_B=webkit` puts the partner on
 WebKit, `ONLY=smooth,cuts,…` runs sections). `tools/coop-bot.js` is the bot.
 `tools/coop-stars-test.js` is the star and heart oracle (above).
-`smooth-test.js` measures both games.
+`smooth-test.js` measures both games (a 摩天轮 level, the volcano and a dark night).
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
@@ -1752,9 +1829,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/speed-test.js` | Not pass/fail except for a few budgets — the table of what a phone waits for (CPU 4×, 4G, GitHub Pages headers): open, 继续, a tile, each screen, KB and calls per open. Compare medians, never one run. `ROOT=<dir>` measures another copy (e.g. the live version) |
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
-| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 40 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 50 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
-| `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, leaving, 默契拍拍's shared verdict |
+| `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
