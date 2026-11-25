@@ -16,8 +16,8 @@ edit them, and don't take their field names as current.
 
 ```
 app.js ── HTTPS ──► yvllstktmjoedfsgojgs.supabase.co
-                     ├── /functions/v1/*   28 Edge Functions (supabase/functions/)
-                     ├── Postgres          13 tables, RLS on all of them
+                     ├── /functions/v1/*   29 Edge Functions (supabase/functions/)
+                     ├── Postgres          14 tables, RLS on all of them
                      ├── Auth              hashed passwords, JWT + refresh
                      └── Storage           "photos" bucket, private
 ```
@@ -346,6 +346,8 @@ Classify every piece of data explicitly:
 | rewards & punishments lists | the character you're scoring for |
 | history, shop, letters, photos | |
 | shared goal, pet (name/species/EXP) | |
+| 我们的家: house level, garden, album (`game_saves`) | who watered a pot today (one bit each) |
+| | where each of you stands in the house (live only) |
 
 Anything shared is scoped by `match_id`; anything per-person also by `char`.
 Cross-couple access must return 404 or an empty list — never another couple's
@@ -1195,6 +1197,106 @@ WebKit, `ONLY=smooth,cuts,…` runs sections). `tools/coop-bot.js` is the bot.
 `tools/coop-stars-test.js` is the star and heart oracle (above).
 `smooth-test.js` measures both games (a 摩天轮 level, the volcano and a dark night).
 
+## 7.34 🏡 我们的家 — one house, two phones, a garden that takes days
+
+Built 2026-11-25 after a plan page and a playable preview the user tried (house +
+garden + upgrades, a city later). Lives in `home.js`, loaded on first open
+(`home.js?v=APP_VERSION`); its styles (`hm-*`) go in when the file loads, not
+while opening. Doors: a home card under 小游戏 (`#hm-home`, it says what waits in
+the garden) and 「🏡 带它回家 · 去花园」 in the 小窝's panel. Overlay z-index 150, the
+seed sheet 155, `game-cover` like the games (§7.32).
+
+- **The 客厅 is their 小窝.** `api.room()` hands over the 小窝's own pieces
+  (`_stackOrder`, wall and floor only), paper and floor; the 客厅 draws them at
+  their own x/y, sized by `--hm-mh` = min(36% of the room's width, 62% of its
+  height). The 小窝 itself uses 33–43%, so a layout that fits the 小窝 fits the
+  客厅. The other rooms have their own furniture.
+- **A bigger house is a wider world.** x is in % of the scene's width and runs
+  to 132 (Lv2) / 142 (Lv3); the view follows you with a dead zone (34–66%) and
+  starts at the garden end. A partner off screen gets an edge tag that walks you
+  to them.
+- **Moving:** tap the floor or a pot, hold ◀ ▶, arrow keys, ⬆ 上楼 ⬇ 下楼 🌷 花园
+  🛋️ 客厅. A pot takes taps a little beside it and on the flower above (±4.6%,
+  no more: at Lv3 the pots stand 8% apart, and a first version's thumb-sized zone
+  made the whole lawn open the seed sheet). `click`, not `pointerdown`: a swipe
+  that starts on the house scrolls the page and must not walk anyone. You stand
+  beside a pot (±6.5), not in front of the flower.
+- **一起坐沙发:** any 🛋️ piece in the 小窝 is a sofa with two seats. Sitting is
+  only a pose where you stand — the drawing is lifted onto the cushion (42% up
+  sofa_blue's drawing) — so walking, stairs and saving never see it; `sit` and
+  `up` travel live, and any move stands you up. Two on one sofa: 💕.
+
+### The garden: derived, so two phones can't disagree
+- A planting is `{id, seed, at, by, w: {date: bits}}` — bit 1 CS, bit 2 YY;
+  dates are each phone's own (§2). `grow()` derives the stage from the waterings
+  alone: one of you = one step, both the same day = two, five steps a flower. A
+  growing plant last watered 3+ days ago droops (`WILT`), and the watering that
+  saves it doesn't grow it. A flower never droops; a watering dated after today
+  waits for its day.
+- Every change is an action (`plant`/`water`/`pick`/`pos`); `apply()` returns
+  null when it no longer makes sense on the save (watered twice, picked twice,
+  pot taken), which is what makes replaying it after a refused write safe.
+- A flower picked: `picked`+1, `album[seed]`+1, `log` [date, who, seed,
+  plantingId] (last 30). `petExpDerived` adds `picked × 20` (so 小窝币 +10), and
+  `petBase` rebases it on re-adopting (§4.5). The save loads with the other EXP
+  sources in `_loadStatsSources`: without it the EXP would freeze behind its
+  stored high-water whenever the save isn't loaded.
+- Seeds are free (only permanent things cost coins): 小雏菊/向日葵 from the
+  start, then 郁金香 3, 绣球花 6, 薰衣草 10, 月光花 15 flowers picked; each
+  festival's seed only in its window.
+
+### One save, compare-and-set (`game_saves`, `game-save`)
+- RLS on, no policies; the function is the only writer and keeps the rules
+  (§0.0): known games only, 16 KB, `picked` only grows and by at most one per pot
+  per write.
+- The phone keeps `srv` (last saved), `pending` (its own unsaved actions, also
+  in localStorage per login, so they survive closing or a dead network) and
+  `remote` (the partner's actions heard but not yet saved). What you see is
+  srv + remote + pending through `apply()`. A refused write (409) hands back the
+  newer save and the pending actions replay on it; one that no longer applies is
+  dropped and said out loud, naming who got there first (`firstBy`) — unless it
+  is our OWN action already in the save (`landed`). That case is real:
+  `_fetchWithRetry` resends a write whose answer was lost, the resend is refused,
+  and the first version then told the user their partner had picked the flower
+  they picked themselves. The two-phone test caught it.
+- Every newer save goes through `setSrv()`, which tells the app (`onSave`); the
+  phone that lost a race used to keep the old flower count, so its EXP and 小窝币
+  lagged.
+- A save refused outright (4xx, not 409) drops the pending actions and reloads
+  instead of retrying forever; five lost races in a row retry 2.5–4.5 s later.
+- Upgrades (小平房 600, 两层小楼 1500) and festival pieces are decor-buy
+  purchases with `hm_*` ids (`Data.buyHouse`): one wallet, the buyer is the login.
+
+### Live: where you are is never stored
+- Event `hm` on the couple's channel (§7.235), `Live.want('home')` only while
+  the house is open. A tap is ONE message (`go`: from, to); holding ◀ ▶ is `hold`
+  and `stop`; a heartbeat `st` every 12 s corrects drift; `hi` on arrival
+  (retried until the channel has joined, and again on waking). `bye`/`away`
+  carry where you were, so the partner's phone says 「上次在花园」 at once — the
+  save of it lands a moment later. Garden actions travel as `op` (shown on
+  arrival) and `saved` {rev} makes the partner reload. Idle, the two phones send
+  about 10 messages a minute.
+- Never trust the wire: our own login on another device is not the partner,
+  positions must be in range, and a different `HOME_V` asks both to reopen.
+- The pet follows whoever moved LAST — the same rule on both phones, so it is
+  in the same place on both.
+
+### Festivals and seasons
+- `api.themesAt(date)` returns EVERY theme active that day, not only the winner:
+  on 12-24 the 周年 takes the sky (a banner on the roof) and the garden still has
+  its 圣诞 snow. A festival's window — shop, seed, bought pieces on show — runs
+  from a week before to 2 days after (7 after the anniversary). Bought festival
+  pieces come out by themselves every year in that window and are listed as
+  stored otherwise. Night and dusk follow `data-period` (§7.15); the seasons tint
+  the tree and the grass.
+- Opening costs one 59 ms task at 4× CPU the first time (it was 62 + 76 ms):
+  the list under the house is drawn two frames later, the size comes from the
+  ResizeObserver instead of a forced layout, and the app behind goes still
+  (`game-cover`) a frame after the house paints.
+
+`tools/home-test.js`, `tools/home-live-test.js`, `supabase/test-games.mjs`;
+`smooth-test.js` walks the Lv3 house on a 圣诞 night.
+
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
 `refreshWeather()` is called at module level, which is *before* a session
@@ -1719,10 +1821,12 @@ What made the difference, and what must not come back:
 □ Check BOTH light and dark
 □ Check phone (390) + iPad (820) + laptop (1280) if layout changed
 □ Re-run: node supabase/test-full.mjs         (backend, 116 checks)
+  (+ node supabase/test-games.mjs when game-save changed)
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
-  coop-live-test.js, coop-net-test.js, coop-stars-test.js — serve the repo
+  coop-live-test.js, coop-net-test.js, coop-stars-test.js, home-test.js,
+  home-live-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -1833,6 +1937,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
+| `node tools/home-test.js` | 我们的家 on demo data and a faked clock: the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, 360–1280 both themes, reduced motion |
+| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, where you left |
+| `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, slots, another couple, direct Postgres |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |

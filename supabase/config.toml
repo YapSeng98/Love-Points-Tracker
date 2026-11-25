@@ -355,3 +355,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/surprise/deno.json"
 entrypoint = "./functions/surprise/index.ts"
+
+[functions.game-save]
+enabled = true
+verify_jwt = false
+import_map = "./functions/game-save/deno.json"
+entrypoint = "./functions/game-save/index.ts"

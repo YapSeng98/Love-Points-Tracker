@@ -43,6 +43,7 @@ const BUCKET      = 'photos';
 const TABLES = [
   'matches', 'profiles', 'config', 'categories', 'rewards', 'punishments',
   'shop', 'monthly', 'entries', 'letters', 'photos', 'bag', 'anniv_notes', 'surprises',
+  'game_saves',   // 我们的家: the garden, the album, where each of you stood
 ];
 
 function serviceKey() {

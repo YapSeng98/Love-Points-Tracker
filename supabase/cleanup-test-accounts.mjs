@@ -63,7 +63,7 @@ for (const m of removableMatches) {
       method: "DELETE", headers: H, body: JSON.stringify({ prefixes: paths }),
     });
   }
-  for (const t of ["entries", "photos", "letters", "bag", "monthly", "categories", "rewards", "punishments", "shop", "config"]) {
+  for (const t of ["entries", "photos", "letters", "bag", "monthly", "categories", "rewards", "punishments", "shop", "config", "game_saves"]) {
     await rest(`${t}?match_id=eq.${m}`, { method: "DELETE" });
   }
 }

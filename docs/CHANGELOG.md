@@ -12,6 +12,38 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-25 — 我们的家: a house and garden the two of you share
+
+A new place, opened from its own card on the home page and from the 小窝: the two
+of you walk around one house, each on your own phone, and see each other move,
+wave, hug and sit down together on the sofa. The pet follows whoever moved last.
+The 客厅 is your own 小窝 — the same furniture where you put it, the same
+wallpaper.
+
+The garden is real and slow on purpose. Each of you can water each pot once a
+day; a flower takes five waterings, or three days if you both water (that day
+it grows two steps). A pot nobody waters for three days droops until somebody
+does. A flower picked goes into the 花园图鉴 and is pet EXP +20 — so 小窝币 +10.
+Picking flowers opens new seeds (郁金香 at 3, 绣球花, 薰衣草, 月光花 at 15, which
+glows blue at night), and each festival brings its own seed (桃花, 玫瑰, 桂花,
+南瓜, 圣诞红, 永生花) that can be planted only around that festival.
+
+The house grows: 小平房 (600 小窝币: a bedroom, a third pot, a pet house) and
+两层小楼 (1500: kitchen, stairs, an upstairs bedroom, a balcony with two more
+pots, a pond), paid from the same wallet as the 小窝's furniture. A bigger house
+is wider than the screen and the view follows you. Festivals dress the house by
+date (snow and lights at 圣诞, 福 at 春节, hearts at 情人节, bats at 万圣节 after
+dark, the big moon at 中秋, a banner on your anniversary), and a small shop sells
+festival pieces that come out again by themselves every year.
+
+The garden is one save on the server (a new table and function, `game_saves` /
+`game-save`). Every write is compare-and-set: when both phones act at the same
+moment, both waterings count, a flower is picked once, one seed wins a pot, and
+whoever lost the race is told who got there first. Actions taken offline wait on
+the phone and are sent on the next visit.
+
+---
+
 ## 2026-11-24 — Smoother games, 沙漠 and 火山, ten more levels
 
 All four games do much less work per frame. On a phone slowed four times, the

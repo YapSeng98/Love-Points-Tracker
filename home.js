@@ -1,0 +1,1455 @@
+/* 我们的家 — the couple's house and garden, loaded by app.js the first time it opens (CLAUDE.md §7.34).
+
+   Two people walk around one house, each on their own phone; the pet follows whoever moved last.
+   The garden is real and slow on purpose: each of you can water each pot once a day, a flower takes
+   five waterings (three days if you both water), a pot nobody waters for three days droops until
+   somebody does, and a flower picked is pet EXP (and so 小窝币) for both of you.
+
+   What is shared lives in one save on the server (game-save, compare-and-set); where each of you is
+   standing travels over the couple's live channel and is never stored, except where you were when you
+   left. */
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const REDUCE = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+// Calendar dates are the phone's own (CLAUDE.md §2), as YYYY-MM-DD; differences are whole days.
+const dnum = (d) => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd) / 86400000; };
+const dayDiff = (a, b) => Math.round(dnum(b) - dnum(a));
+const addDays = (d, n) => { const t = new Date((dnum(d) + n) * 86400000); return t.toISOString().slice(0, 10); };
+
+const HOME_V = 1;            // the live messages' version: a phone on another one is asked to reopen the app
+const G0 = 86, G1 = 56;      // where feet stand: the ground floor and (Lv3) upstairs, in % of the scene's height
+const WILT = 3;              // days without water before a growing plant droops
+const PICK_EXP = 20;         // pet EXP per flower picked (half of it is 小窝币)
+const BEAT_MS = 12000, GONE_MS = 32000, POLL_MS = 45000;
+const CHAR = { cs: 'char1', yy: 'char2' }, KEY = { char1: 'cs', char2: 'yy' }, OTHER = { cs: 'yy', yy: 'cs' };
+const BIT = { char1: 1, char2: 2 };
+
+/* ── CS and YY, the approved chubby drawings (the same two as 一起回家) ── */
+const CH = {
+  cs: { body: '#FFFCF6', shade: '#EFE7DB', edge: '#CFC3B4', ear: '#DCE6F5', earEdge: '#A9BBD8' },
+  yy: { body: '#FFD9E4', shade: '#F9BACD', edge: '#E995B2', ear: '#FFC4D6', earEdge: '#E995B2' },
+};
+let uid = 0;
+function charSvg(k) {
+  const cs = k === 'cs', c = CH[k], id = 'hmg' + k + (++uid);
+  return `<svg viewBox="0 0 100 112" aria-hidden="true"><defs><radialGradient id="${id}" cx="38%" cy="26%" r="85%"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="${c.body}"/><stop offset="1" stop-color="${c.shade}"/></radialGradient></defs>
+    <ellipse class="hm-shadow" cx="50" cy="105" rx="34" ry="5.5" fill="rgba(60,30,20,.22)"/><g class="hm-face">
+    <ellipse class="hm-f1" cx="36" cy="100" rx="11" ry="6" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6"/><ellipse class="hm-f2" cx="64" cy="100" rx="11" ry="6" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6"/>
+    <g class="hm-bd">
+    <ellipse cx="${cs ? 9 : 15}" cy="${cs ? 46 : 38}" rx="11" ry="${cs ? 23 : 15}" fill="${c.ear}" stroke="${c.earEdge}" stroke-width="2.6" transform="rotate(${cs ? 12 : -24} ${cs ? 9 : 15} ${cs ? 46 : 38})"/>
+    <ellipse cx="${cs ? 91 : 85}" cy="${cs ? 46 : 38}" rx="11" ry="${cs ? 23 : 15}" fill="${c.ear}" stroke="${c.earEdge}" stroke-width="2.6" transform="rotate(${cs ? -12 : 24} ${cs ? 91 : 85} ${cs ? 46 : 38})"/>
+    <path d="M50 8C79 8 93 31 93 59C93 86 76 100 50 100C24 100 7 86 7 59C7 31 21 8 50 8Z" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.8"/>
+    <ellipse cx="11" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(24 11 72)"/><ellipse cx="89" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(-24 89 72)"/>
+    ${cs ? '<path d="M17 74Q50 88 83 74L84 82Q50 97 16 82Z" fill="#7FB2EC" stroke="#4F86C6" stroke-width="2.2" stroke-linejoin="round"/><path d="M62 86L70 100L60 97Z" fill="#7FB2EC" stroke="#4F86C6" stroke-width="2.2" stroke-linejoin="round"/>'
+         : '<path d="M50 84C46 79 39 82 42 88C44 92 50 95 50 95C50 95 56 92 58 88C61 82 54 79 50 84Z" fill="#FF8FB3"/>'}
+    <ellipse cx="24" cy="60" rx="8" ry="5" fill="#FF9CB8" opacity=".55"/><ellipse cx="76" cy="60" rx="8" ry="5" fill="#FF9CB8" opacity=".55"/>
+    <circle cx="34" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="66" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="35.2" cy="48.8" r="1.2" fill="#fff"/><circle cx="67.2" cy="48.8" r="1.2" fill="#fff"/>
+    <path d="M45 57Q47.5 60 50 57Q52.5 60 55 57" fill="none" stroke="#3A2F3C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${cs ? '' : '<path d="M62 14L47 6L49 23Z M62 14L77 7L74 24Z" fill="#FF8FB3" stroke="#D9558C" stroke-width="2" stroke-linejoin="round"/><circle cx="62" cy="14.5" r="5" fill="#FFB3CB" stroke="#D9558C" stroke-width="2"/>'}
+    </g></g></svg>`;
+}
+
+/* ── the house's own furniture (the 客厅 holds the couple's real 小窝 furniture instead) ── */
+const SH = '<ellipse cx="50" cy="94" rx="42" ry="5.5" fill="rgba(60,30,20,.2)"/>';
+const ART = {
+  bed: `${SH}<rect x="6" y="26" width="16" height="62" rx="6" fill="#C99B74" stroke="#9A6F4A" stroke-width="3"/><rect x="12" y="52" width="82" height="32" rx="8" fill="#FFF6EC" stroke="#C9A98A" stroke-width="3"/><path d="M40 52H86Q94 52 94 60V84H40Z" fill="#F8B7CC" stroke="#E58AAB" stroke-width="3" stroke-linejoin="round"/><rect x="18" y="44" width="24" height="16" rx="7" fill="#fff" stroke="#C9A98A" stroke-width="3"/>`,
+  bear: `<ellipse cx="50" cy="94" rx="24" ry="4.5" fill="rgba(60,30,20,.2)"/><circle cx="30" cy="28" r="10" fill="#C99466" stroke="#96663E" stroke-width="3"/><circle cx="70" cy="28" r="10" fill="#C99466" stroke="#96663E" stroke-width="3"/><ellipse cx="50" cy="72" rx="24" ry="22" fill="#D2A074" stroke="#96663E" stroke-width="3"/><circle cx="50" cy="40" r="23" fill="#D2A074" stroke="#96663E" stroke-width="3"/><ellipse cx="50" cy="47" rx="9" ry="7" fill="#F3DDC4"/><circle cx="41" cy="37" r="3" fill="#3A2A20"/><circle cx="59" cy="37" r="3" fill="#3A2A20"/>`,
+  lamp: `<ellipse cx="50" cy="94" rx="18" ry="4" fill="rgba(60,30,20,.2)"/><rect x="47" y="34" width="6" height="54" fill="#B98A5E"/><ellipse cx="50" cy="90" rx="15" ry="4.5" fill="#B98A5E"/><path d="M34 8H66L74 38H26Z" fill="#FFE9A8" stroke="#D9B45C" stroke-width="3" stroke-linejoin="round"/>`,
+  tree: `${SH}<rect x="43" y="56" width="14" height="36" rx="4" fill="#B07F56" stroke="#84593A" stroke-width="3"/><circle class="hm-leaf" cx="32" cy="46" r="20" fill="#6FBF73" stroke="#3F8F4F" stroke-width="3"/><circle class="hm-leaf" cx="68" cy="46" r="20" fill="#6FBF73" stroke="#3F8F4F" stroke-width="3"/><circle class="hm-leaf hm-leaf-top" cx="50" cy="28" r="24" fill="#84CC84" stroke="#3F8F4F" stroke-width="3"/><circle class="hm-fruit" cx="40" cy="48" r="3.5" fill="#FF8FA8"/><circle class="hm-fruit" cx="62" cy="38" r="3.5" fill="#FF8FA8"/><circle class="hm-fruit" cx="30" cy="34" r="3" fill="#FF8FA8"/>`,
+  stove: `${SH}<rect x="14" y="40" width="72" height="50" rx="6" fill="#EEF2F7" stroke="#9AA6B8" stroke-width="3"/><rect x="22" y="58" width="56" height="26" rx="4" fill="#C9D3E2" stroke="#9AA6B8" stroke-width="2.5"/><ellipse cx="50" cy="36" rx="20" ry="6" fill="#E07A5F" stroke="#B5523A" stroke-width="2.5"/><path d="M42 26q4-8 0-14M52 26q4-8 0-14" stroke="#C9D3E2" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  table: `${SH}<rect x="10" y="50" width="80" height="10" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="18" y="58" width="7" height="32" fill="#B98A5E"/><rect x="75" y="58" width="7" height="32" fill="#B98A5E"/><path d="M44 50h12l-2-16h-8z" fill="#BFE3F5" stroke="#8FB9D0" stroke-width="2"/><circle cx="50" cy="28" r="7" fill="#FF8FB3"/><circle cx="50" cy="28" r="3" fill="#FFE27A"/>`,
+  pethouse: `${SH}<rect x="16" y="44" width="68" height="46" rx="4" fill="#F2C08E" stroke="#B98A5E" stroke-width="3"/><path d="M8 48L50 14L92 48Z" fill="#7FB2EC" stroke="#5F8CC8" stroke-width="3" stroke-linejoin="round"/><path d="M38 90V70a12 12 0 0124 0V90Z" fill="#6B4A3A"/>`,
+  bench: `${SH}<rect x="8" y="46" width="84" height="10" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="8" y="30" width="84" height="9" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="16" y="54" width="7" height="36" fill="#9A6F4A"/><rect x="77" y="54" width="7" height="36" fill="#9A6F4A"/>`,
+};
+const art = (k) => `<svg viewBox="0 0 100 100" aria-hidden="true">${ART[k]}</svg>`;
+
+/* ── what the festivals bring ── */
+const LANTERN = '<svg viewBox="0 0 40 70" aria-hidden="true"><path d="M20 0V10" stroke="#9C6A16" stroke-width="2"/><rect x="13" y="9" width="14" height="5" rx="2" fill="#E8B04B"/><ellipse cx="20" cy="30" rx="15" ry="17" fill="#E5402E" stroke="#B5281C" stroke-width="2"/><path d="M14 16Q10 30 14 44M26 16Q30 30 26 44M20 13V47" stroke="#B5281C" stroke-width="1.5" fill="none"/><rect x="13" y="46" width="14" height="4" rx="2" fill="#E8B04B"/><path d="M17 50L15 64M20 50V66M23 50L25 64" stroke="#E8B04B" stroke-width="2" stroke-linecap="round"/></svg>';
+const RABBIT = '<svg viewBox="0 0 60 52" aria-hidden="true"><ellipse cx="30" cy="30" rx="20" ry="13" fill="#FFF7F2" stroke="#E9B9A8" stroke-width="2"/><ellipse cx="20" cy="12" rx="4" ry="11" fill="#FFF7F2" stroke="#E9B9A8" stroke-width="2" transform="rotate(-12 20 12)"/><ellipse cx="28" cy="10" rx="4" ry="11" fill="#FFF7F2" stroke="#E9B9A8" stroke-width="2" transform="rotate(8 28 10)"/><circle cx="16" cy="27" r="2.2" fill="#E5402E"/><circle cx="18" cy="46" r="4" fill="#C99B74"/><circle cx="42" cy="46" r="4" fill="#C99B74"/></svg>';
+const PUMPKIN = '<svg viewBox="0 0 50 46" aria-hidden="true"><path d="M25 8q2-6 6-6" stroke="#4F8E46" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="25" cy="27" rx="22" ry="17" fill="#FF9E3D" stroke="#C96A1C" stroke-width="2"/><path d="M25 10V44M13 13Q8 27 13 41M37 13Q42 27 37 41" stroke="#C96A1C" stroke-width="1.6" fill="none"/><path class="hm-jack" d="M15 22l4 4h-6zM35 22l-4 4h6zM16 33q9 6 18 0q-4 4-9 4t-9-4z" fill="#5A2E12"/></svg>';
+const XTREE = '<svg viewBox="0 0 60 100" aria-hidden="true"><ellipse cx="30" cy="97" rx="22" ry="3.5" fill="rgba(60,30,20,.2)"/><rect x="25" y="80" width="10" height="16" fill="#9A6F4A"/><path d="M30 10L52 46H8Z" fill="#3E8E4A" stroke="#2E6E38" stroke-width="2"/><path d="M30 28L56 66H4Z" fill="#4FA35B" stroke="#2E6E38" stroke-width="2"/><path d="M30 46L58 84H2Z" fill="#5DB565" stroke="#2E6E38" stroke-width="2"/><path d="M30 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z" fill="#FFD75E" stroke="#E8A32E" stroke-width="1.2"/><circle class="hm-bx" cx="22" cy="40" r="2.6" fill="#E5402E"/><circle class="hm-bx" cx="38" cy="56" r="2.6" fill="#7FB2EC"/><circle class="hm-bx" cx="20" cy="70" r="2.6" fill="#FFD75E"/><circle class="hm-bx" cx="42" cy="76" r="2.6" fill="#FF8FB3"/><circle class="hm-bx" cx="30" cy="62" r="2.6" fill="#B48CFF"/></svg>';
+const SNOWMAN = '<svg viewBox="0 0 50 70" aria-hidden="true"><ellipse cx="25" cy="67" rx="16" ry="3" fill="rgba(60,30,20,.18)"/><circle cx="25" cy="50" r="16" fill="#FFFFFF" stroke="#C9D6E6" stroke-width="2"/><circle cx="25" cy="24" r="11" fill="#FFFFFF" stroke="#C9D6E6" stroke-width="2"/><rect x="16" y="6" width="18" height="10" rx="2" fill="#3A2F4F"/><rect x="12" y="15" width="26" height="3" rx="1.5" fill="#3A2F4F"/><circle cx="21" cy="22" r="1.6" fill="#3A2F4F"/><circle cx="29" cy="22" r="1.6" fill="#3A2F4F"/><path d="M25 26l8 2-8 1.5z" fill="#FF8A3C"/><path d="M14 34q11 5 22 0" stroke="#E5402E" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
+const LION = '<svg viewBox="0 0 50 50" aria-hidden="true"><ellipse cx="25" cy="48" rx="19" ry="2.5" fill="rgba(60,30,20,.2)"/><rect x="8" y="36" width="34" height="11" rx="3" fill="#C9874A" stroke="#9A6F4A" stroke-width="2"/><circle cx="25" cy="21" r="17" fill="#E5402E" stroke="#B5281C" stroke-width="2"/><circle cx="25" cy="23" r="11" fill="#FFD75E" stroke="#E8A32E" stroke-width="2"/><circle cx="21" cy="20" r="2" fill="#3A2F4F"/><circle cx="29" cy="20" r="2" fill="#3A2F4F"/><path d="M20 27q5 4 10 0" stroke="#B5281C" stroke-width="2" fill="none"/><path d="M25 4v-3" stroke="#FFD75E" stroke-width="3" stroke-linecap="round"/></svg>';
+const MAIL = '<svg viewBox="0 0 40 60" aria-hidden="true"><ellipse cx="20" cy="58" rx="9" ry="2" fill="rgba(60,30,20,.2)"/><rect x="18" y="26" width="4" height="32" fill="#9A6F4A"/><rect x="5" y="10" width="30" height="20" rx="8" fill="#E5402E" stroke="#B5281C" stroke-width="2"/><path d="M20 15c-2-3-6-1-5 2 1 2 5 4 5 4s4-2 5-4c1-3-3-5-5-2z" fill="#FFFFFF"/></svg>';
+const POSTLAMP = '<svg viewBox="0 0 30 90" aria-hidden="true"><ellipse cx="15" cy="88" rx="10" ry="2.5" fill="rgba(60,30,20,.2)"/><rect x="13" y="22" width="4" height="66" fill="#5A5568"/><path class="hm-bulbglass" d="M6 10h18l-3 14H9z" fill="#FFE9A8" stroke="#B98A5E" stroke-width="2"/><rect x="5" y="6" width="20" height="5" rx="2" fill="#5A5568"/></svg>';
+const BAT = '<svg viewBox="0 0 60 30" aria-hidden="true"><path d="M30 12c-4-6-10-8-16-6 3 2 4 5 3 8-4-2-9-1-12 2 5 0 9 3 10 7 3-4 8-5 15-4 7-1 12 0 15 4 1-4 5-7 10-7-3-3-8-4-12-2-1-3 0-6 3-8-6-2-12 0-16 6z" fill="#5B4A7A"/><circle cx="27" cy="13" r="1" fill="#FFD75E"/><circle cx="33" cy="13" r="1" fill="#FFD75E"/></svg>';
+const BALLOON = (c, e) => `<svg viewBox="0 0 30 70" aria-hidden="true"><path d="M15 34Q10 50 16 68" stroke="#B98A5E" stroke-width="1.5" fill="none"/><path d="M15 32C5 24 2 16 6 9c3-5 9-5 9 0 0-5 6-5 9 0 4 7 1 15-9 23z" fill="${c}" stroke="${e}" stroke-width="2"/></svg>`;
+
+/* ── seeds: what grows in the pots ──
+   `unlock` = flowers picked before it can be planted; `fest` = only while that festival is on.
+   Once planted a seed keeps growing whatever the date. */
+const SEEDS = {
+  daisy:     { n: '小雏菊', e: '🌼', col: '#FF8FB3', shape: 'daisy', unlock: 0 },
+  sunflower: { n: '向日葵', e: '🌻', col: '#FFC24D', shape: 'sun', unlock: 0 },
+  tulip:     { n: '郁金香', e: '🌷', col: '#FF6B7A', shape: 'cup', unlock: 3 },
+  hydrangea: { n: '绣球花', e: '💠', col: '#8FB8FF', shape: 'cluster', unlock: 6 },
+  lavender:  { n: '薰衣草', e: '🪻', col: '#A98BEA', shape: 'spike', unlock: 10 },
+  moon:      { n: '月光花', e: '🌙', col: '#BFE6FF', shape: 'star5', unlock: 15, glow: 'moon', tip: '长出叶子以后，晚上会发蓝光' },
+  peach:     { n: '桃花', e: '🌸', col: '#FFB3CB', shape: 'star5', fest: 'cny' },
+  rose:      { n: '玫瑰', e: '🌹', col: '#FF4F70', shape: 'rose', fest: 'vday' },
+  osman:     { n: '桂花', e: '🌼', col: '#FFC24D', shape: 'cluster', fest: 'midautumn' },
+  pumpkin:   { n: '南瓜', e: '🎃', col: '#FF9E3D', shape: 'pumpkin', fest: 'halloween', tip: '最后会结出一个南瓜' },
+  poin:      { n: '圣诞红', e: '🌺', col: '#E8483F', shape: 'poin', fest: 'xmas' },
+  eternal:   { n: '永生花', e: '💐', col: '#FFD75E', shape: 'star5', fest: 'anniv', glow: 'gold', tip: '开金色的花，晚上发光' },
+};
+const SEED_ORDER = Object.keys(SEEDS);
+
+/* ── festivals: the date dresses the house for free; the shop sells things that come out every year ── */
+const FESTS = {
+  cny:       { n: '春节', e: '🧧', say: '家门贴上了福字' },
+  vday:      { n: '情人节', e: '💝', say: '天上飘着小爱心' },
+  midautumn: { n: '中秋', e: '🥮', say: '晚上的月亮又大又圆' },
+  halloween: { n: '万圣节', e: '🎃', say: '天黑以后有小蝙蝠飞过' },
+  xmas:      { n: '圣诞', e: '🎄', say: '屋顶和花园下雪了' },
+  anniv:     { n: '周年', e: '💞', say: '门口挂上了周年横幅' },
+};
+// Bought with 小窝币 through the 小窝's own purchase (decor-buy), so the wallet is one ledger.
+// A festival piece is on sale from a week before its festival until a few days after, and once
+// bought it comes out by itself every year at that festival.
+const HOUSE = {
+  hm_lv2:     { n: '升级成小平房', e: '🏠', price: 600, lv: 2, tip: '多一间卧室，花园 3 个花盆，宠物小屋' },
+  hm_lv3:     { n: '升级成两层小楼', e: '🏡', price: 1500, lv: 3, needs: 'hm_lv2', tip: '厨房、楼梯、二楼卧室，阳台多 2 个花盆，池塘' },
+  hm_lamp:    { n: '花园小路灯', e: '💡', price: 50, tip: '一直都在，晚上会亮' },
+  hm_lantern: { n: '红灯笼一对', e: '🏮', price: 60, fest: 'cny', tip: '挂在屋檐，晚上会亮' },
+  hm_couplet: { n: '春联', e: '🧧', price: 40, fest: 'cny', tip: '贴在门两边' },
+  hm_lion:    { n: '舞狮摆件', e: '🦁', price: 90, fest: 'cny' },
+  hm_arch:    { n: '爱心门框', e: '💗', price: 70, fest: 'vday', tip: '一圈爱心绕在门上' },
+  hm_mailbox: { n: '情侣信箱', e: '💌', price: 80, fest: 'vday' },
+  hm_rabbit:  { n: '兔子灯一对', e: '🐰', price: 60, fest: 'midautumn', tip: '晚上会亮' },
+  hm_pumpkin: { n: '南瓜灯一对', e: '🎃', price: 50, fest: 'halloween', tip: '晚上会亮' },
+  hm_xtree:   { n: '圣诞树', e: '🎄', price: 120, fest: 'xmas', tip: '换掉花园的小树，晚上会闪' },
+  hm_lights:  { n: '屋檐彩灯', e: '✨', price: 60, fest: 'xmas', tip: '晚上会亮' },
+  hm_snowman: { n: '雪人', e: '⛄', price: 80, fest: 'xmas' },
+};
+
+/* ── the three houses. x is in % of the scene's WIDTH and may run past 100: a bigger house is a wider
+   world and the view follows you; y is in % of the scene's height. ── */
+const LVS = {
+  1: { name: '小木屋', world: 100, garden: 40,
+       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, y0: 46, y1: G0 }],
+       roof: [36, 96, 22, 46], chim: [80, 26, 4, 10], doors: [[39.4, 66, 3, 20]],
+       things: [], wins: [], pots: [[13, G0], [26, G0]], garden_things: [['tree', 5, G0 - 4, 9]] },
+  2: { name: '小平房', world: 132, garden: 40,
+       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, y0: 46, y1: G0 }, { id: 'bed', n: '卧室', x0: 92, x1: 128, y0: 46, y1: G0 }],
+       roof: [36, 132, 20, 46], chim: [118, 24, 4, 10], doors: [[39.4, 66, 3, 20], [90.6, 64, 3, 22]],
+       things: [['bed', 113, G0, 15], ['bear', 98.5, G0, 4.5], ['lamp', 124.5, G0, 4]], wins: [[106, 53, 8, 10]],
+       pots: [[9, G0], [20, G0], [31, G0]], garden_things: [['tree', 3.5, G0 - 4, 7.5], ['pethouse', 36.4, G0, 6]] },
+  3: { name: '两层小楼', world: 142, garden: 40,
+       rooms: [
+         { id: 'living', n: '客厅', x0: 40, x1: 92, y0: G1 + 2, y1: G0 }, { id: 'hall', n: '楼梯', x0: 92, x1: 104, y0: G1 + 2, y1: G0 },
+         { id: 'kitchen', n: '厨房', x0: 104, x1: 140, y0: G1 + 2, y1: G0 },
+         { id: 'bed', n: '二楼卧室', x0: 40, x1: 92, y0: 26, y1: G1 }, { id: 'hall2', n: '楼梯', x0: 92, x1: 104, y0: 26, y1: G1 },
+         { id: 'balcony', n: '阳台', x0: 104, x1: 140, y0: 26, y1: G1 }],
+       roof: [36, 144, 6, 26], chim: [128, 9, 4, 9], slab: [40, G1, 100, 2],
+       doors: [[39.4, 70, 3, 16], [90.6, 68, 3, 18], [102.4, 68, 3, 18], [90.6, 38, 3, 18]],
+       things: [['stove', 113, G0, 9], ['table', 129, G0, 11], ['bed', 68, G1, 15], ['bear', 47, G1, 4], ['lamp', 87, G1, 4], ['bench', 133, G1, 8]], wins: [[61, 31, 8, 10], [122, 62, 7, 9]],
+       pots: [[8, G0], [16, G0], [24, G0], [32, G0], [111, G1], [121, G1]],
+       garden_things: [['tree', 3.5, G0 - 4, 7.5], ['pethouse', 36.4, G0, 5.6]],
+       stairs: { bx: 93.5, tx: 102.5 }, pond: [10, 89, 20, 6], balcony: [104, 140] },
+};
+
+/* ── the shared save ──────────────────────────────────────────────────────────────────────────── */
+// { v, pots: [null | { id, seed, at, w: { date: bits } }], picked, album: { seed: n }, log: [[date, who, seed]], pos: { char1: {x, f, at} } }
+const blank = () => ({ v: 1, pots: [], picked: 0, album: {}, log: [], pos: {} });
+const clone = (d) => JSON.parse(JSON.stringify(d));
+function norm(d) {
+  const b = blank();
+  if (!d || typeof d !== 'object') return b;
+  return { ...b, ...d, pots: Array.isArray(d.pots) ? d.pots.slice(0, 6) : [], album: d.album && typeof d.album === 'object' ? d.album : {},
+    log: Array.isArray(d.log) ? d.log : [], pos: d.pos && typeof d.pos === 'object' ? d.pos : {}, picked: Number.isInteger(d.picked) && d.picked >= 0 ? d.picked : 0 };
+}
+// How far a planting has got, from its waterings alone — derived, so two phones can never disagree.
+// One of you watering = one step, both of you the same day = two. A growing plant left WILT days droops;
+// the watering that saves it doesn't make it grow.
+function grow(p, today) {
+  if (!p) return { stage: 0, wilted: false, last: null, days: 0 };
+  const days = Object.keys(p.w || {}).filter(d => d <= today).sort();
+  let stage = 0, last = null;
+  for (const d of days) {
+    if (stage >= 5) break;
+    if (stage >= 1 && last && dayDiff(last, d) >= WILT) { last = d; continue; }
+    stage = Math.min(5, stage + (p.w[d] === 3 ? 2 : 1));
+    last = d;
+  }
+  const wilted = stage >= 1 && stage < 5 && !!last && dayDiff(last, today) >= WILT;
+  return { stage, wilted, last, days: days.length };
+}
+// Every change to the garden is one of these. apply() returns the new save, or null when the action no
+// longer makes sense on this save (the flower was already picked, the pot was already planted…) — which
+// is also what makes replaying an action after a refused write safe.
+function apply(data, op) {
+  const d = clone(norm(data));
+  const p = d.pots[op.pot];
+  if (op.t === 'plant') {
+    if (p || !SEEDS[op.seed] || !(op.pot >= 0 && op.pot < 6)) return null;
+    while (d.pots.length <= op.pot) d.pots.push(null);
+    d.pots[op.pot] = { id: op.id, seed: op.seed, at: op.date, by: op.who, w: {} };
+    return d;
+  }
+  if (op.t === 'water') {
+    if (!p || p.id !== op.id) return null;
+    const g = grow(p, op.date), bit = BIT[op.who];
+    if (!bit || g.stage >= 5 || ((p.w[op.date] || 0) & bit)) return null;
+    p.w[op.date] = (p.w[op.date] || 0) | bit;
+    return d;
+  }
+  if (op.t === 'pick') {
+    if (!p || p.id !== op.id || grow(p, op.date).stage < 5) return null;
+    d.pots[op.pot] = null;
+    d.picked += 1;
+    d.album[p.seed] = (d.album[p.seed] || 0) + 1;
+    d.log = d.log.concat([[op.date, op.who, p.seed, p.id]]).slice(-30);
+    return d;
+  }
+  if (op.t === 'pos') {
+    if (!BIT[op.who]) return null;
+    d.pos[op.who] = { x: Math.round(op.x * 10) / 10, f: op.f ? 1 : 0, at: op.at };
+    return d;
+  }
+  return null;
+}
+const fold = (data, ops) => ops.reduce((acc, op) => apply(acc, op) || acc, norm(data));
+// Is this action of ours already in the save? (A write can land with its answer lost on the way back;
+// the retry is then refused, and the save it hands back already holds what we did.)
+function landed(data, op) {
+  const d = norm(data), p = d.pots[op.pot];
+  if (op.t === 'plant') return !!p && p.id === op.id;
+  if (op.t === 'water') return !!p && p.id === op.id && !!((p.w || {})[op.date] & BIT[op.who]);
+  if (op.t === 'pick') return d.log.some(e => e[3] === op.id && e[1] === op.who);
+  return false;
+}
+// who got there first, from the save
+function firstBy(data, op) {
+  const d = norm(data), p = d.pots[op.pot];
+  if (op.t === 'pick') { const e = d.log.slice().reverse().find(e => e[3] === op.id); return e ? e[1] : ''; }
+  if (op.t === 'plant') return p ? (p.by || '') : '';
+  return '';
+}
+
+/* ── state ─────────────────────────────────────────────────────────────────────────────────────── */
+let API = null;
+const G = {
+  open: false, lv: 1, me: 'cs', W: 0, H: 0, camX: 0, camT: 0, raf: 0, last: 0, hold: 0, lead: 'me',
+  srv: { data: blank(), rev: 0, loaded: false }, pending: [], remote: [], view: blank(), busy: false, failAt: 0,
+  partner: { at: 0, on: false, x: 0, f: 0, v: HOME_V, away: false }, today: '', fest: null, fests: new Set(), festKey: '', season: '', night: false, dusk: false,
+  timers: [], lastStatus: '', lastPots: '', tab: 'garden', sheet: null, dayTick: 0,
+};
+const UI = {};
+const P = {};       // the two people, keyed cs / yy
+let pet = null;
+const meK = () => G.me, peerK = () => OTHER[G.me];
+const nameOf = (k) => (API && API.names && API.names[k]) || (k === 'cs' ? 'CS' : 'YY');
+
+/* ── dates and festivals ─────────────────────────────────────────────────────────────────────── */
+// Every theme the app has on a date, not only the one that wins it: on 12-24 the 周年 wins the sky, but
+// it is still 圣诞 in the garden. [{ id, name }], cached per day.
+const dayCache = new Map(), festCache = new Map();
+function themesAt(d) {
+  if (dayCache.has(d)) return dayCache.get(d);
+  let r = [];
+  try { r = (API.themesAt(d) || []).filter(t => t && FESTS[t.id]); } catch (e) {}
+  dayCache.set(d, r);
+  return r;
+}
+const festOn = (id, d) => themesAt(d).some(t => t.id === id);
+// a festival's window: from a week before it until a few days after (a week after the anniversary)
+function festWin(id, today) {
+  const k = id + today;
+  if (festCache.has(k)) return festCache.get(k);
+  const grace = id === 'anniv' ? 7 : 2;
+  let on = false;
+  for (let i = -grace; i <= 7 && !on; i++) on = festOn(id, addDays(today, i));
+  let left = 0;
+  if (on) {
+    let end = -grace;
+    for (let i = -grace; i <= 40; i++) if (festOn(id, addDays(today, i))) end = i;
+    left = Math.max(1, end + grace + 1);
+  }
+  const r = { on, left };
+  festCache.set(k, r);
+  return r;
+}
+// the festival that colours the sky: the app's own winner when it is one of ours
+function topFest(d, all) { let top = null; try { top = API.themeAt(d); } catch (e) {} return top && all.some(x => x.id === top.id) ? top.id : all[0].id; }
+function seasonOf(today) { const m = +today.slice(5, 7); return m >= 3 && m <= 5 ? 'spring' : m <= 8 && m >= 6 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter'; }
+function seedState(key, today) {
+  const s = SEEDS[key], picked = G.view.picked || 0;
+  if (s.fest) { const w = festWin(s.fest, today); return w.on ? { ok: true, left: w.left } : { ok: false, why: `${FESTS[s.fest].n}的时候才能种` }; }
+  return picked >= s.unlock ? { ok: true } : { ok: false, why: `收满 ${s.unlock} 朵花解锁（还差 ${s.unlock - picked}）` };
+}
+
+/* ── drawing pots and flowers ────────────────────────────────────────────────────────────────── */
+function bloom(shape, col, top) {
+  const cx = 50, cy = top - 3;
+  let p = '';
+  const ring = (n, r, rx, ry, fill) => { for (let k = 0; k < n; k++) { const a = k * Math.PI * 2 / n, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; p += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rx}" ry="${ry}" transform="rotate(${(a * 57.3 + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${fill}"/>`; } };
+  if (shape === 'daisy') { ring(11, 8, 2.6, 6.5, col); p += `<circle cx="${cx}" cy="${cy}" r="4.6" fill="#FFD34E" stroke="#E8A32E" stroke-width="1.2"/>`; }
+  else if (shape === 'sun') { ring(13, 10, 3, 7, col); p += `<circle cx="${cx}" cy="${cy}" r="7" fill="#8A5A2B" stroke="#5E3B19" stroke-width="1.4"/><circle cx="48" cy="${cy - 2}" r="1.4" fill="#C9965A"/>`; }
+  else if (shape === 'cup') p += `<path d="M40 ${cy + 4}Q38 ${cy - 8} 43 ${cy - 11}L46.5 ${cy - 4}L50 ${cy - 12}L53.5 ${cy - 4}L57 ${cy - 11}Q62 ${cy - 8} 60 ${cy + 4}Q50 ${cy + 11} 40 ${cy + 4}Z" fill="${col}" stroke="rgba(0,0,0,.22)" stroke-width="1.6" stroke-linejoin="round"/><path d="M45 ${cy}q2 -5 0 -8" stroke="#fff" stroke-width="1.6" opacity=".55" fill="none" stroke-linecap="round"/>`;
+  else if (shape === 'cluster') { const pts = [[0, 0], [-6, -2], [6, -2], [-3, -7], [3, -7], [-5, 4], [5, 4], [0, 6], [0, -11]]; for (const [dx, dy] of pts) p += `<circle cx="${cx + dx}" cy="${cy + dy}" r="4.2" fill="${col}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`; p += `<circle cx="${cx - 2}" cy="${cy - 3}" r="1.5" fill="#fff" opacity=".6"/>`; }
+  else if (shape === 'spike') { for (let k = 0; k < 6; k++) p += `<ellipse cx="${cx + (k % 2 ? 2.2 : -2.2)}" cy="${cy + 6 - k * 4.2}" rx="${3.4 - k * .3}" ry="2.6" fill="${col}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`; }
+  else if (shape === 'star5') { for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * Math.PI * 2 / 5; p += `<circle cx="${(cx + Math.cos(a) * 6.6).toFixed(1)}" cy="${(cy + Math.sin(a) * 6.6).toFixed(1)}" r="5.6" fill="${col}" stroke="rgba(0,0,0,.16)" stroke-width="1"/>`; } p += `<circle cx="${cx}" cy="${cy}" r="3.6" fill="#FFF3B0" stroke="#E8B04B" stroke-width="1"/>`; }
+  else if (shape === 'rose') p += `<circle cx="${cx}" cy="${cy}" r="9" fill="${col}" stroke="#B5283F" stroke-width="1.6"/><path d="M${cx - 5} ${cy + 1}q5 -9 10 0q-5 5 -10 0zM${cx - 2.5} ${cy - 1}q2.5 -4 5 0" fill="none" stroke="#B5283F" stroke-width="1.5" stroke-linecap="round"/>`;
+  else if (shape === 'poin') { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; const x1 = cx + Math.cos(a) * 11, y1 = cy + Math.sin(a) * 11, x2 = cx + Math.cos(a + .45) * 4, y2 = cy + Math.sin(a + .45) * 4, x3 = cx + Math.cos(a - .45) * 4, y3 = cy + Math.sin(a - .45) * 4; p += `<path d="M${x2.toFixed(1)} ${y2.toFixed(1)}L${x1.toFixed(1)} ${y1.toFixed(1)}L${x3.toFixed(1)} ${y3.toFixed(1)}Z" fill="${col}" stroke="#A72A22" stroke-width="1.2" stroke-linejoin="round"/>`; } p += `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#FFD34E"/><circle cx="${cx + 3}" cy="${cy + 1}" r="1.4" fill="#7FBF5A"/>`; }
+  else if (shape === 'pumpkin') p += `<path d="M50 ${top - 3}q3 -6 8 -6" stroke="#4F8E46" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="${top + 8}" rx="16" ry="12" fill="#FF9E3D" stroke="#C96A1C" stroke-width="2.5"/><path d="M50 ${top - 3}V${top + 19}M41 ${top - 1}Q36 ${top + 8} 41 ${top + 18}M59 ${top - 1}Q64 ${top + 8} 59 ${top + 18}" stroke="#C96A1C" stroke-width="1.6" fill="none"/>`;
+  return p;
+}
+function potSvg(pl, g, inPot = true) {
+  const s = pl ? SEEDS[pl.seed] || SEEDS.daisy : null;
+  const stage = pl ? g.stage : -1, stem = [0, 14, 24, 34, 42, 46][Math.max(0, stage)], top = 62 - stem;
+  let p = '';
+  if (stage === 0) p += '<ellipse cx="50" cy="60" rx="7" ry="3.4" fill="#5E3A26"/><path d="M47 58q3 -3 6 0" stroke="#8A5A3B" stroke-width="1.6" fill="none"/>';
+  else if (stage > 0) {
+    const big = s.shape === 'sun' && stage >= 3 ? 1.12 : 1;
+    p += `<g class="hm-plant"${big !== 1 ? ` transform="translate(50 62) scale(1 ${big}) translate(-50 -62)"` : ''}><path d="M50 62V${top}" stroke="#3E8E4A" stroke-width="4" stroke-linecap="round"/>`;
+    if (stage === 1) p += `<path d="M50 ${top}q-9 -8 -14 -2q6 5 14 2zM50 ${top}q9 -8 14 -2q-6 5 -14 2z" fill="#5DB565"/>`;
+    if (stage >= 2) p += `<path d="M50 ${62 - stem * .42}q-14 -10 -20 -2q8 6 20 2z" fill="#5DB565"/><path d="M50 ${62 - stem * .55}q14 -10 20 -2q-8 6 -20 2z" fill="#5DB565"/>`;
+    if (stage >= 3) p += `<path d="M50 ${62 - stem * .78}q-10 -8 -15 -2q6 5 15 2z" fill="#6CC274"/>`;
+    if (stage === 4) p += `<path d="M50 ${top + 3}q-8 -10 0 -18q8 8 0 18z" fill="${s.col}" stroke="rgba(0,0,0,.2)" stroke-width="1.5"/>`;
+    if (stage === 5) p += bloom(s.shape, s.col, top);
+    p += '</g>';
+  }
+  const potArt = inPot ? `<path d="M28 62H72L65 94H35Z" fill="#E58A5C" stroke="#B9653C" stroke-width="3" stroke-linejoin="round"/><rect x="25" y="57" width="50" height="9" rx="4" fill="#F2A275" stroke="#B9653C" stroke-width="3"/>` : '';
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${inPot ? '<ellipse cx="50" cy="96" rx="26" ry="4" fill="rgba(40,30,20,.2)"/><ellipse class="hm-soil" cx="50" cy="60" rx="21" ry="4" fill="#7A4E35"/>' : ''}${p}${potArt}</svg>`;
+}
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+const glowOf = (s) => (s.glow === 'moon' ? 'rgba(140,210,255,.95)' : s.glow === 'gold' ? 'rgba(255,215,94,.95)' : rgba(s.col, .85));
+
+/* ── one pot, as this phone sees it ── */
+function potInfo(i) {
+  const pl = G.view.pots[i] || null, g = grow(pl, G.today), myBit = BIT[CHAR[meK()]], peerBit = BIT[CHAR[peerK()]];
+  const bits = pl ? (pl.w[G.today] || 0) : 0;
+  return { pl, g, seed: pl ? SEEDS[pl.seed] || SEEDS.daisy : null, mine: !!(bits & myBit), theirs: !!(bits & peerBit),
+    empty: !pl, bloom: !!pl && g.stage >= 5, thirsty: !!pl && g.stage < 5 && !(bits & myBit) };
+}
+function potHtml(i) {
+  const L = LVS[G.lv], [x, y] = L.pots[i], q = potInfo(i);
+  const cls = ['hm-pot'];
+  if (q.empty) cls.push('hm-empty');
+  if (q.thirsty) cls.push('hm-thirsty');
+  if (q.bloom) cls.push('hm-bloom');
+  if (q.pl && q.g.stage >= 2) cls.push('hm-grown');
+  if (q.seed && q.seed.glow === 'moon') cls.push('hm-glow-moon');
+  if (q.pl && q.mine) cls.push('hm-wet');
+  if (q.g.wilted) cls.push('hm-wilt');
+  const what = q.empty ? '空花盆，点一下种花' : q.bloom ? `${q.seed.n}开花了，点一下收进图鉴` : `${q.seed.n}，${q.g.wilted ? '蔫了，快浇水' : q.mine ? '今天浇过了' : '点一下浇水'}`;
+  return `<div class="${cls.join(' ')}" data-i="${i}" style="left:${x}%;top:${y}%${q.seed ? `;--hm-glow:${glowOf(q.seed)}` : ''}" role="button" tabindex="0" aria-label="${i + 1} 号花盆：${what}">${potSvg(q.pl, q.g)}${q.theirs && !q.bloom ? `<span class="hm-pmark" style="background:${peerK() === 'cs' ? '#7FB2EC' : '#FF9CC4'}" aria-hidden="true"></span>` : ''}</div>`;
+}
+
+/* ── the scene ───────────────────────────────────────────────────────────────────────────────── */
+const box = (cls, x, y, w, h, inner = '', style = '') => `<div class="hm-abs ${cls}" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%;${style}">${inner}</div>`;
+const thingAt = (svg, x, y, w, cls = '') => `<div class="hm-abs hm-thing ${cls}" style="left:${x}%;top:${y}%;width:${w}%">${svg}</div>`;
+const owns = (id) => { try { return !!API.owns(id); } catch (e) { return false; } };
+const showFest = (id) => !!FESTS[id] && festWin(id, G.today).on;
+function levelOf() { return owns('hm_lv3') ? 3 : owns('hm_lv2') ? 2 : 1; }
+
+// The 客厅 is the couple's own 小窝: the same pieces where they put them, the same wallpaper and floor.
+function miniRoom(r) {
+  let room = { items: [], paper: null, mat: null };
+  try { room = API.room() || room; } catch (e) {}
+  const wall = room.paper ? room.paper.wall : null, floor = room.paper ? room.paper.floorTone : null;
+  const bg = wall ? `background:linear-gradient(180deg, ${wall[0]} 0%, ${wall[1]} 58%, ${floor} 58.2%, ${floor} 100%)` : '';
+  const mat = room.mat ? `<div class="hm-mfloor" style="background:linear-gradient(180deg, ${room.mat[0]}, ${room.mat[1]})"></div>` : '';
+  G.sofas = [];
+  const pieces = room.items.map((o, z) => {
+    const size = (o.ratio || .5) * (o.s || 1);
+    if (!o.wall && o.art === '🛋️') G.sofas.push({ x: r.x0 + clamp(+o.x || 50, 0, 100) / 100 * (r.x1 - r.x0), yb: r.y0 + clamp(+o.y || 80, 0, 100) / 100 * (r.y1 - r.y0), size });
+    return `<div class="hm-mp ${o.wall ? 'hm-mpw' : 'hm-mpf'}" style="left:${clamp(+o.x || 50, 0, 100)}%;top:${clamp(+o.y || 80, 0, 100)}%;z-index:${z + 2};font-size:calc(var(--hm-mh, 60px) * ${size.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
+  }).join('');
+  return `<div class="hm-abs hm-mini${wall ? '' : ' hm-mini-def'}" style="left:${r.x0}%;top:${r.y0}%;width:${r.x1 - r.x0}%;height:${r.y1 - r.y0}%;${bg}">${mat}<div class="hm-mwin"><i></i></div>${pieces}</div>`;
+}
+function festDecor(L) {
+  const [rx0, rx1, ry0, ry1] = L.roof, d = L.doors[0], dx = d[0] + d[2] / 2, dy = d[1], on = (id) => G.fests.has(id);
+  let h = '';
+  // what the date brings, free
+  if (on('xmas')) {
+    h += box('hm-snowcap', rx0, ry0, rx1 - rx0, (ry1 - ry0) * .62) + box('hm-snowground', -5, 86, L.world + 10, 3.2);
+    for (let k = 0; k < 14; k++) h += box('hm-flake', ((k * 8.3 + 3) % 100) * L.world / 100, -3, 1, 0, '', `height:auto;animation-delay:${-(k * .61).toFixed(2)}s`);
+  }
+  if (on('vday')) for (let k = 0; k < 6; k++) h += `<span class="hm-abs hm-fheart" style="left:${8 + k * L.world / 7}%;top:84%;animation-delay:${-(k * 1.1).toFixed(1)}s">💗</span>`;
+  if (on('halloween')) for (const [x, y, dl] of [[12, 10, 0], [46, 16, -2.7], [L.world - 30, 26, -5.1]]) h += `<div class="hm-abs hm-bat" style="left:${x}%;top:${y}%;animation-delay:${dl}s">${BAT}</div>`;
+  if (on('cny')) h += box('hm-fu', dx, dy + 5, 3.2, 0, '<span>福</span>', 'height:auto;aspect-ratio:1');
+  if (on('anniv')) {
+    const th = themesAt(G.today).find(t => t.id === 'anniv') || {};
+    // a sign on the roof, clear of the 客厅's own sign and the furniture
+    const bw = Math.min(34, (rx1 - rx0) * .5), bx = (L.rooms[0].x0 + L.rooms[0].x1) / 2 - bw / 2;
+    h += box('hm-banner', bx, ry1 - 8.5, bw, 5.4, `💞 在一起${esc(th.name || '周年')} 💞`);
+    h += thingAt(BALLOON('#FFD75E', '#E8A32E'), dx - 4, G0, 3.2, 'hm-sway') + thingAt(BALLOON('#FF8FB3', '#E0508F'), dx - 6.6, G0 - 1, 2.8, 'hm-sway');
+  }
+  // what they bought: out every year at its festival; the lamp always
+  if (owns('hm_lantern') && showFest('cny')) for (const x of [rx0 + 7, rx1 - 7]) h += `<div class="hm-abs hm-hang hm-glows" style="left:${x}%;top:${ry1}%;width:3.2%">${LANTERN}</div>`;
+  if (owns('hm_lights') && showFest('xmas')) { const n = Math.round((rx1 - rx0) / 4.6); for (let k = 0; k <= n; k++) { const x = rx0 + 3 + k * (rx1 - rx0 - 6) / n; h += box('hm-bulb', x, ry1 + .6, 1.3, 0, '', `height:auto;background:${['#FF6F9F', '#FFD75E', '#7FC4FF', '#7FD8A8'][k % 4]};animation-delay:${-(k * .37).toFixed(2)}s`); } }
+  if (owns('hm_couplet') && showFest('cny')) { h += box('hm-couplet', d[0] - 2.4, dy + 1, 1.9, d[3] * .78, '春满人间'); h += box('hm-couplet', d[0] + d[2] + .5, dy + 1, 1.9, d[3] * .78, '福到我家'); }
+  if (owns('hm_arch') && showFest('vday')) for (let k = 0; k <= 6; k++) { const a = Math.PI * k / 6; h += `<span class="hm-abs hm-ah" style="left:${(dx + Math.cos(a) * 3.6).toFixed(2)}%;top:${(dy - Math.sin(a) * 4.4 + 1).toFixed(2)}%">💗</span>`; }
+  // the garden's own pieces stand in a strip of lawn in front of where you walk, one after another
+  const front = [];
+  if (owns('hm_lamp')) front.push([POSTLAMP, 2.8, 'hm-glows']);
+  if (owns('hm_snowman') && showFest('xmas')) front.push([SNOWMAN, 5.6, '']);
+  if (owns('hm_lion') && showFest('cny')) front.push([LION, 5.6, '']);
+  if (owns('hm_mailbox') && showFest('vday')) front.push([MAIL, 3.4, '']);
+  if (owns('hm_rabbit') && showFest('midautumn')) front.push([RABBIT, 5.4, 'hm-glows'], [RABBIT, 4.6, 'hm-glows']);
+  if (owns('hm_pumpkin') && showFest('halloween')) front.push([PUMPKIN, 5, 'hm-glows hm-pumpkin'], [PUMPKIN, 4.2, 'hm-glows hm-pumpkin']);
+  let fx0 = 4;
+  for (const [svg, w, cls] of front) { h += thingAt(svg, fx0 + w / 2, 98.5, w, cls); fx0 += w + 2.2; }
+  return h;
+}
+function renderHouse() {
+  if (!UI.house) return;
+  const L = LVS[G.lv];
+  let h = '';
+  h += box('hm-grass', -5, 86, L.world + 10, 14);
+  h += box('hm-fence', 0, 74, L.garden - 1, 12);
+  if (L.pond) h += box('hm-pond', ...L.pond);
+  for (const [k, x, y, w] of L.garden_things) {
+    if (k === 'tree' && owns('hm_xtree') && showFest('xmas')) { h += `<div class="hm-abs hm-thing hm-glows hm-xtree" style="left:${x + 1}%;top:${y + 4}%;width:${w + 1.5}%">${XTREE}</div>`; continue; }
+    h += `<div class="hm-abs hm-thing${k === 'tree' ? ' hm-tree' : ''}" style="left:${x}%;top:${y}%;width:${w}%">${art(k)}</div>`;
+  }
+  for (const r of L.rooms) {
+    if (r.id === 'living') { h += box('hm-room hm-r-living', r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0) + miniRoom(r); continue; }
+    h += box('hm-room hm-r-' + r.id, r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+  }
+  if (L.balcony) h += box('hm-rail', L.balcony[0], G1 - 8, L.balcony[1] - L.balcony[0], 1.4) + box('hm-rail hm-posts', L.balcony[0], G1 - 8, L.balcony[1] - L.balcony[0], 8);
+  const hx1 = L.rooms.reduce((m, r) => Math.max(m, r.x1), 0);
+  h += box('hm-slab', L.rooms[0].x0 - 1, G0, hx1 - L.rooms[0].x0 + 2, 2.4);
+  if (L.slab) h += box('hm-slab', L.slab[0], L.slab[1], L.slab[2], L.slab[3]);
+  h += box('hm-chim', ...L.chim) + box('hm-roof', L.roof[0], L.roof[2], L.roof[1] - L.roof[0], L.roof[3] - L.roof[2]);
+  for (const w of L.wins) h += box('hm-win', ...w);
+  for (const d of L.doors) h += box('hm-door', ...d);
+  for (const r of L.rooms) if (!/^hall/.test(r.id)) h += `<span class="hm-abs hm-rn" style="left:${(r.x0 + r.x1) / 2}%;top:${r.y0}%">${r.n}</span>`;
+  if (L.stairs) h += box('hm-stairs', L.stairs.bx - 1.5, G1, L.stairs.tx - L.stairs.bx + 3, G0 - G1);
+  for (const [k, x, y, w] of L.things) h += `<div class="hm-abs hm-thing" style="left:${x}%;top:${y}%;width:${w}%">${art(k)}</div>`;
+  h += festDecor(L);
+  L.pots.forEach((_, i) => { h += potHtml(i); });
+  UI.house.innerHTML = h;
+  G.lastPots = potsSig();
+  sizeMini();
+  UI.up.hidden = UI.down.hidden = !L.stairs;
+  UI.pads.classList.toggle('hm-pads6', !!L.stairs);
+}
+const potsSig = () => JSON.stringify([G.today, G.lv, LVS[G.lv].pots.map((_, i) => { const q = potInfo(i); return [q.pl && q.pl.id, q.g.stage, q.g.wilted, q.mine, q.theirs]; })]);
+function renderPots() {
+  const sig = potsSig();
+  if (sig === G.lastPots) return;
+  G.lastPots = sig;
+  LVS[G.lv].pots.forEach((_, i) => { const el = UI.house && UI.house.querySelector(`.hm-pot[data-i="${i}"]`); if (el) el.outerHTML = potHtml(i); });
+  renderPanel();
+}
+// the 客厅's furniture is sized off the room it stands in, like the 小窝's is off the pet (§7)
+function sizeMini() {
+  const m = UI.house && UI.house.querySelector('.hm-mini');
+  if (!m || !G.W) return;
+  const r = LVS[G.lv].rooms[0], w = (r.x1 - r.x0) / 100 * G.W, h = (r.y1 - r.y0) / 100 * G.H;
+  const mh = Math.round(Math.min(w * .36, h * .62));
+  m.style.setProperty('--hm-mh', mh + 'px');
+  // two seats a sofa; the cushion is 42% up the drawing (sofa_blue's seat), and you sit just into it
+  G.seats = [];
+  for (const f of G.sofas || []) {
+    const wpx = f.size * mh, half = wpx / 4 / G.W * 100, seatY = f.yb - .4 * wpx / G.H * 100;
+    const lift = Math.max(0, (G0 - seatY) / 100 * G.H);
+    G.seats.push({ x: f.x - half, lift }, { x: f.x + half, lift });
+  }
+  for (const k of ['cs', 'yy']) if (P[k]) poseSit(P[k]);
+  if (UI.sit) UI.sit.hidden = !G.seats.length;
+}
+// sitting is a pose where you stand: nothing about walking, stairs or saving changes
+function poseSit(a) {
+  const s = a.sit >= 0 && G.seats ? G.seats[a.sit] : null;
+  a.el.classList.toggle('hm-sit', !!s);
+  if (s) a.el.style.setProperty('--hm-lift', s.lift.toFixed(1) + 'px');
+  if (a.k === meK() && UI.sit) UI.sit.textContent = s ? '🧍 站起来' : '🛋️ 坐沙发';
+}
+function standUp(a) { if (a.sit < 0 && a.sitWant < 0) return; a.sit = -1; a.sitWant = -1; poseSit(a); }
+function sitDown() {
+  if (!G.seats || !G.seats.length) return;
+  const a = P[meK()], b = P[peerK()], taken = G.partner.on ? b.sit : -1;
+  if (a.sit >= 0) { standUp(a); send('up', {}); return; }
+  // the seat nearest you that your partner isn't on; next to them if they are sitting
+  let best = -1, bd = Infinity;
+  G.seats.forEach((s, i) => { if (i === taken) return; const d = taken >= 0 ? Math.abs(i - taken) * 100 + Math.abs(s.x - a.x) : Math.abs(s.x - a.x); if (d < bd) { bd = d; best = i; } });
+  if (best < 0) return;
+  walkMe(G.seats[best].x, G0, { sit: best });
+}
+function together() {
+  const a = P.cs, b = P.yy;
+  if (a.sit >= 0 && b.sit >= 0 && Math.floor(a.sit / 2) === Math.floor(b.sit / 2) && G.partner.on) { fx((G.seats[a.sit].x + G.seats[b.sit].x) / 2, G0 - 20, '💕'); say(`一起坐在沙发上 💕`); }
+}
+
+/* ── people (and the pet) ─────────────────────────────────────────────────────────────────────── */
+function makeActor(k) {
+  const el = document.createElement('div');
+  el.className = 'hm-ch';
+  el.innerHTML = `<div class="hm-cin"><span class="hm-you" aria-hidden="true">▼</span><span class="hm-tag"></span>${charSvg(k)}</div>`;
+  UI.actors.appendChild(el);
+  return { k, el, x: k === 'cs' ? 54 : 70, y: G0, vx: 0, vy: 0, path: [], after: null, flip: false, holdD: 0, sit: -1, sitWant: -1 };
+}
+const floors = () => (LVS[G.lv].stairs ? [G0, G1] : [G0]);
+const fl = (a) => (Math.abs(a.y - G0) < 1.5 ? G0 : Math.abs(a.y - G1) < 1.5 ? G1 : 0);   // 0: on the stairs
+const clampX = (x, y) => { const L = LVS[G.lv]; return y === G1 ? clamp(x, 42, (L.balcony ? L.balcony[1] : 92) - 2) : clamp(x, 3, L.world - 3); };
+// a path to (x, floor): along the floor, or to the stairs, up or down them, then along
+function route(a, x, fy) {
+  const L = LVS[G.lv]; x = clampX(x, fy);
+  if (!L.stairs) return [{ x, y: G0 }];
+  const s = L.stairs, f = fl(a);
+  if (f === fy) return [{ x, y: fy }];
+  if (!f) return [{ x: fy === G1 ? s.tx : s.bx, y: fy }, { x, y: fy }];
+  return f === G0 ? [{ x: s.bx, y: G0 }, { x: s.tx, y: G1 }, { x, y: G1 }] : [{ x: s.tx, y: G1 }, { x: s.bx, y: G0 }, { x, y: G0 }];
+}
+function where(a) {
+  const L = LVS[G.lv], f = fl(a);
+  if (!f) return '楼梯上';
+  if (f === G0 && a.x < L.garden) return '花园';
+  const r = L.rooms.find(r => a.x >= r.x0 && a.x <= r.x1 && r.y1 === f);
+  return r ? r.n : '家里';
+}
+const near = () => P.cs && P.yy && G.partner.on && fl(P.cs) && fl(P.cs) === fl(P.yy) && Math.abs(P.cs.x - P.yy.x) < 9;
+
+/* ── what you do ───────────────────────────────────────────────────────────────────────────────── */
+function fx(x, y, t) { if (!UI.actors) return; const e = document.createElement('div'); e.className = 'hm-pop'; e.textContent = t; e.style.left = x + '%'; e.style.top = y + '%'; UI.actors.appendChild(e); setTimeout(() => e.remove(), 1300); }
+let toastT = 0;
+function say(t) { if (!UI.toast) return; UI.toast.textContent = t; UI.toast.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { if (UI.toast) UI.toast.hidden = true; }, 2600); }
+function drops(x, y, who) {
+  if (REDUCE || !UI.actors) return;
+  for (let n = 0; n < 6; n++) { const d = document.createElement('div'); d.className = 'hm-abs hm-drop'; d.style.left = (x - 2 + Math.random() * 4) + '%'; d.style.top = (y - 13 + Math.random() * 3) + '%'; d.style.background = who === 'cs' ? '#7FB2EC' : '#FF9CC4'; d.style.animationDelay = (n * 60) + 'ms'; UI.actors.appendChild(d); setTimeout(() => d.remove(), 900 + n * 60); }
+}
+const newId = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
+// what tapping a pot means for this phone right now
+function potAction(i) {
+  const q = potInfo(i);
+  if (q.empty) return openSeeds(i);
+  if (q.bloom) return goTo(i, { t: 'pick', pot: i, id: q.pl.id });
+  if (q.mine) { say(q.theirs ? `今天你们两个都浇过了 💧💧 明天再来` : `今天浇过这盆了，明天再浇 · ${nameOf(peerK())} 也浇的话长得更快`); return goTo(i, null); }
+  return goTo(i, { t: 'water', pot: i, id: q.pl.id });
+}
+function goTo(i, op) {
+  // stand beside the pot, not in front of it, so the flower stays in sight
+  const [x, y] = LVS[G.lv].pots[i], a = P[meK()];
+  let sx = x + (a.x < x ? -6.5 : 6.5);
+  if (clampX(sx, y) !== sx) sx = x + (a.x < x ? 6.5 : -6.5);
+  walkMe(sx, y, op ? { op } : null);
+}
+// An action starts once you are standing at the pot. It goes into the save through do_() — which applies
+// it here at once, tells the partner's phone, and saves it (retrying on top of whatever they saved).
+function act(op) {
+  const who = CHAR[meK()], full = { ...op, who, date: G.today, id: op.id || newId() };
+  if (op.t === 'plant') full.id = newId();
+  const had = (G.view.pots[op.pot] || {}).seed;
+  const next = apply(G.view, full);
+  if (!next) { renderPots(); return false; }
+  G.pending.push(full);
+  store.set(pendKey(), G.pending);
+  recompute();
+  const [x, y] = LVS[G.lv].pots[op.pot] || [P[meK()].x, G0];
+  if (op.t === 'water') { drops(x, y, meK()); const q = potInfo(op.pot); say(q.g.stage >= 5 ? `${q.seed.e} 开花啦！再点一下收进图鉴` : q.theirs ? `💧 浇好了 · 今天你们都浇了，长了两格` : `💧 浇好了 · 明天还能再浇`); }
+  if (op.t === 'pick') { const s = SEEDS[had]; fx(x, y - 12, s && s.shape === 'pumpkin' ? '🎃' : '🧺'); say(`🧺 收了${s && s.shape === 'pumpkin' ? '一个南瓜' : `一朵${s ? s.n : '花'}`} · 宠物 +${PICK_EXP} EXP · 小窝币 +${PICK_EXP / 2}`); }
+  if (op.t === 'plant') { const s = SEEDS[op.seed]; fx(x, y - 10, '🌱'); say(`🌱 种下了${s.n} · 每天浇水，${nameOf(peerK())} 也浇会长得更快`); }
+  send('op', { op: full });
+  flush();
+  return true;
+}
+const pendKey = () => `hm_pending_${API && API.matchId || 'demo'}_${CHAR[meK()]}`;
+// Every newer save comes in here — our own write, the partner's, or the one a refused write hands back —
+// so the app always hears of it (its flower count is pet EXP and 小窝币).
+function setSrv(data, rev) {
+  const before = G.srv.loaded ? (G.srv.data.picked || 0) : null;
+  G.srv = { data: norm(data), rev: rev || 0, loaded: true };
+  const grew = before !== null && (G.srv.data.picked || 0) > before;
+  try { API.onSave(G.srv.data, grew); } catch (e) {}
+  // a flower is 小窝币: the balance and what it can buy change with it
+  if (grew) { renderCoins(); if (G.tab !== 'garden') renderPanel(); }
+}
+function recompute() {
+  const before = G.view.picked;
+  // the partner's actions we were told about wait on top until their own save lands (or they turn out
+  // to be in the save already, which apply() notices)
+  const now = Date.now();
+  G.remote = G.remote.filter(r => now - r.at < 30000);
+  let v = norm(G.srv.data);
+  G.remote = G.remote.filter(r => { const n = apply(v, r.op); if (n) { v = n; return true; } return false; });
+  for (const op of G.pending) v = apply(v, op) || v;
+  G.view = v;
+  renderPots();
+  if (v.picked !== before) renderPanel();
+}
+// Save everything not yet saved, on top of the newest save. A refused write (the partner saved first)
+// hands back their save, and our actions are replayed on it; any that no longer make sense are dropped
+// and said out loud.
+async function flush() {
+  if (G.busy || !G.pending.length || !API) return;
+  G.busy = true;
+  try {
+    for (let tries = 0; tries < 5 && G.pending.length; tries++) {
+      const ops = G.pending.slice();
+      let data = norm(G.srv.data);
+      const kept = [], lost = [];
+      for (const op of ops) { const n = apply(data, op); if (n) { data = n; kept.push(op); } else if (!landed(data, op)) lost.push(op); }
+      for (const op of lost) explainLost(op, data);
+      if (!kept.length) { G.pending = G.pending.filter(o => !ops.includes(o)); continue; }
+      let res;
+      try { res = await API.save.put(data, G.srv.rev); }
+      catch (e) {
+        if (e && e.stale) { setSrv(e.data, e.rev); continue; }
+        throw e;
+      }
+      setSrv(data, res.rev);
+      G.pending = G.pending.filter(o => !ops.includes(o));
+      store.set(pendKey(), G.pending);
+      send('saved', { rev: res.rev });
+    }
+    G.failAt = 0;
+    // still something unsaved after five refusals in a row (both phones busy at once): try again shortly
+    if (G.pending.length) later(flush, 2500 + Math.random() * 2000);
+  } catch (e) {
+    if (e && e.status >= 400 && e.status < 500) {
+      // the server refused the save itself (not a race): retrying the same thing would refuse forever
+      G.pending = [];
+      say('这一下没存上，已经换成最新的花园');
+      later(() => loadSave(true), 300);
+    } else {
+      // offline or the server is unwell: keep the actions (they are on the phone too) and try again soon
+      G.failAt = Date.now();
+      later(flush, 8000);
+    }
+  } finally {
+    G.busy = false;
+    store.set(pendKey(), G.pending);
+    recompute();
+  }
+}
+function explainLost(op, data) {
+  const by = firstBy(data, op), o = nameOf(KEY[by] || peerK());
+  if (op.t === 'pick') say(by && by === op.who ? '🌸 这朵花已经收进图鉴了' : `🌸 ${o} 先把这朵花收进图鉴了`);
+  else if (op.t === 'plant') say(by && by === op.who ? '🌱 这个花盆已经种上了' : `🌱 ${o} 刚在这个花盆里种了别的`);
+  else if (op.t === 'water') say('💧 这盆花刚刚变了，再看一眼');
+}
+async function loadSave(quiet) {
+  if (!API) return;
+  try {
+    const r = await API.save.get();
+    if (!G.open) return;
+    if (r.rev !== G.srv.rev || !G.srv.loaded) setSrv(r.data, r.rev);
+    recompute(); renderPanel(); status();
+    if (G.pending.length) flush();
+  } catch (e) { if (!quiet) say('花园没加载出来，网络好像不太好'); }
+}
+
+/* ── moving ───────────────────────────────────────────────────────────────────────────────────── */
+function walkMe(x, fy, after = null) {
+  const a = P[meK()];
+  if (a.sit >= 0) { standUp(a); send('up', {}); }
+  a.path = route(a, x, fy); a.after = after; a.holdD = 0;
+  G.lead = 'me';
+  hideHint();
+  const t = a.path[a.path.length - 1];
+  send('go', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, tx: r1(t.x), tf: t.y === G1 ? 1 : 0 });
+}
+const r1 = (v) => Math.round(v * 10) / 10;
+function hideHint() { if (UI.hint && !UI.hint.hidden) { UI.hint.hidden = true; store.set('hm_hinted', 1); } }
+function mark(x, y) { if (!UI.actors) return; const m = document.createElement('div'); m.className = 'hm-abs hm-mark'; m.style.left = x + '%'; m.style.top = y + '%'; UI.actors.appendChild(m); setTimeout(() => m.remove(), 750); }
+// A pot drawn 25px wide on a phone is a small target, so a tap a little beside it, or on the flower
+// above it, still counts. Not more than that: in the Lv3 garden the pots stand 8% apart, and the lawn
+// below them and the air above must still walk you there.
+function nearPot(x, y) {
+  const L = LVS[G.lv];
+  let best = -1, bd = Infinity;
+  L.pots.forEach(([px, py], i) => { const dx = Math.abs(x - px); if (dx < 4.6 && y > py - 15 && y < py + 3 && dx < bd) { bd = dx; best = i; } });
+  return best;
+}
+const sceneXY = (e) => { const r = UI.scene.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 100 + G.camX, (e.clientY - r.top) / r.height * 100]; };
+function onScenePointer(e) {
+  if (e.button > 0 || !G.open) return;
+  const potEl = e.target.closest('.hm-pot');
+  if (potEl) { e.preventDefault(); return potAction(+potEl.dataset.i); }
+  const [tx, ty] = sceneXY(e), hit = nearPot(tx, ty);
+  if (hit >= 0) { e.preventDefault(); return potAction(hit); }
+  const edge = e.target.closest('.hm-edge');
+  if (edge) { e.preventDefault(); const b = P[peerK()]; walkMe(b.x + (b.x > P[meK()].x ? -6 : 6), fl(b) || G0); return; }
+  const [x, y] = sceneXY(e), L = LVS[G.lv];
+  const fy = L.stairs && y < G1 + 1 && x > 40 && x < (L.balcony ? L.balcony[1] : 140) ? G1 : G0;
+  walkMe(x, fy); mark(clampX(x, fy), fy);
+}
+function startHold(d) {
+  const a = P[meK()];
+  if (a.sit >= 0) { standUp(a); send('up', {}); }
+  G.hold = d; a.holdD = d; a.after = null; G.lead = 'me';
+  hideHint();
+  send('hold', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, d });
+}
+function stopHold(d) {
+  if (G.hold !== d) return;
+  G.hold = 0;
+  const a = P[meK()]; a.holdD = 0;
+  if (a.path.length <= 1 && fl(a)) a.path = [];
+  send('stop', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 });
+}
+function hug() {
+  if (!near()) { say(G.partner.on ? `走到 ${nameOf(peerK())} 身边才能抱抱` : `${nameOf(peerK())} 不在家，等 TA 回来再抱抱`); return; }
+  playHug(); send('hug', {});
+}
+function playHug() {
+  const left = P.cs.x <= P.yy.x;
+  for (const k of ['cs', 'yy']) { const a = P[k], toRight = (k === 'cs') === left; a.el.style.setProperty('--hm-lean', (toRight ? 10 : -10) + 'deg'); a.flip = !toRight; a.el.classList.toggle('hm-flip', a.flip); a.el.classList.add('hm-hug'); setTimeout(() => a.el.classList.remove('hm-hug'), 1300); }
+  fx((P.cs.x + P.yy.x) / 2, P.cs.y - 17, '💞');
+}
+function wave() { const a = P[meK()]; fx(a.x, a.y - 17, '👋'); send('wave', {}); }
+
+/* ── the live channel: where the partner is, and what they just did ───────────────────────────── */
+function send(t, data) { if (!API || !API.online || !G.open) return false; try { return API.live.send('hm', { v: HOME_V, t, who: CHAR[meK()], ...data }); } catch (e) { return false; } }
+function beat() { const a = P[meK()]; if (!a) return; const t = a.path[a.path.length - 1]; send('st', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, tx: t ? r1(t.x) : undefined, tf: t ? (t.y === G1 ? 1 : 0) : undefined, d: a.holdD || 0, lv: G.lv }); }
+const okX = (x) => typeof x === 'number' && isFinite(x) && x >= -5 && x <= 160;
+function onLive(m) {
+  if (!G.open || !m || typeof m !== 'object') return;
+  // never trust the wire: our own login on another device is not the partner, and a broken message is dropped
+  if (m.who !== CHAR[peerK()]) return;
+  if (m.v !== HOME_V) { if (!G.verSaid) { G.verSaid = 1; say(`${nameOf(peerK())} 的 App 版本不一样，两个人都重新打开一下 App`); } return; }
+  const b = P[peerK()];
+  const wasOn = G.partner.on;
+  G.partner.at = Date.now(); G.partner.on = true; G.partner.away = false;
+  if (!wasOn) { b.el.classList.remove('hm-off'); if (m.t !== 'bye' && m.t !== 'away') say(`👋 ${nameOf(peerK())} 回家了`); }
+  const fy = (f) => (f === 1 && LVS[G.lv].stairs ? G1 : G0);
+  const snapTo = (x, f) => { if (!okX(x)) return; const y = fy(f); if (Math.abs(b.x - x) > 7 || fl(b) !== y) { b.path = route(b, x, y); } };
+  switch (m.t) {
+    case 'hi': if (okX(m.x)) { if (!wasOn) { b.x = clampX(m.x, fy(m.f)); b.y = fy(m.f); b.path = []; } else snapTo(m.x, m.f); } beat(); if (m.lv && m.lv !== G.lv) refreshOwned(); break;
+    case 'st': if (b.holdD && !m.d) b.holdD = 0; if (!b.path.length && !b.holdD) snapTo(m.x, m.f); if (m.lv && m.lv > G.lv) refreshOwned(); break;
+    case 'go': standUp(b); if (okX(m.tx)) { if (okX(m.x) && (Math.abs(b.x - m.x) > 10 || fl(b) !== fy(m.f))) { b.x = clampX(m.x, fy(m.f)); b.y = fy(m.f); } b.path = route(b, m.tx, fy(m.tf)); b.holdD = 0; G.lead = 'peer'; } break;
+    case 'hold': standUp(b); if ((m.d === 1 || m.d === -1)) { if (okX(m.x) && Math.abs(b.x - m.x) > 4) { b.x = clampX(m.x, fy(m.f)); b.y = fl(b) ? fy(m.f) : b.y; } b.holdD = m.d; G.lead = 'peer'; } break;
+    case 'stop': b.holdD = 0; if (okX(m.x)) b.path = route(b, m.x, fy(m.f)); break;
+    case 'sit': if (Number.isInteger(m.s) && G.seats && G.seats[m.s]) { b.holdD = 0; b.path = route(b, G.seats[m.s].x, G0); b.sitWant = m.s; } break;
+    case 'up': standUp(b); break;
+    case 'hug': if (Math.abs(P.cs.x - P.yy.x) < 14 && fl(P.cs) === fl(P.yy)) playHug(); else say(`💞 ${nameOf(peerK())} 想抱抱你，走过去吧`); break;
+    case 'wave': fx(b.x, b.y - 17, '👋'); say(`👋 ${nameOf(peerK())} 在跟你招手`); break;
+    case 'op': if (m.op && typeof m.op === 'object' && ['plant', 'water', 'pick'].includes(m.op.t) && m.op.who === CHAR[peerK()] && Number.isInteger(m.op.pot) && m.op.pot >= 0 && m.op.pot < 6) {
+        const op = { t: m.op.t, pot: m.op.pot, id: String(m.op.id || '').slice(0, 24), seed: m.op.seed, who: m.op.who, date: /^\d{4}-\d{2}-\d{2}$/.test(m.op.date || '') ? m.op.date : G.today };
+        if (apply(G.view, op)) {
+          G.remote.push({ op, at: Date.now() });
+          const [x, y] = LVS[G.lv].pots[op.pot] || [b.x, G0];
+          if (op.t === 'water') { drops(x, y, peerK()); say(`💧 ${nameOf(peerK())} 浇了水`); }
+          if (op.t === 'pick') { fx(x, y - 12, '🧺'); say(`🧺 ${nameOf(peerK())} 收了一朵花 · 宠物 +${PICK_EXP} EXP`); }
+          if (op.t === 'plant') { fx(x, y - 10, '🌱'); say(`🌱 ${nameOf(peerK())} 种下了${(SEEDS[op.seed] || {}).n || '新的种子'}`); }
+          recompute();
+        }
+      } break;
+    case 'saved': if (Number.isInteger(m.rev) && m.rev > G.srv.rev) loadSave(true); break;
+    case 'lv': case 'own': refreshOwned(); break;
+    case 'bye': case 'away':
+      G.partner.on = false; G.partner.away = true; b.holdD = 0; b.el.classList.add('hm-off');
+      if (okX(m.x)) { G.partner.last = { x: m.x, f: m.f ? 1 : 0, at: Date.now() }; b.path = route(b, m.x, fy(m.f)); }
+      say(m.t === 'bye' ? `${nameOf(peerK())} 出门了` : `${nameOf(peerK())} 暂时离开了`); break;
+  }
+  status();
+}
+async function refreshOwned() {
+  try { await API.reloadOwned(); } catch (e) {}
+  if (!G.open) return;
+  const lv = levelOf();
+  if (lv !== G.lv) setLevel(lv, true); else { renderHouse(); renderPanel(); }
+  renderCoins();
+}
+
+/* ── the frame: ease in, cruise, ease out; transforms only ───────────────────────────────────── */
+function stepActor(a, dt, max) {
+  if (a.holdD) { const f = fl(a); if (f && a.path.length <= 1) a.path = [{ x: clampX(a.x + a.holdD * 5, f), y: f }]; }
+  const t = a.path[0];
+  if (!t) { a.vx *= .7; a.vy *= .7; return false; }
+  if (Math.abs(t.y - a.y) < .05) { a.y = t.y; a.vy = 0; }
+  const dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy * .8);
+  if (REDUCE) { a.x = t.x; a.y = t.y; a.path.shift(); return true; }
+  const want = Math.min(max, d * 6), k = 1 - Math.exp(-10 * dt);
+  a.vx += ((d > .01 ? dx / d : 0) * want - a.vx) * k; a.vy += ((d > .01 ? dy / d : 0) * want - a.vy) * k;
+  a.x += a.vx * dt; a.y += a.vy * dt;
+  if (d < .35) { a.x = t.x; a.y = t.y; a.path.shift(); }
+  return true;
+}
+function place(el, a) {
+  el.style.transform = `translate3d(${(a.x / 100 * G.W).toFixed(1)}px,${(a.y / 100 * G.H).toFixed(1)}px,0) translate(-50%,-100%)`;
+  el.style.zIndex = String(Math.round(a.y * 10) + 1);
+}
+function frame(t) {
+  G.raf = 0;
+  if (!G.open) return;
+  if (!G.W) { G.raf = requestAnimationFrame(frame); return; }
+  const dt = G.last ? Math.min(.05, (t - G.last) / 1000) : .016; G.last = t;
+  for (const k of ['cs', 'yy']) {
+    const a = P[k];
+    const moving = stepActor(a, dt, 34);
+    a.el.classList.toggle('hm-walk', moving && Math.hypot(a.vx, a.vy) > 3);
+    if (Math.abs(a.vx) > 2) { const f = a.vx < 0; if (f !== a.flip) { a.flip = f; a.el.classList.toggle('hm-flip', f); } }
+    place(a.el, a);
+    if (k === meK() && !a.path.length && a.after) {
+      const af = a.after; a.after = null;
+      if (af.op) act(af.op);
+      if (af.sit != null && G.seats && G.seats[af.sit]) { a.sit = af.sit; poseSit(a); send('sit', { s: af.sit, x: r1(a.x) }); together(); }
+    }
+    // the partner sits once their walk to the seat is done
+    if (k === peerK() && a.sitWant >= 0 && !a.path.length) { a.sit = a.sitWant; a.sitWant = -1; poseSit(a); together(); }
+  }
+  // the pet follows whoever moved last (the same rule on both phones, so it is in the same place on both)
+  if (pet) {
+    const lead = G.lead === 'peer' && G.partner.on ? P[peerK()] : P[meK()];
+    const behind = lead.x + (lead.flip ? 5.5 : -5.5);
+    const mf = fl(lead) || (pet.path.length ? pet.path[pet.path.length - 1].y : G0);
+    if (fl(pet) && (!pet.path.length || Math.abs(pet.path[pet.path.length - 1].x - behind) > 3 || pet.path[pet.path.length - 1].y !== mf)) pet.path = route(pet, behind, mf);
+    const pm = stepActor(pet, dt, 40);
+    pet.el.classList.toggle('hm-walk', pm && Math.hypot(pet.vx, pet.vy) > 3);
+    if (Math.abs(pet.vx) > 2) { const f = pet.vx < 0; if (f !== pet.flip) { pet.flip = f; pet.el.classList.toggle('hm-flip', f); } }
+    place(pet.el, pet);
+  }
+  camera(dt);
+  edges();
+  const s = `${where(P.cs)}|${where(P.yy)}|${near()}|${G.partner.on}`;
+  if (s !== G.lastStatus) { G.lastStatus = s; status(); }
+  G.raf = requestAnimationFrame(frame);
+}
+// a bigger house is wider than the screen: the view keeps you in its middle part
+function camera(dt) {
+  const L = LVS[G.lv], max = Math.max(0, L.world - 100), a = P[meK()];
+  let t = G.camT;
+  if (a.x - t > 66) t = a.x - 66; else if (a.x - t < 34) t = a.x - 34;
+  G.camT = t = clamp(t, 0, max);
+  G.camX = REDUCE ? t : G.camX + (t - G.camX) * (1 - Math.exp(-5 * dt));
+  if (Math.abs(G.camX - t) < .02) G.camX = t;
+  const px = (-G.camX / 100 * G.W).toFixed(1);
+  if (px !== G.camPx) { G.camPx = px; UI.world.style.transform = `translate3d(${px}px,0,0)`; UI.far.style.transform = `translate3d(${(px * .35).toFixed(1)}px,0,0)`; }
+}
+// the partner outside the view: a little tag at that edge, which walks you to them
+function edges() {
+  const b = P[peerK()], side = !G.partner.on ? '' : b.x < G.camX + 2 ? 'l' : b.x > G.camX + 98 ? 'r' : '';
+  if (side !== G.edge) {
+    G.edge = side;
+    UI.edge.hidden = !side;
+    if (side) { UI.edge.className = 'hm-edge hm-edge-' + side; UI.edge.innerHTML = side === 'l' ? `‹ ${esc(nameOf(peerK()))}` : `${esc(nameOf(peerK()))} ›`; UI.edge.setAttribute('aria-label', `${nameOf(peerK())} 在${where(b)}，点一下走过去`); }
+  }
+}
+function status() {
+  if (!UI.status) return;
+  const o = peerK(), a = P[meK()], b = P[o];
+  const same = where(a) === where(b);
+  let s;
+  if (!API.online) s = `你在${where(a)} · ${esc(nameOf(o))} 只有登录以后才会一起回来`;
+  else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `你在${where(a)} · ${esc(nameOf(o))} 不在家${pos && pos.at ? `（上次在${where({ x: pos.x, y: pos.f ? G1 : G0 })}，${ago(pos.at)}）` : ''}`; }
+  else s = same ? `和 ${esc(nameOf(o))} 都在${where(a)} 💞` : `你在${where(a)} · ${esc(nameOf(o))} 在${where(b)}`;
+  UI.status.innerHTML = `<i class="hm-dot${G.partner.on ? ' on' : ''}"></i>${s}`;
+  UI.hug.disabled = !near();
+}
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 2 ? '刚刚' : m < 60 ? `${m} 分钟前` : m < 1440 ? `${Math.round(m / 60)} 小时前` : `${Math.round(m / 1440)} 天前`; };
+
+/* ── level, coins, shop ───────────────────────────────────────────────────────────────────────── */
+function setLevel(lv, celebrate) {
+  G.lv = lv;
+  for (const k of ['cs', 'yy']) if (P[k]) { P[k].sit = -1; P[k].sitWant = -1; }
+  for (const a of [P.cs, P.yy, pet].filter(Boolean)) { if (!floors().includes(fl(a))) a.y = G0; a.y = fl(a) || G0; a.x = clampX(a.x, a.y); a.path = []; a.after = null; }
+  renderHouse(); renderPanel(); status();
+  if (celebrate) { say(`🏠 ${LVS[lv].name}盖好了：${lv === 2 ? '多了卧室和宠物小屋，花园 3 个花盆' : '多了厨房、楼梯、二楼卧室和阳台，池塘也有了'}`); fx(P[meK()].x, P[meK()].y - 18, '🎉'); }
+}
+function renderCoins() { if (UI.coins) { let c = 0; try { c = API.coins(); } catch (e) {} UI.coins.textContent = `🪙 ${c}`; } }
+async function buy(id) {
+  const it = HOUSE[id];
+  if (!it || owns(id)) return;
+  if (it.needs && !owns(it.needs)) return say(`先${HOUSE[it.needs].n}`);
+  if (it.fest && !festWin(it.fest, G.today).on) return say(`${FESTS[it.fest].n}的时候才卖`);
+  let c = 0; try { c = API.coins(); } catch (e) {}
+  if (c < it.price) return say(`🪙 小窝币不够，还差 ${it.price - c} · 收花也能攒`);
+  const btn = UI.panel && UI.panel.querySelector(`[data-buy="${id}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  let ok = false;
+  try { ok = await API.buy(id, { name: it.n, icon: it.e, price: it.price }); } catch (e) { ok = false; }
+  if (!G.open) return;
+  if (!ok) { say('没买成，网络好像不太好，再试一次'); renderPanel(); return; }
+  renderCoins();
+  if (it.lv) { setLevel(levelOf(), true); send('lv', { lv: G.lv }); }
+  else { renderHouse(); renderPanel(); say(`${it.e} ${it.n}放好了${it.fest ? `，以后每年${FESTS[it.fest].n}都会摆出来` : ''}`); send('own', { id }); }
+}
+
+/* ── the panel under the house: 花园 / 房子 / 小店 ────────────────────────────────────────────── */
+function renderPanel() {
+  if (!UI.panel) return;
+  G.panelReady = true;
+  $$('.hm-tab', UI.root).forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === G.tab)));
+  if (G.tab === 'garden') UI.panel.innerHTML = gardenHtml();
+  else if (G.tab === 'house') UI.panel.innerHTML = houseHtml();
+  else UI.panel.innerHTML = shopHtml();
+}
+function gardenHtml() {
+  const L = LVS[G.lv], v = G.view, o = esc(nameOf(peerK()));
+  const rows = L.pots.map((_, i) => {
+    const q = potInfo(i);
+    let what, today, cls = '';
+    if (q.empty) { what = '空花盆'; today = '点一下种花'; cls = ' hm-pr-empty'; }
+    else {
+      const steps = Array.from({ length: 5 }, (_, k) => `<i class="${k < q.g.stage ? 'on' : ''}"></i>`).join('');
+      what = `${q.seed.e} ${q.seed.n}<span class="hm-steps" aria-label="长到第 ${q.g.stage} 格，共 5 格">${steps}</span>`;
+      today = q.bloom ? '开花了 · 点一下收' : q.g.wilted ? '蔫了 · 快浇水救救它' : `今天：你${q.mine ? ' 💧' : ' 还没浇'} · ${o}${q.theirs ? ' 💧' : ' 还没浇'}`;
+      if (q.bloom) cls = ' hm-pr-bloom'; else if (q.g.wilted) cls = ' hm-pr-wilt'; else if (q.thirsty) cls = ' hm-pr-thirsty';
+    }
+    return `<button type="button" class="hm-prow${cls}" data-pot="${i}"><span class="hm-pn">${i + 1}</span><span class="hm-pw">${what}</span><span class="hm-pt">${today}</span></button>`;
+  }).join('');
+  const album = SEED_ORDER.map(k => {
+    const s = SEEDS[k], n = v.album[k] || 0, st = seedState(k, G.today);
+    return `<div class="hm-alb${n ? ' got' : ''}${st.ok ? '' : ' locked'}"><span class="hm-ae" aria-hidden="true">${potSvg({ seed: k, w: {} }, { stage: 5 }, false)}</span><b>${s.n}</b><span>${n ? `收了 ${n} 朵` : st.ok ? (s.fest ? `${FESTS[s.fest].n}限定 · 现在能种` : '现在能种') : st.why}</span></div>`;
+  }).join('');
+  return `<p class="hm-how">每人每天给每盆花浇一次水，<b>两个人都浇长得更快</b>（一天长两格）。三天没人浇会蔫，浇一下就好。开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 +${PICK_EXP / 2}。</p>
+    <div class="hm-prows">${rows}</div>
+    <div class="hm-sumline">🌸 一共收了 <b>${v.picked || 0}</b> 朵花${(v.log || []).length ? ` · 最近一朵：${esc(nameOf(KEY[v.log[v.log.length - 1][1]] || 'cs'))} 收的${(SEEDS[v.log[v.log.length - 1][2]] || {}).n || '花'}` : ''}</div>
+    <h4 class="hm-h4">花园图鉴</h4><div class="hm-albs">${album}</div>`;
+}
+function houseHtml() {
+  let c = 0; try { c = API.coins(); } catch (e) {}
+  const lvRow = (lv) => {
+    const L = LVS[lv], id = lv === 2 ? 'hm_lv2' : lv === 3 ? 'hm_lv3' : '', it = HOUSE[id];
+    const have = lv <= G.lv, next = lv === G.lv + 1;
+    const desc = lv === 1 ? '客厅（就是你们的小窝）和一个 2 盆花的小花园' : it.tip;
+    const btn = have ? `<span class="hm-have">${lv === G.lv ? '现在住这里' : '住过 ✓'}</span>`
+      : next ? `<button type="button" class="hm-buy" data-buy="${id}"${c < it.price ? ' disabled' : ''}>${c < it.price ? `还差 🪙 ${it.price - c}` : `升级 🪙 ${it.price}`}</button>`
+      : `<span class="hm-have">先升到 Lv${lv - 1}</span>`;
+    return `<div class="hm-lvc${have ? ' have' : ''}${lv === G.lv ? ' cur' : ''}"><b>Lv${lv} ${L.name}</b><span>${desc}</span>${btn}</div>`;
+  };
+  return `<div class="hm-lvs">${[1, 2, 3].map(lvRow).join('')}</div>
+    <p class="hm-how">升级用小窝币，和小窝的家具是同一个钱包：宠物长大会攒，花园收花也会攒。两个人谁升级都一样，房子是你们两个的。</p>
+    <button type="button" class="hm-wide" data-a="nest">🛋️ 布置客厅（打开小窝摆家具）</button>`;
+}
+function shopHtml() {
+  let c = 0; try { c = API.coins(); } catch (e) {}
+  const on = Object.keys(FESTS).filter(f => festWin(f, G.today).on);
+  const items = Object.keys(HOUSE).filter(id => !HOUSE[id].lv && (!HOUSE[id].fest || on.includes(HOUSE[id].fest)));
+  const stored = Object.keys(HOUSE).filter(id => HOUSE[id].fest && !on.includes(HOUSE[id].fest) && owns(id));
+  const card = (id) => {
+    const it = HOUSE[id], have = owns(id), w = it.fest ? festWin(it.fest, G.today) : null, poor = c < it.price;
+    const tags = [it.fest ? (w.on ? `<span class="hm-tagx">${FESTS[it.fest].n}限定 · 还有 ${w.left} 天</span>` : `<span class="hm-tagx">${FESTS[it.fest].n}</span>`) : '', have && it.fest ? `<span class="hm-tagx keep">每年${FESTS[it.fest].n}摆出来</span>` : ''].join('');
+    const label = have ? '已经是你们的 ✓' : poor ? `还差 🪙 ${it.price - c}` : `买 🪙 ${it.price}`;
+    return `<div class="hm-item"><span class="hm-em">${it.e}</span><b>${it.n}</b>${it.tip ? `<span class="hm-tip">${it.tip}</span>` : ''}<div class="hm-tags">${tags}</div><button type="button" class="hm-buy" data-buy="${id}"${have || poor || (it.fest && !w.on) ? ' disabled' : ''}>${label}</button></div>`;
+  };
+  const seeds = SEED_ORDER.filter(k => SEEDS[k].fest && festWin(SEEDS[k].fest, G.today).on);
+  const next = nextFest();
+  return `<p class="hm-how">${on.length ? `${on.map(f => FESTS[f].e + ' ' + FESTS[f].n).join('、')}的节日小店开了：限定的东西只在这几天卖，买了以后每年这个节日自己摆出来。到了节日那天，家里还会自己换上节日的样子。` : `平常日子也有能买的东西。${next ? `下一个节日：${FESTS[next.id].e} ${FESTS[next.id].n}，还有 ${next.in} 天开卖。` : ''}`}</p>
+    ${seeds.length ? `<p class="hm-how">🌱 ${seeds.map(k => SEEDS[k].n).join('、')}种子现在可以种（不用买，点空花盆就能选）。</p>` : ''}
+    <div class="hm-items">${items.map(card).join('')}</div>
+    ${stored.length ? `<p class="hm-how">📦 收起来的节日装饰，到时候自己摆出来：${stored.map(id => `${HOUSE[id].e} ${HOUSE[id].n}（${FESTS[HOUSE[id].fest].n}）`).join('、')}</p>` : ''}`;
+}
+// the next festival whose shop is not open yet, and how many days until it opens (a week before it)
+function nextFest() {
+  for (let i = 1; i <= 400; i++) {
+    const t = themesAt(addDays(G.today, i)).find(t => !festWin(t.id, G.today).on);
+    if (t) return { id: t.id, in: Math.max(1, i - 7) };
+  }
+  return null;
+}
+// the seed picker, over the house
+function openSeeds(i) {
+  closeSheet();
+  const opts = SEED_ORDER.map(k => ({ k, s: SEEDS[k], st: seedState(k, G.today) }));
+  const sh = document.createElement('div');
+  sh.className = 'hm-sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', `给 ${i + 1} 号花盆选种子`);
+  sh.innerHTML = `<div class="hm-sheet-in"><div class="hm-sheet-top"><b>🌱 ${i + 1} 号花盆种什么？</b><button type="button" class="hm-x" data-a="close-sheet" aria-label="关闭">✕</button></div>
+    <div class="hm-seeds">${opts.map(({ k, s, st }) => `<button type="button" class="hm-seed" data-seed="${k}"${st.ok ? '' : ' disabled'}><span class="hm-ae" aria-hidden="true">${potSvg({ seed: k, w: {} }, { stage: 5 }, false)}</span><b>${s.n}</b><span>${st.ok ? (s.fest ? `${FESTS[s.fest].n}限定` : s.tip || '每天浇水') : st.why}</span></button>`).join('')}</div>
+    <p class="hm-how">种子不用买。种下以后每天浇水，${esc(nameOf(peerK()))} 也浇会长得更快。</p></div>`;
+  sh.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) { if (e.target === sh) closeSheet(); return; }
+    if (b.dataset.a === 'close-sheet') return closeSheet();
+    if (b.dataset.seed && !b.disabled) { closeSheet(); goTo(i, { t: 'plant', pot: i, seed: b.dataset.seed }); }
+  });
+  UI.root.appendChild(sh); G.sheet = sh;
+  const first = sh.querySelector('.hm-seed:not([disabled])'); if (first) first.focus();
+}
+function closeSheet() { if (G.sheet) { G.sheet.remove(); G.sheet = null; } }
+
+/* ── styles (scoped: every class starts with hm-, §1.1) ───────────────────────────────────────── */
+function css() {
+  if (document.getElementById('hm-style')) return;
+  const st = document.createElement('style'); st.id = 'hm-style';
+  st.textContent = `
+.hm-root[hidden],.hm-root [hidden]{display:none!important}
+.hm-root{--hm-ink:#3A2F4F;--hm-sub:#685D80;--hm-line:rgba(150,120,190,.26);--hm-card:rgba(255,255,255,.86);--hm-solid:#FFFFFF;--hm-pink:#E0508F;--hm-pink-ink:#B23A72;--hm-pink-soft:#FFE3EE;--hm-blue-ink:#2D65A3;--hm-blue-soft:#E1ECFA;--hm-mint:#2F8A5C;--hm-mint-soft:#E2F5EA;--hm-gold:#A8661A;--hm-gold-soft:#FFF1D6;--hm-sky1:#A7D8F5;--hm-sky2:#E4F4FC;--hm-grass1:#9BD08A;--hm-grass2:#7DBE74;
+  position:fixed;inset:0;z-index:150;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,#FFF3F8,#F1EBFF);color:var(--hm-ink);box-sizing:border-box;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));-webkit-tap-highlight-color:transparent}
+html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#C3B8DA;--hm-line:rgba(190,170,230,.22);--hm-card:rgba(255,255,255,.07);--hm-solid:#2E284A;--hm-pink:#FF7FB0;--hm-pink-ink:#FFA3C8;--hm-pink-soft:rgba(255,127,176,.17);--hm-blue-ink:#A6CBFF;--hm-blue-soft:rgba(127,176,240,.17);--hm-mint:#8FE0B4;--hm-mint-soft:rgba(127,216,168,.15);--hm-gold:#FFC266;--hm-gold-soft:rgba(255,194,102,.15);--hm-grass1:#8CC47D;--hm-grass2:#6FAE67;background:linear-gradient(180deg,#1E1A33,#2A1C36)}
+@media (prefers-reduced-motion:no-preference){.hm-root{animation:hm-in .28s ease-out}}
+@keyframes hm-in{from{opacity:0;transform:translateY(14px)}}
+.hm-col{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+:where(.hm-root) button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hm-root button:focus-visible,.hm-scene:focus-visible,.hm-pot:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
+.hm-top{display:flex;align-items:center;gap:10px}
+.hm-top h3{margin:0;font-size:20px;font-weight:800;flex:1;min-width:0}
+.hm-coins{font-weight:800;font-variant-numeric:tabular-nums;font-size:15px;padding:6px 12px;border-radius:99px;background:var(--hm-gold-soft);color:var(--hm-gold)}
+.hm-x{width:44px;height:44px;border-radius:50%;border:0;background:rgba(120,100,160,.14);font-size:18px;flex:none}
+.hm-scene{position:relative;width:min(100%,calc(62vh * 4 / 3));margin:0 auto;aspect-ratio:4/3;border-radius:20px;overflow:hidden;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;background:linear-gradient(180deg,var(--hm-sky1),var(--hm-sky2) 70%);box-shadow:0 16px 30px -22px rgba(90,60,150,.7);contain:layout paint}
+.hm-scene.hm-dusk{background:linear-gradient(180deg,#F6A98C,#FFE3C9 70%)}
+.hm-scene.hm-night{background:linear-gradient(180deg,#121637,#2B2D63 70%)}
+.hm-lay{position:absolute;inset:0;will-change:transform}
+.hm-abs{position:absolute}
+.hm-sun{right:6%;top:7%;width:9%;aspect-ratio:1;border-radius:50%;background:#FFE58F;box-shadow:0 0 0 10px rgba(255,229,143,.35)}
+.hm-dusk .hm-sun{top:24%;background:#FFB36B;box-shadow:0 0 0 10px rgba(255,170,100,.3)}
+.hm-night .hm-sun{background:#F4EDCA;box-shadow:0 0 0 8px rgba(244,237,202,.15)}
+.hm-scene.hm-f-midautumn.hm-night .hm-sun{width:14%;right:8%;top:6%;background:#FFE08A;box-shadow:0 0 22px 8px rgba(255,214,120,.5)}
+.hm-cloud{height:5%;border-radius:99px;background:rgba(255,255,255,.85)}
+.hm-cloud::before,.hm-cloud::after{content:'';position:absolute;border-radius:50%;background:inherit}
+.hm-cloud::before{width:48%;aspect-ratio:1;left:14%;bottom:30%}
+.hm-cloud::after{width:34%;aspect-ratio:1;left:50%;bottom:25%}
+.hm-night .hm-cloud{background:rgba(160,170,220,.22)}
+.hm-star{width:.7%;aspect-ratio:1;border-radius:50%;background:#FFF8DC;display:none}
+.hm-night .hm-star{display:block}
+.hm-hill{border-radius:50% 50% 0 0;background:rgba(150,205,140,.75)}
+.hm-night .hm-hill{background:rgba(70,110,90,.7)}
+.hm-grass{background:linear-gradient(180deg,var(--hm-grass1),var(--hm-grass2))}
+.hm-night .hm-grass{background:linear-gradient(180deg,#3E6E52,#2F5A44)}
+.hm-s-winter .hm-grass{background:linear-gradient(180deg,#DDEBD8,#BFD8BC)}
+.hm-night.hm-s-winter .hm-grass{background:linear-gradient(180deg,#5B7A70,#4A665E)}
+.hm-fence{background:repeating-linear-gradient(90deg,#FFF6EA 0 2.4%,transparent 2.4% 4.6%),linear-gradient(180deg,transparent 0 28%,#FFF6EA 28% 40%,transparent 40% 68%,#FFF6EA 68% 80%,transparent 80%);opacity:.95}
+.hm-night .hm-fence{filter:brightness(.55)}
+.hm-room{overflow:hidden;border:3px solid #C99B74;border-bottom:0;box-sizing:border-box}
+.hm-rn{transform:translate(-50%,-50%);font-size:clamp(9px,1.6vw,11.5px);font-weight:800;line-height:1.5;color:#6B4A30;background:#FFF6EA;border:1.5px solid #C99B74;padding:0 6px;border-radius:8px;white-space:nowrap;z-index:8;pointer-events:none}
+.hm-night .hm-rn{background:#E9D8C4;color:#4A3322}
+.hm-r-bed{background:linear-gradient(180deg,#E9E2FB,#D9CEF4)}
+.hm-r-kitchen{background:linear-gradient(180deg,#E6F3E8,#D3EAD8)}
+.hm-r-hall,.hm-r-hall2{background:linear-gradient(180deg,#F6E7D6,#EBD5BD)}
+.hm-r-balcony{background:transparent;border-color:transparent}
+.hm-r-living{background:transparent;border-color:#C99B74;z-index:3;pointer-events:none}
+.hm-night .hm-room:not(.hm-r-balcony):not(.hm-r-living){filter:brightness(.8) saturate(.9)}
+.hm-night .hm-room:not(.hm-r-balcony)::after{content:'';position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 70%,rgba(255,214,150,.26),rgba(20,16,50,.34));pointer-events:none;z-index:70}
+.hm-mini{overflow:hidden;box-sizing:border-box;background:linear-gradient(180deg,#FBE7D3 0%,#F6D9BE 58%,#E2BE98 58.2%,#D4AC83 100%)}
+html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#F2DCC6 0%,#E8C9AA 58%,#CDA57E 58.2%,#BE9570 100%)}
+.hm-night .hm-mini{filter:brightness(.84) saturate(.92)}
+.hm-mfloor{position:absolute;left:0;right:0;top:58.2%;bottom:0;pointer-events:none}
+.hm-mwin{position:absolute;right:10%;top:12%;width:calc(var(--hm-mh,60px) * .48);height:calc(var(--hm-mh,60px) * .40);border-radius:6px;border:2px solid rgba(255,255,255,.8);background:linear-gradient(180deg,#BFE4FF,#EAF6FF);box-shadow:0 2px 6px rgba(0,0,0,.1);z-index:1}
+.hm-mwin i{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.75) 0 0) 50% 0/2px 100% no-repeat,linear-gradient(rgba(255,255,255,.75) 0 0) 0 50%/100% 2px no-repeat}
+.hm-dusk .hm-mwin{background:linear-gradient(180deg,#FFC48A,#FFE0C0)}
+.hm-night .hm-mwin{background:linear-gradient(180deg,#1B2450,#2E3B72)}
+.hm-mp{position:absolute;transform:translate(-50%,-100%);pointer-events:none;line-height:0}
+.hm-mp .decor-svg,.hm-mp svg{width:1em;height:1em;display:block;overflow:visible}
+.hm-mpf{filter:drop-shadow(0 2px 1.5px rgba(60,30,20,.28))}
+.hm-mpe{font-size:1em;line-height:1}
+.hm-slab{background:#B98A5E}
+.hm-roof{clip-path:polygon(0 100%,50% 0,100% 100%);background:linear-gradient(180deg,#E9707F,#C9505F)}
+.hm-chim{background:#B5653F}
+.hm-door{background:rgba(110,70,40,.3);border-radius:6px 6px 0 0;z-index:4}
+.hm-win{border:3px solid #FFF8EE;border-radius:6px;background:linear-gradient(180deg,#8FC6F0,#DDF0FB);box-shadow:0 0 0 1.5px rgba(150,110,80,.35);box-sizing:border-box}
+.hm-night .hm-win{background:linear-gradient(180deg,#1A1F4A,#3A3F7A)}
+.hm-stairs{background:repeating-linear-gradient(180deg,#D7A97C 0 6px,#B98A5E 6px 8px);clip-path:polygon(0 100%,100% 0,100% 12%,14% 100%)}
+.hm-rail{height:2.2%;background:#FFF8EE;border-radius:3px;box-shadow:0 0 0 1.5px rgba(150,110,80,.3)}
+.hm-rail.hm-posts{height:8%;background:repeating-linear-gradient(90deg,#FFF8EE 0 4%,transparent 4% 12%);box-shadow:none}
+.hm-pond{border-radius:50%;background:radial-gradient(closest-side,#A9DBFF,#7FC4F0);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
+.hm-thing{transform:translate(-50%,-100%);pointer-events:none}
+.hm-thing svg{width:100%;height:auto;display:block;overflow:visible}
+.hm-s-spring .hm-tree .hm-leaf{fill:#9FD39A}.hm-s-spring .hm-tree .hm-fruit{fill:#FFB3CB;r:4.4px}
+.hm-s-autumn .hm-tree .hm-leaf{fill:#F0A04B;stroke:#B8692A}.hm-s-autumn .hm-tree .hm-leaf-top{fill:#F5B85A}.hm-s-autumn .hm-tree .hm-fruit{fill:#D9534F}
+.hm-s-winter .hm-tree .hm-leaf{fill:#E9F1F7;stroke:#A9BCCB}.hm-s-winter .hm-tree .hm-fruit{fill:#FFFFFF}
+.hm-pot{position:absolute;transform:translate(-50%,-100%);width:7%;cursor:pointer;z-index:0}
+.hm-pot svg{width:100%;height:auto;display:block;overflow:visible;pointer-events:none}
+.hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after,.hm-pot.hm-empty::after{content:'💧';position:absolute;left:50%;top:-28%;transform:translateX(-50%);font-size:clamp(10px,2.2vw,16px);pointer-events:none}
+.hm-pot.hm-bloom::after{content:'🧺';top:-46%}
+.hm-pot.hm-empty::after{content:'＋';top:-6%;font-weight:900;color:#7A4E35;font-size:clamp(12px,2.6vw,18px)}
+@media (prefers-reduced-motion:no-preference){.hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after{animation:hm-hint 1.4s ease-in-out infinite}}
+@keyframes hm-hint{50%{transform:translate(-50%,-4px)}}
+.hm-pot::before{content:'';position:absolute;left:50%;top:62%;width:150%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;z-index:-1;opacity:0;pointer-events:none;transition:opacity .4s}
+.hm-pot.hm-thirsty::before{opacity:1;background:radial-gradient(closest-side,rgba(150,210,255,.85),rgba(150,210,255,0))}
+@media (prefers-reduced-motion:no-preference){.hm-pot.hm-thirsty::before{animation:hm-thirst 1.8s ease-in-out infinite}}
+@keyframes hm-thirst{50%{transform:translate(-50%,-50%) scale(1.18);opacity:.5}}
+.hm-night .hm-pot.hm-bloom::before,.hm-night .hm-pot.hm-glow-moon.hm-grown::before{opacity:1;width:210%;top:30%;background:radial-gradient(closest-side,var(--hm-glow),rgba(255,255,255,0));animation:none}
+.hm-night .hm-pot.hm-bloom svg,.hm-night .hm-pot.hm-glow-moon.hm-grown svg{filter:drop-shadow(0 0 5px var(--hm-glow))}
+.hm-pot.hm-wet .hm-soil{fill:#4A2E22}
+.hm-pot.hm-wilt .hm-plant{transform:rotate(16deg);transform-origin:50% 62%;filter:saturate(.35) brightness(.92)}
+.hm-pmark{position:absolute;right:-8%;bottom:30%;width:24%;aspect-ratio:1;border-radius:50%;box-shadow:0 0 0 2px #fff;pointer-events:none}
+.hm-drop{width:1.2%;aspect-ratio:.7;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#7FB2EC;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.hm-drop{animation:hm-fall .7s ease-in forwards}}
+@keyframes hm-fall{to{transform:translateY(160%);opacity:0}}
+.hm-actors{pointer-events:none}
+.hm-ch,.hm-pet{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.hm-ch{width:9%;transition:opacity .4s}
+.hm-ch.hm-off{opacity:.45}
+.hm-pet{width:6.6%}
+.hm-ch svg,.hm-pet svg{width:100%;height:auto;display:block;overflow:visible}
+.hm-pet svg{margin-bottom:-4%}
+.hm-ch .hm-bd{transform-origin:50% 90%}
+.hm-ch.hm-flip .hm-face,.hm-pet.hm-flip .hm-pin{transform:scaleX(-1);transform-origin:50% 50%}
+@media (prefers-reduced-motion:no-preference){
+  .hm-ch.hm-walk .hm-bd{animation:hm-bob .36s ease-in-out infinite}
+  .hm-ch.hm-walk .hm-f1{animation:hm-step .36s ease-in-out infinite}.hm-ch.hm-walk .hm-f2{animation:hm-step .36s ease-in-out -.18s infinite}
+  .hm-ch:not(.hm-walk):not(.hm-off) .hm-bd{animation:hm-breathe 3.2s ease-in-out infinite}
+  .hm-pet.hm-walk .hm-pin{animation:hm-hop .3s ease-in-out infinite}
+  .hm-pet.hm-flip.hm-walk .hm-pin{animation-name:hm-hopf}
+}
+.hm-ch.hm-hug .hm-bd{animation:none!important;transform:rotate(var(--hm-lean,0deg));transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+@keyframes hm-bob{50%{transform:translateY(-3.5px) rotate(-2.5deg)}}
+@keyframes hm-step{50%{transform:translateY(-6px)}}
+@keyframes hm-breathe{50%{transform:scale(1.015,.985)}}
+@keyframes hm-hop{50%{transform:translateY(-3px)}}
+@keyframes hm-hopf{0%,100%{transform:scaleX(-1)}50%{transform:scaleX(-1) translateY(-3px)}}
+.hm-tag{position:absolute;left:50%;top:-19px;transform:translateX(-50%);font-size:11px;font-weight:800;padding:1px 7px;border-radius:9px;background:var(--hm-solid);color:var(--hm-ink);white-space:nowrap;max-width:9em;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px -3px rgba(0,0,0,.4)}
+.hm-ch.hm-me .hm-tag{background:var(--hm-ink);color:var(--hm-solid)}
+.hm-you{display:none;position:absolute;left:50%;top:-36px;transform:translateX(-50%);color:var(--hm-pink);font-size:13px;line-height:1}
+.hm-ch.hm-me .hm-you{display:block}
+@media (prefers-reduced-motion:no-preference){.hm-ch.hm-me .hm-you{animation:hm-youbob 1s ease-in-out infinite}}
+@keyframes hm-youbob{50%{transform:translate(-50%,-4px)}}
+.hm-pop{position:absolute;transform:translate(-50%,-100%);font-size:clamp(16px,3.4vw,26px);pointer-events:none;z-index:5000}
+@media (prefers-reduced-motion:no-preference){.hm-pop{animation:hm-popup 1.2s ease-out forwards}}
+@keyframes hm-popup{from{opacity:0;margin-top:0}20%{opacity:1}to{opacity:0;margin-top:-40px}}
+.hm-mark{width:7%;aspect-ratio:3.2;border-radius:50%;border:3px solid var(--hm-pink);transform:translate(-50%,-50%);pointer-events:none;z-index:5}
+@media (prefers-reduced-motion:no-preference){.hm-mark{animation:hm-ring .7s ease-out forwards}}
+@keyframes hm-ring{from{opacity:1;transform:translate(-50%,-50%) scale(.5)}to{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+.hm-toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:var(--hm-solid);color:var(--hm-ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:99px;box-shadow:0 6px 16px -8px rgba(0,0,0,.5);z-index:6000;pointer-events:none;max-width:92%;text-align:center;line-height:1.4}
+.hm-hint{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);background:var(--hm-solid);color:var(--hm-ink);border-radius:16px;padding:10px 14px;font-weight:800;font-size:14px;text-align:center;box-shadow:0 10px 24px -14px rgba(0,0,0,.6);pointer-events:none;z-index:5500;max-width:92%}
+.hm-hint span{white-space:nowrap}
+.hm-edge{position:absolute;top:44%;z-index:5800;border:0;border-radius:99px;padding:6px 10px;font-weight:800;font-size:12px;background:var(--hm-pink);color:#fff;box-shadow:0 6px 14px -8px rgba(0,0,0,.6);min-height:32px}
+.hm-edge-l{left:6px}.hm-edge-r{right:6px}
+.hm-status{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;min-height:22px;line-height:1.4}
+.hm-dot{width:9px;height:9px;border-radius:50%;background:#B9AFC9;flex:none}
+.hm-dot.on{background:#3DBE7A;box-shadow:0 0 0 3px rgba(61,190,122,.22)}
+.hm-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.hm-pads.hm-pads6{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hm-pad{min-height:50px;border-radius:15px;border:1.5px solid var(--hm-line);background:var(--hm-solid);font-weight:800;font-size:15px;touch-action:none;user-select:none;-webkit-user-select:none}
+.hm-pad.hm-arrow{font-size:20px;color:var(--hm-blue-ink);background:var(--hm-blue-soft)}
+.hm-pad:active{transform:scale(.96)}
+.hm-acts{display:flex;gap:8px;flex-wrap:wrap}
+.hm-btn{border:0;border-radius:15px;min-height:44px;padding:0 16px;font-weight:800;color:#fff;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(220,70,140,.9)}
+.hm-btn.hm-blue{background:linear-gradient(180deg,#7FB2EC,#3F7FC4);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(60,120,200,.9)}
+.hm-btn.hm-mint{background:linear-gradient(180deg,#7FD8A8,#3E9E6E);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(40,140,90,.9)}
+.hm-btn:disabled{opacity:.45;cursor:default}
+.hm-cin{position:relative}
+.hm-ch.hm-sit .hm-cin{transform:translateY(calc(var(--hm-lift,0px) * -1))}
+.hm-ch.hm-sit .hm-shadow{opacity:0}
+.hm-ch.hm-sit .hm-bd{animation:none!important}
+.hm-tabs{display:flex;gap:6px;border-radius:16px;padding:4px;background:rgba(150,120,190,.12)}
+.hm-tab{flex:1;min-height:42px;border:0;border-radius:12px;background:transparent;font-weight:800;font-size:14px}
+.hm-tab[aria-selected="true"]{background:var(--hm-solid);box-shadow:0 4px 10px -6px rgba(90,60,150,.6)}
+.hm-panel{display:flex;flex-direction:column;gap:10px}
+.hm-how{margin:0;font-size:13.5px;line-height:1.55;color:var(--hm-sub)}
+.hm-how b{color:var(--hm-ink)}
+.hm-prows{display:flex;flex-direction:column;gap:6px}
+.hm-prow{display:grid;grid-template-columns:28px 1fr;grid-template-areas:"n w" "n t";column-gap:10px;row-gap:1px;text-align:left;border:1.5px solid var(--hm-line);background:var(--hm-solid);border-radius:14px;padding:8px 12px;min-height:52px;align-items:center}
+.hm-pn{grid-area:n;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:13px;background:rgba(150,120,190,.14)}
+.hm-pw{grid-area:w;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hm-pt{grid-area:t;font-size:12.5px;color:var(--hm-sub)}
+.hm-steps{display:inline-flex;gap:3px}
+.hm-steps i{width:9px;height:9px;border-radius:50%;background:rgba(150,120,190,.25)}
+.hm-steps i.on{background:#5DB565}
+.hm-pr-thirsty{border-color:rgba(80,150,230,.5)}
+.hm-pr-bloom{border-color:#E0508F;background:var(--hm-pink-soft)}
+.hm-pr-wilt{border-color:#D9902A;background:var(--hm-gold-soft)}
+.hm-sumline{font-size:14px;font-weight:800}
+.hm-h4{margin:6px 0 0;font-size:15px}
+.hm-albs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.hm-alb{border:1.5px solid var(--hm-line);background:var(--hm-solid);border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;min-width:0}
+.hm-alb b{font-size:13px}
+.hm-alb span:last-child{font-size:11.5px;color:var(--hm-sub);line-height:1.35}
+.hm-alb.locked .hm-ae{filter:grayscale(1) opacity(.45)}
+.hm-alb.got{border-color:rgba(93,181,101,.6)}
+.hm-ae{display:block;width:44px;height:44px}
+.hm-ae svg{width:100%;height:100%;display:block;overflow:visible}
+.hm-lvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.hm-lvs{grid-template-columns:1fr}}
+.hm-lvc{border:1.5px solid var(--hm-line);background:var(--hm-solid);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.hm-lvc b{font-size:15px}
+.hm-lvc span{font-size:12.5px;color:var(--hm-sub);line-height:1.45}
+.hm-lvc.cur{border-color:var(--hm-pink);background:var(--hm-pink-soft)}
+.hm-lvc .hm-have{font-weight:800;color:var(--hm-mint);margin-top:auto}
+.hm-buy{margin-top:auto;min-height:42px;border:0;border-radius:12px;font-weight:800;color:#fff;background:linear-gradient(180deg,#F57FB0,#E0508F)}
+.hm-buy:disabled{background:var(--hm-line);color:var(--hm-sub);cursor:default}
+.hm-wide{min-height:46px;border-radius:14px;border:1.5px solid var(--hm-line);background:var(--hm-solid);font-weight:800}
+.hm-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.hm-item{border:1.5px solid var(--hm-line);background:var(--hm-solid);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.hm-em{font-size:28px;line-height:1.1}
+.hm-item b{font-size:14px}
+.hm-tip{font-size:12px;color:var(--hm-sub)}
+.hm-tags{display:flex;gap:4px;flex-wrap:wrap}
+.hm-tagx{font-size:11px;font-weight:800;border-radius:99px;padding:1px 8px;background:var(--hm-pink-soft);color:var(--hm-pink-ink)}
+.hm-tagx.keep{background:var(--hm-gold-soft);color:var(--hm-gold)}
+.hm-sheet{position:fixed;inset:0;z-index:155;background:rgba(30,20,50,.38);display:flex;align-items:flex-end;justify-content:center;padding:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px))}
+.hm-sheet-in{width:100%;max-width:560px;max-height:80vh;overflow-y:auto;background:var(--hm-solid);color:var(--hm-ink);border-radius:22px 22px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;box-shadow:0 -10px 30px -12px rgba(0,0,0,.5)}
+@media (prefers-reduced-motion:no-preference){.hm-sheet-in{animation:hm-up .22s ease-out}}
+@keyframes hm-up{from{transform:translateY(30px);opacity:0}}
+.hm-sheet-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px}
+.hm-seeds{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+.hm-seed{border:1.5px solid var(--hm-line);background:transparent;border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:96px;text-align:center}
+.hm-seed b{font-size:13px}
+.hm-seed span:last-child{font-size:11px;color:var(--hm-sub);line-height:1.3}
+.hm-seed:disabled{opacity:.55;cursor:default}
+.hm-seed:disabled .hm-ae{filter:grayscale(1)}
+.hm-seed:not(:disabled):active{transform:scale(.97)}
+/* festivals */
+.hm-scene.hm-f-cny:not(.hm-night){background:linear-gradient(180deg,#FFC8A8,#FFF0E2 70%)}
+.hm-scene.hm-f-vday:not(.hm-night){background:linear-gradient(180deg,#FFC9DF,#FFF1F7 70%)}
+.hm-scene.hm-f-midautumn:not(.hm-night){background:linear-gradient(180deg,#F7D9A0,#FFF6E2 70%)}
+.hm-scene.hm-f-halloween:not(.hm-night){background:linear-gradient(180deg,#9C86CF,#EADCF8 70%)}
+.hm-scene.hm-f-halloween.hm-night{background:linear-gradient(180deg,#1C1038,#3D2462 70%)}
+.hm-scene.hm-f-xmas:not(.hm-night){background:linear-gradient(180deg,#BCD6EF,#F5F9FF 70%)}
+.hm-scene.hm-f-anniv:not(.hm-night){background:linear-gradient(180deg,#FFD9E6,#FFF6EC 70%)}
+.hm-snowcap{clip-path:polygon(50% 0,81% 100%,72% 86%,64% 98%,56% 84%,48% 98%,40% 84%,32% 98%,25% 88%,19% 100%);background:#FFFFFF}
+.hm-snowground{background:linear-gradient(180deg,#FFFFFF,#E9F1FA)}
+.hm-night .hm-snowground,.hm-night .hm-snowcap{filter:brightness(.82)}
+.hm-flake{width:1%;aspect-ratio:1;border-radius:50%;background:#FFFFFF;box-shadow:0 0 3px rgba(255,255,255,.9);pointer-events:none}
+.hm-fheart{font-size:clamp(10px,2vw,16px);opacity:.85;pointer-events:none}
+.hm-bat{display:none;width:6%;pointer-events:none}
+.hm-night .hm-bat,.hm-dusk .hm-bat{display:block}
+.hm-bat svg{width:100%;height:auto;display:block}
+@media (prefers-reduced-motion:no-preference){
+  .hm-flake{animation:hm-snow 7s linear infinite}
+  .hm-fheart{animation:hm-floatup 6s ease-in infinite}
+  .hm-bat{animation:hm-batfly 8s ease-in-out infinite}
+  .hm-night .hm-bulb{animation:hm-twinkle 1.6s ease-in-out infinite}
+  .hm-sway{animation:hm-sway 3s ease-in-out infinite;transform-origin:50% 100%}
+}
+@keyframes hm-snow{from{top:-3%}to{top:100%}}
+@keyframes hm-floatup{from{top:84%;opacity:0}15%{opacity:.9}to{top:8%;opacity:0}}
+@keyframes hm-batfly{50%{transform:translate(60%,30%)}}
+@keyframes hm-twinkle{50%{opacity:.45}}
+@keyframes hm-sway{0%,100%{transform:translate(-50%,-100%) rotate(-3deg)}50%{transform:translate(-50%,-100%) rotate(3deg)}}
+.hm-fu{background:#E5402E;border:2px solid #FFD75E;transform:translate(-50%,-50%) rotate(45deg);display:grid;place-items:center;z-index:5}
+.hm-fu span{transform:rotate(-45deg);color:#FFD75E;font-weight:900;font-size:clamp(8px,1.8vw,14px)}
+.hm-couplet{background:#E5402E;color:#FFD75E;writing-mode:vertical-rl;font-weight:800;font-size:clamp(6px,1.3vw,10px);display:grid;place-items:center;border-radius:2px;letter-spacing:.1em;overflow:hidden;z-index:5}
+.hm-banner{background:#FF8FB3;color:#FFFFFF;font-weight:800;border-radius:6px;display:grid;place-items:center;font-size:clamp(8px,1.7vw,13px);white-space:nowrap;box-shadow:0 3px 6px -3px rgba(0,0,0,.3);overflow:hidden;z-index:6}
+.hm-hang{transform:translate(-50%,0);pointer-events:none;z-index:6}
+.hm-hang svg{width:100%;height:auto;display:block;overflow:visible}
+.hm-ah{transform:translate(-50%,-50%);font-size:clamp(8px,1.6vw,13px);pointer-events:none;z-index:6}
+.hm-bulb{width:1.3%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);z-index:6}
+.hm-night .hm-glows svg,.hm-night .hm-bulb{filter:drop-shadow(0 0 5px rgba(255,214,120,.95))}
+.hm-night .hm-bulb{box-shadow:0 0 6px 2px rgba(255,236,170,.8)}
+.hm-night .hm-pumpkin .hm-jack{fill:#FFD75E}
+.hm-night .hm-xtree .hm-bx{fill:#FFF3B0}
+.hm-night .hm-bulbglass{fill:#FFF3B0}
+@media (prefers-reduced-motion:reduce){.hm-root *{animation:none!important;transition:none!important}}
+`;
+  document.head.appendChild(st);
+}
+
+/* ── open / close ─────────────────────────────────────────────────────────────────────────────── */
+function later(fn, ms) { const t = setTimeout(() => { G.timers = G.timers.filter(x => x !== t); if (G.open) fn(); }, ms); G.timers.push(t); }
+function build() {
+  css();
+  const root = document.createElement('div');
+  root.className = 'hm-root'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', '我们的家');
+  root.innerHTML = `<div class="hm-col">
+    <div class="hm-top"><h3>🏡 我们的家</h3><span class="hm-coins" data-r="coins">🪙 0</span><button type="button" class="hm-x" data-a="x" aria-label="关闭">✕</button></div>
+    <div class="hm-scene" data-r="scene" tabindex="0" aria-label="我们的家：点地板走过去，点花盆浇水；电脑上可以用方向键">
+      <div class="hm-lay" data-r="far"></div>
+      <div class="hm-lay" data-r="world"><div class="hm-lay" data-r="house"></div><div class="hm-lay hm-actors" data-r="actors"></div></div>
+      <button type="button" class="hm-edge" data-r="edge" hidden></button>
+      <div class="hm-hint" data-r="hint"${store.get('hm_hinted', 0) ? ' hidden' : ''}><span>👆 点地板，我就走过去</span><br><span>点花盆浇水 · 或按住 ◀ ▶</span></div>
+      <div class="hm-toast" data-r="toast" hidden></div>
+    </div>
+    <div class="hm-status" data-r="status" aria-live="polite"></div>
+    <div class="hm-pads" data-r="pads">
+      <button type="button" class="hm-pad hm-arrow" data-dir="-1" aria-label="按住往左走">◀</button>
+      <button type="button" class="hm-pad hm-arrow" data-dir="1" aria-label="按住往右走">▶</button>
+      <button type="button" class="hm-pad" data-r="up" data-go="up" hidden>⬆ 上楼</button>
+      <button type="button" class="hm-pad" data-r="down" data-go="down" hidden>⬇ 下楼</button>
+      <button type="button" class="hm-pad" data-go="garden">🌷 花园</button>
+      <button type="button" class="hm-pad" data-go="living">🛋️ 客厅</button>
+    </div>
+    <div class="hm-acts"><button type="button" class="hm-btn" data-r="hug" data-a="hug" disabled>🤗 抱抱</button><button type="button" class="hm-btn hm-blue" data-a="wave">👋 招手</button><button type="button" class="hm-btn hm-mint" data-r="sit" data-a="sit" hidden>🛋️ 坐沙发</button></div>
+    <div class="hm-tabs" role="tablist" aria-label="家里">
+      <button type="button" class="hm-tab" role="tab" data-tab="garden">🌷 花园</button>
+      <button type="button" class="hm-tab" role="tab" data-tab="house">🏠 房子</button>
+      <button type="button" class="hm-tab" role="tab" data-tab="shop">🎉 小店</button>
+    </div>
+    <div class="hm-panel" data-r="panel" role="tabpanel"></div>
+  </div>`;
+  document.body.appendChild(root);
+  UI.root = root;
+  for (const el of $$('[data-r]', root)) UI[el.dataset.r] = el;
+  // the far layer: sky things that move a little with the view
+  let far = `<div class="hm-abs hm-sun"></div>`;
+  for (const [x, y] of [[8, 8], [22, 14], [36, 6], [55, 11], [70, 4], [14, 22], [48, 18], [88, 16], [104, 9], [120, 14]]) far += box('hm-star', x, y, .7, .9);
+  far += box('hm-cloud', 8, 12, 14, 5) + box('hm-cloud', 52, 7, 11, 4.2) + box('hm-cloud', 96, 14, 12, 4.6);
+  far += box('hm-hill', -10, 66, 50, 40) + box('hm-hill', 55, 70, 60, 36) + box('hm-hill', 104, 68, 50, 38);
+  UI.far.innerHTML = far;
+  root.addEventListener('click', onClick);
+  UI.scene.addEventListener('click', onScenePointer);
+  UI.scene.addEventListener('keydown', onSceneKey);
+  UI.house.addEventListener('keydown', (e) => { const p = e.target.closest && e.target.closest('.hm-pot'); if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); potAction(+p.dataset.i); } });
+  for (const b of $$('.hm-pad[data-dir]', root)) {
+    const d = +b.dataset.dir;
+    const start = (e) => { e.preventDefault(); startHold(d); try { b.setPointerCapture(e.pointerId); } catch (err) {} };
+    const stop = () => stopHold(d);
+    b.addEventListener('pointerdown', start); b.addEventListener('pointerup', stop); b.addEventListener('pointercancel', stop); b.addEventListener('lostpointercapture', stop);
+    b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const a = P[meK()]; walkMe(a.x + d * 10, fl(a) || G0); } });
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  P.cs = makeActor('cs'); P.yy = makeActor('yy');
+  if (API.pet && API.pet.svg) {
+    const el = document.createElement('div'); el.className = 'hm-pet'; el.innerHTML = `<div class="hm-pin">${API.pet.svg}</div>`;
+    el.setAttribute('aria-hidden', 'true'); UI.actors.appendChild(el);
+    pet = { el, x: 47, y: G0, vx: 0, vy: 0, path: [], flip: false };
+  } else pet = null;
+  // The size arrives from the ResizeObserver after the first layout. Reading it here would force that
+  // layout in the middle of building, which was most of what opening the house cost on a slow phone.
+  try { G.ro = new ResizeObserver(onResize); G.ro.observe(UI.scene); } catch (e) { addEventListener('resize', onResize); requestAnimationFrame(onResize); }
+}
+function onResize() {
+  if (!UI.scene) return;
+  const w = UI.scene.clientWidth, h = UI.scene.clientHeight;
+  if (!w || !h) return;
+  G.W = w; G.H = h; G.camPx = null;
+  sizeMini();
+}
+function onSceneKey(e) {
+  const a = P[meK()], L = LVS[G.lv];
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); walkMe(a.x + (e.key === 'ArrowLeft' ? -8 : 8), fl(a) || G0); }
+  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && L.stairs) { e.preventDefault(); walkMe(a.x, e.key === 'ArrowUp' ? G1 : G0); }
+}
+function onKey(e) {
+  if (e.key === 'Escape') { if (G.sheet) closeSheet(); else close(); }
+}
+function onClick(e) {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.a === 'x') return close();
+  if (b.dataset.a === 'hug') return hug();
+  if (b.dataset.a === 'wave') return wave();
+  if (b.dataset.a === 'sit') return sitDown();
+  if (b.dataset.a === 'nest') { close(); try { API.openNest(); } catch (err) {} return; }
+  if (b.dataset.tab) { G.tab = b.dataset.tab; renderPanel(); return; }
+  if (b.dataset.buy) return buy(b.dataset.buy);
+  if (b.dataset.pot) { const i = +b.dataset.pot; try { UI.scene.scrollIntoView({ block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' }); } catch (err) {} return potAction(i); }
+  const go = b.dataset.go, a = P[meK()], L = LVS[G.lv];
+  if (go === 'up') return walkMe(a.x, G1);
+  if (go === 'down') return walkMe(a.x, G0);
+  if (go === 'garden') { walkMe(20, G0); mark(20, G0); return; }
+  if (go === 'living') { const r = L.rooms[0], x = (r.x0 + r.x1) / 2 - 3; walkMe(x, G0); mark(x, G0); return; }
+}
+function onVis() {
+  if (!G.open) return;
+  if (document.hidden) { stopHold(G.hold); const a = P[meK()]; send('away', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 }); return; }
+  tickDay(); loadSave(true);
+  hello();   // the channel reopens on its own a moment after the phone wakes
+}
+// say hello once the channel is up (it takes a moment to join), then the heartbeat keeps it fresh
+function hello() {
+  if (!API || !API.online) return;
+  clearTimeout(G.helloT);
+  let tries = 0;
+  const go = () => { G.helloT = 0; if (!G.open || document.hidden) return; if (send('hi', helloData())) return; if (++tries < 30) G.helloT = setTimeout(go, 600); };
+  G.helloT = setTimeout(go, 300);
+}
+const helloData = () => { const a = P[meK()]; return { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, lv: G.lv }; };
+// the date this phone is on: thirst resets at midnight, festivals come and go
+function tickDay() {
+  let t = G.today; try { t = API.today(); } catch (e) {}
+  const per = (document.documentElement.getAttribute('data-period') || 'day');
+  const night = per === 'night', dusk = per === 'dusk';
+  const changed = t !== G.today || night !== G.night || dusk !== G.dusk;
+  if (t !== G.today) festCache.clear();
+  G.today = t; G.night = night; G.dusk = dusk;
+  const all = themesAt(t), fest = all.length ? topFest(t, all) : null, fests = all.map(x => x.id).join();
+  const season = seasonOf(t);
+  if (changed || fest !== G.fest || season !== G.season || fests !== G.festKey) {
+    G.fest = fest; G.season = season; G.festKey = fests; G.fests = new Set(all.map(x => x.id));
+    const sc = UI.scene;
+    if (sc) {
+      sc.classList.toggle('hm-night', night); sc.classList.toggle('hm-dusk', dusk);
+      for (const f of Object.keys(FESTS)) sc.classList.toggle('hm-f-' + f, f === fest);
+      for (const s of ['spring', 'summer', 'autumn', 'winter']) sc.classList.toggle('hm-s-' + s, s === season);
+    }
+    renderHouse(); if (G.panelReady) renderPanel();
+  }
+}
+function open(api) {
+  API = api;
+  if (G.open) close(true);
+  G.me = api.me === 'yy' ? 'yy' : 'cs';
+  G.open = true; G.last = 0; G.hold = 0; G.camX = G.camT = 0; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.tab = 'garden';
+  G.partner = { at: 0, on: false, x: 0, f: 0, away: false };
+  G.srv = { data: blank(), rev: 0, loaded: false }; G.remote = [];
+  G.pending = store.get(pendKey(), []).filter(op => op && op.t && op.who === CHAR[G.me]);
+  if (api.initial) G.srv = { data: norm(api.initial.data), rev: api.initial.rev || 0, loaded: true };
+  G.view = fold(G.srv.data, G.pending);
+  G.today = ''; G.fest = undefined; G.fests = new Set(); G.festKey = null; G.season = ''; G.panelReady = false;
+  festCache.clear(); dayCache.clear();
+  try { G.today = API.today(); } catch (e) { G.today = new Date().toISOString().slice(0, 10); }
+  G.lv = levelOf();
+  build();
+  // where each of you was when you last left
+  const pos = G.view.pos || {};
+  for (const k of ['cs', 'yy']) { const p = pos[CHAR[k]]; if (p && typeof p.x === 'number') { const y = p.f && LVS[G.lv].stairs ? G1 : G0; P[k].y = y; P[k].x = clampX(p.x, y); } }
+  if (pet) { pet.x = clamp(P[meK()].x - 6, 3, LVS[G.lv].world - 3); }
+  P[meK()].el.classList.add('hm-me');
+  P[peerK()].el.classList.add('hm-off');
+  for (const k of ['cs', 'yy']) P[k].el.querySelector('.hm-tag').textContent = (k === meK() ? '我 · ' : '') + nameOf(k);
+  // the view starts at the garden end and only moves once you walk out of its middle part
+  { const x = P[meK()].x; G.camX = G.camT = clamp(x > 66 ? x - 66 : 0, 0, Math.max(0, LVS[G.lv].world - 100)); }
+  tickDay(); renderHouse(); renderCoins(); status();
+  if (UI.panel) UI.panel.innerHTML = '';
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (G.open) renderPanel(); }));
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('visibilitychange', onVis);
+  if (API.online) {
+    API.live.on('hm', onLive);
+    API.live.want(true);
+    hello();
+    G.beat = setInterval(() => { if (!G.open || document.hidden) return; beat(); if (G.partner.on && Date.now() - G.partner.at > GONE_MS) { G.partner.on = false; P[peerK()].el.classList.add('hm-off'); P[peerK()].holdD = 0; status(); } }, BEAT_MS);
+  }
+  G.poll = setInterval(() => { if (G.open && !document.hidden) { tickDay(); if (!G.partner.on || !API.online) loadSave(true); } }, POLL_MS);
+  G.tick = setInterval(() => { if (G.open) { tickDay(); recompute(); } }, 60000);
+  loadSave(!!api.initial);
+  G.raf = requestAnimationFrame(frame);
+}
+function close(quiet) {
+  if (!G.open) return;
+  // where I was, so the partner's phone can say so while I'm away
+  const a = P[meK()];
+  if (a && API) {
+    const op = { t: 'pos', who: CHAR[meK()], x: a.x, f: fl(a) === G1 ? 1 : 0, at: Date.now() };
+    if (apply(G.view, op)) { G.pending.push(op); store.set(pendKey(), G.pending); flushOnClose(); }
+  }
+  if (a) send('bye', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 }); else send('bye', {});
+  G.open = false;
+  closeSheet();
+  if (G.raf) cancelAnimationFrame(G.raf); G.raf = 0;
+  clearInterval(G.beat); clearInterval(G.poll); clearInterval(G.tick); clearTimeout(G.helloT);
+  for (const t of G.timers) clearTimeout(t); G.timers = [];
+  try { G.ro && G.ro.disconnect(); } catch (e) {}
+  document.removeEventListener('keydown', onKey);
+  document.removeEventListener('visibilitychange', onVis);
+  removeEventListener('resize', onResize);
+  if (API && API.online) { try { API.live.on('hm', () => {}); API.live.want(false); } catch (e) {} }
+  if (UI.root) UI.root.remove();
+  for (const k of Object.keys(UI)) delete UI[k];
+  pet = null; delete P.cs; delete P.yy;
+  if (!quiet && API && API.onClose) { try { API.onClose(); } catch (e) {} }
+}
+// leaving still saves where you stood (and anything not saved yet), without holding the screen up
+function flushOnClose() {
+  const api = API;
+  const ops = G.pending.slice();
+  (async () => {
+    let srv = { data: G.srv.data, rev: G.srv.rev };
+    for (let tries = 0; tries < 4 && ops.length; tries++) {
+      let data = norm(srv.data); for (const op of ops) data = apply(data, op) || data;
+      try {
+        const r = await api.save.put(data, srv.rev);
+        // take only what this sent off the phone's list: the house may already be open again with new actions
+        const sent = new Set(ops.map(o => JSON.stringify(o)));
+        store.set(pendKeyFor(api), store.get(pendKeyFor(api), []).filter(o => !sent.has(JSON.stringify(o))));
+        try { api.onSave(data, (data.picked || 0) > ((srv.data && srv.data.picked) || 0)); } catch (e) {}
+        return r;
+      }
+      catch (e) { if (e && e.stale) { srv = { data: e.data, rev: e.rev }; continue; } return null; }
+    }
+  })();
+}
+const pendKeyFor = (api) => `hm_pending_${api && api.matchId || 'demo'}_${CHAR[G.me]}`;
+
+css();   // when the file loads (its own task), so opening doesn't also pay for restyling the page
+window.HomeGame = {
+  open, close: () => close(),
+  // for the tests: the rules on their own, and the state of the open house
+  test: {
+    SEEDS, HOUSE, LVS, FESTS, grow, apply, fold, blank, norm, festWin, seedState: (k) => seedState(k, G.today),
+    state: () => !G.open ? null : ({
+      me: G.me, lv: G.lv, today: G.today, fest: G.fest, season: G.season, night: G.night, camX: G.camX, W: G.W, H: G.H,
+      rev: G.srv.rev, pending: G.pending.length, remote: G.remote.length, view: clone(G.view), partner: { ...G.partner }, lead: G.lead,
+      cs: { x: P.cs.x, y: P.cs.y, f: fl(P.cs), where: where(P.cs), path: P.cs.path.length, hold: P.cs.holdD }, yy: { x: P.yy.x, y: P.yy.y, f: fl(P.yy), where: where(P.yy), path: P.yy.path.length, hold: P.yy.holdD },
+      pet: pet ? { x: pet.x, y: pet.y, f: fl(pet) } : null, near: !!near(),
+      pots: LVS[G.lv].pots.map((_, i) => { const q = potInfo(i); return { seed: q.pl && q.pl.seed, id: q.pl && q.pl.id, stage: q.g.stage, wilted: q.g.wilted, mine: q.mine, theirs: q.theirs, thirsty: q.thirsty, bloom: q.bloom, empty: q.empty }; }),
+    }),
+    act: (op) => act(op), potAction: (i) => potAction(i), walk: (x, f) => walkMe(x, f ? G1 : G0), tick: () => { tickDay(); recompute(); },
+    teleport: (x, f) => { const a = P[meK()]; a.y = f ? G1 : G0; a.x = clampX(x, a.y); a.path = []; },
+    flush: () => flush(), load: () => loadSave(true),
+  },
+};
+})();

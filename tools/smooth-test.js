@@ -139,6 +139,28 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     console.log(errs.length ? `  ❌ page errors: ${errs.join(' | ')}` : '  ✅ no page errors'); errs.length ? fail++ : pass++;
     await ctx.close();
   }
+  // 我们的家: the two-storey house on a 圣诞 night — snow falling, lights on the eaves, the tree, the view
+  // following CS through the house and up the stairs
+  {
+    const { p, ctx, errs } = await open('2026-12-20T21:00:00');
+    await p.evaluate(() => {
+      const d = JSON.parse(localStorage.getItem('love_score_data'));
+      d.decorOwned = ['hm_lv2', 'hm_lv3', 'hm_lights', 'hm_xtree', 'hm_snowman', 'hm_lamp'].map((id, n) => ({ id: 'h' + n, itemId: id, owner: 'char1', itemName: id, itemIcon: '', ptsSpent: 0 }));
+      d.gameSaves = { home: { rev: 4, data: { v: 1, picked: 3, album: { daisy: 3 }, log: [], pos: {}, pots: [0, 1, 2, 3, 4, 5].map(i => ({ id: 'p' + i, seed: ['daisy', 'tulip', 'sunflower', 'moon', 'rose', 'poin'][i], at: '2026-12-15', w: Object.fromEntries(['2026-12-16', '2026-12-17', '2026-12-18', '2026-12-19', '2026-12-20'].slice(0, i % 5 + 1).map(x => [x, 1])) })) } } };
+      localStorage.setItem('love_score_data', JSON.stringify(d)); localStorage.setItem('hm_hinted', '1');
+    });
+    report('我们的家 opens (Lv3, 圣诞 night)', await watch(p, 3000, async () => { await p.evaluate(() => App.openHome()); await p.waitForFunction(() => document.querySelector('.hm-root .hm-pot')); }));
+    report('我们的家, idle', await watch(p, 3000));
+    report('我们的家, walking + upstairs', await watch(p, 6000, async () => {
+      const pad = await p.locator('.hm-pad[data-dir="1"]').boundingBox();
+      await p.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await p.mouse.down(); await sleep(1800); await p.mouse.up();
+      await p.click('.hm-pad[data-go="up"]'); await sleep(1800);
+      await p.click('.hm-pad[data-go="garden"]');
+    }));
+    report('我们的家, scrolling the garden list', await watch(p, 3000, async () => { await p.evaluate(() => new Promise(done => { const el = document.querySelector('.hm-root'); const max = el.scrollHeight - el.clientHeight; const t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / 2400); el.scrollTop = max * (.5 - .5 * Math.cos(k * Math.PI * 2)); k < 1 ? requestAnimationFrame(f) : done(); }; requestAnimationFrame(f); })); }));
+    console.log(errs.length ? `  ❌ page errors: ${errs.join(' | ')}` : '  ✅ no page errors'); errs.length ? fail++ : pass++;
+    await ctx.close();
+  }
   for (const [when, name] of [['2026-12-31T23:00:00', '跨年 fireworks (night)'], ['2026-12-24T21:00:00', '12-24 fireworks + balloons'], ['2027-02-06T21:00:00', '春节 fireworks']]) {
     const { p, ctx, errs } = await open(when);
     report(name, await watch(p, 6000));

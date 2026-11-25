@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.24-77';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.25-78';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -606,7 +606,7 @@ const App = (() => {
     if (document.getElementById('game-cover-css')) return;
     const on = 'html.game-cover body';
     // (anything that can open OVER a game stays out of it: the toast, and the anniversary / birthday films at 00:00)
-    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;
+    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;
     const st = document.createElement('style');
     st.id = 'game-cover-css';
     st.textContent = `${on}::before, ${on}::after, ${behind}, ${behind} *, ${behind} *::before, ${behind} *::after { animation-play-state: paused !important; }
@@ -614,7 +614,7 @@ const App = (() => {
     document.head.appendChild(st);
   })();
   function _gameCover() {
-    try { document.documentElement.classList.toggle('game-cover', !!document.querySelector('body > .mg-root, body > .cg-home, body > .cg-stage')); } catch (e) {}
+    try { document.documentElement.classList.toggle('game-cover', !!document.querySelector('body > .mg-root, body > .cg-home, body > .cg-stage, body > .hm-root')); } catch (e) {}
   }
 
   /* ── State ── */
@@ -1095,6 +1095,56 @@ const App = (() => {
       d.decorOwned.push({ id:'d'+Date.now(), itemId, owner:S.activeChar,
                           itemName:it.name, itemIcon:it.art||'', ptsSpent:it.price });
       LS.save(d);
+    },
+
+    // 我们的家: an upgrade or a festival piece, paid in the same 小窝币 through the same
+    // decor-buy (so the wallet stays one ledger). The buyer is the login (§6).
+    async buyHouse(itemId, it) {
+      if (!/^hm_[a-z0-9_]+$/.test(itemId)) throw new Error('unknown item');
+      if (S.usingSN) {
+        return snFetch('/decor/buy', { method:'POST', body: JSON.stringify({
+          itemId, itemName: encodeForSN(it.name), itemIcon: encodeForSN(it.icon || ''), price: it.price,
+          charId: _me(), date: todayStr(), month: monthKey(),
+        }) });
+      }
+      const d = LS.load();
+      d.decorOwned = d.decorOwned || [];
+      if (d.decorOwned.some(r => r.itemId === itemId)) throw new Error('already_owned');
+      d.decorOwned.push({ id:'d'+Date.now(), itemId, owner:_me(), itemName:it.name, itemIcon:it.icon||'', ptsSpent:it.price });
+      LS.save(d);
+    },
+
+    // One small save per couple per game (game-save). Every write names the rev it read; a write
+    // against an older one comes back as { stale, data, rev } — the newer save — and nothing is written.
+    async getGameSave(game) {
+      if (S.usingSN) {
+        const r = await snFetch(`/game-save?game=${encodeURIComponent(game)}`);
+        return { data: r && r.data, rev: (r && r.rev) || 0 };
+      }
+      const g = (LS.load().gameSaves || {})[game];
+      return g ? { data: g.data, rev: g.rev } : { data: null, rev: 0 };
+    },
+    async putGameSave(game, data, rev) {
+      if (S.usingSN) {
+        const send = () => _fetchWithRetry(_sbUrl('/game-save'), { method: 'PUT',
+          headers: { apikey: SB_KEY, Authorization: 'Bearer ' + S.apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ game, slot: '', data, rev }) });
+        _writeGen++;
+        let res = await send();
+        if (res.status === 401 && await _sbRefresh()) res = await send();
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 409 && body.error === 'stale') throw Object.assign(new Error('stale'), { stale: true, data: body.data, rev: body.rev || 0 });
+        if (!res.ok) throw Object.assign(new Error(`SN ${res.status}: ${body.error || ''}`), { status: res.status });
+        return { rev: body.rev };
+      }
+      // demo: the same compare-and-set, so the app's replay path runs here too
+      const d = LS.load();
+      d.gameSaves = d.gameSaves || {};
+      const cur = d.gameSaves[game] || { data: null, rev: 0 };
+      if (cur.rev !== rev) throw Object.assign(new Error('stale'), { stale: true, data: cur.data, rev: cur.rev });
+      d.gameSaves[game] = { data, rev: rev + 1 };
+      LS.save(d);
+      return { rev: rev + 1 };
     },
 
     async getEntriesOfYear(year) {
@@ -2389,6 +2439,123 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
   function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
 
+  /* ── 我们的家 lives in home.js, fetched the first time it opens (§7.34) ── */
+  var _homeP = null;   // var: the home card can ask for it while the module is still loading (§7.27)
+  function _homeLoad() {
+    if (window.HomeGame) return Promise.resolve();
+    if (_homeP) return _homeP;
+    _homeP = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'home.js?v=' + encodeURIComponent(APP_VERSION);
+      s.onload = () => (window.HomeGame ? res() : rej(new Error('home.js')));
+      s.onerror = () => { _homeP = null; rej(new Error('home.js')); };
+      document.head.appendChild(s);
+    });
+    return _homeP;
+  }
+  // Every theme on a date — not only the winner: on 12-24 the 周年 takes the sky but the garden is
+  // still in its 圣诞 snow. 'YYYY-MM-DD' at noon, so no time zone can tip it into the next day.
+  const _ymdNoon = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+  function _themesAt(ymd) {
+    const d = _ymdNoon(ymd);
+    return THEMES.filter(th => _themeActive(th, d)).map(th => th.anniv ? _annivTheme(th, d) : th).map(th => ({ id: th.id, name: th.name }));
+  }
+  function _homeApi() {
+    let pet = null;
+    try { if (S.petSpecies) pet = { svg: petSvg(petStageInfo().idx), name: S.petName || '' }; } catch (e) {}
+    const online = !!(S.usingSN && S.matchId && S.apiKey);
+    return {
+      me: _me() === 'char2' ? 'yy' : 'cs',
+      names: { cs: charDisplayName('char1'), yy: charDisplayName('char2') },
+      online, matchId: S.matchId || '',
+      pet,
+      initial: S.homeSave !== undefined ? { data: S.homeSave, rev: S.homeRev || 0 } : null,
+      live: { want: (on) => Live.want('home', on), send: (e, p) => Live.send(e, p), on: (e, f) => Live.on(e, f), state: () => Live.state() },
+      save: { get: () => Data.getGameSave('home'), put: (data, rev) => Data.putGameSave('home', data, rev) },
+      // the garden's save just changed: its flower count is pet EXP, so the pet and the wallet follow
+      onSave: (data, grew) => {
+        S.homeSave = data; S.homeRev = S.homeRev || 0;
+        if (grew) { _syncPetExp(); try { renderPetBanner(); } catch (e) {} }
+      },
+      // the 客厅 is the couple's own 小窝: its pieces in their order, its wallpaper and floor
+      room: () => {
+        const eq = S.equipped || defaultEquipped();
+        const items = _stackOrder(eq.items).map(({ o }) => {
+          const it = DECOR[o.i];
+          if (!it || (!it.svg && !it.art) || (it.slot !== 'floor' && it.slot !== 'wall')) return null;
+          return { svg: it.svg || '', art: it.art || '', x: +o.x, y: +o.y, s: +o.s || 1, ratio: it.ratio || .5, wall: it.slot === 'wall' };
+        }).filter(Boolean);
+        const paper = DECOR[eq.paper], mat = DECOR[eq.mat];
+        return { items, paper: paper && paper.wall ? { wall: paper.wall, floorTone: paper.floorTone } : null, mat: mat && mat.tone ? mat.tone : null };
+      },
+      coins: () => nestCoins(),
+      owns: (id) => (S.decorOwned || []).some(r => r.itemId === id),
+      buy: async (id, it) => {
+        if ((S.decorOwned || []).some(r => r.itemId === id)) return true;
+        if (nestCoins() < it.price) return false;
+        try { await Data.buyHouse(id, it); }
+        catch (e) { if (!/already_owned/.test(e.message || '')) return false; }
+        try { S.decorOwned = await Data.getDecorOwned(); } catch (e) {}
+        return (S.decorOwned || []).some(r => r.itemId === id);
+      },
+      reloadOwned: async () => { S.decorOwned = await Data.getDecorOwned(); },
+      themesAt: _themesAt,
+      themeAt: (ymd) => { const th = currentTheme(_ymdNoon(ymd)); return th ? { id: th.id, name: th.name } : null; },
+      today: () => todayStr(),
+      toast: showToast,
+      openNest: () => { showPetHome(); },
+      onClose: () => { try { Live.want('home', false); _homeCard(); renderPetBanner(); } catch (e) {} _gameCover(); },
+    };
+  }
+  async function openHome() {
+    try {
+      const slow = window.HomeGame ? 0 : setTimeout(() => showToast('🏡 正在回家…'), 350);
+      // what the house needs: the furniture you own (the 客厅 and the upgrades), the EXP sources (the
+      // wallet), and the code — all at once; the garden itself loads inside and redraws when it lands
+      const [, owned] = await Promise.all([_homeLoad(), Data.getDecorOwned().catch(() => null), _loadStatsSources().catch(() => {})]);
+      if (owned) S.decorOwned = owned;
+      clearTimeout(slow);
+      closeGames();
+      if (document.getElementById('pet-page')?.classList.contains('open')) closePetHome();
+      window.HomeGame.open(_homeApi());
+      // the app behind goes still a frame later, so the house's first paint doesn't wait on restyling it
+      requestAnimationFrame(_gameCover);
+    } catch (e) { showToast('家没打开，网络好像不太好，再试一次'); }
+  }
+  function closeHome() { if (window.HomeGame) window.HomeGame.close(); }
+  // the home card: what is waiting in the garden today, from the save the app already has
+  function _homeCard() {
+    const after = document.getElementById('mg-home') || document.getElementById('checkin-banner');
+    if (!after) return;
+    let card = document.getElementById('hm-home');
+    if (!card) {
+      after.insertAdjacentHTML('afterend', `<div class="checkin-banner" id="hm-home" role="button" tabindex="0" onclick="App.openHome()">`
+        + `<div class="checkin-banner-left"><span style="font-size:22px">🏡</span><div>`
+        + `<div class="checkin-banner-title">我们的家</div><div class="checkin-banner-sub" id="hm-home-sub"></div></div></div>`
+        + `<div class="checkin-banner-badge">回家</div></div>`);
+      card = document.getElementById('hm-home');
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHome(); } });
+    } else if (card.previousElementSibling !== after) after.insertAdjacentElement('afterend', card);
+    const sub = document.getElementById('hm-home-sub');
+    if (sub) sub.textContent = _homeLine();
+  }
+  var _homeCardLoading = false;
+  function _homeLine() {
+    const d = S.homeSave, today = todayStr(), bit = _me() === 'char2' ? 2 : 1;
+    const pots = (d && Array.isArray(d.pots) ? d.pots : []).filter(Boolean);
+    if (!pots.length) return d && d.picked ? `花园里收过 ${d.picked} 朵花 · 去种新的吧` : '一起走进家里，在花园种花';
+    // how far a flower has got is home.js's rule (one copy of it); a couple with a garden fetches the
+    // file in the background, from the cache after the first time, and the card fills in
+    if (!window.HomeGame) { if (!_homeCardLoading) { _homeCardLoading = true; _homeLoad().then(_homeCard, () => {}); } return `花园里有 ${pots.length} 盆花 · 去看看`; }
+    let thirsty = 0, bloom = 0;
+    for (const p of pots) {
+      const g = window.HomeGame.test.grow(p, today);
+      if (g.stage >= 5) bloom++;
+      else if (!((p.w || {})[today] & bit)) thirsty++;
+    }
+    return bloom ? `花开了 ${bloom} 盆，去收进图鉴 🌸` : thirsty ? `${thirsty} 盆花等你浇水 💧` : '今天的花都浇过了 ✓';
+  }
+
   // What the result screen says about points and records — one place, so the two games agree.
   async function _mgSettle(g, lv, n, detail) {
     const record = _mgRecord(g, lv, n);
@@ -2694,6 +2861,10 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     const decor = document.querySelector('.pet-panel .pet-decor-open:not(.mg-open)');
     if (decor && !document.querySelector('.pet-panel .mg-open')) {
       decor.insertAdjacentHTML('afterend', `<button type="button" class="pet-decor-open mg-open" onclick="App.openGames()">🎮 和它玩小游戏</button>`);
+    }
+    const games = document.querySelector('.pet-panel .mg-open');
+    if (games && !document.querySelector('.pet-panel .hm-open')) {
+      games.insertAdjacentHTML('afterend', `<button type="button" class="pet-decor-open hm-open" onclick="App.openHome()">🏡 带它回家 · 去花园</button>`);
     }
     const play = document.getElementById('lp-mem-play');
     if (play && !document.getElementById('mg-cards-open')) {
@@ -4247,14 +4418,17 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   async function _loadStatsSources(force = false) {
     try {
       const heavy = force || !_heavyStatsLoaded;
-      const [history, letters, photos] = await Promise.all([
+      const [history, letters, photos, home] = await Promise.all([
         Data.getHistory().catch(() => []),
         heavy ? Data.getLetters().catch(() => []) : null,
         heavy ? Data.getPhotos().catch(() => []) : null,
+        // the garden's flower count is pet EXP too, so it loads with the other EXP sources
+        heavy ? Data.getGameSave('home').catch(() => null) : null,
       ]);
       S.historyRecords = history || [];
       _historyFetched = true;
       if (heavy) {
+        if (home) { S.homeSave = home.data || null; S.homeRev = home.rev || 0; }
         S.letters = letters || [];
         S.photos  = photos  || [];
         _heavyStatsLoaded = true;
@@ -6101,7 +6275,10 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     // 结算月数 ×100 (PET_GAME_DESIGN.md) — distinct months, so a small 补记
     // round for a month already settled doesn't mint another 100 EXP.
     const months  = new Set(hist.map(r => r.month)).size;
-    return lifetimeCombinedPoints() + letters * 30 + photos * 20 + months * 100;
+    // 我们的家: every flower the two of you have picked. It only grows (game-save refuses a save that
+    // lowers it), and it is part of the number petBase snapshots, so re-adopting rebases it too (§4.5).
+    const flowers = Math.max(0, +((S.homeSave && S.homeSave.picked) || 0));
+    return lifetimeCombinedPoints() + letters * 30 + photos * 20 + months * 100 + flowers * 20;
   }
 
   // The pet always starts at 0 and grows only from what you do AFTER adopting
@@ -7023,6 +7200,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   /* ── Home banner ── */
   function renderPetBanner() {
     try { _mgHomeCard(); } catch (e) {}
+    try { _homeCard(); } catch (e) {}
     const el = document.getElementById('pet-banner');
     if (!el) return;
     if (!S.petSpecies) {
@@ -9540,7 +9718,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, openCoop, _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
+    openGames, closeGames, playGame, openCoop, openHome, closeHome, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,
