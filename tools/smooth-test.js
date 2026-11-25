@@ -97,6 +97,14 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
       for (let lv = 0; lv < 2; lv++) { const ks = await p.evaluate(() => [...new Set([...document.querySelectorAll('.mg-card')].map(c => c.dataset.k))]); for (const k of ks) { await p.evaluate((k) => document.querySelectorAll(`.mg-card[data-k="${k}"]`).forEach(c => c.click()), k); } await sleep(150); await p.evaluate(() => document.querySelector('.mg-next')?.click()); await sleep(200); }
       for (let i = 0; i < 8; i++) { await p.evaluate((i) => document.querySelectorAll('.mg-card')[i].click(), i); await sleep(140); }
     }));
+    await p.evaluate(() => App.closeGames());
+    // 照片拼图: a 5×5 of their photo, pieces sliding as fast as a thumb (or the arrow keys) can go
+    report('照片拼图, 5×5 sliding', await watch(p, 4000, async () => {
+      await p.evaluate(() => App.playGame('puzzle')); await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length > 0, null, { timeout: 8000 });
+      await p.evaluate(() => document.querySelector('.pz-size[data-n="5"]').click()); await sleep(300);
+      const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+      for (let i = 0; i < 28; i++) { await p.keyboard.press(keys[(i + (i >> 2)) % 4]); await sleep(90); }
+    }));
     await p.evaluate(() => { App.closeGames(); App.closePetHome(); });
     // 一起回家: a busy level (rafts, enemies, the seesaw, crumbling clouds), one person running both
     report('一起回家 opens', await watch(p, 2500, async () => { await p.evaluate(() => App.openCoop('home')); await p.waitForFunction(() => document.querySelector('.cg-home')); }));

@@ -365,7 +365,15 @@ function miniRoom(r) {
     if (!o.wall && o.art === '🛋️') G.sofas.push({ x: r.x0 + clamp(+o.x || 50, 0, 100) / 100 * (r.x1 - r.x0), yb: r.y0 + clamp(+o.y || 80, 0, 100) / 100 * (r.y1 - r.y0), size });
     return `<div class="hm-mp ${o.wall ? 'hm-mpw' : 'hm-mpf'}" style="left:${clamp(+o.x || 50, 0, 100)}%;top:${clamp(+o.y || 80, 0, 100)}%;z-index:${z + 2};font-size:calc(var(--hm-mh, 60px) * ${size.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
   }).join('');
-  return `<div class="hm-abs hm-mini${wall ? '' : ' hm-mini-def'}" style="left:${r.x0}%;top:${r.y0}%;width:${r.x1 - r.x0}%;height:${r.y1 - r.y0}%;${bg}">${mat}<div class="hm-mwin"><i></i></div>${pieces}</div>`;
+  return `<div class="hm-abs hm-mini${wall ? '' : ' hm-mini-def'}" style="left:${r.x0}%;top:${r.y0}%;width:${r.x1 - r.x0}%;height:${r.y1 - r.y0}%;${bg}">${mat}<div class="hm-mwin"><i></i></div>${photoWall()}${pieces}</div>`;
+}
+// 照片墙: the 今日拼图 the two of you have solved, pegged on a string under the ceiling (§7.34)
+function photoWall() {
+  const saved = (G.srv && G.srv.data && Array.isArray(G.srv.data.wall)) ? G.srv.data.wall : [];
+  const pics = saved.map(w => { let src = ''; try { src = (API.photo && API.photo(w && w.p)) || ''; } catch (e) {} return src; }).filter(Boolean).slice(0, 4);
+  if (!pics.length) return '';
+  return `<div class="hm-pwall" role="img" aria-label="照片墙：拼好的 ${pics.length} 张今日拼图">${pics.map((src, i) =>
+    `<span class="hm-pol" style="--i:${i};--n:${pics.length}"><i style="background-image:url('${esc(src).replace(/'/g, '%27')}')"></i></span>`).join('')}</div>`;
 }
 function festDecor(L) {
   const [rx0, rx1, ry0, ry1] = L.roof, d = L.doors[0], dx = d[0] + d[2] / 2, dy = d[1], on = (id) => G.fests.has(id);
@@ -1124,6 +1132,10 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-night .hm-mini{filter:brightness(.84) saturate(.92)}
 .hm-mfloor{position:absolute;left:0;right:0;top:58.2%;bottom:0;pointer-events:none}
 .hm-mwin{position:absolute;right:10%;top:12%;width:calc(var(--hm-mh,60px) * .48);height:calc(var(--hm-mh,60px) * .40);border-radius:6px;border:2px solid rgba(255,255,255,.8);background:linear-gradient(180deg,#BFE4FF,#EAF6FF);box-shadow:0 2px 6px rgba(0,0,0,.1);z-index:1}
+.hm-pwall{position:absolute;left:5%;top:2.5%;width:56%;height:24%;z-index:1;pointer-events:none;display:flex;justify-content:space-evenly;align-items:flex-start;border-top:1.5px solid rgba(130,90,60,.5);border-radius:50% 50% 0 0/18% 18% 0 0}
+.hm-pol{position:relative;width:calc(var(--hm-mh,60px) * .19);background:#FFFDF8;padding:calc(var(--hm-mh,60px) * .012) calc(var(--hm-mh,60px) * .012) calc(var(--hm-mh,60px) * .036);margin-top:calc(var(--hm-mh,60px) * .03);box-shadow:0 2px 4px rgba(0,0,0,.2);transform:rotate(calc((var(--i) - (var(--n) - 1) / 2) * 5deg));transform-origin:50% 0}
+.hm-pol::before{content:"";position:absolute;left:50%;top:calc(var(--hm-mh,60px) * -.024);width:calc(var(--hm-mh,60px) * .022);height:calc(var(--hm-mh,60px) * .05);transform:translateX(-50%);border-radius:2px;background:#E9A86B}
+.hm-pol i{display:block;width:100%;aspect-ratio:1;background:#EADFD3 center/cover no-repeat}
 .hm-mwin i{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.75) 0 0) 50% 0/2px 100% no-repeat,linear-gradient(rgba(255,255,255,.75) 0 0) 0 50%/100% 2px no-repeat}
 .hm-dusk .hm-mwin{background:linear-gradient(180deg,#FFC48A,#FFE0C0)}
 .hm-night .hm-mwin{background:linear-gradient(180deg,#1B2450,#2E3B72)}

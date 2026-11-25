@@ -12,6 +12,15 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-25 (night) — 🧩 照片拼图
+
+A new mini game: slide the pieces of one of your own photos back into place.
+「今日拼图」 is one photo a day — the same photo on both phones — in 3×3, 4×4 or
+5×5 for +1 / +2 / +3 (like the other games, at most +3 a day). Every 今日拼图 you
+finish is hung as a polaroid on a string in 我们的家's living room. No photos
+yet? You get a drawing of the two of you until you add some in 我们的时光. On a
+laptop the arrow keys slide the pieces.
+
 ## 2026-11-25 (evening) — a clearer home page, and five buttons at the bottom
 
 The home page was one long scroll with a dozen things the same size. Now it

@@ -879,6 +879,34 @@ hazard, every level's shape, running out of time / hearts / moves, the payout
 row, the top-up and the cap (also with the flag wiped), banking on close,
 tomorrow pays again, photos / too few photos / dead photos, 360–820 both themes.
 
+### 🧩 照片拼图 (2026-11-25)
+
+Picked from the try-out page on 11-24 with 一起种花 and 关卡编辑. A sliding puzzle of one
+of their own photos — `GAMES.puzzle`, so the list, the 今天 row, the +3 cap, the
+payout row (`照片拼图 · 4×4 · 86 步 · 72 秒`) and the record sync (`mg_best_puzzle_*`,
+Prog) all come from the existing machinery.
+
+- **今日拼图 is the same photo on both phones**: picked by a hash of the date and the
+  couple (`_puzzlePhoto`), so nobody has to choose and they can compare how they
+  did. Tomorrow is another one.
+- **3×3 / 4×4 / 5×5 pay +1 / +2 / +3** — the size is the "level" (`lv` 1–3), so a
+  bigger one later the same day tops the day up and the same size again pays
+  nothing more. The record is the biggest size solved, then the fewest moves.
+- **The picture is cut as a centred square** whatever shape the photo is: each
+  piece's `background-size/position` in px from the photo's natural size and the
+  board's width (a ResizeObserver redoes it). No canvas, so a signed URL from
+  Storage needs no CORS.
+- **No photo, or one whose signed URL has died (4 h) → a drawn picture** of the two
+  of them (`_puzzleDrawn`, canvas from the app's own SVGs), and the caption says
+  how to get theirs in. Never a broken image.
+- **Scrambled by legal moves from solved**, so every board can be solved; taps and
+  the arrow keys slide the piece beside the gap. New pieces appear in place
+  (`pz-instant`); only a move slides.
+- **A solved 今日拼图 hangs in 我们的家** (`_puzzleHang`): the house save's `wall`,
+  newest first, one per photo, six at most, written compare-and-set like every
+  house write. The house's own `norm()` keeps fields it doesn't know, which is
+  what lets the app add one without a function deploy.
+
 ### What a frame costs (2026-11-24)
 
 Asked for: 「make it more smooth and good quality」. Measured with a CPU profile
@@ -1274,6 +1302,11 @@ seed sheet 155, `game-cover` like the games (§7.32).
   made the whole lawn open the seed sheet). `click`, not `pointerdown`: a swipe
   that starts on the house scrolls the page and must not walk anyone. You stand
   beside a pot (±6.5), not in front of the flower.
+- **照片墙:** every solved 今日拼图 (§7.32) is a polaroid pegged on a string under the
+  客厅's ceiling (`photoWall()`, four shown, newest first) — behind the 小窝's own
+  pieces, clear of the window. The save holds photo ids; the photo's current
+  address comes from the app (`api.photo(id)`), so an expired link is never
+  stored, and a deleted photo simply isn't hung.
 - **一起坐沙发:** any 🛋️ piece in the 小窝 is a sofa with two seats. Sitting is
   only a pose where you stand — the drawing is lifted onto the cushion (42% up
   sofa_blue's drawing) — so walking, stairs and saving never see it; `sit` and
@@ -2087,7 +2120,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/instant-test.js` | Taps that answer at once (§7.41), on the live backend: points move before the POST answers, a refused save is taken back, a refresh mid-save neither loses nor doubles a row, 签到 double taps, a refused 自定义记分 keeps its note, 积分表/历史 open before the server answers, 继续 doesn't reload the couple, an early /entries is dropped after a write |
 | `node tools/speed-test.js` | Not pass/fail except for a few budgets — the table of what a phone waits for (CPU 4×, 4G, GitHub Pages headers): open, 继续, a tile, each screen, KB and calls per open. Compare medians, never one run. `ROOT=<dir>` measures another copy (e.g. the live version) |
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
-| `node tools/games-test.js` | 小游戏: the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
+| `node tools/games-test.js` | 小游戏 (§9 is 照片拼图: a square board of square pieces from their photo, taps and arrow keys, 看原图, +1/+2 by size and nothing more for the same size, the row, the record, the photo wall in the 客厅, the same 今日拼图 on both phones and a new one tomorrow, no photo / a dead link → the drawing, 5×5 at 360–820 both themes): the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 50 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |

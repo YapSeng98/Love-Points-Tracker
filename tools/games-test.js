@@ -128,7 +128,7 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await p.evaluate(() => App.nav('together')); await sleep(200);
     ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '重画以后还是只有一张');
     await p.evaluate(() => document.getElementById('mg-home').click()); await sleep(300);
-    ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,catch,cards'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面）');
+    ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,catch,cards,puzzle'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面，照片拼图在最后）');
     await p.evaluate(() => App.closeGames());
     await p.evaluate(() => App.showPetHome()); await sleep(600);
     const door = await p.evaluate(() => { const b = document.querySelector('.pet-panel .mg-open'); const r = b && b.getBoundingClientRect(); return b && { n: document.querySelectorAll('.pet-panel .mg-open').length, h: r.height, vis: r.bottom <= innerHeight && r.width > 200 }; });
@@ -333,6 +333,102 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await ctx.close();
   }
 
+
+  if (!process.env.ONLY || process.env.ONLY.split(',').includes('puzzle')) {
+  console.log('\n9. 照片拼图: 今日拼图 from their own photos, three sizes, the photo wall');
+  // put the puzzle one move from solved, then make that move with a real tap: what a finger does at the end
+  const almost = (p) => p.evaluate(() => { const g = App._mgTest(), N2 = g.n * g.n; g.order = [...Array(N2).keys()]; [g.order[N2 - 1], g.order[N2 - 2]] = [g.order[N2 - 2], g.order[N2 - 1]]; return N2 - 2; });
+  const solve = async (p) => { const piece = await almost(p); await p.click(`.pz-tile[data-p="${piece}"]`); await p.waitForFunction(() => App._mgTest() && App._mgTest().done, null, { timeout: 8000 }); await sleep(200); };
+  {
+    const { p, ctx, errs } = await open(browser, { when: '2026-11-25T20:00:00', data: seed({ photos: 3 }) });
+    await p.evaluate(() => App.openGames()); await sleep(300);
+    ok(await p.evaluate(() => !!document.querySelector('.mg-pick[data-g="puzzle"]')), '小游戏 has 🧩 照片拼图');
+    await p.evaluate(() => App.playGame('puzzle'));
+    await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 8, null, { timeout: 8000 });
+    const first = await p.evaluate(() => ({ cap: document.querySelector('.pz-caption').textContent, bg: getComputedStyle(document.querySelector('.pz-tile')).backgroundImage, on: document.querySelector('.pz-size[aria-pressed="true"]').dataset.n }));
+    ok(/今日拼图/.test(first.cap) && /test photo/.test(first.cap) && /svg/.test(first.bg) && first.on === '3', `3×3 of one of their photos: 「${first.cap}」`);
+    // the tiles really are a square, and the pieces fit the board
+    const geo = await p.evaluate(() => { const b = document.querySelector('.pz-board').getBoundingClientRect(), t = document.querySelector('.pz-tile').getBoundingClientRect(); return { bw: b.width, bh: b.height, tw: t.width, th: t.height }; });
+    ok(Math.abs(geo.bw - geo.bh) < 1 && Math.abs(geo.tw - geo.th) < 1 && geo.tw > geo.bw / 3 - 6, `a square board of square pieces (${geo.bw.toFixed(0)} · ${geo.tw.toFixed(0)}px)`);
+    // a tap next to the gap slides; elsewhere it does nothing
+    const mv = await p.evaluate(() => { const g = App._mgTest(), N2 = g.n * g.n, empty = g.order.indexOf(N2 - 1), ex = empty % g.n, ey = Math.floor(empty / g.n);
+      const near = [], far = []; g.order.forEach((piece, at) => { if (piece === N2 - 1) return; const d = Math.abs(at % g.n - ex) + Math.abs(Math.floor(at / g.n) - ey); (d === 1 ? near : far).push(piece); }); return { near: near[0], far: far[0] }; });
+    await p.click(`.pz-tile[data-p="${mv.far}"]`); await sleep(150);
+    ok(await p.evaluate(() => App._mgTest().moves) === 0, 'a piece not next to the gap does not move');
+    await p.click(`.pz-tile[data-p="${mv.near}"]`); await sleep(200);
+    ok(await p.evaluate(() => App._mgTest().moves) === 1 && /1 步/.test(await p.textContent('.pz-moves')), 'the piece next to the gap slides in · 1 步');
+    await p.keyboard.press('ArrowLeft'); await p.keyboard.press('ArrowUp'); await sleep(200);
+    ok(await p.evaluate(() => App._mgTest().moves) >= 2, 'the arrow keys slide pieces too (a laptop)');
+    await p.click('.pz-peek'); await sleep(150);
+    ok(await p.evaluate(() => !!document.querySelector('.pz-full') && /svg/.test(getComputedStyle(document.querySelector('.pz-full')).backgroundImage)), '👀 看原图 shows the whole photo');
+    await p.click('.pz-peek'); await sleep(100);
+    // solved: +1, a ledger row, the wall
+    await solve(p);
+    let res = await p.textContent('.mg-result');
+    ok(/拼好啦/.test(res) && /\+1 分/.test(res), `solved 3×3 → +1: 「${res.replace(/\s+/g, ' ').trim().slice(0, 80)}」`);
+    let rows = await gameRows(p);
+    ok(rows.length === 1 && rows[0].pts === 1 && /^照片拼图 · 3×3/.test(rows[0].desc) && rows[0].charId === 'char1', `an ordinary 本月记录 row: 「${rows[0] && rows[0].desc}」`);
+    const wall = ((await stored(p)).gameSaves || {}).home;
+    ok(/照片墙/.test(res) && wall && Array.isArray(wall.data.wall) && wall.data.wall.length === 1 && /^ph\d$/.test(wall.data.wall[0].p), `hung on 我们的家's photo wall (${JSON.stringify(wall && wall.data.wall)})`);
+    // bigger pays the difference; the same size again pays nothing more
+    await p.click('.pz-again [data-n="4"]'); await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 15, null, { timeout: 5000 });
+    await solve(p);
+    res = await p.textContent('.mg-result'); rows = await gameRows(p);
+    ok(/\+1 分/.test(res) && rows.length === 2 && rows.reduce((n, r) => n + r.pts, 0) === 2, '4×4 → the day goes to +2 (one more)');
+    await p.click('.pz-size[data-n="3"]'); await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 8, null, { timeout: 5000 });
+    await solve(p);
+    res = await p.textContent('.mg-result');
+    ok(/拼更大的才会再加/.test(res) && (await gameRows(p)).length === 2, `3×3 again pays nothing more: 「${res.replace(/\s+/g, ' ').trim().slice(0, 60)}」`);
+    ok(((await stored(p)).gameSaves.home.data.wall || []).length === 1, 'the same photo hangs once, not twice');
+    const best = await p.evaluate(() => App._gameBestTest('puzzle'));
+    ok(best && best.lv === 2, `the record is the biggest solved (${JSON.stringify(best)})`);
+    // the photo wall in the 客厅
+    await p.evaluate(() => App.closeGames()); await sleep(200);
+    await p.evaluate(() => App.openHome()); await p.waitForFunction(() => !!(window.HomeGame && HomeGame.test.state()), null, { timeout: 15000 }); await sleep(500);
+    const pol = await p.evaluate(() => { const ps = [...document.querySelectorAll('.hm-pwall .hm-pol i')]; return { n: ps.length, bg: ps[0] ? getComputedStyle(ps[0]).backgroundImage : '' }; });
+    ok(pol.n === 1 && /svg/.test(pol.bg), `the 客厅 has a polaroid of it on a string (${pol.n})`);
+    await p.screenshot({ path: `${SHOTS}/puzzle_wall.png` });
+    await p.evaluate(() => App.closeHome()); await sleep(300);
+    ok(!errs.length, 'no errors ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the partner's phone gets the same 今日拼图; tomorrow is another one
+    const a = await open(browser, { when: '2026-11-25T20:00:00', data: seed({ photos: 8 }) });
+    const b = await open(browser, { when: '2026-11-25T09:00:00', data: seed({ photos: 8 }) });
+    const cap = async (P) => { await P.p.evaluate(() => App.playGame('puzzle')); await P.p.waitForFunction(() => /今日拼图/.test(document.querySelector('.pz-caption')?.textContent || ''), null, { timeout: 8000 }); return P.p.textContent('.pz-caption'); };
+    const ca = await cap(a), cb = await cap(b);
+    ok(ca === cb, `both phones get the same photo today: 「${ca}」`);
+    await a.p.evaluate(() => App.closeGames());
+    const days = await a.p.evaluate(() => ['2026-11-25', '2026-11-26', '2026-11-27', '2026-11-28'].map(d => (App._puzzlePhotoTest(d) || {}).id));
+    ok(new Set(days).size >= 2, `the photo changes from day to day: ${days.join(' ')}`);
+    await a.ctx.close(); await b.ctx.close();
+  }
+  {
+    // no photos yet → a drawing of the two of you; a photo whose link has died → the same drawing
+    for (const [label, data] of [['no photos', seed()], ['a dead photo link', seed({ photos: 1, dead: 1 })]]) {
+      const { p, ctx, errs } = await open(browser, { data });
+      await p.evaluate(() => App.playGame('puzzle'));
+      await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 8 && /png/.test(getComputedStyle(document.querySelector('.pz-tile')).backgroundImage), null, { timeout: 8000 }).catch(() => {});
+      const t = await p.evaluate(() => ({ bg: getComputedStyle(document.querySelector('.pz-tile')).backgroundImage.slice(0, 30), cap: document.querySelector('.pz-caption').textContent }));
+      ok(/data:image\/png/.test(t.bg) && /还没有照片/.test(t.cap), `${label}: a drawn picture, and how to get theirs (「${t.cap.slice(0, 24)}…」)`);
+      await solve(p);
+      ok(/拼好啦/.test(await p.textContent('.mg-result')) && !((await stored(p)).gameSaves || {}).home, '…still solvable and paid; nothing is hung (no photo to hang)');
+      ok(!errs.length, 'no errors ' + errs.join(' | '));
+      await ctx.close();
+    }
+  }
+  for (const w of [360, 390, 820]) for (const theme of ['light', 'dark']) {
+    const { p, ctx } = await open(browser, { w, theme, data: seed({ photos: 3 }) });
+    await p.evaluate(() => App.playGame('puzzle')); await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 8, null, { timeout: 8000 });
+    await p.click('.pz-size[data-n="5"]'); await p.waitForFunction(() => document.querySelectorAll('.pz-tile').length === 24, null, { timeout: 5000 });
+    const m = await p.evaluate(() => { const b = document.querySelector('.pz-board').getBoundingClientRect(), t = [...document.querySelectorAll('.pz-tile')].map(x => x.getBoundingClientRect());
+      return { sw: document.documentElement.scrollWidth, vw: innerWidth, inside: t.every(r => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1), tile: Math.round(t[0].width), sizes: [...document.querySelectorAll('.pz-size')].every(x => x.getBoundingClientRect().height >= 44) }; });
+    ok(m.sw <= m.vw && m.inside && m.tile >= 40 && m.sizes, `${w}px ${theme}: 5×5 fits, pieces ${m.tile}px, buttons ≥ 44px`);
+    if (w === 390) await p.screenshot({ path: `${SHOTS}/puzzle_${theme}.png` });
+    await ctx.close();
+  }
+  }
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

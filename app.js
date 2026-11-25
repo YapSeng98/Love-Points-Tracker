@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.25-80';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.25-81';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2297,6 +2297,7 @@ const App = (() => {
   const GAMES = {
     catch: { name: '接零食',   icon: '🦴', how: '一关比一关快：接够数量就过关，躲开辣椒和炸弹', max: 3, unit: '个' },
     cards: { name: '记忆翻牌', icon: '🃏', how: '用你们的照片找出一样的一对，步数有限，一共 4 关', max: 3, unit: '步' },
+    puzzle: { name: '照片拼图', icon: '🧩', how: '今日拼图：用你们的一张照片，点挨着空格的那一块，把它拼回原样', max: 3, unit: '步' },
   };
   // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
   // the FIRST clear of each level pays once, so replaying never farms points.
@@ -2448,6 +2449,24 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
 .mg-card:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
 .mg-result{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;padding:6px 0 4px}
 .mg-open{margin-top:10px}
+.pz-sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pz-size{min-height:48px;border-radius:15px;border:1.5px solid rgba(160,130,200,.3);background:rgba(255,255,255,.82);font:800 15px/1.1 inherit;font-family:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pz-size small{font-size:11px;font-weight:700;opacity:.72}
+.pz-size[aria-pressed="true"]{color:#fff;border-color:transparent;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:0 8px 16px -8px rgba(220,70,140,.8)}
+html[data-theme="dark"] .pz-size{background:rgba(255,255,255,.07);border-color:rgba(200,180,255,.2)}
+html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient(180deg,#F57FB0,#E0508F)}
+.pz-board{position:relative;width:min(100%,440px);aspect-ratio:1;margin:0 auto;border-radius:18px;background:rgba(120,100,160,.16);box-shadow:inset 0 2px 8px rgba(60,40,100,.2);overflow:hidden;touch-action:manipulation;flex:none}
+.pz-tile{position:absolute;left:0;top:0;border:0;padding:0;border-radius:9px;cursor:pointer;background-color:#E8DFF0;background-repeat:no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),0 2px 6px rgba(40,20,80,.22);transition:transform .14s ease}
+.pz-tile:focus-visible{outline:3px solid #3F7FC4;outline-offset:-3px;z-index:2}
+.pz-board.pz-won .pz-tile{box-shadow:none;border-radius:2px}
+.pz-board.pz-instant .pz-tile{transition:none}
+.pz-full{position:absolute;inset:0;z-index:5;background-repeat:no-repeat;pointer-events:none;border-radius:18px}
+.pz-board.pz-won::after{content:"";position:absolute;inset:0;border-radius:18px;box-shadow:inset 0 0 0 4px rgba(255,255,255,.85);pointer-events:none;animation:pz-glow 1.2s ease-out}
+@keyframes pz-glow{from{box-shadow:inset 0 0 0 10px rgba(255,200,230,.95)}}
+.pz-peek{border:0;border-radius:99px;padding:0 14px;min-height:36px;font:700 13.5px/1 inherit;font-family:inherit;color:inherit;background:rgba(120,100,160,.16);cursor:pointer}
+.pz-caption{margin:0;font-size:13px;opacity:.78;text-align:center;line-height:1.5}
+.pz-again{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.pz-tile{transition:none}.pz-board.pz-won::after{animation:none}}
 @media (prefers-reduced-motion:reduce){.mg-root{animation:none}.mg-card i{transition:none}.mg-pet-in.mg-ouch,.mg-pet-in.mg-yum,.mg-card.mg-ok,.mg-card.mg-no{animation:none}.mg-card.mg-ok::after{display:none}}`;
     document.head.appendChild(st);
   }
@@ -2462,7 +2481,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     const sub = document.getElementById('mg-home-sub');
     if (sub) {
       const leftToday = Object.keys(GAMES).concat(Object.keys(TOGETHER)).filter(g => gamePaidToday(g) < _gameDef(g).max).length;
-      sub.innerHTML = leftToday ? '<b>今天还能拿分</b> · 4 个游戏' : '今天的分拿满啦 · 还能随便玩';
+      sub.innerHTML = leftToday ? `<b>今天还能拿分</b> · ${Object.keys(GAMES).length + Object.keys(TOGETHER).length} 个游戏` : '今天的分拿满啦 · 还能随便玩';
     }
     renderToday();
   }
@@ -2479,6 +2498,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
   function _mgKey(e) {
     if (e.key === 'Escape') return closeGames();
+    if (_mg && _mg.key && !e.ctrlKey && !e.metaKey && !e.altKey && _mg.key(e)) return;   // 照片拼图: the arrow keys slide a piece
     if (_mg && _mg.game === 'catch' && !_mg.over && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       _mg.x = Math.max(.08, Math.min(.92, _mg.x + (e.key === 'ArrowLeft' ? -.07 : .07)));
       e.preventDefault();
@@ -2499,7 +2519,9 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
   const _mgPayLine = (g) => {
     const paid = gamePaidToday(g), max = GAMES[g].max, b = gameBest(g);
-    const best = b && b.lv > 0 ? `<span class="mg-best">🏆 最高纪录：过了 ${b.lv} 关${g === 'catch' ? ` · 接到 ${b.n} 个` : ` · 用了 ${b.n} 步`}</span>` : '';
+    const best = !(b && b.lv > 0) ? '' : g === 'puzzle'
+      ? `<span class="mg-best">🏆 最高纪录：拼好 ${PUZZLE_N[b.lv - 1]}×${PUZZLE_N[b.lv - 1]} · 用了 ${b.n} 步</span>`
+      : `<span class="mg-best">🏆 最高纪录：过了 ${b.lv} 关${g === 'catch' ? ` · 接到 ${b.n} 个` : ` · 用了 ${b.n} 步`}</span>`;
     return (paid >= max ? `<span class="mg-pay mg-paid">今天的 +${max} 分拿满啦 · 还可以随便玩</span>`
       : paid ? `<span class="mg-pay">今天已拿 +${paid} 分 · 玩得更好还能再拿 +${max - paid}</span>`
       : `<span class="mg-pay">今天最多 +${max} 分</span>`) + best;
@@ -2659,7 +2681,185 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       _gameCover();
     } catch (e) { showToast('游戏没打开，网络好像不太好，再试一次'); }
   }
-  function playGame(g) { return g === 'cards' ? _mgCards() : _mgCatch(); }
+  /* ── 🧩 照片拼图 (picked from the try-out on 2026-11-24, built 2026-11-25; CLAUDE.md §7.32) ──
+     Slide the pieces of one of your own photos back into place. 「今日拼图」 is one photo a day, the same
+     on both phones (picked from the date and the couple, so nobody has to choose), in 3×3, 4×4 or 5×5:
+     solved → +1 / +2 / +3, the day's best, paid like the other games. A solved 今日拼图 hangs on the
+     photo wall in 我们的家's 客厅 (the house save's `wall`, shared). No photos yet → a drawn picture of
+     the two of you; a signed URL that has died (4 h) → the same drawing, never a broken image. */
+  const PUZZLE_N = [3, 4, 5];
+  function _puzzlePhoto(day = todayStr()) {
+    const list = (S.photos || []).filter(p => p && p.image && p.id);
+    if (!list.length) return null;
+    let h = 7;
+    for (const ch of day + '|' + (S.matchId || 'demo')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return list[h % list.length];
+  }
+  // a square picture of the two of them when there is no photo to use (or it will not load)
+  function _puzzleDrawn() {
+    return new Promise((done) => {
+      const S2 = 600, c = document.createElement('canvas'); c.width = c.height = S2; const x = c.getContext('2d');
+      const g = x.createLinearGradient(0, 0, 0, S2); g.addColorStop(0, '#9AD6FF'); g.addColorStop(.62, '#FFE3F0'); g.addColorStop(1, '#FFD0E2');
+      x.fillStyle = g; x.fillRect(0, 0, S2, S2);
+      x.fillStyle = '#FFF3B8'; x.beginPath(); x.arc(492, 96, 46, 0, 7); x.fill();
+      x.fillStyle = 'rgba(255,243,184,.35)'; x.beginPath(); x.arc(492, 96, 70, 0, 7); x.fill();
+      x.fillStyle = 'rgba(255,255,255,.9)';
+      for (const [cx, cy, s] of [[110, 90, 1], [300, 60, .8]]) for (const [dx, dy, r] of [[0, 0, 30], [-30, 8, 22], [32, 6, 24]]) { x.beginPath(); x.arc(cx + dx * s, cy + dy * s, r * s, 0, 7); x.fill(); }
+      const hx = 300, hy = 200, hs = 84;
+      x.fillStyle = '#FF6F9F'; x.beginPath();
+      x.moveTo(hx, hy + hs * .95); x.bezierCurveTo(hx - hs * 1.25, hy + hs * .15, hx - hs * .95, hy - hs * .95, hx, hy - hs * .35);
+      x.bezierCurveTo(hx + hs * .95, hy - hs * .95, hx + hs * 1.25, hy + hs * .15, hx, hy + hs * .95); x.fill();
+      x.fillStyle = '#8FD27C'; x.beginPath(); x.ellipse(300, 650, 420, 210, 0, 0, 7); x.fill();
+      x.fillStyle = '#76C066'; x.beginPath(); x.ellipse(80, 640, 220, 140, 0, 0, 7); x.fill();
+      for (const [fx, fy, col] of [[70, 520, '#FFFFFF'], [520, 540, '#FFE27A'], [150, 560, '#FF9CC4'], [460, 500, '#FFFFFF'], [560, 470, '#FF9CC4']]) {
+        x.fillStyle = col; for (let k = 0; k < 5; k++) { const a = k * 1.256; x.beginPath(); x.arc(fx + Math.cos(a) * 9, fy + Math.sin(a) * 9, 7, 0, 7); x.fill(); }
+        x.fillStyle = '#FFC24D'; x.beginPath(); x.arc(fx, fy, 5, 0, 7); x.fill();
+      }
+      const svgImg = (svg) => { const im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')); return im; };
+      const a = svgImg(POCHACCO_SVG), b = svgImg(ADAI_SVG);
+      let n = 0;
+      const both = () => { if (++n < 2) return; try { x.drawImage(a, 120, 300, 180, 216); x.drawImage(b, 300, 300, 180, 216); } catch (e) {} done(c.toDataURL('image/png')); };
+      a.onload = a.onerror = both; b.onload = b.onerror = both;
+    });
+  }
+  function _puzzleImage(photo) {
+    return new Promise((done) => {
+      if (!photo) { _puzzleDrawn().then(src => done({ src, w: 600, h: 600, photo: null })); return; }
+      const im = new Image();
+      im.onload = () => done({ src: photo.image, w: im.naturalWidth || 600, h: im.naturalHeight || 600, photo });
+      im.onerror = () => _puzzleDrawn().then(src => done({ src, w: 600, h: 600, photo: null }));
+      im.src = photo.image;
+    });
+  }
+  async function _mgPuzzle(n0) {
+    const root = _mgShell('🧩 照片拼图', `<p class="mg-how">${GAMES.puzzle.how}。拼好 3×3 / 4×4 / 5×5：+1 / +2 / +3 分。</p>`
+      + `<div class="pz-sizes" role="group" aria-label="大小">${PUZZLE_N.map((k, i) => `<button type="button" class="pz-size" data-n="${k}" aria-pressed="false">${k}×${k}<small>+${i + 1}</small></button>`).join('')}</div>`
+      + `<div class="mg-hud"><span class="pz-moves">0 步</span><span class="pz-time">0 秒</span><button type="button" class="pz-peek" aria-pressed="false">👀 看原图</button></div>`
+      + `<div class="pz-board" role="group" aria-label="拼图：点挨着空格的那一块"></div>`
+      + `<p class="pz-caption"></p><div class="mg-result" aria-live="polite"></div>`);
+    const g = _mg = { game: 'puzzle', n: n0 || +(localStorage.getItem('pz_n') || 3) || 3, order: [], moves: 0, t0: 0, over: false, settled: true, solved: false, img: null };
+    if (!(S.photos || []).length) { try { await _loadStatsSources(); } catch (e) {} }   // the once-per-session load (§5)
+    if (_mg !== g) return;
+    const board = root.querySelector('.pz-board'), res = root.querySelector('.mg-result'), cap = root.querySelector('.pz-caption');
+    const photo = _puzzlePhoto();
+    g.img = await _puzzleImage(photo);
+    if (_mg !== g) return;
+    cap.textContent = g.img.photo ? `今日拼图 · ${g.img.photo.caption || g.img.photo.date || '你们的照片'} · 明天换一张` : '还没有照片，先拼这张画的 · 在「我们的时光」加照片，明天就拼你们的照片';
+    let tick = 0;
+    const pos = (i) => [i % g.n, Math.floor(i / g.n)];
+    const sizes = () => root.querySelectorAll('.pz-size').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === g.n)));
+    // the picture is cut as a centred square, whatever shape the photo is
+    function slice(t, el, piece) {
+      const B = t * g.n, sc = Math.max(B / g.img.w, B / g.img.h), W = g.img.w * sc, H = g.img.h * sc;
+      const [cx, cy] = pos(piece);
+      el.style.backgroundImage = `url("${String(g.img.src).replace(/"/g, '%22')}")`;
+      el.style.backgroundSize = `${W.toFixed(1)}px ${H.toFixed(1)}px`;
+      el.style.backgroundPosition = `${(-(W - B) / 2 - cx * t).toFixed(1)}px ${(-(H - B) / 2 - cy * t).toFixed(1)}px`;
+    }
+    function layout() {
+      const t = board.clientWidth / g.n;
+      board.querySelectorAll('.pz-tile').forEach((el) => {
+        const piece = +el.dataset.p, [cx, cy] = pos(g.order.indexOf(piece));
+        el.style.width = el.style.height = `${(t - 3).toFixed(1)}px`;
+        el.style.transform = `translate(${(cx * t + 1.5).toFixed(1)}px, ${(cy * t + 1.5).toFixed(1)}px)`;
+        slice(t, el, piece);
+      });
+      root.querySelector('.pz-moves').textContent = `${g.moves} 步`;
+    }
+    function build() {
+      board.innerHTML = '';
+      board.style.setProperty('--pz-n', g.n);
+      for (let p = 0; p < g.n * g.n - 1; p++) board.insertAdjacentHTML('beforeend', `<button type="button" class="pz-tile" data-p="${p}" aria-label="第 ${p + 1} 块"></button>`);
+    }
+    function scramble() {
+      const N2 = g.n * g.n;
+      g.order = [...Array(N2).keys()];
+      let empty = N2 - 1, prev = -1;
+      for (let k = 0; k < 30 * N2; k++) {
+        const [ex, ey] = pos(empty), nb = [];
+        if (ex > 0) nb.push(empty - 1); if (ex < g.n - 1) nb.push(empty + 1); if (ey > 0) nb.push(empty - g.n); if (ey < g.n - 1) nb.push(empty + g.n);
+        const opts = nb.filter(i => i !== prev), c = opts[(Math.random() * opts.length) | 0];
+        [g.order[empty], g.order[c]] = [g.order[c], g.order[empty]]; prev = empty; empty = c;
+      }
+      if (g.order.every((v, i) => v === i)) return scramble();
+      Object.assign(g, { moves: 0, t0: 0, over: false, solved: false, done: false, settled: true });
+      clearInterval(tick); root.querySelector('.pz-time').textContent = '0 秒';
+      res.innerHTML = ''; board.classList.remove('pz-won');
+      // new pieces appear in place; only a move slides
+      board.classList.add('pz-instant');
+      build(); layout(); sizes();
+      requestAnimationFrame(() => requestAnimationFrame(() => board.classList.remove('pz-instant')));
+    }
+    // the piece next to the empty square in a direction slides into it (arrow keys and taps)
+    function slide(at) {
+      if (g.solved || g.over) return false;
+      const empty = g.order.indexOf(g.n * g.n - 1), [ax, ay] = pos(at), [ex, ey] = pos(empty);
+      if (Math.abs(ax - ex) + Math.abs(ay - ey) !== 1) return false;
+      [g.order[at], g.order[empty]] = [g.order[empty], g.order[at]];
+      g.moves++;
+      if (!g.t0) { g.t0 = performance.now(); g.settled = false; tick = setInterval(() => { if (!g.solved && _mg === g) root.querySelector('.pz-time').textContent = `${Math.floor((performance.now() - g.t0) / 1000)} 秒`; }, 250); }
+      layout();
+      if (g.order.every((v, i) => v === i)) won();
+      return true;
+    }
+    g.bank = () => { g.settled = true; return Promise.resolve(''); };   // an unsolved puzzle pays nothing
+    async function won() {
+      g.solved = true; g.over = true; clearInterval(tick);
+      const secs = Math.max(1, Math.round((performance.now() - g.t0) / 1000)), lv = PUZZLE_N.indexOf(g.n) + 1;
+      board.classList.add('pz-won');
+      if (!_u3dReduce()) spawnConfetti();
+      const head = `<p class="mg-big">拼好啦！🎉</p><p class="mg-line">${g.n}×${g.n} · ${g.moves} 步 · ${secs} 秒</p>`;
+      res.innerHTML = head + '<p class="mg-line">算分中…</p>';
+      const line = await _mgSettle('puzzle', lv, g.moves, `${g.n}×${g.n} · ${g.moves} 步 · ${secs} 秒`);
+      const hung = g.img.photo ? await _puzzleHang(g.img.photo, g.n) : false;
+      if (_mg !== g) return;
+      g.done = true;
+      const next = PUZZLE_N[lv];
+      res.innerHTML = head + line + (hung ? `<p class="mg-line">🖼️ 挂到「我们的家」客厅的照片墙上了</p>` : '')
+        + `<div class="pz-again">${next ? `<button type="button" class="mg-btn" data-n="${next}">挑战 ${next}×${next}</button>` : ''}<button type="button" class="mg-btn mg-ghost" data-n="${g.n}">再拼一次</button></div>`;
+      res.scrollIntoView({ block: 'nearest', behavior: _u3dReduce() ? 'auto' : 'smooth' });
+    }
+    board.addEventListener('click', (e) => { const t = e.target.closest('.pz-tile'); if (t) slide(g.order.indexOf(+t.dataset.p)); });
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-n]');
+      if (b && !b.classList.contains('pz-tile')) { g.n = +b.dataset.n; try { localStorage.setItem('pz_n', String(g.n)); } catch (err) {} scramble(); return; }
+      const pk = e.target.closest('.pz-peek');
+      if (pk) {
+        const on = pk.getAttribute('aria-pressed') !== 'true';
+        pk.setAttribute('aria-pressed', String(on)); pk.textContent = on ? '🙈 收起原图' : '👀 看原图';
+        board.querySelector('.pz-full')?.remove();
+        if (on) { board.insertAdjacentHTML('beforeend', '<div class="pz-full" aria-hidden="true"></div>'); const f = board.querySelector('.pz-full'); const B = board.clientWidth; slice(B, f, 0); f.style.backgroundSize = ((g.img.w * Math.max(B / g.img.w, B / g.img.h))).toFixed(1) + 'px ' + ((g.img.h * Math.max(B / g.img.w, B / g.img.h))).toFixed(1) + 'px'; }
+      }
+    });
+    // a laptop: the arrow keys move the piece next to the gap into it
+    g.key = (e) => {
+      const k = e.key, empty = g.order.indexOf(g.n * g.n - 1), [ex, ey] = pos(empty);
+      const from = k === 'ArrowLeft' ? (ex < g.n - 1 ? empty + 1 : -1) : k === 'ArrowRight' ? (ex > 0 ? empty - 1 : -1)
+        : k === 'ArrowUp' ? (ey < g.n - 1 ? empty + g.n : -1) : k === 'ArrowDown' ? (ey > 0 ? empty - g.n : -1) : null;
+      if (from === null) return false;
+      e.preventDefault(); if (from >= 0) slide(from); return true;
+    };
+    const ro = new ResizeObserver(() => { if (_mg === g) layout(); }); ro.observe(board);
+    g.stop = () => { clearInterval(tick); ro.disconnect(); };
+    scramble();
+  }
+  // Hang a solved 今日拼图 in 我们的家's 客厅: the house save's `wall`, newest first, one per photo, at most
+  // six. A compare-and-set like every house write; a stale answer is merged and tried again.
+  async function _puzzleHang(photo, n) {
+    try {
+      for (let tries = 0; tries < 4; tries++) {
+        const cur = await Data.getGameSave('home');
+        const d = cur.data && typeof cur.data === 'object' ? cur.data : { v: 1, pots: [], picked: 0, album: {}, log: [], pos: {} };
+        const wall = (Array.isArray(d.wall) ? d.wall : []).filter(w => w && w.p !== photo.id);
+        const next = { ...d, wall: [{ p: photo.id, n, d: todayStr(), by: _me() }, ...wall].slice(0, 6) };
+        try { await Data.putGameSave('home', next, cur.rev || 0); S.homeSave = next; return true; }
+        catch (e) { if (!(e && e.stale)) return false; }
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function playGame(g) { return g === 'cards' ? _mgCards() : g === 'puzzle' ? _mgPuzzle() : _mgCatch(); }
 
   /* ── 我们的家 lives in home.js, fetched the first time it opens (§7.34) ── */
   var _homeP = null;   // var: the home card can ask for it while the module is still loading (§7.27)
@@ -2711,6 +2911,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
         return { items, paper: paper && paper.wall ? { wall: paper.wall, floorTone: paper.floorTone } : null, mat: mat && mat.tone ? mat.tone : null };
       },
       coins: () => nestCoins(),
+      photo: (id) => { const ph = (S.photos || []).find(x => x && x.id === id); return ph && ph.image ? ph.image : ''; },
       owns: (id) => (S.decorOwned || []).some(r => r.itemId === id),
       buy: async (id, it) => {
         if ((S.decorOwned || []).some(r => r.itemId === id)) return true;
@@ -2770,7 +2971,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     let line;
     if (paid >= max) line = `<p class="mg-line">今天的分已经拿满了，这局是纯玩 😄</p>`;
     else if (!want) line = `<p class="mg-line">过了第 1 关才有分，再来一次？</p>`;
-    else if (want <= paid) line = `<p class="mg-line">今天已经拿过 +${paid} 分，要比上一局过更多关才会加</p>`;
+    else if (want <= paid) line = `<p class="mg-line">今天已经拿过 +${paid} 分，${g === 'puzzle' ? '拼更大的才会再加' : '要比上一局过更多关才会加'}</p>`;
     else {
       const got = await _mgAward(g, want, detail);
       line = got ? `<p class="mg-line mg-win">💙 +${got} 分，记给 ${_escHtml(charDisplayName(_me()))}</p>`
@@ -9962,7 +10163,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, openCoop, openHome, closeHome, _progTest: { sync: async () => { await Prog.idle(); const r = await Prog.sync(); await Prog.idle(); return r; }, merge: (a, b) => Prog.merge(a, b), local: () => Prog.local() }, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
+    openGames, closeGames, playGame, openCoop, openHome, closeHome, _progTest: { sync: async () => { await Prog.idle(); const r = await Prog.sync(); await Prog.idle(); return r; }, merge: (a, b) => Prog.merge(a, b), local: () => Prog.local() }, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _puzzlePhotoTest: (d) => _puzzlePhoto(d), _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,
