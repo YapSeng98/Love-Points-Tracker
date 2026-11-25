@@ -4350,6 +4350,11 @@ function netHome(on) {
     netListen();
     const hi = () => { netSend('hi', { who: G.meIdx }); if (UI.home && !UI.home.hidden) { const el = UI.home.querySelector('[data-r="peer"]'); const on2 = NET.peerAt && performance.now() - NET.peerAt < 4500; if (el && el.classList.contains('on') !== !!on2) renderHome(); } };
     hi(); NET.hiTimer = setInterval(hi, 1500);
+    // the first one usually goes before the channel has joined (and is lost): say it again as soon as it can
+    // be heard, so 「也在这里」 shows up in a moment rather than at the next tick
+    let tries = 0;
+    const early = () => { if (!NET.hiTimer || !API.live.state().joined) { if (NET.hiTimer && ++tries < 25) setTimeout(early, 200); return; } netSend('hi', { who: G.meIdx }); };
+    setTimeout(early, 200);
   }
 }
 function netLevelReset() { NET.piAt = 0; NET.off = Infinity; NET.wsnap = null; NET.lastRx = performance.now(); NET.sendAt = 0; NET.worldAt = 0; NET.lastQ = null; NET.cands = []; NET.seen = false; NET.rinAt = 0; NET.lastSig = ''; NET.wsig = ''; for (const p of G.players) { p.vox = p.voy = 0; p.netDead = false; } }

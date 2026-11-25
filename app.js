@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.25-78';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.25-79';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -1116,19 +1116,19 @@ const App = (() => {
 
     // One small save per couple per game (game-save). Every write names the rev it read; a write
     // against an older one comes back as { stale, data, rev } — the newer save — and nothing is written.
-    async getGameSave(game) {
+    async getGameSave(game, slot = '') {
       if (S.usingSN) {
-        const r = await snFetch(`/game-save?game=${encodeURIComponent(game)}`);
+        const r = await snFetch(`/game-save?game=${encodeURIComponent(game)}${slot ? `&slot=${encodeURIComponent(slot)}` : ''}`);
         return { data: r && r.data, rev: (r && r.rev) || 0 };
       }
-      const g = (LS.load().gameSaves || {})[game];
+      const g = (LS.load().gameSaves || {})[slot ? `${game}:${slot}` : game];
       return g ? { data: g.data, rev: g.rev } : { data: null, rev: 0 };
     },
-    async putGameSave(game, data, rev) {
+    async putGameSave(game, data, rev, slot = '') {
       if (S.usingSN) {
         const send = () => _fetchWithRetry(_sbUrl('/game-save'), { method: 'PUT',
           headers: { apikey: SB_KEY, Authorization: 'Bearer ' + S.apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ game, slot: '', data, rev }) });
+          body: JSON.stringify({ game, slot, data, rev }) });
         _writeGen++;
         let res = await send();
         if (res.status === 401 && await _sbRefresh()) res = await send();
@@ -1138,11 +1138,11 @@ const App = (() => {
         return { rev: body.rev };
       }
       // demo: the same compare-and-set, so the app's replay path runs here too
-      const d = LS.load();
+      const d = LS.load(), key = slot ? `${game}:${slot}` : game;
       d.gameSaves = d.gameSaves || {};
-      const cur = d.gameSaves[game] || { data: null, rev: 0 };
+      const cur = d.gameSaves[key] || { data: null, rev: 0 };
       if (cur.rev !== rev) throw Object.assign(new Error('stale'), { stale: true, data: cur.data, rev: cur.rev });
-      d.gameSaves[game] = { data, rev: rev + 1 };
+      d.gameSaves[key] = { data, rev: rev + 1 };
       LS.save(d);
       return { rev: rev + 1 };
     },
@@ -2223,7 +2223,7 @@ const App = (() => {
   function _mgRecord(g, lv, n) {
     const b = gameBest(g);
     const better = !b || lv > b.lv || (lv === b.lv && lv > 0 && (g === 'catch' ? n > b.n : n < b.n));
-    if (better && (lv > 0 || !b)) { try { localStorage.setItem(_mgBestKey(g), JSON.stringify({ lv, n })); } catch (e) {} }
+    if (better && (lv > 0 || !b)) { try { localStorage.setItem(_mgBestKey(g), JSON.stringify({ lv, n })); } catch (e) {} Prog.sync(); }
     return better && lv > 0 && !!b;   // "new record" only when there was one to beat
   }
 
@@ -2372,8 +2372,14 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     _mgShell('🎮 小游戏', together + Object.keys(GAMES).map(g =>
       `<button type="button" class="mg-pick" data-g="${g}" onclick="App.playGame('${g}')">`
       + `<span class="mg-ic">${GAMES[g].icon}</span><span><b>${GAMES[g].name}</b><span>${GAMES[g].how}</span>${_mgPayLine(g)}</span></button>`
-    ).join('') + `<p class="mg-how">每个游戏每人每天最多 +3 分，会出现在「本月记录」里，两个人都看得到。最高纪录记在这部手机上。</p>`);
+    ).join('') + `<p class="mg-how">每个游戏每人每天最多 +3 分，会出现在「本月记录」里，两个人都看得到。最高纪录和过了哪些关存在你的账号里，换手机也都在。</p>`);
+    // another phone may have played since: what it saved comes in, and the list redraws if it changed
+    if (!_mgListSyncing) {
+      _mgListSyncing = true;
+      Prog.sync().then((learned) => { _mgListSyncing = false; if (learned && !_mg && document.querySelector('.mg-root .mg-pick')) openGames(); }, () => { _mgListSyncing = false; });
+    }
   }
+  var _mgListSyncing = false;
 
   /* ── 一起回家 and 默契拍拍 live in coop.js, fetched the first time either opens ── */
   let _coopP = null;
@@ -2389,6 +2395,73 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     });
     return _coopP;
   }
+  /* ── Your progress in the games follows you to every phone (game-save 'play', one slot each) ──
+     一起回家's levels, stars and times, the levels that have already paid their first-clear point, and
+     接零食 / 翻牌 records lived only on the phone that played them: a new phone started over, and could
+     pay a level a second time. Each phone now merges what it has with what is saved — more levels, every
+     star, the fastest time, every level paid, the better record — writes the result back to itself, and
+     saves it. The merge never loses anything, so a write refused because another phone saved first just
+     merges again. Only the owner writes their slot (the function refuses the partner). */
+  const Prog = (() => {
+    let busy = null, again = false, doneAt = 0;
+    const who = () => _me(), ck = () => (_me() === 'char2' ? 'yy' : 'cs');
+    const J = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+    const W = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    const K = { coop: () => `cg_save3_${ck()}`, paid: (g) => `cg_paid_${g}_${who()}`, best: (g) => `mg_best_${g}_${who()}` };
+    const local = () => ({ v: 1, coop: J(K.coop(), null),
+      paid: Object.fromEntries(Object.keys(TOGETHER).map(g => [g, J(K.paid(g), [])])),
+      mg: Object.fromEntries(Object.keys(GAMES).map(g => [g, J(K.best(g), null)])) });
+    const okMg = (b) => b && typeof b === 'object' && b.lv >= 0;
+    const betterMg = (g, a, b) => !okMg(a) ? (okMg(b) ? b : null) : !okMg(b) ? a : a.lv !== b.lv ? (a.lv > b.lv ? a : b) : ((g === 'catch' ? a.n >= b.n : a.n <= b.n) ? a : b);
+    function merge(a, b) {
+      a = a && typeof a === 'object' ? a : {}; b = b && typeof b === 'object' ? b : {};
+      const ca = a.coop && typeof a.coop === 'object' ? a.coop : null, cb = b.coop && typeof b.coop === 'object' ? b.coop : null;
+      let coop = ca || cb;
+      if (ca && cb) {
+        const best = { ...(ca.best || {}) };
+        for (const [id, r] of Object.entries(cb.best || {})) {
+          const q = best[id];
+          if (!q) { best[id] = r; continue; }
+          const ts = [q.t, r.t].filter(x => typeof x === 'number' && x > 0);
+          best[id] = { t: ts.length ? Math.min(...ts) : (q.t || r.t), sm: [0, 1, 2].map(k => !!((q.sm || [])[k] || (r.sm || [])[k])), h: Math.max(q.h || 0, r.h || 0) };
+        }
+        coop = { ...ca, ...cb, unlocked: Math.max(ca.unlocked || 1, cb.unlocked || 1), best };
+      }
+      const paid = {}, mg = {};
+      for (const g of new Set([...Object.keys(a.paid || {}), ...Object.keys(b.paid || {})])) paid[g] = [...new Set([...((a.paid || {})[g] || []), ...((b.paid || {})[g] || [])])].filter(x => typeof x === 'string').sort();
+      for (const g of new Set([...Object.keys(a.mg || {}), ...Object.keys(b.mg || {})])) mg[g] = betterMg(g, (a.mg || {})[g], (b.mg || {})[g]);
+      return { v: 1, coop, paid, mg };
+    }
+    function writeLocal(m) {
+      if (m.coop) W(K.coop(), m.coop);
+      for (const [g, list] of Object.entries(m.paid)) W(K.paid(g), list);
+      for (const [g, b] of Object.entries(m.mg)) if (b) W(K.best(g), b);
+    }
+    // → true when this phone learned something from another one
+    async function run() {
+      if (!S.usingSN || !S.matchId || !S.apiKey) return false;   // demo: there is only this phone
+      const slot = who();
+      let srv = await Data.getGameSave('play', slot), learned = false;
+      for (let tries = 0; tries < 4; tries++) {
+        // What this phone has is read AFTER the wait, and written back in the same breath: a level cleared
+        // while the save was on its way must not be overwritten by the older copy read before it.
+        const mine = local(), merged = merge(mine, srv.data);
+        if (JSON.stringify(merge(mine, {})) !== JSON.stringify(merged)) learned = true;
+        writeLocal(merged);
+        if (JSON.stringify(merge(srv.data, {})) === JSON.stringify(merged)) { doneAt = Date.now(); return learned; }   // the save already has it all
+        try { await Data.putGameSave('play', merged, srv.rev, slot); doneAt = Date.now(); return learned; }
+        catch (e) { if (e && e.stale) { srv = { data: e.data, rev: e.rev }; continue; } throw e; }
+      }
+      return learned;
+    }
+    // one at a time; a change made while one is running gets a run of its own straight after
+    function sync() {
+      if (busy) { again = true; return busy; }
+      busy = run().catch(() => false).finally(() => { busy = null; if (again) { again = false; sync(); } });
+      return busy;
+    }
+    return { sync, merge, local, idle: () => busy || Promise.resolve(false), age: () => (doneAt ? Date.now() - doneAt : Infinity) };
+  })();
   const _cgKey = (g, who) => `cg_paid_${g}_${who}`;
   function _cgPaidKeys(g, who = _me()) { try { return JSON.parse(localStorage.getItem(_cgKey(g, who)) || '[]'); } catch (e) { return []; } }
   // +1 for the FIRST clear of a level, for the person holding this phone (§6),
@@ -2405,6 +2478,7 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       await Data.addEntry({ id: 'e' + Date.now(), catId: '', catName: GAME_CAT, icon: '🎮', pts: 1,
         desc: `${TOGETHER[g].name} · ${detail}`, charId: who, month: date.slice(0, 7), date });
       refresh().catch(() => {});
+      Prog.sync();   // the level has paid: every phone of yours should know
       return { pts: 1 };
     } catch (err) {
       try { localStorage.setItem(_cgKey(g, who), JSON.stringify(keys)); paid ? localStorage.setItem(_mgFlag(g, who), String(paid)) : localStorage.removeItem(_mgFlag(g, who)); } catch (e) {}
@@ -2424,13 +2498,17 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
       pay: _cgPay,
       payInfo: (g) => ({ paid: gamePaidToday(g), max: TOGETHER[g].max, done: _cgPaidKeys(g) }),
       toast: showToast,
-      onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} _gameCover(); },
+      onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} _gameCover(); Prog.sync(); },
     };
   }
   async function openCoop(kind = 'home') {
     try {
       const slow = window.CoopGames ? 0 : setTimeout(() => showToast(kind === 'beat' ? '💓 打开默契拍拍…' : '🏠 打开一起回家…'), 350);
-      await _coopLoad();
+      // 一起回家 opens on your levels, stars and times from your other phones — waiting at most a second for
+      // them, and not at all when they were fetched a moment ago (the 小游戏 list does that). 默契拍拍 keeps
+      // nothing to show, so it opens at once and syncs behind.
+      const wait = kind === 'home' && Prog.age() > 20000 ? Promise.race([Prog.sync(), new Promise(r => setTimeout(r, 1000))]) : (Prog.sync(), null);
+      await Promise.all([_coopLoad(), wait]);
       clearTimeout(slow);
       closeGames();
       await window.CoopGames.open(kind, _coopApi());
@@ -9718,7 +9796,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, openCoop, openHome, closeHome, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
+    openGames, closeGames, playGame, openCoop, openHome, closeHome, _progTest: { sync: async () => { await Prog.idle(); const r = await Prog.sync(); await Prog.idle(); return r; }, merge: (a, b) => Prog.merge(a, b), local: () => Prog.local() }, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,

@@ -120,11 +120,23 @@ async function run() {
   check("no login → 401", (await get(undefined)).status === 401);
   check("a made-up token → 401", (await get("not-a-token")).status === 401);
 
-  section("slots are separate");
-  const s1 = await put(A1, 0, { v: 1, picked: 0, note: "slot x" }, "home", "x");
-  check("a new slot starts at rev 0", s1.status === 200 && s1.data.rev === 1, JSON.stringify(s1.data));
+  section("slots: one house, and each person's own progress");
+  const sx = await put(A1, 0, { v: 1, picked: 0, note: "slot x" }, "home", "x");
+  check("the house has one save: no other slots", sx.status === 400, `${sx.status}`);
   const main = await get(A1);
-  check("…and leaves the main save alone", main.data.data.picked === 5 && !main.data.data.note);
+  check("…and the house save is untouched", main.data.data.picked === 5 && !main.data.data.note);
+  const prog = { v: 1, coop: { unlocked: 4, best: { M1: { t: 61.2, sm: [true, false, true], h: 2 } } }, paid: { coop: ["M1", "M2"] }, mg: { catch: { lv: 3, n: 40 } } };
+  const p1 = await put(A1, 0, prog, "play", "char1");
+  check("CS saves CS's progress", p1.status === 200 && p1.data.rev === 1, JSON.stringify(p1.data));
+  const p2 = await put(A2, 0, { v: 1, coop: { unlocked: 9 } }, "play", "char1");
+  check("YY can't write CS's progress", p2.status === 403, `${p2.status} ${JSON.stringify(p2.data)}`);
+  const p3 = await get(A2, "play", "char1");
+  check("…but can read it", p3.status === 200 && p3.data.data.coop.unlocked === 4 && p3.data.data.paid.coop.length === 2, JSON.stringify(p3.data).slice(0, 160));
+  const p4 = await put(A2, 0, { v: 1, coop: { unlocked: 2 } }, "play", "char2");
+  check("YY saves YY's own, separately", p4.status === 200 && (await get(A1, "play", "char1")).data.data.coop.unlocked === 4);
+  check("a made-up person slot is refused", (await put(A1, 0, prog, "play", "char3")).status === 400 && (await get(A1, "play", "")).status === 400);
+  check("a paid list that isn't a list of level ids is refused", (await put(A1, 1, { v: 1, paid: { coop: [1, 2] } }, "play", "char1")).status === 400);
+  check("another couple can't read it", (await get(B1, "play", "char1")).data.rev === 0);
 
   section("another couple");
   const theirs = await get(B1);
@@ -148,8 +160,8 @@ async function run() {
   const ins = await rest("POST", "", { match_id: a1.matchId, game: "home", slot: "zz", data: { picked: 999 } });
   const aFinal = await get(A1);
   check("a direct PATCH changes nothing", aFinal.data.data.picked === 5 && aFinal.data.rev === main.data.rev, `${pat.status} → ${JSON.stringify(aFinal.data.data).slice(0, 80)}`);
-  const zz = await get(A1, "home", "zz");
-  check("a direct INSERT is refused", ins.status >= 400 && zz.data.rev === 0, `${ins.status} / zz rev ${zz.data.rev}`);
+  const after2 = await get(A1);
+  check("a direct INSERT is refused", ins.status >= 400 && after2.data.rev === main.data.rev && after2.data.data.picked === 5, `${ins.status} / rev ${after2.data.rev}`);
 
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail) { console.log("failures:\n  " + failures.join("\n  ")); process.exit(1); }

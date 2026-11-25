@@ -12,6 +12,32 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-25 (later) — 我们的家 goes full screen
+
+The house now fills the whole screen like a game, and is about twice as big on
+a phone held upright; the view follows you through the house. Everything else
+is behind labelled buttons: ❓ 玩法 (how to play), 🌱 花园 (every pot, the album),
+🏠 房子 (upgrades) and 🎁 小店 (festival pieces) open as sheets. ◀ ▶, the stairs,
+抱抱, 招手 and 坐下 sit at the bottom, on the lawn, never over anyone's feet.
+
+A blue chip under the menus always says the most useful thing to do now — water
+a drooping plant, water today's pots, pick a flower, plant a pot — and one tap
+does it. A first visit opens with a three-step welcome. When your partner walks
+off your screen, a 「‹ 名字」 tag at that edge walks you over to them. A phone
+turned on its side keeps the house big by moving the menus into the top row.
+
+It fits every screen we could find — from a folded Galaxy Fold and a first
+iPhone SE to an iPad and a desktop, upright and sideways: on narrow phones the
+buttons at the bottom get smaller, 抱抱 only appears when you are standing next to
+each other, and nothing overlaps. In 一起回家 your partner now shows up as
+「也在这里」 as soon as they open it, instead of up to a second and a half later.
+
+Your game progress now lives in your account, not on the phone: 一起回家's
+levels, stars and best times, which levels have already paid their point, and
+your 接零食 / 翻牌 records follow you to every phone and iPad you log in on. Two
+devices that played separately merge — the faster time, every star — and a
+level that paid on one doesn't pay again on the other.
+
 ## 2026-11-25 — 我们的家: a house and garden the two of you share
 
 A new place, opened from its own card on the home page and from the 小窝: the two

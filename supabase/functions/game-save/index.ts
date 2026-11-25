@@ -15,7 +15,10 @@ import { serve, json, getCaller } from "../_shared/util.ts";
 //
 // Writes only happen here (RLS has no policies on game_saves), which makes this
 // the only place a save's rules are kept (CLAUDE.md §0.0):
-//   · a game must be one this app knows;
+//   · a game must be one this app knows, in the slots it has: 我们的家 is one save
+//     for the couple (slot ""); `play` — each person's game progress, so it follows
+//     them to every phone — has one slot per person ("char1" / "char2"), and only
+//     its owner may write it (the partner may read it);
 //   · a save is at most 16 KB;
 //   · 我们的家's `picked` (flowers ever picked; each is pet EXP and so 小窝币)
 //     only grows, and by at most one flower per pot per write.
@@ -61,7 +64,29 @@ const home: Check = (next, prev) => {
   return "";
 };
 
-const GAMES: Record<string, Check> = { home };
+// One person's progress in the games, from every phone they play on: 一起回家's levels, stars and times,
+// which levels have already paid their first-clear point, and 接零食 / 翻牌 records. The phones merge
+// (more levels, every star, the fastest time, every paid level, the better record), so nothing here
+// needs more than a shape check.
+const play: Check = (next) => {
+  if (next.coop !== undefined) {
+    if (!isObj(next.coop)) return "coop";
+    if (next.coop.best !== undefined && (!isObj(next.coop.best) || Object.keys(next.coop.best).length > 300)) return "coop best";
+    if (next.coop.unlocked !== undefined && count(next.coop.unlocked) < 0) return "coop unlocked";
+  }
+  if (next.paid !== undefined) {
+    if (!isObj(next.paid)) return "paid";
+    for (const v of Object.values(next.paid)) if (!Array.isArray(v) || v.length > 400 || !v.every((x) => typeof x === "string" && x.length <= 24)) return "paid";
+  }
+  if (next.mg !== undefined && !isObj(next.mg)) return "mg";
+  return "";
+};
+
+// `slots`: "one" — a single save for the couple; "person" — one each, written only by its owner
+const GAMES: Record<string, { check: Check; slots: "one" | "person" }> = {
+  home: { check: home, slots: "one" },
+  play: { check: play, slots: "person" },
+};
 
 serve(async (req) => {
   if (req.method !== "GET" && req.method !== "PUT") return json({ error: "Method not allowed" }, 405);
@@ -75,9 +100,13 @@ serve(async (req) => {
   const q = new URL(req.url).searchParams;
   const game = String((body ? body.game : q.get("game")) ?? "");
   const slot = String((body ? body.slot : q.get("slot")) ?? "");
-  const check = Object.prototype.hasOwnProperty.call(GAMES, game) ? GAMES[game] : null;
-  if (!check) return json({ error: "unknown game" }, 400);
+  const def = Object.prototype.hasOwnProperty.call(GAMES, game) ? GAMES[game] : null;
+  if (!def) return json({ error: "unknown game" }, 400);
   if (!SLOT_RE.test(slot)) return json({ error: "bad slot" }, 400);
+  if (def.slots === "one" ? slot !== "" : slot !== "char1" && slot !== "char2") return json({ error: "bad slot" }, 400);
+  // your own progress is yours to write; the partner's you may only read
+  if (req.method === "PUT" && def.slots === "person" && slot !== charId) return json({ error: "not your save" }, 403);
+  const check = def.check;
 
   const read = async () => {
     const { data, error } = await admin.from("game_saves")

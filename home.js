@@ -371,12 +371,7 @@ function festDecor(L) {
   const [rx0, rx1, ry0, ry1] = L.roof, d = L.doors[0], dx = d[0] + d[2] / 2, dy = d[1], on = (id) => G.fests.has(id);
   let h = '';
   // what the date brings, free
-  if (on('xmas')) {
-    h += box('hm-snowcap', rx0, ry0, rx1 - rx0, (ry1 - ry0) * .62) + box('hm-snowground', -5, 86, L.world + 10, 3.2);
-    for (let k = 0; k < 14; k++) h += box('hm-flake', ((k * 8.3 + 3) % 100) * L.world / 100, -3, 1, 0, '', `height:auto;animation-delay:${-(k * .61).toFixed(2)}s`);
-  }
-  if (on('vday')) for (let k = 0; k < 6; k++) h += `<span class="hm-abs hm-fheart" style="left:${8 + k * L.world / 7}%;top:84%;animation-delay:${-(k * 1.1).toFixed(1)}s">💗</span>`;
-  if (on('halloween')) for (const [x, y, dl] of [[12, 10, 0], [46, 16, -2.7], [L.world - 30, 26, -5.1]]) h += `<div class="hm-abs hm-bat" style="left:${x}%;top:${y}%;animation-delay:${dl}s">${BAT}</div>`;
+  if (on('xmas')) h += box('hm-snowcap', rx0, ry0, rx1 - rx0, (ry1 - ry0) * .62) + box('hm-snowground', -5, 86, L.world + 10, 3.2);
   if (on('cny')) h += box('hm-fu', dx, dy + 5, 3.2, 0, '<span>福</span>', 'height:auto;aspect-ratio:1');
   if (on('anniv')) {
     const th = themesAt(G.today).find(t => t.id === 'anniv') || {};
@@ -432,12 +427,27 @@ function renderHouse() {
   UI.house.innerHTML = h;
   G.lastPots = potsSig();
   sizeMini();
-  UI.up.hidden = UI.down.hidden = !L.stairs;
-  UI.pads.classList.toggle('hm-pads6', !!L.stairs);
+  controls();
+  todo();
+}
+// The sky fills the whole screen: sun or moon, clouds, stars, and what a festival puts in the air.
+function renderSky() {
+  if (!UI.sky) return;
+  const on = (id) => G.fests.has(id);
+  let h = '<div class="hm-sun"></div>';
+  for (const [x, y] of [[8, 14], [22, 24], [36, 10], [55, 18], [70, 8], [14, 36], [48, 30], [88, 26], [80, 42], [30, 48]]) h += `<i class="hm-star" style="left:${x}%;top:${y}%"></i>`;
+  h += '<i class="hm-cloud" style="left:6%;top:20%;width:24%"></i><i class="hm-cloud" style="left:58%;top:10%;width:18%"></i><i class="hm-cloud" style="left:72%;top:44%;width:20%"></i>';
+  UI.sky.innerHTML = h;
+  let f = '';
+  if (on('xmas')) for (let k = 0; k < 22; k++) f += `<i class="hm-flake" style="left:${((k * 4.6 + 2) % 100).toFixed(1)}%;animation-delay:${-(k * .41).toFixed(2)}s;animation-duration:${(6 + (k % 5) * .7).toFixed(1)}s"></i>`;
+  if (on('vday')) for (let k = 0; k < 8; k++) f += `<span class="hm-fheart" style="left:${6 + k * 12}%;animation-delay:${-(k * 0.9).toFixed(1)}s">💗</span>`;
+  if (on('halloween')) for (const [x, y, dl] of [[10, 24, 0], [48, 14, -2.7], [72, 34, -5.1]]) f += `<div class="hm-bat" style="left:${x}%;top:${y}%;animation-delay:${dl}s">${BAT}</div>`;
+  UI.skyfx.innerHTML = f;
 }
 const potsSig = () => JSON.stringify([G.today, G.lv, LVS[G.lv].pots.map((_, i) => { const q = potInfo(i); return [q.pl && q.pl.id, q.g.stage, q.g.wilted, q.mine, q.theirs]; })]);
 function renderPots() {
   const sig = potsSig();
+  todo();
   if (sig === G.lastPots) return;
   G.lastPots = sig;
   LVS[G.lv].pots.forEach((_, i) => { const el = UI.house && UI.house.querySelector(`.hm-pot[data-i="${i}"]`); if (el) el.outerHTML = potHtml(i); });
@@ -465,7 +475,7 @@ function poseSit(a) {
   const s = a.sit >= 0 && G.seats ? G.seats[a.sit] : null;
   a.el.classList.toggle('hm-sit', !!s);
   if (s) a.el.style.setProperty('--hm-lift', s.lift.toFixed(1) + 'px');
-  if (a.k === meK() && UI.sit) UI.sit.textContent = s ? '🧍 站起来' : '🛋️ 坐沙发';
+  if (a.k === meK() && UI.sit) UI.sit.innerHTML = s ? '<i>🧍</i><span>站起来</span>' : '<i>🛋️</i><span>坐下</span>';
 }
 function standUp(a) { if (a.sit < 0 && a.sitWant < 0) return; a.sit = -1; a.sitWant = -1; poseSit(a); }
 function sitDown() {
@@ -564,7 +574,7 @@ function setSrv(data, rev) {
   const grew = before !== null && (G.srv.data.picked || 0) > before;
   try { API.onSave(G.srv.data, grew); } catch (e) {}
   // a flower is 小窝币: the balance and what it can buy change with it
-  if (grew) { renderCoins(); if (G.tab !== 'garden') renderPanel(); }
+  if (grew) { renderCoins(); renderPanel(); }
 }
 function recompute() {
   const before = G.view.picked;
@@ -653,6 +663,30 @@ function walkMe(x, fy, after = null) {
 }
 const r1 = (v) => Math.round(v * 10) / 10;
 function hideHint() { if (UI.hint && !UI.hint.hidden) { UI.hint.hidden = true; store.set('hm_hinted', 1); } }
+// What you can do right now, as one tap: pick a flower, water the nearest thirsty pot, plant an empty one.
+function todo() {
+  if (!UI.todo || !P.cs) return;
+  const L = LVS[G.lv], a = P[meK()];
+  // What can only be done today comes first: a drooping plant, then today's watering. A flower waits to be
+  // picked however long it takes, and an empty pot can be planted any day.
+  let bloom = -1, empty = -1;
+  const thirsty = [], wilted = [];
+  L.pots.forEach((_, i) => { const q = potInfo(i); if (q.bloom) { if (bloom < 0) bloom = i; } else if (q.thirsty) { thirsty.push(i); if (q.g.wilted) wilted.push(i); } else if (q.empty && empty < 0) empty = i; });
+  const dist = (i) => { const [x, y] = L.pots[i]; return Math.abs(x - a.x) + (y === (fl(a) || G0) ? 0 : 40); };
+  const nearest = (list) => list.slice().sort((p, q) => dist(p) - dist(q))[0];
+  let t, i = -1;
+  if (wilted.length) { i = nearest(wilted); t = `🥀 有 ${wilted.length} 盆花蔫了 · 快去浇水`; }
+  else if (thirsty.length) { i = nearest(thirsty); t = `💧 还有 ${thirsty.length} 盆花等你浇水 · 点这里`; }
+  else if (bloom >= 0) { t = '🧺 花开了！点这里去收花'; i = bloom; }
+  else if (empty >= 0) { t = '🌱 还有空花盆 · 点这里种一盆'; i = empty; }
+  else t = '✅ 今天的花都照顾好了';
+  // A new suggestion bounces three times to be noticed, then rests. It restarts by switching between two
+  // identical animations — re-measuring the page to restart one cost a slow phone 35 ms while opening.
+  if (UI.todo.textContent !== t) { UI.todo.textContent = t; UI.todo.dataset.n = UI.todo.dataset.n === '1' ? '0' : '1'; }
+  UI.todo.dataset.todo = String(i);
+  UI.todo.classList.toggle('hm-done', i < 0);
+  UI.todo.hidden = false;
+}
 function mark(x, y) { if (!UI.actors) return; const m = document.createElement('div'); m.className = 'hm-abs hm-mark'; m.style.left = x + '%'; m.style.top = y + '%'; UI.actors.appendChild(m); setTimeout(() => m.remove(), 750); }
 // A pot drawn 25px wide on a phone is a small target, so a tap a little beside it, or on the flower
 // above it, still counts. Not more than that: in the Lv3 garden the pots stand 8% apart, and the lawn
@@ -663,15 +697,17 @@ function nearPot(x, y) {
   L.pots.forEach(([px, py], i) => { const dx = Math.abs(x - px); if (dx < 4.6 && y > py - 15 && y < py + 3 && dx < bd) { bd = dx; best = i; } });
   return best;
 }
-const sceneXY = (e) => { const r = UI.scene.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 100 + G.camX, (e.clientY - r.top) / r.height * 100]; };
+const sceneXY = (e) => { const r = UI.scene.getBoundingClientRect(); return [(e.clientX - r.left) / (G.W / 100) + G.camX, (e.clientY - r.top - G.top) / G.H * 100]; };
 function onScenePointer(e) {
   if (e.button > 0 || !G.open) return;
+  if (e.target.closest('.hm-hint')) return;
   const potEl = e.target.closest('.hm-pot');
   if (potEl) { e.preventDefault(); return potAction(+potEl.dataset.i); }
   const [tx, ty] = sceneXY(e), hit = nearPot(tx, ty);
   if (hit >= 0) { e.preventDefault(); return potAction(hit); }
   const edge = e.target.closest('.hm-edge');
-  if (edge) { e.preventDefault(); const b = P[peerK()]; walkMe(b.x + (b.x > P[meK()].x ? -6 : 6), fl(b) || G0); return; }
+  // walk to the partner — to where they are going, if they are still on their way
+  if (edge) { e.preventDefault(); const b = P[peerK()], t = b.path.length ? b.path[b.path.length - 1] : b; walkMe(t.x + (t.x > P[meK()].x ? -6 : 6), fl(t) || G0); return; }
   const [x, y] = sceneXY(e), L = LVS[G.lv];
   const fy = L.stairs && y < G1 + 1 && x > 40 && x < (L.balcony ? L.balcony[1] : 140) ? G1 : G0;
   walkMe(x, fy); mark(clampX(x, fy), fy);
@@ -684,7 +720,7 @@ function startHold(d) {
   send('hold', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, d });
 }
 function stopHold(d) {
-  if (G.hold !== d) return;
+  if (!d || G.hold !== d) return;   // (nothing held: leaving the app must not cut a walk short)
   G.hold = 0;
   const a = P[meK()]; a.holdD = 0;
   if (a.path.length <= 1 && fl(a)) a.path = [];
@@ -810,22 +846,33 @@ function frame(t) {
 }
 // a bigger house is wider than the screen: the view keeps you in its middle part
 function camera(dt) {
-  const L = LVS[G.lv], max = Math.max(0, L.world - 100), a = P[meK()];
-  let t = G.camT;
-  if (a.x - t > 66) t = a.x - 66; else if (a.x - t < 34) t = a.x - 34;
-  G.camT = t = clamp(t, 0, max);
-  G.camX = REDUCE ? t : G.camX + (t - G.camX) * (1 - Math.exp(-5 * dt));
+  const L = LVS[G.lv], vis = G.VW / (G.W / 100), max = L.world - vis, a = P[meK()];
+  let t;
+  if (max <= 0) t = max / 2;                     // the whole house fits: keep it in the middle
+  else {
+    t = G.camT == null ? a.x - vis * .45 : G.camT;
+    if (a.x - t > vis * .66) t = a.x - vis * .66; else if (a.x - t < vis * .34) t = a.x - vis * .34;
+    t = clamp(t, 0, max);
+  }
+  const first = G.camT == null;
+  G.camT = t;
+  G.camX = REDUCE || first ? t : G.camX + (t - G.camX) * (1 - Math.exp(-5 * dt));
   if (Math.abs(G.camX - t) < .02) G.camX = t;
   const px = (-G.camX / 100 * G.W).toFixed(1);
-  if (px !== G.camPx) { G.camPx = px; UI.world.style.transform = `translate3d(${px}px,0,0)`; UI.far.style.transform = `translate3d(${(px * .35).toFixed(1)}px,0,0)`; }
+  if (px !== G.camPx) { G.camPx = px; UI.world.style.transform = `translate3d(${px}px,0,0)`; UI.hills.style.transform = `translate3d(${(px * .4).toFixed(1)}px,0,0)`; }
 }
 // the partner outside the view: a little tag at that edge, which walks you to them
 function edges() {
-  const b = P[peerK()], side = !G.partner.on ? '' : b.x < G.camX + 2 ? 'l' : b.x > G.camX + 98 ? 'r' : '';
+  const b = P[peerK()], vis = G.VW / (G.W / 100);
+  const side = !G.partner.on ? '' : b.x < G.camX + 2 ? 'l' : b.x > G.camX + vis - 2 ? 'r' : '';
   if (side !== G.edge) {
     G.edge = side;
     UI.edge.hidden = !side;
-    if (side) { UI.edge.className = 'hm-edge hm-edge-' + side; UI.edge.innerHTML = side === 'l' ? `‹ ${esc(nameOf(peerK()))}` : `${esc(nameOf(peerK()))} ›`; UI.edge.setAttribute('aria-label', `${nameOf(peerK())} 在${where(b)}，点一下走过去`); }
+    if (side) {
+      UI.edge.className = 'hm-edge hm-edge-' + side; UI.edge.style.top = (G.top + G.H * .5).toFixed(0) + 'px';
+      UI.edge.innerHTML = side === 'l' ? `‹ ${esc(nameOf(peerK()))}` : `${esc(nameOf(peerK()))} ›`;
+      UI.edge.setAttribute('aria-label', `${nameOf(peerK())} 在${where(b)}，点一下走过去`);
+    }
   }
 }
 function status() {
@@ -833,20 +880,30 @@ function status() {
   const o = peerK(), a = P[meK()], b = P[o];
   const same = where(a) === where(b);
   let s;
-  if (!API.online) s = `你在${where(a)} · ${esc(nameOf(o))} 只有登录以后才会一起回来`;
-  else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `你在${where(a)} · ${esc(nameOf(o))} 不在家${pos && pos.at ? `（上次在${where({ x: pos.x, y: pos.f ? G1 : G0 })}，${ago(pos.at)}）` : ''}`; }
+  if (!API.online) s = `你在${where(a)} · 登录后 ${esc(nameOf(o))} 才会一起来`;
+  else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `${esc(nameOf(o))} 不在家${pos && pos.at ? ` · 上次在${where({ x: pos.x, y: pos.f ? G1 : G0 })}` : ''} · 你在${where(a)}`; }
   else s = same ? `和 ${esc(nameOf(o))} 都在${where(a)} 💞` : `你在${where(a)} · ${esc(nameOf(o))} 在${where(b)}`;
-  UI.status.innerHTML = `<i class="hm-dot${G.partner.on ? ' on' : ''}"></i>${s}`;
-  UI.hug.disabled = !near();
+  UI.status.innerHTML = `<i class="hm-dot${G.partner.on ? ' on' : ''}"></i><span>${s}</span>`;
+  // 抱抱 shows up when you are next to your partner — it is the thing to do then, and one less button otherwise
+  UI.hug.disabled = UI.hug.hidden = !near();
+  controls();
 }
-const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 2 ? '刚刚' : m < 60 ? `${m} 分钟前` : m < 1440 ? `${Math.round(m / 60)} 小时前` : `${Math.round(m / 1440)} 天前`; };
+// the stairs button: only in the two-storey house, and it says which way you'd go
+function controls() {
+  if (!UI.stairs || !P.cs) return;
+  const L = LVS[G.lv], a = P[meK()], up = fl(a) !== G1;
+  UI.stairs.hidden = !L.stairs;
+  UI.stairs.dataset.go = up ? 'up' : 'down';
+  UI.stairs.innerHTML = up ? '<i>⬆</i><span>上楼</span>' : '<i>⬇</i><span>下楼</span>';
+  UI.stairs.setAttribute('aria-label', up ? '上楼' : '下楼');
+}
 
 /* ── level, coins, shop ───────────────────────────────────────────────────────────────────────── */
 function setLevel(lv, celebrate) {
   G.lv = lv;
   for (const k of ['cs', 'yy']) if (P[k]) { P[k].sit = -1; P[k].sitWant = -1; }
   for (const a of [P.cs, P.yy, pet].filter(Boolean)) { if (!floors().includes(fl(a))) a.y = G0; a.y = fl(a) || G0; a.x = clampX(a.x, a.y); a.path = []; a.after = null; }
-  renderHouse(); renderPanel(); status();
+  renderHouse(); onResize(); G.camT = null; renderPanel(); status();
   if (celebrate) { say(`🏠 ${LVS[lv].name}盖好了：${lv === 2 ? '多了卧室和宠物小屋，花园 3 个花盆' : '多了厨房、楼梯、二楼卧室和阳台，池塘也有了'}`); fx(P[meK()].x, P[meK()].y - 18, '🎉'); }
 }
 function renderCoins() { if (UI.coins) { let c = 0; try { c = API.coins(); } catch (e) {} UI.coins.textContent = `🪙 ${c}`; } }
@@ -857,25 +914,58 @@ async function buy(id) {
   if (it.fest && !festWin(it.fest, G.today).on) return say(`${FESTS[it.fest].n}的时候才卖`);
   let c = 0; try { c = API.coins(); } catch (e) {}
   if (c < it.price) return say(`🪙 小窝币不够，还差 ${it.price - c} · 收花也能攒`);
-  const btn = UI.panel && UI.panel.querySelector(`[data-buy="${id}"]`);
+  const btn = G.sheet && G.sheet.querySelector(`[data-buy="${id}"]`);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   let ok = false;
   try { ok = await API.buy(id, { name: it.n, icon: it.e, price: it.price }); } catch (e) { ok = false; }
   if (!G.open) return;
   if (!ok) { say('没买成，网络好像不太好，再试一次'); renderPanel(); return; }
   renderCoins();
-  if (it.lv) { setLevel(levelOf(), true); send('lv', { lv: G.lv }); }
+  // a new house is something to look at: the sheet gets out of the way (the shop stays open for more)
+  if (it.lv) { closeSheet(); setLevel(levelOf(), true); send('lv', { lv: G.lv }); }
   else { renderHouse(); renderPanel(); say(`${it.e} ${it.n}放好了${it.fest ? `，以后每年${FESTS[it.fest].n}都会摆出来` : ''}`); send('own', { id }); }
 }
 
-/* ── the panel under the house: 花园 / 房子 / 小店 ────────────────────────────────────────────── */
+/* ── the sheets behind the buttons: 玩法 / 花园 / 房子 / 小店 ──────────────────────────────────── */
+const SHEETS = {
+  help: { t: '❓ 怎么玩', html: () => helpHtml() },
+  garden: { t: '🌱 花园', html: () => gardenHtml() },
+  house: { t: '🏠 房子', html: () => houseHtml() },
+  shop: { t: '🎁 节日小店', html: () => shopHtml() },
+};
+// an open sheet follows what happens behind it (a flower picked, a partner's upgrade…)
 function renderPanel() {
-  if (!UI.panel) return;
-  G.panelReady = true;
-  $$('.hm-tab', UI.root).forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === G.tab)));
-  if (G.tab === 'garden') UI.panel.innerHTML = gardenHtml();
-  else if (G.tab === 'house') UI.panel.innerHTML = houseHtml();
-  else UI.panel.innerHTML = shopHtml();
+  const k = G.sheetKind;
+  if (!G.sheet || !SHEETS[k]) return;
+  const body = G.sheet.querySelector('.hm-sheet-body'), top = body.scrollTop;
+  body.innerHTML = SHEETS[k].html();
+  body.scrollTop = top;
+}
+function openSheet(kind) {
+  const S = SHEETS[kind]; if (!S) return;
+  sheetShell(kind, S.t, S.html());
+  $$('.hm-mbtn', UI.root).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sheet === kind)));
+}
+function sheetShell(kind, title, html) {
+  closeSheet();
+  const sh = document.createElement('div');
+  sh.className = 'hm-sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', title.replace(/^\S+\s/, ''));
+  sh.innerHTML = `<div class="hm-sheet-in"><div class="hm-sheet-top"><b>${title}</b><button type="button" class="hm-x" data-a="close-sheet" aria-label="关闭">✕</button></div><div class="hm-sheet-body">${html}</div></div>`;
+  sh.addEventListener('click', (e) => { if (e.target === sh) closeSheet(); });
+  UI.root.appendChild(sh); G.sheet = sh; G.sheetKind = kind;
+  hideHint();
+  return sh;
+}
+function helpHtml() {
+  const o = esc(nameOf(peerK()));
+  return `<div class="hm-help">
+    <section><h4>👣 走路</h4><p>点地板，就走过去；按住 ◀ ▶ 一直走。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。电脑上可以用方向键。</p></section>
+    <section><h4>🌱 种花</h4><p>点空花盆选种子，种子不用买。<b>每人每天给每盆花浇一次水</b>，你和 ${o} 都浇的那天长两格，长满 5 格开花：一个人要 5 天，两个人一起 3 天。<b>三天没人浇会蔫</b>，浇一下就好（那一次不长）。</p>
+      <p>开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 <b>+${PICK_EXP / 2}</b>。收满 3 / 6 / 10 / 15 朵会解锁新种子；节日还有限定种子。</p></section>
+    <section><h4>💞 一起</h4><p>两个人都打开「我们的家」的时候，对方手机上马上看到你走路、浇水、收花。走到 ${o} 身边可以 🤗 抱抱；客厅有沙发就能一起 🛋️ 坐下。宠物跟着最后走动的那个人。</p></section>
+    <section><h4>🏠 房子</h4><p>客厅就是你们的小窝，家具摆在哪这里就在哪。在「🏠 房子」里用小窝币升级成小平房、两层小楼（和小窝的家具同一个钱包）。</p></section>
+    <section><h4>🎁 节日</h4><p>节日那几天，家里自己换上节日的样子。「🎁 小店」卖节日装饰，买了以后每年这个节日都会自己摆出来。</p></section>
+  </div>`;
 }
 function gardenHtml() {
   const L = LVS[G.lv], v = G.view, o = esc(nameOf(peerK()));
@@ -895,8 +985,9 @@ function gardenHtml() {
     const s = SEEDS[k], n = v.album[k] || 0, st = seedState(k, G.today);
     return `<div class="hm-alb${n ? ' got' : ''}${st.ok ? '' : ' locked'}"><span class="hm-ae" aria-hidden="true">${potSvg({ seed: k, w: {} }, { stage: 5 }, false)}</span><b>${s.n}</b><span>${n ? `收了 ${n} 朵` : st.ok ? (s.fest ? `${FESTS[s.fest].n}限定 · 现在能种` : '现在能种') : st.why}</span></div>`;
   }).join('');
-  return `<p class="hm-how">每人每天给每盆花浇一次水，<b>两个人都浇长得更快</b>（一天长两格）。三天没人浇会蔫，浇一下就好。开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 +${PICK_EXP / 2}。</p>
+  return `<p class="hm-how">点一盆花，就走过去浇水、种花或者收花。每人每天每盆浇一次，<b>两个人都浇长得更快</b>；三天没人浇会蔫。开花收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 +${PICK_EXP / 2}。</p>
     <div class="hm-prows">${rows}</div>
+    <div class="hm-go2"><button type="button" class="hm-wide" data-go="garden">🌷 走去花园</button><button type="button" class="hm-wide" data-go="living">🛋️ 回客厅</button></div>
     <div class="hm-sumline">🌸 一共收了 <b>${v.picked || 0}</b> 朵花${(v.log || []).length ? ` · 最近一朵：${esc(nameOf(KEY[v.log[v.log.length - 1][1]] || 'cs'))} 收的${(SEEDS[v.log[v.log.length - 1][2]] || {}).n || '花'}` : ''}</div>
     <h4 class="hm-h4">花园图鉴</h4><div class="hm-albs">${album}</div>`;
 }
@@ -943,22 +1034,16 @@ function nextFest() {
 }
 // the seed picker, over the house
 function openSeeds(i) {
-  closeSheet();
   const opts = SEED_ORDER.map(k => ({ k, s: SEEDS[k], st: seedState(k, G.today) }));
-  const sh = document.createElement('div');
-  sh.className = 'hm-sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', `给 ${i + 1} 号花盆选种子`);
-  sh.innerHTML = `<div class="hm-sheet-in"><div class="hm-sheet-top"><b>🌱 ${i + 1} 号花盆种什么？</b><button type="button" class="hm-x" data-a="close-sheet" aria-label="关闭">✕</button></div>
-    <div class="hm-seeds">${opts.map(({ k, s, st }) => `<button type="button" class="hm-seed" data-seed="${k}"${st.ok ? '' : ' disabled'}><span class="hm-ae" aria-hidden="true">${potSvg({ seed: k, w: {} }, { stage: 5 }, false)}</span><b>${s.n}</b><span>${st.ok ? (s.fest ? `${FESTS[s.fest].n}限定` : s.tip || '每天浇水') : st.why}</span></button>`).join('')}</div>
-    <p class="hm-how">种子不用买。种下以后每天浇水，${esc(nameOf(peerK()))} 也浇会长得更快。</p></div>`;
-  sh.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) { if (e.target === sh) closeSheet(); return; }
-    if (b.dataset.a === 'close-sheet') return closeSheet();
-    if (b.dataset.seed && !b.disabled) { closeSheet(); goTo(i, { t: 'plant', pot: i, seed: b.dataset.seed }); }
-  });
-  UI.root.appendChild(sh); G.sheet = sh;
+  const sh = sheetShell('seeds', `🌱 ${i + 1} 号花盆种什么？`,
+    `<div class="hm-seeds">${opts.map(({ k, s, st }) => `<button type="button" class="hm-seed" data-seed="${k}" data-pot-i="${i}"${st.ok ? '' : ' disabled'}><span class="hm-ae" aria-hidden="true">${potSvg({ seed: k, w: {} }, { stage: 5 }, false)}</span><b>${s.n}</b><span>${st.ok ? (s.fest ? `${FESTS[s.fest].n}限定` : s.tip || '每天浇水') : st.why}</span></button>`).join('')}</div>
+    <p class="hm-how">种子不用买。种下以后每天浇水，${esc(nameOf(peerK()))} 也浇会长得更快。</p>`);
   const first = sh.querySelector('.hm-seed:not([disabled])'); if (first) first.focus();
 }
-function closeSheet() { if (G.sheet) { G.sheet.remove(); G.sheet = null; } }
+function closeSheet() {
+  if (G.sheet) { G.sheet.parentNode && G.sheet.parentNode.removeChild(G.sheet); G.sheet = null; G.sheetKind = ''; }
+  if (UI.root) $$('.hm-mbtn', UI.root).forEach(b => b.setAttribute('aria-pressed', 'false'));
+}
 
 /* ── styles (scoped: every class starts with hm-, §1.1) ───────────────────────────────────────── */
 function css() {
@@ -966,34 +1051,38 @@ function css() {
   const st = document.createElement('style'); st.id = 'hm-style';
   st.textContent = `
 .hm-root[hidden],.hm-root [hidden]{display:none!important}
-.hm-root{--hm-ink:#3A2F4F;--hm-sub:#685D80;--hm-line:rgba(150,120,190,.26);--hm-card:rgba(255,255,255,.86);--hm-solid:#FFFFFF;--hm-pink:#E0508F;--hm-pink-ink:#B23A72;--hm-pink-soft:#FFE3EE;--hm-blue-ink:#2D65A3;--hm-blue-soft:#E1ECFA;--hm-mint:#2F8A5C;--hm-mint-soft:#E2F5EA;--hm-gold:#A8661A;--hm-gold-soft:#FFF1D6;--hm-sky1:#A7D8F5;--hm-sky2:#E4F4FC;--hm-grass1:#9BD08A;--hm-grass2:#7DBE74;
-  position:fixed;inset:0;z-index:150;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(180deg,#FFF3F8,#F1EBFF);color:var(--hm-ink);box-sizing:border-box;
-  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));-webkit-tap-highlight-color:transparent}
-html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#C3B8DA;--hm-line:rgba(190,170,230,.22);--hm-card:rgba(255,255,255,.07);--hm-solid:#2E284A;--hm-pink:#FF7FB0;--hm-pink-ink:#FFA3C8;--hm-pink-soft:rgba(255,127,176,.17);--hm-blue-ink:#A6CBFF;--hm-blue-soft:rgba(127,176,240,.17);--hm-mint:#8FE0B4;--hm-mint-soft:rgba(127,216,168,.15);--hm-gold:#FFC266;--hm-gold-soft:rgba(255,194,102,.15);--hm-grass1:#8CC47D;--hm-grass2:#6FAE67;background:linear-gradient(180deg,#1E1A33,#2A1C36)}
+.hm-root{--hm-ink:#3A2F4F;--hm-sub:#5E5378;--hm-line:rgba(150,120,190,.26);--hm-solid:#FFFFFF;--hm-glass:rgba(255,255,255,.88);--hm-sh:0 6px 16px -9px rgba(60,40,110,.55);--hm-pink:#E0508F;--hm-pink-ink:#B23A72;--hm-pink-soft:#FFE3EE;--hm-blue-ink:#2D65A3;--hm-blue-soft:#E1ECFA;--hm-mint:#2F8A5C;--hm-mint-soft:#E2F5EA;--hm-gold:#9A5C12;--hm-gold-soft:#FFF1D6;--hm-sky1:#A7D8F5;--hm-sky2:#E4F4FC;--hm-grass1:#9BD08A;--hm-grass2:#7DBE74;--hm-u:4px;
+  position:fixed;inset:0;z-index:150;overflow:hidden;color:var(--hm-ink);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgba(190,170,230,.24);--hm-solid:#2E284A;--hm-glass:rgba(40,34,68,.88);--hm-sh:0 6px 16px -9px rgba(0,0,0,.8);--hm-pink:#FF7FB0;--hm-pink-ink:#FFA3C8;--hm-pink-soft:rgba(255,127,176,.18);--hm-blue-ink:#A6CBFF;--hm-blue-soft:rgba(127,176,240,.18);--hm-mint:#8FE0B4;--hm-mint-soft:rgba(127,216,168,.16);--hm-gold:#FFC266;--hm-gold-soft:rgba(255,194,102,.16);--hm-grass1:#8CC47D;--hm-grass2:#6FAE67}
 @media (prefers-reduced-motion:no-preference){.hm-root{animation:hm-in .28s ease-out}}
-@keyframes hm-in{from{opacity:0;transform:translateY(14px)}}
-.hm-col{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+@keyframes hm-in{from{opacity:0}}
 :where(.hm-root) button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .hm-root button:focus-visible,.hm-scene:focus-visible,.hm-pot:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
-.hm-top{display:flex;align-items:center;gap:10px}
-.hm-top h3{margin:0;font-size:20px;font-weight:800;flex:1;min-width:0}
-.hm-coins{font-weight:800;font-variant-numeric:tabular-nums;font-size:15px;padding:6px 12px;border-radius:99px;background:var(--hm-gold-soft);color:var(--hm-gold)}
-.hm-x{width:44px;height:44px;border-radius:50%;border:0;background:rgba(120,100,160,.14);font-size:18px;flex:none}
-.hm-scene{position:relative;width:min(100%,calc(62vh * 4 / 3));margin:0 auto;aspect-ratio:4/3;border-radius:20px;overflow:hidden;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;background:linear-gradient(180deg,var(--hm-sky1),var(--hm-sky2) 70%);box-shadow:0 16px 30px -22px rgba(90,60,150,.7);contain:layout paint}
-.hm-scene.hm-dusk{background:linear-gradient(180deg,#F6A98C,#FFE3C9 70%)}
-.hm-scene.hm-night{background:linear-gradient(180deg,#121637,#2B2D63 70%)}
+/* the screen: sky, a strip of lawn under everything, and the house standing on it */
+.hm-scene{position:absolute;inset:0;overflow:hidden;cursor:pointer;background:linear-gradient(180deg,var(--hm-sky1),var(--hm-sky2) 78%);contain:layout paint}
+.hm-scene.hm-dusk{background:linear-gradient(180deg,#F6A98C,#FFE3C9 78%)}
+.hm-scene.hm-night{background:linear-gradient(180deg,#121637,#2B2D63 78%)}
+.hm-sky{position:absolute;left:0;right:0;pointer-events:none}
+.hm-skyfx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.hm-ground{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,var(--hm-grass1),var(--hm-grass2))}
+.hm-night .hm-ground{background:linear-gradient(180deg,#3E6E52,#2F5A44)}
+.hm-s-winter .hm-ground{background:linear-gradient(180deg,#DDEBD8,#BFD8BC)}
+.hm-night.hm-s-winter .hm-ground{background:linear-gradient(180deg,#5B7A70,#4A665E)}
+.hm-f-xmas .hm-ground{background:linear-gradient(180deg,#FFFFFF,#E9F1FA)}
+.hm-night.hm-f-xmas .hm-ground{background:linear-gradient(180deg,#D3DBE8,#BFC9D9)}
+.hm-band{position:absolute;left:0;top:0;width:100px;height:75px}
 .hm-lay{position:absolute;inset:0;will-change:transform}
 .hm-abs{position:absolute}
-.hm-sun{right:6%;top:7%;width:9%;aspect-ratio:1;border-radius:50%;background:#FFE58F;box-shadow:0 0 0 10px rgba(255,229,143,.35)}
-.hm-dusk .hm-sun{top:24%;background:#FFB36B;box-shadow:0 0 0 10px rgba(255,170,100,.3)}
+.hm-sun{position:absolute;right:8%;top:10%;width:clamp(34px,10vmin,64px);aspect-ratio:1;border-radius:50%;background:#FFE58F;box-shadow:0 0 0 10px rgba(255,229,143,.35)}
+.hm-dusk .hm-sun{top:46%;background:#FFB36B;box-shadow:0 0 0 10px rgba(255,170,100,.3)}
 .hm-night .hm-sun{background:#F4EDCA;box-shadow:0 0 0 8px rgba(244,237,202,.15)}
-.hm-scene.hm-f-midautumn.hm-night .hm-sun{width:14%;right:8%;top:6%;background:#FFE08A;box-shadow:0 0 22px 8px rgba(255,214,120,.5)}
-.hm-cloud{height:5%;border-radius:99px;background:rgba(255,255,255,.85)}
+.hm-scene.hm-f-midautumn.hm-night .hm-sun{width:clamp(56px,16vmin,104px);background:#FFE08A;box-shadow:0 0 26px 10px rgba(255,214,120,.5)}
+.hm-cloud{position:absolute;height:clamp(14px,3.8vmin,28px);border-radius:99px;background:rgba(255,255,255,.85)}
 .hm-cloud::before,.hm-cloud::after{content:'';position:absolute;border-radius:50%;background:inherit}
-.hm-cloud::before{width:48%;aspect-ratio:1;left:14%;bottom:30%}
-.hm-cloud::after{width:34%;aspect-ratio:1;left:50%;bottom:25%}
+.hm-cloud::before{width:42%;aspect-ratio:1;left:14%;bottom:30%}
+.hm-cloud::after{width:30%;aspect-ratio:1;left:50%;bottom:25%}
 .hm-night .hm-cloud{background:rgba(160,170,220,.22)}
-.hm-star{width:.7%;aspect-ratio:1;border-radius:50%;background:#FFF8DC;display:none}
+.hm-star{position:absolute;width:3px;height:3px;border-radius:50%;background:#FFF8DC;display:none}
 .hm-night .hm-star{display:block}
 .hm-hill{border-radius:50% 50% 0 0;background:rgba(150,205,140,.75)}
 .hm-night .hm-hill{background:rgba(70,110,90,.7)}
@@ -1004,7 +1093,7 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#C3B8DA;--hm-line:rgb
 .hm-fence{background:repeating-linear-gradient(90deg,#FFF6EA 0 2.4%,transparent 2.4% 4.6%),linear-gradient(180deg,transparent 0 28%,#FFF6EA 28% 40%,transparent 40% 68%,#FFF6EA 68% 80%,transparent 80%);opacity:.95}
 .hm-night .hm-fence{filter:brightness(.55)}
 .hm-room{overflow:hidden;border:3px solid #C99B74;border-bottom:0;box-sizing:border-box}
-.hm-rn{transform:translate(-50%,-50%);font-size:clamp(9px,1.6vw,11.5px);font-weight:800;line-height:1.5;color:#6B4A30;background:#FFF6EA;border:1.5px solid #C99B74;padding:0 6px;border-radius:8px;white-space:nowrap;z-index:8;pointer-events:none}
+.hm-rn{transform:translate(-50%,-50%);font-size:clamp(9px,calc(var(--hm-u) * 1.6),14px);font-weight:800;line-height:1.5;color:#6B4A30;background:#FFF6EA;border:1.5px solid #C99B74;padding:0 6px;border-radius:8px;white-space:nowrap;z-index:8;pointer-events:none}
 .hm-night .hm-rn{background:#E9D8C4;color:#4A3322}
 .hm-r-bed{background:linear-gradient(180deg,#E9E2FB,#D9CEF4)}
 .hm-r-kitchen{background:linear-gradient(180deg,#E6F3E8,#D3EAD8)}
@@ -1042,9 +1131,9 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-s-winter .hm-tree .hm-leaf{fill:#E9F1F7;stroke:#A9BCCB}.hm-s-winter .hm-tree .hm-fruit{fill:#FFFFFF}
 .hm-pot{position:absolute;transform:translate(-50%,-100%);width:7%;cursor:pointer;z-index:0}
 .hm-pot svg{width:100%;height:auto;display:block;overflow:visible;pointer-events:none}
-.hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after,.hm-pot.hm-empty::after{content:'💧';position:absolute;left:50%;top:-28%;transform:translateX(-50%);font-size:clamp(10px,2.2vw,16px);pointer-events:none}
+.hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after,.hm-pot.hm-empty::after{content:'💧';position:absolute;left:50%;top:-28%;transform:translateX(-50%);font-size:clamp(10px,calc(var(--hm-u) * 2.4),22px);pointer-events:none}
 .hm-pot.hm-bloom::after{content:'🧺';top:-46%}
-.hm-pot.hm-empty::after{content:'＋';top:-6%;font-weight:900;color:#7A4E35;font-size:clamp(12px,2.6vw,18px)}
+.hm-pot.hm-empty::after{content:'＋';top:-6%;font-weight:900;color:#7A4E35;font-size:clamp(12px,calc(var(--hm-u) * 2.8),26px)}
 @media (prefers-reduced-motion:no-preference){.hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after{animation:hm-hint 1.4s ease-in-out infinite}}
 @keyframes hm-hint{50%{transform:translate(-50%,-4px)}}
 .hm-pot::before{content:'';position:absolute;left:50%;top:62%;width:150%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;z-index:-1;opacity:0;pointer-events:none;transition:opacity .4s}
@@ -1081,46 +1170,94 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 @keyframes hm-breathe{50%{transform:scale(1.015,.985)}}
 @keyframes hm-hop{50%{transform:translateY(-3px)}}
 @keyframes hm-hopf{0%,100%{transform:scaleX(-1)}50%{transform:scaleX(-1) translateY(-3px)}}
-.hm-tag{position:absolute;left:50%;top:-19px;transform:translateX(-50%);font-size:11px;font-weight:800;padding:1px 7px;border-radius:9px;background:var(--hm-solid);color:var(--hm-ink);white-space:nowrap;max-width:9em;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px -3px rgba(0,0,0,.4)}
+.hm-cin{position:relative}
+.hm-ch.hm-sit .hm-cin{transform:translateY(calc(var(--hm-lift,0px) * -1))}
+.hm-ch.hm-sit .hm-shadow{opacity:0}
+.hm-ch.hm-sit .hm-bd{animation:none!important}
+.hm-tag{position:absolute;left:50%;top:-21px;transform:translateX(-50%);font-size:clamp(10px,calc(var(--hm-u) * 1.5),13px);font-weight:800;padding:1px 7px;border-radius:9px;background:var(--hm-solid);color:var(--hm-ink);white-space:nowrap;max-width:9em;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px -3px rgba(0,0,0,.4)}
 .hm-ch.hm-me .hm-tag{background:var(--hm-ink);color:var(--hm-solid)}
-.hm-you{display:none;position:absolute;left:50%;top:-36px;transform:translateX(-50%);color:var(--hm-pink);font-size:13px;line-height:1}
+.hm-you{display:none;position:absolute;left:50%;top:-38px;transform:translateX(-50%);color:var(--hm-pink);font-size:13px;line-height:1}
 .hm-ch.hm-me .hm-you{display:block}
 @media (prefers-reduced-motion:no-preference){.hm-ch.hm-me .hm-you{animation:hm-youbob 1s ease-in-out infinite}}
 @keyframes hm-youbob{50%{transform:translate(-50%,-4px)}}
-.hm-pop{position:absolute;transform:translate(-50%,-100%);font-size:clamp(16px,3.4vw,26px);pointer-events:none;z-index:5000}
+.hm-pop{position:absolute;transform:translate(-50%,-100%);font-size:clamp(16px,calc(var(--hm-u) * 4),34px);pointer-events:none;z-index:5000}
 @media (prefers-reduced-motion:no-preference){.hm-pop{animation:hm-popup 1.2s ease-out forwards}}
 @keyframes hm-popup{from{opacity:0;margin-top:0}20%{opacity:1}to{opacity:0;margin-top:-40px}}
 .hm-mark{width:7%;aspect-ratio:3.2;border-radius:50%;border:3px solid var(--hm-pink);transform:translate(-50%,-50%);pointer-events:none;z-index:5}
 @media (prefers-reduced-motion:no-preference){.hm-mark{animation:hm-ring .7s ease-out forwards}}
 @keyframes hm-ring{from{opacity:1;transform:translate(-50%,-50%) scale(.5)}to{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
-.hm-toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:var(--hm-solid);color:var(--hm-ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:99px;box-shadow:0 6px 16px -8px rgba(0,0,0,.5);z-index:6000;pointer-events:none;max-width:92%;text-align:center;line-height:1.4}
-.hm-hint{position:absolute;left:50%;top:36%;transform:translate(-50%,-50%);background:var(--hm-solid);color:var(--hm-ink);border-radius:16px;padding:10px 14px;font-weight:800;font-size:14px;text-align:center;box-shadow:0 10px 24px -14px rgba(0,0,0,.6);pointer-events:none;z-index:5500;max-width:92%}
-.hm-hint span{white-space:nowrap}
-.hm-edge{position:absolute;top:44%;z-index:5800;border:0;border-radius:99px;padding:6px 10px;font-weight:800;font-size:12px;background:var(--hm-pink);color:#fff;box-shadow:0 6px 14px -8px rgba(0,0,0,.6);min-height:32px}
-.hm-edge-l{left:6px}.hm-edge-r{right:6px}
-.hm-status{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;min-height:22px;line-height:1.4}
-.hm-dot{width:9px;height:9px;border-radius:50%;background:#B9AFC9;flex:none}
+.hm-toast{position:absolute;left:50%;top:120px;transform:translateX(-50%);background:var(--hm-solid);color:var(--hm-ink);font-weight:800;font-size:13px;padding:6px 14px;border-radius:99px;box-shadow:0 6px 16px -8px rgba(0,0,0,.5);z-index:30;pointer-events:none;max-width:calc(100% - 32px);text-align:center;line-height:1.4}
+.hm-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100% - 32px));box-sizing:border-box;background:var(--hm-solid);color:var(--hm-ink);border-radius:22px;padding:16px 18px;box-shadow:0 18px 40px -18px rgba(40,20,80,.7);z-index:25;cursor:default}
+.hm-hint > b{display:block;font-size:19px;text-align:center;margin-bottom:8px}
+.hm-hint ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.hm-hint li{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:700;line-height:1.45}
+.hm-hint li i{font-style:normal;flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--hm-pink-soft);font-size:17px}
+.hm-hint-b{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-top:14px}
+.hm-hint-b button{min-height:46px;border-radius:14px;font-weight:800;font-size:15px}
+.hm-hb1{border:0;color:#fff;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:0 10px 18px -12px rgba(220,70,140,.9)}
+.hm-hb2{border:1.5px solid var(--hm-line);background:transparent}
+.hm-todo{position:absolute;left:50%;top:calc(110px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:19;max-width:calc(100% - 24px);min-height:40px;padding:0 16px;border:0;border-radius:99px;font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;background:linear-gradient(180deg,#5FB7F0,#3F7FC4);box-shadow:0 8px 18px -10px rgba(40,90,170,.9)}
+.hm-todo.hm-done{color:var(--hm-mint);background:var(--hm-glass);box-shadow:var(--hm-sh)}
+@media (prefers-reduced-motion:no-preference){.hm-todo:not(.hm-done){animation:hm-nudge 1.1s ease-in-out 3}.hm-todo[data-n="1"]:not(.hm-done){animation-name:hm-nudge2}}
+@keyframes hm-nudge{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) translateY(-2px)}}
+@keyframes hm-nudge2{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) translateY(-2px)}}
+.hm-edge{position:absolute;z-index:16;transform:translateY(-50%);border:0;border-radius:99px;padding:6px 12px;font-weight:800;font-size:13px;background:var(--hm-pink);color:#fff;box-shadow:0 6px 14px -8px rgba(0,0,0,.6);min-height:36px}
+.hm-edge-l{left:max(8px,env(safe-area-inset-left,0px))}.hm-edge-r{right:max(8px,env(safe-area-inset-right,0px))}
+/* the buttons over the game: top for where you are and the menus, bottom for moving and doing */
+.hm-top{position:absolute;left:0;right:0;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none}
+.hm-top > *{pointer-events:auto}
+.hm-x{width:44px;height:44px;border-radius:50%;border:0;background:var(--hm-glass);box-shadow:var(--hm-sh);font-size:18px;flex:none}
+.hm-title{flex:1;min-width:0;min-height:44px;box-sizing:border-box;background:var(--hm-glass);box-shadow:var(--hm-sh);border-radius:16px;padding:4px 12px;display:flex;flex-direction:column;justify-content:center}
+.hm-title b{font-size:15px;line-height:1.3}
+.hm-status{font-weight:700;font-size:12px;color:var(--hm-sub);display:flex;align-items:center;gap:6px;min-width:0;line-height:1.35}
+.hm-status span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hm-dot{width:8px;height:8px;border-radius:50%;background:#B9AFC9;flex:none}
 .hm-dot.on{background:#3DBE7A;box-shadow:0 0 0 3px rgba(61,190,122,.22)}
-.hm-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.hm-pads.hm-pads6{grid-template-columns:repeat(3,minmax(0,1fr))}
-.hm-pad{min-height:50px;border-radius:15px;border:1.5px solid var(--hm-line);background:var(--hm-solid);font-weight:800;font-size:15px;touch-action:none;user-select:none;-webkit-user-select:none}
-.hm-pad.hm-arrow{font-size:20px;color:var(--hm-blue-ink);background:var(--hm-blue-soft)}
-.hm-pad:active{transform:scale(.96)}
-.hm-acts{display:flex;gap:8px;flex-wrap:wrap}
-.hm-btn{border:0;border-radius:15px;min-height:44px;padding:0 16px;font-weight:800;color:#fff;background:linear-gradient(180deg,#F57FB0,#E0508F);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(220,70,140,.9)}
-.hm-btn.hm-blue{background:linear-gradient(180deg,#7FB2EC,#3F7FC4);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(60,120,200,.9)}
-.hm-btn.hm-mint{background:linear-gradient(180deg,#7FD8A8,#3E9E6E);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 10px 18px -12px rgba(40,140,90,.9)}
-.hm-btn:disabled{opacity:.45;cursor:default}
-.hm-cin{position:relative}
-.hm-ch.hm-sit .hm-cin{transform:translateY(calc(var(--hm-lift,0px) * -1))}
-.hm-ch.hm-sit .hm-shadow{opacity:0}
-.hm-ch.hm-sit .hm-bd{animation:none!important}
-.hm-tabs{display:flex;gap:6px;border-radius:16px;padding:4px;background:rgba(150,120,190,.12)}
-.hm-tab{flex:1;min-height:42px;border:0;border-radius:12px;background:transparent;font-weight:800;font-size:14px}
-.hm-tab[aria-selected="true"]{background:var(--hm-solid);box-shadow:0 4px 10px -6px rgba(90,60,150,.6)}
-.hm-panel{display:flex;flex-direction:column;gap:10px}
-.hm-how{margin:0;font-size:13.5px;line-height:1.55;color:var(--hm-sub)}
+.hm-coins{flex:none;min-height:44px;box-sizing:border-box;display:flex;align-items:center;font-weight:800;font-variant-numeric:tabular-nums;font-size:15px;padding:0 14px;border-radius:99px;background:var(--hm-glass);box-shadow:var(--hm-sh);color:var(--hm-gold)}
+.hm-menu{position:absolute;left:0;right:0;top:calc(60px + env(safe-area-inset-top,0px));z-index:20;display:flex;justify-content:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none}
+.hm-mbtn{pointer-events:auto;flex:1 1 0;max-width:132px;min-width:0;min-height:42px;padding:0 4px;border:0;border-radius:99px;background:var(--hm-glass);box-shadow:var(--hm-sh);font-weight:800;font-size:14px;white-space:nowrap}
+.hm-mbtn[aria-pressed="true"]{background:var(--hm-pink);color:#fff}
+.hm-ctl{position:absolute;z-index:20;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:flex-end;gap:8px}
+.hm-ctl-l{left:max(12px,env(safe-area-inset-left,0px))}
+.hm-ctl-r{right:max(12px,env(safe-area-inset-right,0px))}
+.hm-pad.hm-arrow{width:58px;height:58px;border-radius:50%;border:0;background:var(--hm-glass);box-shadow:var(--hm-sh);font-size:22px;color:var(--hm-blue-ink);touch-action:none;margin-bottom:4px}
+.hm-pad.hm-arrow:active{transform:scale(.94)}
+.hm-act{width:54px;min-height:66px;border:0;background:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.hm-act i{font-style:normal;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--hm-glass);box-shadow:var(--hm-sh)}
+.hm-act span{font-size:11.5px;font-weight:800;line-height:1.5;padding:0 6px;border-radius:8px;background:var(--hm-glass);color:var(--hm-ink);white-space:nowrap}
+.hm-act:disabled{cursor:default}
+.hm-act:disabled i,.hm-act:disabled span{opacity:.55}
+.hm-act[data-a="hug"]:not(:disabled) i{background:linear-gradient(180deg,#F57FB0,#E0508F)}
+.hm-act:not(:disabled):active i{transform:scale(.94)}
+.hm-safeb{position:absolute;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none}
+.hm-mbtn i{font-style:normal;margin-right:4px}
+.hm-short .hm-menu{left:auto;top:calc(8px + env(safe-area-inset-top,0px));padding:0}
+.hm-short .hm-mbtn{flex:0 0 auto;min-height:44px;padding:0 12px}
+.hm-short .hm-title{flex:0 1 auto;width:auto}
+.hm-short .hm-coins{margin-left:auto}
+.hm-icons .hm-mbtn span{display:none}
+.hm-icons .hm-mbtn i{margin:0}
+.hm-icons .hm-mbtn{padding:0 13px}
+/* a narrow phone: smaller bottom buttons; the narrowest puts ⬆/⬇ above ◀ ▶ */
+@media (max-width:389px){.hm-pad.hm-arrow{width:50px;height:50px;font-size:20px}.hm-act{width:48px;min-height:62px}.hm-act i{width:42px;height:42px;font-size:20px}.hm-ctl{gap:6px}}
+@media (max-width:339px){.hm-pad.hm-arrow{width:46px;height:46px}.hm-act{width:44px}.hm-act i{width:40px;height:40px;font-size:19px}.hm-act span{font-size:10.5px;padding:0 3px}.hm-ctl{gap:4px}.hm-ctl-l{left:8px}.hm-ctl-r{right:8px}.hm-mbtn{font-size:13px}.hm-mbtn i{margin-right:2px}}
+@media (max-width:299px){.hm-ctl-l{flex-wrap:wrap-reverse;width:100px}}
+.hm-short .hm-todo{top:auto;bottom:calc(14px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 440px);animation:none}
+/* the sheets behind the buttons */
+.hm-sheet{position:absolute;inset:0;z-index:40;background:rgba(30,20,50,.38);display:flex;align-items:flex-end;justify-content:center;padding:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px))}
+.hm-sheet-in{width:100%;max-width:600px;max-height:min(80vh,calc(100% - 70px));display:flex;flex-direction:column;background:var(--hm-solid);color:var(--hm-ink);border-radius:22px 22px 0 0;box-shadow:0 -10px 30px -12px rgba(0,0,0,.5);user-select:text;-webkit-user-select:text}
+@media (prefers-reduced-motion:no-preference){.hm-sheet-in{animation:hm-up .22s ease-out}}
+@keyframes hm-up{from{transform:translateY(30px);opacity:0}}
+.hm-sheet-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:17px;padding:12px 14px 6px}
+.hm-sheet-top .hm-x{background:rgba(120,100,160,.14);box-shadow:none}
+.hm-sheet-body{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:4px 14px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.hm-how{margin:0;font-size:13.5px;line-height:1.6;color:var(--hm-sub)}
 .hm-how b{color:var(--hm-ink)}
+.hm-help{display:flex;flex-direction:column;gap:12px}
+.hm-help section{border-radius:16px;background:rgba(150,120,190,.1);padding:10px 14px}
+.hm-help h4{margin:0 0 4px;font-size:15px}
+.hm-help p{margin:4px 0 0;font-size:14px;line-height:1.65;color:var(--hm-sub)}
+.hm-help b{color:var(--hm-ink)}
 .hm-prows{display:flex;flex-direction:column;gap:6px}
 .hm-prow{display:grid;grid-template-columns:28px 1fr;grid-template-areas:"n w" "n t";column-gap:10px;row-gap:1px;text-align:left;border:1.5px solid var(--hm-line);background:var(--hm-solid);border-radius:14px;padding:8px 12px;min-height:52px;align-items:center}
 .hm-pn{grid-area:n;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:13px;background:rgba(150,120,190,.14)}
@@ -1132,6 +1269,7 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-pr-thirsty{border-color:rgba(80,150,230,.5)}
 .hm-pr-bloom{border-color:#E0508F;background:var(--hm-pink-soft)}
 .hm-pr-wilt{border-color:#D9902A;background:var(--hm-gold-soft)}
+.hm-go2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hm-sumline{font-size:14px;font-weight:800}
 .hm-h4{margin:6px 0 0;font-size:15px}
 .hm-albs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
@@ -1160,11 +1298,6 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-tags{display:flex;gap:4px;flex-wrap:wrap}
 .hm-tagx{font-size:11px;font-weight:800;border-radius:99px;padding:1px 8px;background:var(--hm-pink-soft);color:var(--hm-pink-ink)}
 .hm-tagx.keep{background:var(--hm-gold-soft);color:var(--hm-gold)}
-.hm-sheet{position:fixed;inset:0;z-index:155;background:rgba(30,20,50,.38);display:flex;align-items:flex-end;justify-content:center;padding:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px))}
-.hm-sheet-in{width:100%;max-width:560px;max-height:80vh;overflow-y:auto;background:var(--hm-solid);color:var(--hm-ink);border-radius:22px 22px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;box-shadow:0 -10px 30px -12px rgba(0,0,0,.5)}
-@media (prefers-reduced-motion:no-preference){.hm-sheet-in{animation:hm-up .22s ease-out}}
-@keyframes hm-up{from{transform:translateY(30px);opacity:0}}
-.hm-sheet-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px}
 .hm-seeds{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
 .hm-seed{border:1.5px solid var(--hm-line);background:transparent;border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:96px;text-align:center}
 .hm-seed b{font-size:13px}
@@ -1173,19 +1306,19 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-seed:disabled .hm-ae{filter:grayscale(1)}
 .hm-seed:not(:disabled):active{transform:scale(.97)}
 /* festivals */
-.hm-scene.hm-f-cny:not(.hm-night){background:linear-gradient(180deg,#FFC8A8,#FFF0E2 70%)}
-.hm-scene.hm-f-vday:not(.hm-night){background:linear-gradient(180deg,#FFC9DF,#FFF1F7 70%)}
-.hm-scene.hm-f-midautumn:not(.hm-night){background:linear-gradient(180deg,#F7D9A0,#FFF6E2 70%)}
-.hm-scene.hm-f-halloween:not(.hm-night){background:linear-gradient(180deg,#9C86CF,#EADCF8 70%)}
-.hm-scene.hm-f-halloween.hm-night{background:linear-gradient(180deg,#1C1038,#3D2462 70%)}
-.hm-scene.hm-f-xmas:not(.hm-night){background:linear-gradient(180deg,#BCD6EF,#F5F9FF 70%)}
-.hm-scene.hm-f-anniv:not(.hm-night){background:linear-gradient(180deg,#FFD9E6,#FFF6EC 70%)}
+.hm-scene.hm-f-cny:not(.hm-night){background:linear-gradient(180deg,#FFC8A8,#FFF0E2 78%)}
+.hm-scene.hm-f-vday:not(.hm-night){background:linear-gradient(180deg,#FFC9DF,#FFF1F7 78%)}
+.hm-scene.hm-f-midautumn:not(.hm-night){background:linear-gradient(180deg,#F7D9A0,#FFF6E2 78%)}
+.hm-scene.hm-f-halloween:not(.hm-night){background:linear-gradient(180deg,#9C86CF,#EADCF8 78%)}
+.hm-scene.hm-f-halloween.hm-night{background:linear-gradient(180deg,#1C1038,#3D2462 78%)}
+.hm-scene.hm-f-xmas:not(.hm-night){background:linear-gradient(180deg,#BCD6EF,#F5F9FF 78%)}
+.hm-scene.hm-f-anniv:not(.hm-night){background:linear-gradient(180deg,#FFD9E6,#FFF6EC 78%)}
 .hm-snowcap{clip-path:polygon(50% 0,81% 100%,72% 86%,64% 98%,56% 84%,48% 98%,40% 84%,32% 98%,25% 88%,19% 100%);background:#FFFFFF}
 .hm-snowground{background:linear-gradient(180deg,#FFFFFF,#E9F1FA)}
 .hm-night .hm-snowground,.hm-night .hm-snowcap{filter:brightness(.82)}
-.hm-flake{width:1%;aspect-ratio:1;border-radius:50%;background:#FFFFFF;box-shadow:0 0 3px rgba(255,255,255,.9);pointer-events:none}
-.hm-fheart{font-size:clamp(10px,2vw,16px);opacity:.85;pointer-events:none}
-.hm-bat{display:none;width:6%;pointer-events:none}
+.hm-flake{position:absolute;top:-2%;width:6px;height:6px;border-radius:50%;background:#FFFFFF;box-shadow:0 0 3px rgba(255,255,255,.9)}
+.hm-fheart{position:absolute;top:90%;font-size:clamp(12px,4vmin,22px);opacity:.85}
+.hm-bat{position:absolute;display:none;width:clamp(28px,9vmin,56px)}
 .hm-night .hm-bat,.hm-dusk .hm-bat{display:block}
 .hm-bat svg{width:100%;height:auto;display:block}
 @media (prefers-reduced-motion:no-preference){
@@ -1195,18 +1328,18 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
   .hm-night .hm-bulb{animation:hm-twinkle 1.6s ease-in-out infinite}
   .hm-sway{animation:hm-sway 3s ease-in-out infinite;transform-origin:50% 100%}
 }
-@keyframes hm-snow{from{top:-3%}to{top:100%}}
-@keyframes hm-floatup{from{top:84%;opacity:0}15%{opacity:.9}to{top:8%;opacity:0}}
+@keyframes hm-snow{from{top:-2%}to{top:100%}}
+@keyframes hm-floatup{from{top:90%;opacity:0}15%{opacity:.9}to{top:12%;opacity:0}}
 @keyframes hm-batfly{50%{transform:translate(60%,30%)}}
 @keyframes hm-twinkle{50%{opacity:.45}}
 @keyframes hm-sway{0%,100%{transform:translate(-50%,-100%) rotate(-3deg)}50%{transform:translate(-50%,-100%) rotate(3deg)}}
 .hm-fu{background:#E5402E;border:2px solid #FFD75E;transform:translate(-50%,-50%) rotate(45deg);display:grid;place-items:center;z-index:5}
-.hm-fu span{transform:rotate(-45deg);color:#FFD75E;font-weight:900;font-size:clamp(8px,1.8vw,14px)}
-.hm-couplet{background:#E5402E;color:#FFD75E;writing-mode:vertical-rl;font-weight:800;font-size:clamp(6px,1.3vw,10px);display:grid;place-items:center;border-radius:2px;letter-spacing:.1em;overflow:hidden;z-index:5}
-.hm-banner{background:#FF8FB3;color:#FFFFFF;font-weight:800;border-radius:6px;display:grid;place-items:center;font-size:clamp(8px,1.7vw,13px);white-space:nowrap;box-shadow:0 3px 6px -3px rgba(0,0,0,.3);overflow:hidden;z-index:6}
+.hm-fu span{transform:rotate(-45deg);color:#FFD75E;font-weight:900;font-size:clamp(8px,calc(var(--hm-u) * 1.8),18px)}
+.hm-couplet{background:#E5402E;color:#FFD75E;writing-mode:vertical-rl;font-weight:800;font-size:clamp(6px,calc(var(--hm-u) * 1.3),13px);display:grid;place-items:center;border-radius:2px;letter-spacing:.1em;overflow:hidden;z-index:5}
+.hm-banner{background:#FF8FB3;color:#FFFFFF;font-weight:800;border-radius:6px;display:grid;place-items:center;font-size:clamp(8px,calc(var(--hm-u) * 1.7),16px);white-space:nowrap;box-shadow:0 3px 6px -3px rgba(0,0,0,.3);overflow:hidden;z-index:6}
 .hm-hang{transform:translate(-50%,0);pointer-events:none;z-index:6}
 .hm-hang svg{width:100%;height:auto;display:block;overflow:visible}
-.hm-ah{transform:translate(-50%,-50%);font-size:clamp(8px,1.6vw,13px);pointer-events:none;z-index:6}
+.hm-ah{transform:translate(-50%,-50%);font-size:clamp(8px,calc(var(--hm-u) * 1.6),16px);pointer-events:none;z-index:6}
 .hm-bulb{width:1.3%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);z-index:6}
 .hm-night .hm-glows svg,.hm-night .hm-bulb{filter:drop-shadow(0 0 5px rgba(255,214,120,.95))}
 .hm-night .hm-bulb{box-shadow:0 0 6px 2px rgba(255,236,170,.8)}
@@ -1224,41 +1357,53 @@ function build() {
   css();
   const root = document.createElement('div');
   root.className = 'hm-root'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', '我们的家');
-  root.innerHTML = `<div class="hm-col">
-    <div class="hm-top"><h3>🏡 我们的家</h3><span class="hm-coins" data-r="coins">🪙 0</span><button type="button" class="hm-x" data-a="x" aria-label="关闭">✕</button></div>
+  root.innerHTML = `
     <div class="hm-scene" data-r="scene" tabindex="0" aria-label="我们的家：点地板走过去，点花盆浇水；电脑上可以用方向键">
-      <div class="hm-lay" data-r="far"></div>
-      <div class="hm-lay" data-r="world"><div class="hm-lay" data-r="house"></div><div class="hm-lay hm-actors" data-r="actors"></div></div>
+      <div class="hm-sky" data-r="sky"></div>
+      <div class="hm-ground" data-r="ground"></div>
+      <div class="hm-band" data-r="band">
+        <div class="hm-lay" data-r="hills"></div>
+        <div class="hm-lay" data-r="world"><div class="hm-lay" data-r="house"></div><div class="hm-lay hm-actors" data-r="actors"></div></div>
+      </div>
+      <div class="hm-skyfx" data-r="skyfx" aria-hidden="true"></div>
       <button type="button" class="hm-edge" data-r="edge" hidden></button>
-      <div class="hm-hint" data-r="hint"${store.get('hm_hinted', 0) ? ' hidden' : ''}><span>👆 点地板，我就走过去</span><br><span>点花盆浇水 · 或按住 ◀ ▶</span></div>
+      <div class="hm-hint" data-r="hint"${store.get('hm_hinted', 0) ? ' hidden' : ''} role="dialog" aria-label="欢迎回家">
+        <b>欢迎回家 🏡</b>
+        <ol><li><i>👆</i><span>点地板就走过去，按住 ◀ ▶ 也能走</span></li><li><i>🌱</i><span>去花园种花，每人每天浇一次水</span></li><li><i>💞</i><span>两个人一起浇，花长得更快</span></li></ol>
+        <div class="hm-hint-b"><button type="button" class="hm-hb1" data-a="hint-ok">开始吧</button><button type="button" class="hm-hb2" data-a="hint-help">看玩法</button></div>
+      </div>
       <div class="hm-toast" data-r="toast" hidden></div>
     </div>
-    <div class="hm-status" data-r="status" aria-live="polite"></div>
-    <div class="hm-pads" data-r="pads">
+    <div class="hm-top">
+      <button type="button" class="hm-x" data-a="x" aria-label="关闭">✕</button>
+      <div class="hm-title" data-r="title"><b>🏡 我们的家</b><div class="hm-status" data-r="status" aria-live="polite"></div></div>
+      <span class="hm-coins" data-r="coins">🪙 0</span>
+    </div>
+    <nav class="hm-menu" data-r="menu" aria-label="家里的菜单">
+      <button type="button" class="hm-mbtn" data-sheet="help" aria-pressed="false" aria-label="玩法"><i>❓</i><span>玩法</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="garden" aria-pressed="false" aria-label="花园"><i>🌱</i><span>花园</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="house" aria-pressed="false" aria-label="房子"><i>🏠</i><span>房子</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="shop" aria-pressed="false" aria-label="小店"><i>🎁</i><span>小店</span></button>
+    </nav>
+    <button type="button" class="hm-todo" data-r="todo" data-a="todo" hidden></button>
+    <div class="hm-ctl hm-ctl-l" data-r="ctlL">
       <button type="button" class="hm-pad hm-arrow" data-dir="-1" aria-label="按住往左走">◀</button>
       <button type="button" class="hm-pad hm-arrow" data-dir="1" aria-label="按住往右走">▶</button>
-      <button type="button" class="hm-pad" data-r="up" data-go="up" hidden>⬆ 上楼</button>
-      <button type="button" class="hm-pad" data-r="down" data-go="down" hidden>⬇ 下楼</button>
-      <button type="button" class="hm-pad" data-go="garden">🌷 花园</button>
-      <button type="button" class="hm-pad" data-go="living">🛋️ 客厅</button>
+      <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" hidden><i>⬆</i><span>上楼</span></button>
     </div>
-    <div class="hm-acts"><button type="button" class="hm-btn" data-r="hug" data-a="hug" disabled>🤗 抱抱</button><button type="button" class="hm-btn hm-blue" data-a="wave">👋 招手</button><button type="button" class="hm-btn hm-mint" data-r="sit" data-a="sit" hidden>🛋️ 坐沙发</button></div>
-    <div class="hm-tabs" role="tablist" aria-label="家里">
-      <button type="button" class="hm-tab" role="tab" data-tab="garden">🌷 花园</button>
-      <button type="button" class="hm-tab" role="tab" data-tab="house">🏠 房子</button>
-      <button type="button" class="hm-tab" role="tab" data-tab="shop">🎉 小店</button>
+    <div class="hm-ctl hm-ctl-r" data-r="ctlR">
+      <button type="button" class="hm-act" data-r="hug" data-a="hug" disabled hidden><i>🤗</i><span>抱抱</span></button>
+      <button type="button" class="hm-act" data-r="sit" data-a="sit" hidden><i>🛋️</i><span>坐下</span></button>
+      <button type="button" class="hm-act" data-a="wave"><i>👋</i><span>招手</span></button>
     </div>
-    <div class="hm-panel" data-r="panel" role="tabpanel"></div>
-  </div>`;
+    <i class="hm-safeb" data-r="safeb" aria-hidden="true"></i>`;
   document.body.appendChild(root);
   UI.root = root;
   for (const el of $$('[data-r]', root)) UI[el.dataset.r] = el;
-  // the far layer: sky things that move a little with the view
-  let far = `<div class="hm-abs hm-sun"></div>`;
-  for (const [x, y] of [[8, 8], [22, 14], [36, 6], [55, 11], [70, 4], [14, 22], [48, 18], [88, 16], [104, 9], [120, 14]]) far += box('hm-star', x, y, .7, .9);
-  far += box('hm-cloud', 8, 12, 14, 5) + box('hm-cloud', 52, 7, 11, 4.2) + box('hm-cloud', 96, 14, 12, 4.6);
-  far += box('hm-hill', -10, 66, 50, 40) + box('hm-hill', 55, 70, 60, 36) + box('hm-hill', 104, 68, 50, 38);
-  UI.far.innerHTML = far;
+  // hills far behind the house, moving a little slower than it; wide enough for a wide screen
+  let hills = '';
+  for (let x = -130; x < 280; x += 55) hills += box('hm-hill', x, 66 + (Math.abs(x) % 3), 62, 40);
+  UI.hills.innerHTML = hills;
   root.addEventListener('click', onClick);
   UI.scene.addEventListener('click', onScenePointer);
   UI.scene.addEventListener('keydown', onSceneKey);
@@ -1283,10 +1428,44 @@ function build() {
 }
 function onResize() {
   if (!UI.scene) return;
-  const w = UI.scene.clientWidth, h = UI.scene.clientHeight;
-  if (!w || !h) return;
-  G.W = w; G.H = h; G.camPx = null;
+  const vw = UI.scene.clientWidth, vh = UI.scene.clientHeight;
+  if (!vw || !vh) return;
+  // A phone on its side is short: the menus join the title row and the "next thing" chip moves down
+  // between the buttons at the bottom, so the house keeps most of the height.
+  const short = vh < 520 && vw > vh;
+  UI.root.classList.toggle('hm-short', short);
+  if (short) {
+    // one row: ✕, where you are, the menus, 🪙 — the menus stand left of the coins, the title takes what is
+    // left, and when that is too little the menus keep only their icons
+    const cr = UI.coins.getBoundingClientRect(), xr = UI.root.querySelector('.hm-x').getBoundingClientRect();
+    UI.menu.style.right = Math.max(12, vw - cr.left + 8).toFixed(0) + 'px';
+    UI.root.classList.remove('hm-icons');
+    let ml = UI.menu.getBoundingClientRect().left;
+    if (ml - xr.right - 16 < 120) { UI.root.classList.add('hm-icons'); ml = UI.menu.getBoundingClientRect().left; }
+    UI.title.style.maxWidth = Math.max(56, ml - xr.right - 16).toFixed(0) + 'px';
+  } else { UI.menu.style.right = ''; UI.title.style.maxWidth = ''; UI.root.classList.remove('hm-icons'); }
+  const rr = UI.root.getBoundingClientRect();
+  // the buttons at the top: the title row, the menus, and (upright) the "next thing" chip under them
+  const menuB = UI.menu.getBoundingClientRect().bottom - rr.top, top = short ? menuB + 6 : menuB + 4 + 40 + 6, sb = UI.safeb.offsetHeight || 0;
+  const want = clamp(vw / 9.5, 58, 110), world = LVS[G.lv].world;
+  const fit = (reserve) => Math.max(1, Math.min(vw / want, (vh - sb - top - reserve) / 75));
+  let s = fit(0);
+  // the buttons at the bottom stand on the lawn; if the lawn is too thin under them, the house moves up
+  // the bottom buttons' real height (they get smaller on a narrow phone, and on the narrowest ⬆/⬇ sits
+  // above ◀ ▶), with their margin and a little air
+  const lawn = (k) => .14 * 75 * k, ctl = Math.max(UI.ctlL.offsetHeight, UI.ctlR.offsetHeight, 46) + 16;
+  const sideRoom = (vw - world * s) / 2 >= 200;   // a wide screen: the buttons stand beside the house
+  let reserve = sideRoom ? 0 : Math.max(0, ctl - lawn(s));
+  if (reserve) { s = fit(reserve); reserve = Math.max(0, ctl - lawn(s)); }
+  G.VW = vw; G.VH = vh; G.W = 100 * s; G.H = 75 * s; G.top = vh - sb - reserve - G.H; G.hudB = top; G.camPx = null;
+  UI.band.style.cssText = `top:${G.top.toFixed(1)}px;width:${G.W.toFixed(1)}px;height:${G.H.toFixed(1)}px;--hm-u:${s.toFixed(3)}px`;
+  UI.ground.style.top = (G.top + .86 * G.H).toFixed(1) + 'px';
+  UI.sky.style.cssText = `top:${top.toFixed(1)}px;height:${Math.max(60, G.top + .55 * G.H - top).toFixed(1)}px`;
+  UI.root.style.setProperty('--hm-u', s.toFixed(3) + 'px');
+  UI.todo.style.top = short ? '' : (menuB + 4).toFixed(0) + 'px';
+  UI.toast.style.top = (top + 2).toFixed(0) + 'px';
   sizeMini();
+  G.edge = null;
 }
 function onSceneKey(e) {
   const a = P[meK()], L = LVS[G.lv];
@@ -1299,14 +1478,21 @@ function onKey(e) {
 function onClick(e) {
   const b = e.target.closest('button'); if (!b || b.disabled) return;
   if (b.dataset.a === 'x') return close();
+  if (b.dataset.a === 'close-sheet') return closeSheet();
+  if (b.dataset.a === 'hint-ok') return hideHint();
+  if (b.dataset.a === 'hint-help') { hideHint(); return openSheet('help'); }
+  if (b.dataset.a === 'todo') { const i = +b.dataset.todo; if (i >= 0) { closeSheet(); return potAction(i); } return openSheet('garden'); }
+  if (b.dataset.sheet) { if (G.sheetKind === b.dataset.sheet) return closeSheet(); return openSheet(b.dataset.sheet); }
   if (b.dataset.a === 'hug') return hug();
   if (b.dataset.a === 'wave') return wave();
   if (b.dataset.a === 'sit') return sitDown();
   if (b.dataset.a === 'nest') { close(); try { API.openNest(); } catch (err) {} return; }
-  if (b.dataset.tab) { G.tab = b.dataset.tab; renderPanel(); return; }
+  if (b.dataset.seed) { const i = +b.dataset.potI; closeSheet(); return goTo(i, { t: 'plant', pot: i, seed: b.dataset.seed }); }
   if (b.dataset.buy) return buy(b.dataset.buy);
-  if (b.dataset.pot) { const i = +b.dataset.pot; try { UI.scene.scrollIntoView({ block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' }); } catch (err) {} return potAction(i); }
+  if (b.dataset.pot) { closeSheet(); return potAction(+b.dataset.pot); }
   const go = b.dataset.go, a = P[meK()], L = LVS[G.lv];
+  if (!go) return;
+  if (G.sheet) closeSheet();
   if (go === 'up') return walkMe(a.x, G1);
   if (go === 'down') return walkMe(a.x, G0);
   if (go === 'garden') { walkMe(20, G0); mark(20, G0); return; }
@@ -1345,20 +1531,20 @@ function tickDay() {
       for (const f of Object.keys(FESTS)) sc.classList.toggle('hm-f-' + f, f === fest);
       for (const s of ['spring', 'summer', 'autumn', 'winter']) sc.classList.toggle('hm-s-' + s, s === season);
     }
-    renderHouse(); if (G.panelReady) renderPanel();
+    renderHouse(); renderSky(); renderPanel();
   }
 }
 function open(api) {
   API = api;
   if (G.open) close(true);
   G.me = api.me === 'yy' ? 'yy' : 'cs';
-  G.open = true; G.last = 0; G.hold = 0; G.camX = G.camT = 0; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.tab = 'garden';
+  G.open = true; G.last = 0; G.hold = 0; G.camX = 0; G.camT = null; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.sheet = null; G.sheetKind = '';
   G.partner = { at: 0, on: false, x: 0, f: 0, away: false };
   G.srv = { data: blank(), rev: 0, loaded: false }; G.remote = [];
   G.pending = store.get(pendKey(), []).filter(op => op && op.t && op.who === CHAR[G.me]);
   if (api.initial) G.srv = { data: norm(api.initial.data), rev: api.initial.rev || 0, loaded: true };
   G.view = fold(G.srv.data, G.pending);
-  G.today = ''; G.fest = undefined; G.fests = new Set(); G.festKey = null; G.season = ''; G.panelReady = false;
+  G.today = ''; G.fest = undefined; G.fests = new Set(); G.festKey = null; G.season = '';
   festCache.clear(); dayCache.clear();
   try { G.today = API.today(); } catch (e) { G.today = new Date().toISOString().slice(0, 10); }
   G.lv = levelOf();
@@ -1370,11 +1556,7 @@ function open(api) {
   P[meK()].el.classList.add('hm-me');
   P[peerK()].el.classList.add('hm-off');
   for (const k of ['cs', 'yy']) P[k].el.querySelector('.hm-tag').textContent = (k === meK() ? '我 · ' : '') + nameOf(k);
-  // the view starts at the garden end and only moves once you walk out of its middle part
-  { const x = P[meK()].x; G.camX = G.camT = clamp(x > 66 ? x - 66 : 0, 0, Math.max(0, LVS[G.lv].world - 100)); }
-  tickDay(); renderHouse(); renderCoins(); status();
-  if (UI.panel) UI.panel.innerHTML = '';
-  requestAnimationFrame(() => requestAnimationFrame(() => { if (G.open) renderPanel(); }));
+  tickDay(); renderHouse(); renderSky(); renderCoins(); status();
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', onVis);
   if (API.online) {

@@ -71,7 +71,14 @@ const toast = (p) => p.evaluate(() => document.querySelector('.hm-toast')?.textC
 const saved = async (p) => (JSON.parse(await p.evaluate(() => localStorage.getItem('love_score_data'))).gameSaves || {}).home || null;
 const at = async (p, iso) => { await p.clock.setFixedTime(new Date(iso + '+08:00')); await p.evaluate(() => { App._tickTest(); HomeGame.test.tick(); }); await sleep(120); };
 const potXY = (p, i) => p.evaluate((i) => { const r = document.querySelector(`.hm-pot[data-i="${i}"]`).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height * .6]; }, i);
-const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse.click(x, y); };
+const tapPot = async (p, i) => { await settle(p); const [x, y] = await potXY(p, i); await p.mouse.click(x, y); };
+// the house is full screen: a place in the house (x in units, y in %) → where it is on the screen right now
+const screenAt = (p, x, y) => p.evaluate(([x, y]) => { const s = HomeGame.test.state(), b = document.querySelector('.hm-band').getBoundingClientRect(); return [b.left + (x - s.camX) * s.W / 100, b.top + y / 100 * s.H]; }, [x, y]);
+// the menus open sheets (one at a time); walking to the garden or back is a button in 🌱 花园
+const sheet = async (p, kind) => { if (await p.evaluate(() => !!document.querySelector('.hm-sheet'))) await p.click('.hm-sheet [data-a="close-sheet"]'); await p.click(`[data-sheet="${kind}"]`); await sleep(150); };
+// the view eases after you: wait until it has stopped moving before measuring where things are on screen
+const settle = async (p) => { let last = null; for (let k = 0; k < 40; k++) { const c = await p.evaluate(() => HomeGame.test.state().camX); if (last !== null && Math.abs(c - last) < .01) return; last = c; await sleep(120); } };
+const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sheet [data-go="${where}"]`); };
 
 (async () => {
   const browser = await launch();
@@ -134,15 +141,20 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     ok(await p.evaluate(() => document.documentElement.classList.contains('game-cover')), 'the app behind holds still while the house is open (game-cover)');
     const coin0 = await p.evaluate(() => App._coinTest());
     ok(coin0.exp === 1600 && coin0.balance === 800, `pet EXP ${coin0.exp}, 🪙 ${coin0.balance}`);
-    // a tap NEAR a pot counts: it is a 25px drawing on a phone
-    const [px, py] = await potXY(p, 0);
-    await p.mouse.click(px + 13, py - 28); await sleep(250);
-    ok(await p.evaluate(() => !!document.querySelector('.hm-sheet')), 'a tap a thumb away from an empty pot opens the seeds');
+    // the blue chip under the menus always says what you can do next, and one tap does it
+    ok(await p.evaluate(() => /还有空花盆/.test(document.querySelector('.hm-todo').textContent)), `the next-thing chip: 「${await p.evaluate(() => document.querySelector('.hm-todo').textContent)}」`);
+    await p.click('.hm-todo', { force: true }); await sleep(250);   // (it bounces when it has news; a finger doesn't wait for that)
+    ok(await p.evaluate(() => !!document.querySelector('.hm-sheet .hm-seed')), '…and tapping it opens the seeds for that pot');
     const seeds = await p.evaluate(() => [...document.querySelectorAll('.hm-seed')].map(b => [b.dataset.seed, !b.disabled]));
     ok(JSON.stringify(seeds.filter(s => s[1]).map(s => s[0])) === '["daisy","sunflower"]', `a new garden can plant 小雏菊 and 向日葵 (${seeds.filter(s => s[1]).map(s => s[0])})`);
     await p.keyboard.press('Escape'); await sleep(150);
     ok(await p.evaluate(() => !document.querySelector('.hm-sheet') && !!document.querySelector('.hm-root')), 'Esc closes the seed sheet first, not the house');
-    await tapPot(p, 0); await sleep(200); await p.click('.hm-seed[data-seed="daisy"]'); await idle(p);
+    // walk to the garden; then a tap NEAR a pot counts, not only on its drawing
+    await go(p, 'garden'); await idle(p); await settle(p);
+    const [px, py] = await potXY(p, 0);
+    await p.mouse.click(px + 18, py - 40); await sleep(250);
+    ok(await p.evaluate(() => !!document.querySelector('.hm-sheet .hm-seed')), 'a tap a thumb away from an empty pot opens the seeds too');
+    await p.click('.hm-seed[data-seed="daisy"]'); await idle(p);
     let s = await st(p);
     ok(s.pots[0].seed === 'daisy' && s.pots[0].stage === 0 && s.pots[0].thirsty, 'planted: a seed, asking for water');
     const stand = s.cs.x;
@@ -159,7 +171,10 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     await at(p, '2026-12-01T09:00:00');
     s = await st(p);
     ok(s.pots[0].wilted && await p.evaluate(() => document.querySelector('.hm-pot[data-i="0"]').classList.contains('hm-wilt')), 'three dry days: it droops');
-    ok(await p.evaluate(() => /蔫了/.test(document.querySelector('.hm-prow[data-pot="0"]').textContent)), 'the garden list says so');
+    ok(await p.evaluate(() => /🥀 有 1 盆花蔫了/.test(document.querySelector('.hm-todo').textContent)), `…and the chip puts that first: 「${await p.evaluate(() => document.querySelector('.hm-todo').textContent)}」`);
+    await sheet(p, 'garden');
+    ok(await p.evaluate(() => /蔫了/.test(document.querySelector('.hm-sheet .hm-prow[data-pot="0"]').textContent)), 'the 🌱 花园 sheet says so');
+    await p.click('.hm-sheet [data-a="close-sheet"]');
     await tapPot(p, 0); await idle(p);
     s = await st(p);
     ok(!s.pots[0].wilted && s.pots[0].stage === 4, 'watered: it stands up again, but doesn\'t grow today');
@@ -213,15 +228,13 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     await enter(p);
     let s = await st(p);
     ok(s.lv === 3 && s.pots.length === 6, 'Lv3: two floors, six pots');
-    const box = await p.locator('.hm-scene').boundingBox();
-    // tap the lawn in front of the pots: in the Lv3 garden the pots stand close, and the lawn still walks you
-    await p.mouse.click(box.x + box.width * .2, box.y + box.height * .94); await idle(p);
+    // in the Lv3 garden the pots stand close; the air above them and the lawn in front still walk you
+    await p.evaluate(() => HomeGame.test.teleport(30, 0)); await sleep(300);
+    const [tx, ty] = await screenAt(p, 21, 60);
+    await p.mouse.click(tx, ty); await idle(p);
     s = await st(p);
-    ok(Math.abs(s.cs.x - (20 + s.camX)) < 2 && s.cs.where === '花园' && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), `a tap on the lawn walks there (${s.cs.x.toFixed(1)}, ${s.cs.where})`);
-    // and a tap on the air above the pots too
-    await p.mouse.click(box.x + box.width * .3, box.y + box.height * .5); await idle(p);
-    s = await st(p);
-    ok(Math.abs(s.cs.x - (30 + s.camX)) < 2 && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), `…and a tap on the air above them (${s.cs.x.toFixed(1)})`);
+    ok(Math.abs(s.cs.x - 21) < 2 && s.cs.where === '花园' && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), `a tap on the air above the pots walks there (${s.cs.x.toFixed(1)}, ${s.cs.where})`);
+    // (on an upright phone the strip of lawn in front of the pots is where the ◀ ▶ buttons stand)
     // the arrow keys
     await p.focus('.hm-scene'); await p.keyboard.press('ArrowRight'); await idle(p);
     const s2 = await st(p);
@@ -242,17 +255,18 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     await p.click('.hm-pad[data-go="up"]'); await idle(p);
     s = await st(p);
     ok(s.cs.f === 56 && /卧室|阳台|楼梯/.test(s.cs.where), `⬆ 上楼 climbs the stairs (${s.cs.where})`);
-    await p.click('.hm-pad[data-go="living"]'); await idle(p);
+    ok(await p.evaluate(() => document.querySelector('[data-r="stairs"]').dataset.go === 'down' && /下楼/.test(document.querySelector('[data-r="stairs"]').textContent)), 'upstairs, the stairs button turns into ⬇ 下楼');
+    await p.click('[data-go="down"]'); await idle(p);
     s = await st(p);
-    ok(s.cs.f === 86 && s.cs.where === '客厅', '🛋️ 客厅 comes back down by the stairs');
+    ok(s.cs.f === 86 && s.cs.where === '客厅', '⬇ 下楼 comes back down by the stairs');
     // a pot upstairs, on the balcony: going to it takes the stairs
     await p.evaluate(() => HomeGame.test.potAction(4)); await sleep(250);
     await p.click('.hm-seed[data-seed="daisy"]'); await idle(p);
     s = await st(p);
     ok(s.cs.f === 56 && s.cs.where === '阳台' && s.pots[4].seed === 'daisy', 'the balcony pot: up the stairs, and planted');
-    await p.click('.hm-pad[data-go="garden"]'); await idle(p);
+    await go(p, 'garden'); await idle(p); await settle(p);
     s = await st(p);
-    ok(s.cs.f === 86 && s.cs.where === '花园' && s.camX < 1, '🌷 花园 walks all the way back, and the view with it');
+    ok(s.cs.f === 86 && s.cs.where === '花园' && s.camX < 1 && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), '🌱 花园 › 走去花园 walks all the way back (down the stairs), and the view with it');
     const caught = await p.waitForFunction(() => { const s = HomeGame.test.state(); return s.pet && Math.abs(s.pet.x - s.cs.x) < 9 && s.pet.f === 86; }, null, { timeout: 6000 }).then(() => true, () => false);
     ok(caught, `the pet followed, down the stairs and across (${JSON.stringify((await st(p)).pet)})`);
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
@@ -265,19 +279,21 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
   {
     const { p, ctx, errs } = await open(browser, { when: '2026-12-20T15:00:00', data: seed({ entries: POINTS(3000) }) });
     await enter(p);
-    await p.click('.hm-tab[data-tab="house"]'); await sleep(150);
+    await sheet(p, 'house');
     ok(await p.evaluate(() => !!document.querySelector('[data-buy="hm_lv2"]') && !document.querySelector('[data-buy="hm_lv3"]')), 'Lv3 waits until Lv2 is built');
     const c0 = await p.evaluate(() => App._coinTest());
     await p.click('[data-buy="hm_lv2"]'); await p.waitForFunction(() => HomeGame.test.state().lv === 2, null, { timeout: 8000 }).catch(() => {});
     const c1 = await p.evaluate(() => App._coinTest());
     ok((await st(p)).lv === 2 && c1.balance === c0.balance - 600, `小平房 built for 600 (🪙 ${c0.balance} → ${c1.balance})`);
+    ok(await p.evaluate(() => !document.querySelector('.hm-sheet')), 'the sheet closes so the new house can be seen');
+    await sheet(p, 'house');
     ok(await p.evaluate(() => document.querySelector('[data-buy="hm_lv3"]').disabled), `两层小楼 (1500) can't be bought with 🪙 ${c1.balance}`);
-    await p.click('.hm-tab[data-tab="shop"]'); await sleep(150);
+    await sheet(p, 'shop');
     const shop = await p.evaluate(() => [...document.querySelectorAll('[data-buy]')].map(b => b.dataset.buy));
     ok(shop.includes('hm_xtree') && shop.includes('hm_lights') && !shop.includes('hm_lantern') && !shop.includes('hm_pumpkin'), `12-20: Christmas pieces on sale, not 春节's or 万圣节's (${shop.join(' ')})`);
     await p.click('[data-buy="hm_xtree"]'); await sleep(400);
     ok(await p.evaluate(() => !!document.querySelector('.hm-xtree')), 'the Christmas tree stands in the garden at once');
-    ok(await p.evaluate(() => /每年圣诞摆出来/.test(document.querySelector('.hm-panel').textContent)), 'and the shop says it comes back every year');
+    ok(await p.evaluate(() => /每年圣诞摆出来/.test(document.querySelector('.hm-sheet-body').textContent)), 'and the shop says it comes back every year');
     const c2 = await p.evaluate(() => App._coinTest());
     ok(c2.balance === c1.balance - 120, `🪙 ${c1.balance} → ${c2.balance}`);
     // the same wallet the 小窝's shop reads
@@ -287,8 +303,8 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     // the tree goes back in its box after the festival, and comes out again next year
     await at(p, '2027-03-01T15:00:00'); await enter(p);
     ok(await p.evaluate(() => !document.querySelector('.hm-xtree')), 'in March the tree is put away');
-    await p.click('.hm-tab[data-tab="shop"]'); await sleep(150);
-    ok(await p.evaluate(() => /收起来的节日装饰/.test(document.querySelector('.hm-panel').textContent) && !document.querySelector('[data-buy="hm_xtree"]')), '…the shop lists it as stored, and doesn\'t sell it now');
+    await sheet(p, 'shop');
+    ok(await p.evaluate(() => /收起来的节日装饰/.test(document.querySelector('.hm-sheet-body').textContent) && !document.querySelector('[data-buy="hm_xtree"]')), '…the shop lists it as stored, and doesn\'t sell it now');
     await p.evaluate(() => App.closeHome());
     await at(p, '2027-12-15T15:00:00'); await enter(p);
     ok(await p.evaluate(() => !!document.querySelector('.hm-xtree')), 'and the next December it is up again by itself');
@@ -383,7 +399,7 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     const inside = await p.evaluate(() => { const m = document.querySelector('.hm-mini').getBoundingClientRect(); return [...document.querySelectorAll('.hm-mini .hm-mp')].every(e => { const r = e.getBoundingClientRect(); return r.width > 8 && r.left >= m.left - 1 && r.right <= m.right + 1 && r.bottom <= m.bottom + 1; }); });
     ok(inside, 'every piece sits inside the room, at a size you can see');
     // 一起坐沙发: the 小窝's own sofa is a seat
-    ok(await p.evaluate(() => !document.querySelector('[data-a="sit"]').hidden), 'their sofa is in the 客厅, so there is 🛋️ 坐沙发');
+    ok(await p.evaluate(() => !document.querySelector('[data-a="sit"]').hidden), 'their sofa is in the 客厅, so there is 🛋️ 坐下');
     await p.click('[data-a="sit"]'); await idle(p); await sleep(250);
     const sat = await p.evaluate(() => {
       const el = document.querySelector('.hm-ch.hm-me'), ch = el.querySelector('svg').getBoundingClientRect();
@@ -394,10 +410,10 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     ok(sat.sit && /站起来/.test(sat.label) && sat.where === '客厅', `CS walked to the sofa and sat down (${sat.label})`);
     ok(sat.feet > sat.top + (sat.bottom - sat.top) * .3 && sat.feet < sat.bottom && sat.cx > sat.l && sat.cx < sat.r, `on the cushion — not floating above it or sunk into the floor (feet ${sat.feet.toFixed(0)}, sofa ${sat.top.toFixed(0)}–${sat.bottom.toFixed(0)})`);
     await p.screenshot({ path: `${SHOTS}/home_sit.png` });
-    await p.click('.hm-pad[data-go="garden"]'); await sleep(150);
-    ok(await p.evaluate(() => !document.querySelector('.hm-ch.hm-me').classList.contains('hm-sit') && /坐沙发/.test(document.querySelector('[data-a="sit"]').textContent)), 'walking away stands up');
+    await go(p, 'garden'); await sleep(150);
+    ok(await p.evaluate(() => !document.querySelector('.hm-ch.hm-me').classList.contains('hm-sit') && /坐下/.test(document.querySelector('[data-a="sit"]').textContent)), 'walking away stands up');
     await idle(p);
-    await p.click('.hm-tab[data-tab="house"]'); await p.click('[data-a="nest"]'); await sleep(900);
+    await sheet(p, 'house'); await p.click('[data-a="nest"]'); await sleep(900);
     ok(await p.evaluate(() => !document.querySelector('.hm-root') && document.getElementById('pet-page')?.classList.contains('open')), '布置客厅 opens the 小窝');
     ok(await p.evaluate(() => !!document.querySelector('.pet-panel .hm-open')), 'the 小窝 has a door back to the house');
     await p.click('.pet-panel .hm-open'); await p.waitForFunction(() => !!document.querySelector('.hm-root'), null, { timeout: 8000 }).catch(() => {});
@@ -409,19 +425,34 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
 
   if (want(9)) {
   console.log('\n9. Screens: 360–1280, both themes; reduced motion');
-  for (const w of [360, 390, 430, 820, 1280]) for (const theme of ['light', 'dark']) {
-    const { p, ctx, errs } = await open(browser, { w, h: w > 800 ? 900 : 844, theme, data: seed({ owned: w === 820 ? ['hm_lv2'] : w === 1280 ? ['hm_lv2', 'hm_lv3'] : [] }), hinted: false });
+  // from a folded Galaxy Fold and a first-generation iPhone SE to a desktop, both ways up; the narrow and
+  // the two-storey ones also with every action button showing (next to the partner, by the sofa)
+  for (const [w, h, lv] of [[280, 653, 3], [320, 568, 3], [360, 740, 1], [390, 844, 1], [430, 932, 1], [667, 375, 3], [844, 390, 3], [820, 1180, 2], [1280, 800, 3], [1920, 1080, 1]]) for (const theme of ['light', 'dark']) {
+    const { p, ctx, errs } = await open(browser, { w, h, theme, data: seed({ owned: lv === 3 ? ['hm_lv2', 'hm_lv3'] : lv === 2 ? ['hm_lv2'] : [] }), hinted: false });
     await enter(p);
+    if (w < 400) { await p.evaluate(() => { const g = document.querySelector('[data-a="hug"]'); g.hidden = false; g.disabled = false; document.querySelector('[data-a="sit"]').hidden = false; }); await sleep(100); }
     const m = await p.evaluate(() => {
-      const root = document.querySelector('.hm-root'), sc = document.querySelector('.hm-scene').getBoundingClientRect();
-      const small = [...root.querySelectorAll('button')].filter(b => b.offsetParent && b.getBoundingClientRect().height < 40 && !b.classList.contains('hm-edge')).map(b => b.textContent.trim().slice(0, 8));
-      const clipped = [...root.querySelectorAll('.hm-tab, .hm-pad, .hm-btn, .hm-prow, .hm-lvc b, .hm-status')].filter(e => e.offsetParent && e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim().slice(0, 8));
+      const root = document.querySelector('.hm-root'), rr = root.getBoundingClientRect(), band = document.querySelector('.hm-band').getBoundingClientRect();
+      const st = HomeGame.test.state(), vis = (e) => e && e.offsetParent && getComputedStyle(e).visibility !== 'hidden';
+      const small = [...root.querySelectorAll('button')].filter(b => vis(b) && !b.closest('.hm-sheet') && b.getBoundingClientRect().height < 39.5 && !b.classList.contains('hm-edge')).map(b => b.textContent.trim().slice(0, 8) + ':' + b.getBoundingClientRect().height.toFixed(1));
+      const clipped = [...root.querySelectorAll('.hm-mbtn, .hm-act span, .hm-coins, .hm-title b, .hm-hint li span')].filter(e => vis(e) && e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim().slice(0, 8));
+      const todo = document.querySelector('.hm-todo').getBoundingClientRect(), floor = band.top + .86 * band.height;
+      const ctl = [...document.querySelectorAll('.hm-ctl')].map(c => c.getBoundingClientRect());
+      // a wide screen puts the house in the middle and the buttons beside it; otherwise they stand on the lawn under it
+      const houseL = band.left + (0 - st.camX) * st.W / 100, houseR = houseL + HomeGame.test.LVS[st.lv].world * st.W / 100;
+      const covers = ctl.some(c => c.top < floor - 1 && c.right > houseL && c.left < houseR);
+      const bs = [...root.querySelectorAll('.hm-top > *, .hm-mbtn, .hm-todo, .hm-ctl > *')].filter(vis).map(e => ({ t: e.textContent.trim().slice(0, 4), r: e.getBoundingClientRect() }));
+      const overlap = [];
+      for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) { const a = bs[i].r, b = bs[j].r; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlap.push(bs[i].t + '×' + bs[j].t); }
+      const off = [...root.querySelectorAll('button, .hm-title, .hm-coins, .hm-todo')].filter(vis).filter(e => { const r = e.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1 || r.top < -1 || r.bottom > innerHeight + 1; }).map(e => e.textContent.trim().slice(0, 4));
       const hint = document.querySelector('.hm-hint'), hr = hint && !hint.hidden ? hint.getBoundingClientRect() : null;
-      return { over: root.scrollWidth > root.clientWidth + 1, sw: sc.width, sh: sc.height, small, clipped, hint: hr ? hr.left >= sc.left && hr.right <= sc.right : true, font: getComputedStyle(document.querySelector('.hm-pad[data-go="garden"]')).fontSize };
+      return { full: Math.abs(rr.width - innerWidth) < 1 && Math.abs(rr.height - innerHeight) < 1, over: root.scrollWidth > root.clientWidth + 1, bw: band.width, bh: band.height,
+        small, clipped, under: root.classList.contains('hm-short') ? band.top >= document.querySelector('.hm-menu').getBoundingClientRect().bottom - 1 && todo.top >= floor - 1 : band.top >= todo.bottom - 1, covers, hint: hr ? hr.left >= 0 && hr.right <= innerWidth && hr.top >= 0 && hr.bottom <= innerHeight : true,
+        font: getComputedStyle(document.querySelector('.hm-mbtn')).fontSize, ch: document.querySelector('.hm-ch.hm-me').getBoundingClientRect().width, overlap, off };
     });
-    ok(!m.over && m.sw > 300 && Math.abs(m.sw / m.sh - 4 / 3) < .02 && !m.small.length && !m.clipped.length && m.hint && m.font === '15px',
-      `${w} ${theme}: no sideways scroll, a ${Math.round(m.sw)}×${Math.round(m.sh)} house, no small buttons ${JSON.stringify(m.small)}, nothing cut off ${JSON.stringify(m.clipped)}, the hint inside`);
-    if (w === 390 || w === 1280) await p.screenshot({ path: `${SHOTS}/home_${w}_${theme}.png` });
+    ok(m.full && !m.over && Math.abs(m.bw / m.bh - 4 / 3) < .02 && !m.small.length && !m.clipped.length && m.under && !m.covers && m.hint && /^1[34]px$/.test(m.font) && m.ch >= 24 && !m.overlap.length && !m.off.length,
+      `${w}×${h} Lv${lv} ${theme}: full screen, the house ${Math.round(m.bw)}×${Math.round(m.bh)} under the buttons at the top (${m.under}), the bottom buttons off the floor (${!m.covers}), no small buttons ${JSON.stringify(m.small)}, nothing cut off ${JSON.stringify(m.clipped)}, no buttons on each other ${JSON.stringify(m.overlap)}, none off screen ${JSON.stringify(m.off)}, the welcome inside, you ${Math.round(m.ch)}px wide`);
+    if (w === 390 || w === 1280 || w === 844) await p.screenshot({ path: `${SHOTS}/home_${w}x${h}_${theme}.png` });
     if (errs.length) ok(false, `${w} ${theme} page errors ${errs.slice(0, 2)}`);
     await ctx.close();
   }
@@ -430,9 +461,79 @@ const tapPot = async (p, i) => { const [x, y] = await potXY(p, i); await p.mouse
     await enter(p);
     const moving = await p.evaluate(() => document.querySelector('.hm-root').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length);
     ok(moving === 0, `reduced motion: nothing animates (${moving} running), snow and lights included`);
-    await p.click('.hm-pad[data-go="up"]'); await sleep(250);
+    await p.click('[data-go="up"]'); await sleep(250);
     const s = await st(p);
     ok(s.cs.f === 56 && !s.cs.path, 'walking is a step, not a glide');
+    ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
+    await ctx.close();
+  }
+  }
+
+  if (want(10)) {
+  console.log('\n10. The full-screen house, used only by its buttons (a first visit, then a whole day)');
+  {
+    const { p, ctx, errs } = await open(browser, { hinted: false, data: seed({ entries: POINTS() }) });
+    await enter(p);
+    // the first visit: a welcome, not a wall of text
+    ok(await p.evaluate(() => { const h = document.querySelector('.hm-hint'); return !!h && !h.hidden && h.querySelectorAll('li').length === 3; }), 'the first visit opens on a three-step welcome');
+    const [cx, cy] = await p.evaluate(() => { const r = document.querySelector('.hm-hint').getBoundingClientRect(); return [r.x + r.width / 2, r.y + 30]; });
+    await p.mouse.click(cx, cy); await sleep(200);
+    ok(!(await st(p)).cs.path && await p.evaluate(() => !document.querySelector('.hm-hint').hidden), 'a tap on the welcome card does not walk you anywhere behind it');
+    await p.click('[data-a="hint-help"]'); await sleep(200);
+    ok(await p.evaluate(() => document.querySelector('.hm-hint').hidden && /怎么玩/.test(document.querySelector('.hm-sheet-top').textContent) && document.querySelector('[data-sheet="help"]').getAttribute('aria-pressed') === 'true'), '「看玩法」 opens ❓ 怎么玩, and its button shows it is open');
+    ok(await p.evaluate(() => ['走路', '种花', '一起', '房子', '节日'].every(t => document.querySelector('.hm-sheet-body').textContent.includes(t))), '…which covers walking, flowers, the two of you, the house and the festivals');
+    await p.evaluate(() => App.closeHome()); await enter(p);
+    ok(await p.evaluate(() => document.querySelector('.hm-hint').hidden), 'the welcome is shown once, not every visit');
+    // every menu opens its sheet; each closes four ways
+    const titles = { help: '怎么玩', garden: '花园', house: '房子', shop: '节日小店' };
+    for (const k of Object.keys(titles)) {
+      await p.click(`[data-sheet="${k}"]`); await sleep(150);
+      const t = await p.evaluate(() => document.querySelector('.hm-sheet-top')?.textContent || '');
+      ok(t.includes(titles[k]), `the ${titles[k]} button opens 「${t.replace('✕', '').trim()}」`);
+      const how = ['✕', 'the same button again', 'a tap outside it', 'Esc'][Object.keys(titles).indexOf(k)];
+      if (how === '✕') await p.click('.hm-sheet [data-a="close-sheet"]');
+      else if (how === 'the same button again') await p.evaluate((k) => document.querySelector(`[data-sheet="${k}"]`).click(), k);
+      else if (how === 'a tap outside it') await p.mouse.click(10, 140);
+      else await p.keyboard.press('Escape');
+      await sleep(150);
+      ok(await p.evaluate(() => !document.querySelector('.hm-sheet') && !!document.querySelector('.hm-root')), `…and closes with ${how}, leaving the house open`);
+    }
+    // a whole day in the garden, using only the blue "next thing" chip
+    const chip = () => p.evaluate(() => document.querySelector('.hm-todo').textContent);
+    ok(/还有空花盆/.test(await chip()), `an empty garden: 「${await chip()}」`);
+    // it always suggests the most useful thing: a flower to pick, then a pot to water, then one to plant
+    const said = [];
+    for (let n = 0; n < 4; n++) {
+      said.push((await chip()).replace(/ · 点这里.*/, ''));
+      await p.click('.hm-todo', { force: true }); await sleep(150);
+      if (await p.evaluate(() => !!document.querySelector('.hm-seed'))) await p.click('.hm-seed[data-seed="sunflower"]');
+      await idle(p);
+    }
+    let s = await st(p);
+    ok(JSON.stringify(said) === JSON.stringify(['🌱 还有空花盆', '💧 还有 1 盆花等你浇水', '🌱 还有空花盆', '💧 还有 1 盆花等你浇水']), `plant, water, plant, water — in the order it suggests: ${said.join(' → ')}`);
+    ok(s.pots.every(q => q.seed === 'sunflower' && q.mine && q.stage === 1), 'four taps on the chip: two sunflowers planted and watered');
+    ok(/都照顾好了/.test(await chip()) && await p.evaluate(() => document.querySelector('.hm-todo').classList.contains('hm-done')), `then it rests: 「${await chip()}」`);
+    await p.click('.hm-todo', { force: true }); await sleep(150);
+    ok(await p.evaluate(() => /花园/.test(document.querySelector('.hm-sheet-top').textContent)), '…and tapping it then shows the garden');
+    await p.click('.hm-sheet [data-a="close-sheet"]');
+    // the next days, still only the chip: water, bloom, pick
+    for (const d of ['26', '27', '28', '29']) {
+      await at(p, `2026-11-${d}T09:00:00`);
+      for (let n = 0; n < 2; n++) { await p.click('.hm-todo', { force: true }); await idle(p); }
+    }
+    s = await st(p);
+    ok(s.pots.every(q => q.bloom) && /花开了/.test(await chip()), `day five: both in flower, and the chip says so (「${await chip()}」)`);
+    const c0 = await p.evaluate(() => App._coinTest());
+    for (let n = 0; n < 2; n++) { await p.click('.hm-todo', { force: true }); await idle(p); }
+    const c1 = await p.evaluate(() => App._coinTest());
+    s = await st(p);
+    ok(s.view.picked === 2 && s.pots.every(q => q.empty) && c1.balance === c0.balance + 20, `two more taps pick both: 2 flowers, 🪙 ${c0.balance} → ${c1.balance}`);
+    ok(/还有空花盆/.test(await chip()), 'and the chip starts the next round');
+    // the buttons at the bottom
+    await p.click('[data-a="wave"]'); await sleep(150);
+    ok(await p.evaluate(() => [...document.querySelectorAll('.hm-pop')].some(e => e.textContent === '👋')), '👋 招手 waves');
+    ok(await p.evaluate(() => { const b = document.querySelector('[data-a="hug"]'); return b.disabled && b.hidden; }), '🤗 抱抱 appears only when someone is next to you');
+    ok(await p.evaluate(() => document.querySelector('[data-r="stairs"]').hidden), 'no stairs button in a one-storey house');
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
     await ctx.close();
   }

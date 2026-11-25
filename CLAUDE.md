@@ -347,6 +347,7 @@ Classify every piece of data explicitly:
 | history, shop, letters, photos | |
 | shared goal, pet (name/species/EXP) | |
 | 我们的家: house level, garden, album (`game_saves`) | who watered a pot today (one bit each) |
+| | game progress — 一起回家 levels/stars/times, levels paid, 接零食/翻牌 records (`game_saves` 'play', a slot each: the partner may read, only the owner writes) |
 | | where each of you stands in the house (live only) |
 
 Anything shared is scoped by `match_id`; anything per-person also by `char`.
@@ -848,9 +849,10 @@ in 小窝's panel and one beside 播放回忆, both added from JS; styles are in
   1/3/5 → +1/+2/+3; 翻牌 1/2/3). A better run later the same day is paid the
   **difference**, so a weak first try does not use the day up; nothing cleared
   pays nothing. Leaving mid-run banks the levels already cleared (`g.bank`).
-- **Records** (levels cleared, then count or moves) are per person and stay on
-  the phone (`mg_best_<game>_<who>`); the payout row's description carries the
-  run, which is what the partner sees.
+- **Records** (levels cleared, then count or moves) are per person
+  (`mg_best_<game>_<who>`), and since 2026-11-25 follow the person to every
+  phone through game-save 'play' (§7.34); the payout row's description carries
+  the run, which is what the partner sees.
 - **The payout is an ordinary entry** — `🎮 小游戏`, desc `接零食 · 接到 21 个`,
   sent through `Data.addEntry` like a check-in — so both phones see it, settle
   archives it, and "paid today" is **summed from the entries** (§4).
@@ -977,6 +979,10 @@ The same private channel as the fireworks (§7.235), `couple:<match id>`;
   win and the fail also ride the world update (`gs`). A socket that drops for
   a few seconds therefore loses nothing; before this, a lost 「win」 left one
   phone playing a level that was over.
+- **Saying hello twice.** A phone says 「I'm here」 the moment it opens — before
+  its channel has joined, so that one is lost and the partner appeared only at the
+  next tick, 1.5 s later. It now says it again every 200 ms until the channel can
+  hear it (2026-11-25).
 - **Never trust the wire** (§7.235): a message for another level or round
   (`NET.n`) is dropped, and the same login on another device (`who`) is not
   the partner. A phone on another message version (`NET_V`) is told to
@@ -1157,9 +1163,12 @@ do together:
 (`_me()`, §6), at most +3 a day per game.** Replays pay nothing. Like §7.32
 it is an ordinary entry (`🎮 小游戏`, `一起回家 · 1-1 樱花小路 通关`), the day's
 cap is summed from the entries, and the level is remembered *before* the request
-so two finishes in flight can't both pay. Which levels have paid is per phone
-(`cg_paid_<game>_<who>`), so a second phone could pay a level once more. Still
-no server rule, so the §7.32 warning stands: don't raise the payouts without one.
+so two finishes in flight can't both pay. Which levels have paid
+(`cg_paid_<game>_<who>`) and the level records (`cg_save3_*`) are synced to the
+person's account (game-save 'play', §7.34), so a second phone knows them; only
+two devices finishing the same level at the same moment while both offline could
+still both pay. Still no server rule, so the §7.32 warning stands: don't raise
+the payouts without one.
 
 ### What building it turned up
 
@@ -1211,12 +1220,48 @@ seed sheet 155, `game-cover` like the games (§7.32).
   their own x/y, sized by `--hm-mh` = min(36% of the room's width, 62% of its
   height). The 小窝 itself uses 33–43%, so a layout that fits the 小窝 fits the
   客厅. The other rooms have their own furniture.
-- **A bigger house is a wider world.** x is in % of the scene's width and runs
-  to 132 (Lv2) / 142 (Lv3); the view follows you with a dead zone (34–66%) and
-  starts at the garden end. A partner off screen gets an edge tag that walks you
-  to them.
-- **Moving:** tap the floor or a pot, hold ◀ ▶, arrow keys, ⬆ 上楼 ⬇ 下楼 🌷 花园
-  🛋️ 客厅. A pot takes taps a little beside it and on the flower above (±4.6%,
+- **Full screen, like a game** (asked for the same day, with 「make the design
+  more user friendly」). The house is a 4:3 box, 100 units wide (x runs to 132 at
+  Lv2, 142 at Lv3), drawn by `onResize`: on an upright phone about 58 units to
+  the screen's width — pots and the two of you twice as big as in a box — and the
+  view follows you (dead zone 34–66% of what is visible); a wide screen shows the
+  whole house in the middle. It stands at the bottom, under the buttons at the
+  top. The buttons at the bottom stand on the lawn: when the lawn is thinner than
+  they are tall (82px), the house moves up (`reserve`) so they never cover a foot
+  or a pot — unless the screen is wide enough to put them beside the house. A
+  phone on its side (`hm-short`) puts the menus in the title row and the chip at
+  the bottom between the buttons, or the house shrank to 22px people.
+- **Buttons, all labelled.** Top: ✕, where the two of you are, 🪙. Then four
+  menus — ❓ 玩法 🌱 花园 🏠 房子 🎁 小店 — each a sheet (closed by ✕, its own
+  button again, a tap outside, or Esc; the pressed menu shows it). Bottom: ◀ ▶,
+  ⬆/⬇ only in the two-storey house (it says which way), 🤗 抱抱 👋 招手 🛋️ 坐下.
+  Walking to the garden or back is in 🌱 花园. After an upgrade the 房子 sheet
+  closes so you see the new house; the shop stays open for buying several things.
+- **The 「下一步」 chip** under the menus says the most useful thing to do now, and
+  one tap does it (walks there and waters, picks, or opens the seeds): a drooping
+  plant first, then today's watering, then a flower to pick, then a pot to plant.
+  Watering only counts today and a flower waits forever — the first order picked
+  a flower that had just opened and left its neighbour unwatered for the day. It
+  bounces three times when its advice changes, restarted by switching between two
+  identical keyframes: re-measuring the page to restart one cost 35 ms of opening.
+- **A first visit** opens on a three-step welcome (开始吧 / 看玩法), once; a tap
+  on the card never walks anyone behind it.
+- **Every screen, measured** (asked: 「make sure fit all device」). 🤗 抱抱 only
+  shows when you stand next to your partner — the moment it can be used, and one
+  button fewer the rest of the time. Under 390px the bottom buttons shrink, under
+  340px they shrink again and the menus' words get smaller, under 300px (a folded
+  Galaxy Fold) ⬆/⬇ sits above ◀ ▶; the house's room for them (`reserve`) comes
+  from their measured height, not a constant. A short screen measures its one top
+  row: the menus stand left of the 🪙, the title takes what is left, and when that
+  is too little the menus keep only their icons (iPhone 8 sideways put the title
+  under ❓ 玩法). `home-test.js` §9 walks 280×653 → 1920×1080 both ways up, with
+  every action button showing on the narrow ones, and fails on two buttons on top
+  of each other or one off the screen.
+- **Off screen:** the partner gets a 「‹ 名字」 tag at that edge, which walks you to
+  where they are GOING — walking to where they were left you halfway when they
+  were still on their way.
+- **Moving:** tap the floor or a pot, hold ◀ ▶, arrow keys, the stairs button, or
+  tap upstairs. A pot takes taps a little beside it and on the flower above (±4.6%,
   no more: at Lv3 the pots stand 8% apart, and a first version's thumb-sized zone
   made the whole lawn open the seed sheet). `click`, not `pointerdown`: a swipe
   that starts on the house scrolls the page and must not walk anyone. You stand
@@ -1289,13 +1334,40 @@ seed sheet 155, `game-cover` like the games (§7.32).
   pieces come out by themselves every year in that window and are listed as
   stored otherwise. Night and dusk follow `data-period` (§7.15); the seasons tint
   the tree and the grass.
-- Opening costs one 59 ms task at 4× CPU the first time (it was 62 + 76 ms):
+- Opening costs one ~64 ms task at 4× CPU the first time and none after (it was
+  62 + 76 ms):
   the list under the house is drawn two frames later, the size comes from the
   ResizeObserver instead of a forced layout, and the app behind goes still
   (`game-cover`) a frame after the house paints.
 
-`tools/home-test.js`, `tools/home-live-test.js`, `supabase/test-games.mjs`;
-`smooth-test.js` walks the Lv3 house on a 圣诞 night.
+### Progress that follows you to every device (game-save 'play')
+
+Asked for the same day: 「make sure the changes got store the data, mean device
+sync」. The house was already one save; the games were not — 一起回家's levels,
+stars and best times, the levels that had paid, and 接零食 / 翻牌 records lived
+only on the phone that played them, so an iPad started from nothing and could pay
+a level a second time.
+
+- `Prog` (app.js) keeps one save per person (`game-save`, game `play`, slot
+  `char1`/`char2`; the function refuses a write to the partner's slot, 403). It
+  merges what the phone has with what is saved — the most levels open, every
+  star either device got, the fastest time, the most hearts, every level paid,
+  the better record — writes that back to the phone's own keys (which the games
+  already read) and saves it. The merge never loses anything, so a write refused
+  because another device saved first just merges again.
+- **When:** opening 小游戏 (the list redraws if another device had more), before
+  一起回家 loads its save (at most 1.5 s, then it opens anyway), after a level
+  pays, after a record, and when 一起回家 closes. Demo mode has one phone and
+  doesn't sync.
+- **The phone's copy is read AFTER the network wait**, and written back in the
+  same breath. The first version read it before the wait, so a level cleared
+  while the save was on its way was overwritten by the older copy — found by the
+  two-device test. A sync asked for while one is running runs again after it.
+- Postgres stores JSON keys in its own order: compare records field by field.
+
+`tools/home-test.js`, `tools/home-live-test.js`, `tools/sync-live-test.js` (one
+person, a phone and an iPad), `supabase/test-games.mjs`; `smooth-test.js` walks
+the Lv3 house on a 圣诞 night.
 
 ## 7.215 ⏱ Anything published at module load runs BEFORE login
 
@@ -1826,7 +1898,7 @@ What made the difference, and what must not come back:
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
   coop-live-test.js, coop-net-test.js, coop-stars-test.js, home-test.js,
-  home-live-test.js — serve the repo
+  home-live-test.js, sync-live-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -1937,9 +2009,10 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
-| `node tools/home-test.js` | 我们的家 on demo data and a faked clock: the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, 360–1280 both themes, reduced motion |
-| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, where you left |
-| `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, slots, another couple, direct Postgres |
+| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone |
+| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, sitting together, the off-screen tag walking you to your partner, where you left |
+| `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, one house save, each person's own progress slot (the partner reads, can't write), another couple, direct Postgres |
+| `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); the garden is the same on both; the second device isn't taken for the partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |
@@ -2007,6 +2080,16 @@ that recurs, not a one-off.
    change as a wrong password. Anything that rotates a credential must hand
    back a new session, and a "wrong password" must not share a status code
    with "no valid session" (403 vs 401).
+
+### 9.07 `until(async () => T(a) && T(b))` always passes
+
+`T()` returns a promise, so `T(a) && T(b)` is a promise — truthy — and the check
+returns on its first try without looking at either phone. Two checks in
+`coop-live-test.js` (「each screen says the other is here」 and the 同心锁 opening on
+both phones) and one in `coop-net-test.js` had passed this way since they were
+written; the test then tapped a level before the phones had found each other and
+passed only on timing luck, until a one-second delay before opening the game made
+it fail. Await each side: `(await T(a)) && (await T(b))`. Found 2026-11-25.
 
 ### 9.1 Writing tests that don't rot
 

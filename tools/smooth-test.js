@@ -154,10 +154,11 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     report('我们的家, walking + upstairs', await watch(p, 6000, async () => {
       const pad = await p.locator('.hm-pad[data-dir="1"]').boundingBox();
       await p.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await p.mouse.down(); await sleep(1800); await p.mouse.up();
-      await p.click('.hm-pad[data-go="up"]'); await sleep(1800);
-      await p.click('.hm-pad[data-go="garden"]');
+      await p.click('[data-go="up"]'); await sleep(1800);
+      await p.click('[data-sheet="garden"]'); await sleep(300); await p.click('.hm-sheet [data-go="garden"]');
     }));
-    report('我们的家, scrolling the garden list', await watch(p, 3000, async () => { await p.evaluate(() => new Promise(done => { const el = document.querySelector('.hm-root'); const max = el.scrollHeight - el.clientHeight; const t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / 2400); el.scrollTop = max * (.5 - .5 * Math.cos(k * Math.PI * 2)); k < 1 ? requestAnimationFrame(f) : done(); }; requestAnimationFrame(f); })); }));
+    await p.click('[data-sheet="garden"]'); await sleep(400);
+    report('我们的家, scrolling the garden sheet', await watch(p, 3000, async () => { await p.evaluate(() => new Promise(done => { const el = document.querySelector('.hm-sheet-body'); const max = el.scrollHeight - el.clientHeight; const t0 = performance.now(); const f = (t) => { const k = Math.min(1, (t - t0) / 2400); el.scrollTop = max * (.5 - .5 * Math.cos(k * Math.PI * 2)); k < 1 ? requestAnimationFrame(f) : done(); }; requestAnimationFrame(f); })); }));
     console.log(errs.length ? `  ❌ page errors: ${errs.join(' | ')}` : '  ✅ no page errors'); errs.length ? fail++ : pass++;
     await ctx.close();
   }

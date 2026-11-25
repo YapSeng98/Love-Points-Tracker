@@ -47,6 +47,9 @@ const st = (p) => p.evaluate(() => HomeGame.test.state());
 const until = async (p, fn, arg, ms = 8000) => { try { await p.waitForFunction(fn, arg, { timeout: ms }); return true; } catch (e) { return false; } };
 const idle = async (p) => until(p, () => { const s = HomeGame.test.state(); return s && !s.pending && !s[s.me].path; }, null, 15000);
 const toastOf = (p) => p.evaluate(() => document.querySelector('.hm-toast')?.textContent || '');
+// the house is full screen now: the menus open sheets, and walking to the garden is a button in 🌱 花园
+const sheet = async (p, kind) => { if (await p.evaluate(() => !!document.querySelector('.hm-sheet'))) await p.click('.hm-sheet [data-a="close-sheet"]'); await p.click(`[data-sheet="${kind}"]`); await sleep(150); };
+const toGarden = async (p) => { await sheet(p, 'garden'); await p.click('.hm-sheet [data-go="garden"]'); };
 const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await until(P.p, () => !!(window.HomeGame && HomeGame.test.state()), null, 20000); await sleep(400); };
 
 (async () => {
@@ -74,7 +77,7 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok(coins0.balance === 800, `the wallet: ${JSON.stringify(coins0)}`);
 
   console.log('\n2. Walking, seen from the other phone');
-  await A.p.click('.hm-pad[data-go="garden"]');
+  await toGarden(A.p);
   const walked = await until(B.p, () => { const s = HomeGame.test.state(); return Math.abs(s.cs.x - 20) < 1.2 && !s.cs.path; }, null, 8000);
   const sa2 = await st(A.p), sb2 = await st(B.p);
   ok(walked && Math.abs(sa2.cs.x - sb2.cs.x) < 1.2, `A1 walks to the garden; B2's phone has A1 there too (${sa2.cs.x.toFixed(1)} / ${sb2.cs.x.toFixed(1)})`);
@@ -89,19 +92,19 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok(sb3.lead === 'peer', 'the pet follows whoever moved last — on B2\'s phone that is A1');
 
   console.log('\n3. Waving and hugging');
-  await A.p.click('.hm-btn[data-a="wave"]'); await sleep(900);
+  await A.p.click('[data-a="wave"]'); await sleep(900);
   ok(/A1 在跟你招手/.test(await toastOf(B.p)), `B2 sees the wave: 「${await toastOf(B.p)}」`);
   // B2 walks to A1; both phones then have them side by side
   await B.p.evaluate(() => { const s = HomeGame.test.state(); HomeGame.test.walk(s.cs.x + 5, 0); });
   await idle(B.p); await sleep(1500);
   ok(await until(A.p, () => HomeGame.test.state().near, null, 6000), 'A1\'s phone sees B2 come and stand next to A1');
-  ok(await A.p.evaluate(() => !document.querySelector('.hm-btn[data-a="hug"]').disabled), '…so 抱抱 is on');
-  await A.p.click('.hm-btn[data-a="hug"]'); await sleep(250);
+  ok(await A.p.evaluate(() => !document.querySelector('[data-a="hug"]').disabled), '…so 抱抱 is on');
+  await A.p.click('[data-a="hug"]'); await sleep(250);
   const hugA = await A.p.evaluate(() => document.querySelectorAll('.hm-ch.hm-hug').length), hugB = await until(B.p, () => document.querySelectorAll('.hm-ch.hm-hug').length === 2, null, 3000);
   ok(hugA === 2 && hugB, 'the hug plays on both phones');
 
   console.log('\n4. One garden: plant on one phone, it is planted on both');
-  await A.p.click('.hm-pad[data-go="garden"]'); await idle(A.p);
+  await toGarden(A.p); await idle(A.p);
   await A.p.evaluate(() => HomeGame.test.potAction(0)); await sleep(300);
   ok(await A.p.evaluate(() => !!document.querySelector('.hm-sheet')), 'an empty pot asks which seed');
   await A.p.click('.hm-seed[data-seed="sunflower"]');
@@ -161,7 +164,7 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok(/刚在这个花盆里种了别的/.test((await toastOf(A.p)) + (await toastOf(B.p))), 'the other one is told the pot was taken');
 
   console.log('\n8. An upgrade bought on one phone builds the house on both');
-  await A.p.click('.hm-tab[data-tab="house"]'); await sleep(200);
+  await sheet(A.p, 'house');
   ok(await A.p.evaluate(() => !document.querySelector('[data-buy="hm_lv2"]').disabled), '小平房 can be bought with what is in the wallet');
   await A.p.click('[data-buy="hm_lv2"]');
   ok(await until(A.p, () => HomeGame.test.state().lv === 2, null, 15000), 'A1 lives in 小平房');
@@ -180,8 +183,14 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   const seats = await A.p.evaluate(() => { const s = HomeGame.test.state(); return Math.abs(s.cs.x - s.yy.x); });
   ok(seats > 2 && seats < 12, `side by side, not on top of each other (${seats.toFixed(1)} apart)`);
   ok(/一起坐在沙发上/.test((await toastOf(A.p)) + (await toastOf(B.p))), '「一起坐在沙发上 💕」');
-  await B.p.click('.hm-pad[data-go="garden"]');
+  await toGarden(B.p);
   ok(await until(A.p, () => document.querySelectorAll('.hm-ch.hm-sit').length === 1, null, 8000), 'B2 gets up and walks off; on A1\'s phone too');
+
+  console.log('\n8c. Off the screen: a tag at the edge walks you to them');
+  ok(await until(A.p, () => { const e = document.querySelector('.hm-edge'); return !!e && !e.hidden && e.classList.contains('hm-edge-l') && /B2/.test(e.textContent); }, null, 10000), 'B2 walked off A1\'s screen to the left: a 「‹ B2」 tag at that edge');
+  await A.p.click('.hm-edge');
+  const walkedOver = await until(A.p, () => document.querySelector('.hm-edge').hidden && HomeGame.test.state().cs.where === '花园' && HomeGame.test.state().near, null, 15000);
+  ok(walkedOver, `tapping it walks A1 over to B2 (standing up from the sofa), and the tag goes ${walkedOver ? '' : JSON.stringify(await A.p.evaluate(() => { const s = HomeGame.test.state(); return { cs: s.cs, yy: s.yy, camX: s.camX, near: s.near, partner: s.partner, edge: document.querySelector('.hm-edge').hidden, sit: document.querySelector('.hm-ch.hm-me').classList.contains('hm-sit') }; }))}`);
 
   console.log('\n9. Leaving, and coming back');
   await A.p.evaluate(() => HomeGame.test.walk(70, 0)); await idle(A.p);
@@ -194,7 +203,7 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok(s9.data.data.pos && s9.data.data.pos.char1 && Math.abs(s9.data.data.pos.char1.x - leftAt) < .2, `where A1 stood is saved (${JSON.stringify(s9.data.data.pos)})`);
   await B.p.evaluate(() => HomeGame.test.load()); await sleep(1500);
   const st9 = await B.p.evaluate(() => document.querySelector('.hm-status').textContent);
-  ok(/A1 不在家（上次在/.test(st9), `B2's phone says where A1 was: 「${st9}」`);
+  ok(/A1 不在家 · 上次在/.test(st9), `B2's phone says where A1 was: 「${st9}」`);
   await openHouse(A);
   ok(await until(B.p, () => HomeGame.test.state().partner.on, null, 15000), 'A1 comes home again and B2 sees it');
   const s9a = await st(A.p);

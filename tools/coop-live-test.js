@@ -66,7 +66,8 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   ok(await T(A.p, () => !App._liveTest().open), 'no live connection before the game opens');
   for (const X of [A, B]) { await X.p.evaluate(() => App.openCoop('home')); await X.p.waitForFunction(() => document.querySelector('.cg-home'), null, { timeout: 10000 }); }
   ok((await st(A.p)).mode === 'online' && (await st(B.p)).mode === 'online', 'signed in: 各用自己的手机 is the default');
-  const found = await until(async () => T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent)) && T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent)), 12000);
+  // (each side awaited: `T(…) && T(…)` is two promises, which is always true, and this check passed without ever waiting)
+  const found = await until(async () => (await T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent))) && (await T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent))), 12000);
   ok(found, 'each screen says the other is here');
   ok(await T(A.p, () => App._liveTest().joined), 'the couple\'s private live channel is open while the game is');
   ok(await T(A.p, () => [...document.querySelectorAll('.cg-lv')].every(b => !b.disabled)), 'two phones: every level can be picked');
@@ -184,7 +185,7 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
     const c = await chunk(A.p, 'S_pair1'), ci = await T(A.p, () => CoopGames.test.G.L.chunks.findIndex(c => c.ch.id === 'S_pair1'));
     await tpMe(A.p, c.x0 + 3.11, 9.82); await sleep(500);
     await tpMe(B.p, c.x0 + 9.11, 9.82);
-    const latched = await until(async () => T(A.p, (n) => !!CoopGames.test.G.latch[n], ci) && T(B.p, (n) => !!CoopGames.test.G.latch[n], ci), 4000, 60);
+    const latched = await until(async () => (await T(A.p, (n) => !!CoopGames.test.G.latch[n], ci)) && (await T(B.p, (n) => !!CoopGames.test.G.latch[n], ci)), 4000, 60);
     ok(latched, '同心锁: A1 on one heart, B2 on the other → it opens on both phones');
     await tpMe(A.p, c.x0 + 6, 9.82); await tpMe(B.p, c.x0 + 7, 9.82); await sleep(900);
     ok((await st(A.p)).chan[ci] === 1 && (await st(B.p)).chan[ci] === 1, '…and stays open on both after they step off');

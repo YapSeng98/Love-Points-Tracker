@@ -166,7 +166,7 @@ function evenness(smp) {
   const A = await phone(chrome, u1, { w: 390, h: 844 }), B = await phone(bBrowser, u2, { w: 430, h: 932 });
   console.log(`  (A1 on Chrome 390×844, B2 on ${process.env.PHONE_B === 'webkit' ? 'WebKit' : 'Chrome'} 430×932)`);
   for (const X of [A, B]) await openGame(X);
-  ok(await until(async () => T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent)) && T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent)), 15000), 'both phones find each other');
+  ok(await until(async () => (await T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent))) && (await T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent))), 15000), 'both phones find each other');
 
   if (want('smooth')) {
     console.log('\n1. The partner moves smoothly on your screen, on a good and a bad connection');
