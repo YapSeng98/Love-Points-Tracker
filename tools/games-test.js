@@ -119,10 +119,14 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
   console.log('\n2. 从小窝进去');
   {
     const { p, ctx, errs } = await open(browser);
-    const home = await p.evaluate(() => { const a = document.getElementById('checkin-banner').getBoundingClientRect(), c = document.getElementById('mg-home'), b = c && c.getBoundingClientRect(); return c && { n: document.querySelectorAll('#mg-home').length, same: Math.abs(a.left - b.left) < 1 && Math.abs(a.width - b.width) < 1, gap: Math.round(b.top - a.bottom), sub: document.getElementById('mg-home-sub').textContent }; });
-    ok(home && home.n === 1 && home.same && home.gap === 12 && /今天还能拿分/.test(home.sub), `首页有「小游戏」卡片，和签到卡片同宽同边距 ${JSON.stringify(home)}`);
-    await p.evaluate(() => App.nav('home')); await sleep(200);
-    ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '首页重画以后还是只有一张');
+    // two doors since §7.36: 首页's 今天 nudges until today's first points, and 一起 has the tile
+    const today = await p.evaluate(() => ({ row: !!document.getElementById('today-games'), go: document.querySelector('#today-games .td-go')?.textContent }));
+    ok(today.row && today.go === '去玩', `首页「今天」：小游戏 · 去玩 ${JSON.stringify(today)}`);
+    await p.evaluate(() => App.nav('together')); await sleep(400);
+    const home = await p.evaluate(() => { const g = document.getElementById('tg-grid').getBoundingClientRect(), c = document.getElementById('mg-home'), b = c && c.getBoundingClientRect(), l = document.getElementById('letter-banner').getBoundingClientRect(); return c && { n: document.querySelectorAll('#mg-home').length, inGrid: b.left >= g.left - 1 && b.right <= g.right + 1, pair: Math.abs(b.top - l.top) < 1 && Math.abs(b.width - l.width) < 1, sub: document.getElementById('mg-home-sub').textContent }; });
+    ok(home && home.n === 1 && home.inGrid && home.pair && /今天还能拿分/.test(home.sub), `「一起」有「小游戏」卡片，和情书并排同宽 ${JSON.stringify(home)}`);
+    await p.evaluate(() => App.nav('together')); await sleep(200);
+    ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '重画以后还是只有一张');
     await p.evaluate(() => document.getElementById('mg-home').click()); await sleep(300);
     ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,catch,cards'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面）');
     await p.evaluate(() => App.closeGames());

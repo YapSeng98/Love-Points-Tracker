@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.25-79';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.25-80';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -495,7 +495,7 @@ const App = (() => {
   // be served from an old cache (mixed new-JS/old-HTML broke the UI). If the
   // freshness marker is missing, force ONE reload with a cache-busting query.
   // Must match <meta name="app-html-v"> in index.html. Bump BOTH together.
-  const HTML_V = '2026.11.18a';
+  const HTML_V = '2026.11.25a';
 
   (function ensureFreshHtml() {
     try {
@@ -1572,29 +1572,22 @@ const App = (() => {
       info.type === 'punishment' ? `已扣 ${activeNegPts()} 分` : score + ' 分';
     document.getElementById('progress-right-label').textContent = info.label;
 
-    const statusEl = document.getElementById('status-text');
-    const gapEl    = document.getElementById('status-gap');
+    document.getElementById('status-text').innerHTML = _progressStatus(score, info);
+  }
 
+  function _progressStatus(score, info) {
     if (info.reached) {
       if (info.type === 'reward') {
         const outcome = getOutcome(score, 'reward');
-        statusEl.innerHTML = `🎉 已达成奖励！ <span class="status-badge badge-reward">${outcome ? outcome.name : '奖励'}</span>`;
-      } else {
-        const outcome = getOutcome(-activeNegPts(), 'punishment');
-        statusEl.innerHTML = `⚠️ 达到惩罚阈值！ <span class="status-badge badge-danger">${outcome ? outcome.name : '惩罚'}</span>`;
+        return `🎉 已达成奖励！ <span class="status-badge badge-reward">${outcome ? _escHtml(outcome.name) : '奖励'}</span>`;
       }
-    } else {
-      if (info.type === 'reward') {
-        statusEl.innerHTML = `再加 <span id="status-gap">${info.gap}</span> 分 → 下一个奖励 🏆`;
-      } else {
-        const neg = activeNegPts();
-        if (neg > 0) {
-          statusEl.innerHTML = `⚠️ 已扣 ${neg} 分，再扣 <span id="status-gap">${info.gap}</span> 分将触发惩罚`;
-        } else {
-          statusEl.innerHTML = `😊 安全！本月没有扣分，继续保持 <span class="status-badge badge-safe">积分 ${score >= 0 ? '+' + score : score}</span>`;
-        }
-      }
+      const outcome = getOutcome(-activeNegPts(), 'punishment');
+      return `⚠️ 达到惩罚阈值！ <span class="status-badge badge-danger">${outcome ? _escHtml(outcome.name) : '惩罚'}</span>`;
     }
+    if (info.type === 'reward') return `再加 <span id="status-gap">${info.gap}</span> 分 → 下一个奖励 🏆`;
+    const neg = activeNegPts();
+    if (neg > 0) return `⚠️ 已扣 ${neg} 分，再扣 <span id="status-gap">${info.gap}</span> 分将触发惩罚`;
+    return `😊 安全！本月没有扣分，继续保持 <span class="status-badge badge-safe">积分 ${score >= 0 ? '+' + score : score}</span>`;
   }
 
   function renderCharacterMood(pct) {
@@ -1632,14 +1625,7 @@ const App = (() => {
     const cats = S.categories.filter(c => c.active !== false);
     if (!cats.length) { grid.innerHTML = '<div class="empty-state">暂无分类</div>'; return; }
 
-    const card = (c) => {
-      const pos = c.pts >= 0;
-      return `<div class="cat-card ${pos?'positive':'negative'}" onclick="App.quickEntry('${c.id}')">
-        <div class="cat-icon">${c.icon || '📌'}</div>
-        <div class="cat-name">${c.name || '分类'}</div>
-        <div class="cat-pts ${pos?'positive':'negative'}">${pos?'+':''}${c.pts} 分</div>
-      </div>`;
-    };
+    const card = _catCardHtml;
 
     // Split reward (加分) from punishment (扣分), shown one tab at a time.
     // Sort each by point magnitude ascending — small at top, big at bottom.
@@ -1659,6 +1645,174 @@ const App = (() => {
       : `<div class="empty-state">${S.catTab==='punish'?'还没有扣分项目':'还没有加分项目'}</div>`;
 
     grid.innerHTML = tabs + body;
+  }
+
+  function _catCardHtml(c) {
+    const pos = c.pts >= 0;
+    return `<div class="cat-card ${pos?'positive':'negative'}" role="button" tabindex="0" onclick="App.quickEntry('${c.id}')">
+        <div class="cat-icon">${c.icon || '📌'}</div>
+        <div class="cat-name">${_escHtml(c.name || '分类')}</div>
+        <div class="cat-pts ${pos?'positive':'negative'}">${pos?'+':''}${c.pts} 分</div>
+      </div>`;
+  }
+
+  /* ── 首页 (CLAUDE.md §7.36) ──
+     The home page answers 「what is there to do today?」: the header and the
+     hero as before, then 今天 (only what is still to do, each with its own
+     button), 本月 (one line of progress) and the four scores used most. All
+     three are worked out from what the phone already has — no request of
+     their own. */
+
+  // 常用记分: the four used most this month, shown in the grid's own order so a
+  // tile never jumps under the next tap; fewer than four used → the smallest 加分.
+  function renderQuickTop() {
+    const el = document.getElementById('quick-top');
+    if (!el) return;
+    const forEl = document.getElementById('quick-for');
+    if (forEl) { forEl.textContent = '给 ' + charDisplayName(S.activeChar); forEl.className = 'home-sec-for ' + S.activeChar; }
+    const cats = (S.categories || []).filter(c => c.active !== false);
+    if (!cats.length) { el.innerHTML = '<div class="empty-state">还没有记分项目 · 在 积分 › 记分 › 管理 里加</div>'; return; }
+    const byMag = (a, b) => Math.abs(a.pts) - Math.abs(b.pts);
+    const order = [...cats.filter(c => c.pts >= 0).sort(byMag), ...cats.filter(c => c.pts < 0).sort(byMag)];
+    const used = {};
+    for (const e of S.entries || []) if (e.catId) used[e.catId] = (used[e.catId] || 0) + 1;
+    const pick = order.filter(c => used[c.id]).sort((a, b) => used[b.id] - used[a.id] || order.indexOf(a) - order.indexOf(b)).slice(0, 4);
+    for (const c of order) { if (pick.length >= 4) break; if (!pick.includes(c)) pick.push(c); }
+    pick.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    el.innerHTML = `<div class="categories-grid">${pick.map(_catCardHtml).join('')}</div>`;
+  }
+
+  // An older month still open needs settling (it is a task for 今天); the last
+  // three days of the month only get a reminder on the 本月 card.
+  function _settleDue() {
+    const mk = monthKey(), t = now(), last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    const older = [...new Set((S.entries || []).map(e => e.month || String(e.date || '').slice(0, 7)).filter(m => m && m < mk))].sort();
+    return { older, end: t.getDate() >= last - 2 };
+  }
+  const _monthWord = (m) => (m.slice(0, 4) === String(now().getFullYear()) ? `${parseInt(m.slice(5), 10)} 月` : monthLabel(m));
+
+  function renderMonthMini() {
+    const el = document.getElementById('month-mini');
+    if (!el) return;
+    const who = S.activeChar, score = activeScore(), info = progressInfo(score, S.mode, activeNegPts());
+    const due = _settleDue();
+    const dueTxt = due.older.length ? `${due.older.map(_monthWord).join('、')}还没结算`
+      : due.end ? '月底快到了 · 记得月末结算' : '';
+    el.innerHTML = `<div class="mm-top"><span class="mm-who ${who}">${_escHtml(charDisplayName(who))}</span>`
+      + `<span class="mm-num ${score < 0 ? 'neg' : ''}">${score > 0 ? '+' : ''}${score}<small>分</small></span>`
+      + `<span class="mm-pct">${info.pct}%</span></div>`
+      + `<div class="mm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${info.pct}"><i class="${info.type}" style="width:${info.pct}%"></i></div>`
+      + `<div class="mm-status">${_progressStatus(score, info).replace(' id="status-gap"', '')}</div>`
+      + (dueTxt ? `<div class="mm-due">🎯 ${dueTxt}</div>` : '');
+  }
+
+  // 今天: 签到, the garden, a sealed letter, a game not played yet, a month left open.
+  // What is done folds into chips at the bottom; when nothing is left, it says so.
+  function renderToday() {
+    const card = document.getElementById('today-card');
+    if (!card) return;
+    const today = todayStr(), who = S.activeChar, other = who === 'char1' ? 'char2' : 'char1';
+    const nm = (c) => _escHtml(charDisplayName(c));
+    const rows = [], done = [];
+    const row = (id, kind, ic, t, sub, btn, go, open) => rows.push(
+      `<div class="td-row" id="${id}"><button type="button" class="td-main" onclick="${open || go}">`
+      + `<span class="td-ic ${kind}" aria-hidden="true">${ic}</span><span class="td-txt"><span class="td-t">${t}</span>`
+      + `<span class="td-s"${id === 'checkin-banner' ? ' id="checkin-banner-sub"' : ''}>${sub}</span></span></button>`
+      + `<button type="button" class="td-go ${kind}"${id === 'checkin-banner' ? ' id="checkin-banner-badge"' : ''} onclick="${go}">${btn}</button></div>`);
+    const chip = (t, go) => done.push(`<button type="button" class="td-chip" onclick="${go}">${t}</button>`);
+
+    // 签到 follows the whose-points switch, like the calendar it opens (§6)
+    const meDone = checkinDatesFor(who).has(today), paDone = checkinDatesFor(other).has(today);
+    if (!meDone) row('checkin-banner', '', '📅', '每日签到',
+      `${nm(who)} 还没签 · ${nm(other)} ${paDone ? '已签 ✓' : '还没签'}`, `签到 +${checkinPtsFor()}`, 'App.doCheckin()', 'App.openCheckin()');
+    else chip(`${nm(who)} 已签到`, 'App.openCheckin()');
+
+    // a month left open
+    const due = _settleDue();
+    if (due.older.length) row('today-settle', 'settle', '🎯', `${due.older.map(_monthWord).join('、')}还没结算`,
+      '结算以后分数清零，新的一个月重新开始', '去结算', 'App.openSettleModal()');
+
+    // the garden — the counts are home.js's own rule (one copy of it)
+    const g = _gardenToday();
+    if (g && (g.thirsty || g.bloom)) row('today-garden', 'garden', g.bloom ? '🌸' : '🌱', '花园',
+      g.bloom ? `花开了 ${g.bloom} 盆，去收进图鉴${g.thirsty ? ` · 还有 ${g.thirsty} 盆要浇水` : ''}` : `${g.thirsty} 盆花等你浇水`,
+      g.thirsty ? '去浇水' : '去收花', 'App.openHome()');
+    else if (g && g.pots) chip('花都浇过了', 'App.openHome()');
+
+    // a letter still sealed for me
+    const from = _me() === 'char2' ? 'char1' : 'char2';
+    const unread = (S.letters || []).filter(l => l.charId === from && !l.opened).length;
+    if (unread) row('today-letter', 'letter', '💌', `${nm(from)} 给你写了信`, `${unread} 封还没拆`, '拆开', 'App.showLetters()');
+
+    // 小游戏: a nudge until today's first points, then a chip
+    const games = Object.keys(GAMES).concat(Object.keys(TOGETHER));
+    const paid = games.reduce((n, k) => n + gamePaidToday(k), 0);
+    if (!paid) row('today-games', 'games', '🎮', '小游戏', '还没玩 · 玩一局就能拿分', '去玩', 'App.openGames()');
+    else chip(`小游戏 +${paid}`, 'App.openGames()');
+
+    const left = rows.length;
+    const note = document.getElementById('today-note');
+    if (note) { note.textContent = left ? `还有 ${left} 件` : '都做完了 ✓'; note.classList.toggle('all-done', !left); }
+    card.innerHTML = rows.join('')
+      + (done.length || !left ? `<div class="td-done">${left ? '' : '<div class="td-all">今天都做完了，明天见 🌙</div>'}${done.join('')}</div>` : '');
+  }
+
+  // How the garden stands today for the one holding the phone; null until it is known.
+  function _gardenToday() {
+    const d = S.homeSave, today = todayStr(), bit = _me() === 'char2' ? 2 : 1;
+    const pots = (d && Array.isArray(d.pots) ? d.pots : []).filter(Boolean);
+    if (!pots.length) return { pots: 0, thirsty: 0, bloom: 0 };
+    if (!window.HomeGame) { if (!_homeCardLoading) { _homeCardLoading = true; _homeLoad().then(_homeCard, () => {}); } return null; }
+    let thirsty = 0, bloom = 0;
+    for (const pt of pots) {
+      const gr = window.HomeGame.test.grow(pt, today);
+      if (gr.stage >= 5) bloom++;
+      else if (!((pt.w || {})[today] & bit)) thirsty++;
+    }
+    return { pots: pots.length, thirsty, bloom };
+  }
+
+  /* ── The three pages and the bar (CLAUDE.md §7.36) ── */
+  const _tabScroll = {};
+  function _setTab(tab, navId = tab, keepScroll = false) {
+    const root = document.documentElement, was = root.dataset.tab || 'home';
+    if (was !== tab) _tabScroll[was] = window.scrollY;
+    document.querySelectorAll('#app > .app-tab').forEach(t => { t.hidden = t.dataset.tab !== tab; });
+    root.dataset.tab = tab;
+    ['home', 'points', 'together', 'shop'].forEach(n => {
+      const b = document.getElementById('nav-' + n);
+      if (!b) return;
+      b.classList.toggle('active', n === navId);
+      if (n === navId) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    // a page you come back to is where you left it; tapping the page you are on goes to its top
+    // (the shop opening over a page, and closing again, leaves it where it was)
+    const y = was === tab ? 0 : (_tabScroll[tab] || 0);
+    if (!keepScroll) try { window.scrollTo({ top: y, behavior: was === tab && !_u3dReduce() ? 'smooth' : 'auto' }); } catch (e) { window.scrollTo(0, y); }
+    _u3dNavPlace();
+  }
+  let _ptPane = 'month';
+  function pointsPane(pane) {
+    if (!['month', 'history', 'rules'].includes(pane)) pane = 'month';
+    _ptPane = pane;
+    document.querySelectorAll('.pt-seg [data-pane]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.pane === pane)));
+    ['month', 'history', 'rules'].forEach(k => { const el = document.getElementById('pt-' + k); if (el) el.hidden = k !== pane; });
+    if (pane === 'history') _loadHistoryPane();
+    else if (pane === 'rules') _loadRulesPane();
+  }
+  // ＋ — the sheet in the new look, the 自定义记分 form in 经典
+  function openAdd() {
+    const btn = document.querySelector('.u3d-add');
+    if (_u3d.on && btn) openQuickAdd(btn);
+    else openAddModal();
+  }
+  // 一起's tiles that are not drawn by their own feature
+  function renderTogetherTiles() {
+    const love = document.getElementById('tg-love-sub');
+    if (love) {
+      const n = (S.photos || []).length;
+      love.textContent = n ? `照片 ${n} 张 · 年度回顾 · 周年悄悄话` : '照片 · 年度回顾 · 周年悄悄话';
+    }
   }
 
   function switchCatTab(tab) {
@@ -1838,6 +1992,14 @@ const App = (() => {
     if (b2) { b2.textContent = fmtScore(S.char2Score); b2.className = 'char-score-badge ' + (S.char2Score > 0 ? 'pos' : S.char2Score < 0 ? 'neg' : 'zero'); }
     _u3dPop(b1, S.char1Score, 'c1'); _u3dPop(b2, S.char2Score, 'c2'); _u3dSettleDue();
 
+    // 积分's switch: the same thing as tapping a portrait on 首页
+    const ws = document.getElementById('who-switch');
+    if (ws) ws.innerHTML = ['char1', 'char2'].map(c => {
+      const sc = c === 'char1' ? S.char1Score : S.char2Score, on = S.activeChar === c;
+      return `<button type="button" class="who-btn ${c}${on ? ' on' : ''}" aria-pressed="${on}" onclick="App.selectChar('${c}')">`
+        + `<b>${_escHtml(charDisplayName(c))}</b><span>${fmtScore(sc)}</span></button>`;
+    }).join('');
+
     // Active-for chip
     const chip = document.getElementById('active-for-chip');
     if (chip) {
@@ -1911,6 +2073,8 @@ const App = (() => {
     renderEntries(S.entries);
     renderCategories();
     renderCheckinBanner();
+    renderMonthMini();
+    renderQuickTop();
   }
 
   /* ── Points land the moment you tap (CLAUDE.md §7.4) ──
@@ -1985,24 +2149,9 @@ const App = (() => {
     return streak;
   }
 
-  function renderCheckinBanner() {
-    const sub   = document.getElementById('checkin-banner-sub');
-    const badge = document.getElementById('checkin-banner-badge');
-    if (!badge) return;
-    const today   = todayStr();
-    const meDone  = checkinDatesFor(S.activeChar).has(today);
-    const partner = S.activeChar === 'char1' ? 'char2' : 'char1';
-    const paDone  = checkinDatesFor(partner).has(today);
-    const paName  = charDisplayName(partner);
-    const pts     = checkinPtsFor();
-    if (meDone) {
-      badge.textContent = '已签到 ✓'; badge.classList.add('done');
-    } else {
-      badge.textContent = `签到 +${pts}`; badge.classList.remove('done');
-    }
-    // Show today's status for both partners
-    if (sub) sub.innerHTML = `今天 · 你 ${meDone ? '已签 ✓' : '未签'} · ${paName} ${paDone ? '已签 ✓' : '未签'}`;
-  }
+  // 签到 is a row of 首页's 今天 (both partners' state, a button that checks in);
+  // once done it folds into a chip that opens the calendar.
+  function renderCheckinBanner() { renderToday(); }
 
   function openCheckin() {
     const forEl = document.getElementById('checkin-for');
@@ -2306,21 +2455,16 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   // The home card. Reported the same day the games shipped: 「why can't I see
   // the mini game」 — the only door was inside 小窝. It wears 每日签到's own
   // classes, so it cannot drift from the home stack's width, inset and gap (§7.255).
+  // The door on 一起 (and 首页's 今天 nudges until the day's first points). Reported
+  // the day the games shipped: 「why can't I see the mini game」 — a door two
+  // screens deep does not exist.
   function _mgHomeCard() {
-    const after = document.getElementById('checkin-banner');
-    if (!after) return;
-    let card = document.getElementById('mg-home');
-    if (!card) {
-      after.insertAdjacentHTML('afterend', `<div class="checkin-banner" id="mg-home" role="button" tabindex="0" onclick="App.openGames()">`
-        + `<div class="checkin-banner-left"><span style="font-size:22px">🎮</span><div>`
-        + `<div class="checkin-banner-title">小游戏</div><div class="checkin-banner-sub" id="mg-home-sub"></div></div></div>`
-        + `<div class="checkin-banner-badge">去玩</div></div>`);
-      card = document.getElementById('mg-home');
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openGames(); } });
+    const sub = document.getElementById('mg-home-sub');
+    if (sub) {
+      const leftToday = Object.keys(GAMES).concat(Object.keys(TOGETHER)).filter(g => gamePaidToday(g) < _gameDef(g).max).length;
+      sub.innerHTML = leftToday ? '<b>今天还能拿分</b> · 4 个游戏' : '今天的分拿满啦 · 还能随便玩';
     }
-    const leftToday = Object.keys(GAMES).concat(Object.keys(TOGETHER)).filter(g => gamePaidToday(g) < _gameDef(g).max).length;
-    document.getElementById('mg-home-sub').textContent = leftToday
-      ? '一起回家 · 默契拍拍 · 今天还能拿分' : '今天的分拿满啦 · 还能随便玩';
+    renderToday();
   }
 
   let _mg = null;   // the game in play; read (and nudged) by the tests
@@ -2602,36 +2746,21 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
   function closeHome() { if (window.HomeGame) window.HomeGame.close(); }
   // the home card: what is waiting in the garden today, from the save the app already has
+  // 一起's 我们的家 tile says what is waiting in the garden, from the save the app already has
   function _homeCard() {
-    const after = document.getElementById('mg-home') || document.getElementById('checkin-banner');
-    if (!after) return;
-    let card = document.getElementById('hm-home');
-    if (!card) {
-      after.insertAdjacentHTML('afterend', `<div class="checkin-banner" id="hm-home" role="button" tabindex="0" onclick="App.openHome()">`
-        + `<div class="checkin-banner-left"><span style="font-size:22px">🏡</span><div>`
-        + `<div class="checkin-banner-title">我们的家</div><div class="checkin-banner-sub" id="hm-home-sub"></div></div></div>`
-        + `<div class="checkin-banner-badge">回家</div></div>`);
-      card = document.getElementById('hm-home');
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHome(); } });
-    } else if (card.previousElementSibling !== after) after.insertAdjacentElement('afterend', card);
     const sub = document.getElementById('hm-home-sub');
     if (sub) sub.textContent = _homeLine();
+    renderToday();
   }
   var _homeCardLoading = false;
   function _homeLine() {
-    const d = S.homeSave, today = todayStr(), bit = _me() === 'char2' ? 2 : 1;
-    const pots = (d && Array.isArray(d.pots) ? d.pots : []).filter(Boolean);
-    if (!pots.length) return d && d.picked ? `花园里收过 ${d.picked} 朵花 · 去种新的吧` : '一起走进家里，在花园种花';
+    const d = S.homeSave;
+    const g = _gardenToday();
+    if (g && !g.pots) return d && d.picked ? `花园里收过 ${d.picked} 朵花 · 去种新的吧` : '一起走进家里，在花园种花';
     // how far a flower has got is home.js's rule (one copy of it); a couple with a garden fetches the
-    // file in the background, from the cache after the first time, and the card fills in
-    if (!window.HomeGame) { if (!_homeCardLoading) { _homeCardLoading = true; _homeLoad().then(_homeCard, () => {}); } return `花园里有 ${pots.length} 盆花 · 去看看`; }
-    let thirsty = 0, bloom = 0;
-    for (const p of pots) {
-      const g = window.HomeGame.test.grow(p, today);
-      if (g.stage >= 5) bloom++;
-      else if (!((p.w || {})[today] & bit)) thirsty++;
-    }
-    return bloom ? `花开了 ${bloom} 盆，去收进图鉴 🌸` : thirsty ? `${thirsty} 盆花等你浇水 💧` : '今天的花都浇过了 ✓';
+    // file in the background, from the cache after the first time, and the tile fills in
+    if (!g) return `花园里有 ${(d.pots || []).filter(Boolean).length} 盆花 · 去看看`;
+    return g.bloom ? `花开了 ${g.bloom} 盆，去收进图鉴 🌸` : g.thirsty ? `${g.thirsty} 盆花等你浇水 💧` : '今天的花都浇过了 ✓';
   }
 
   // What the result screen says about points and records — one place, so the two games agree.
@@ -3169,6 +3298,9 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     renderProgress(S.score);
     renderEntryCounts();
     renderCharacterMood(progressInfo(S.score, S.mode, activeNegPts()).pct);
+    renderMonthMini();
+    renderQuickTop();
+    renderToday();
   }
 
   async function toggleMode() {
@@ -3178,6 +3310,8 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     S.score = activeScore();
     renderProgress(S.score);
     renderCharacterMood(progressInfo(S.score, S.mode, activeNegPts()).pct);
+    renderMonthMini();
+    if (_ptPane === 'rules') _renderTables();
     showToast(S.mode === 'reward' ? '🏆 切换为奖励模式' : '😈 切换为惩罚模式');
   }
 
@@ -3574,37 +3708,54 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     }
   }
 
+  // 首页 · 积分 · ＋ · 一起 · 商店 (CLAUDE.md §7.36). The old names still work:
+  // 'tables' and 'history' are panes of 积分 now, 'settings' is the ⚙️.
   async function nav(page) {
-    ['home','tables','history','shop','settings'].forEach(p => {
-      document.getElementById('nav-'+p)?.classList.remove('active');
-    });
-    document.getElementById('nav-'+page)?.classList.add('active');
-    _u3dNavPlace();
-
-    if (page === 'tables') {
-      await showTables();
-    } else if (page === 'history') {
-      await showHistory();
-    } else if (page === 'settings') {
-      showSettings();
-    } else if (page === 'shop') {
+    if (page === 'tables' || page === 'rules') return showTables();
+    if (page === 'history') return showHistory();
+    if (page === 'settings') { showSettings(); return; }
+    if (page === 'shop') {
+      _setTab(document.documentElement.dataset.tab || 'home', 'shop', true);
       await showShop();
-    } else if (page === 'home') {
+      return;
+    }
+    if (!['home', 'points', 'together'].includes(page)) return;
+    _leaveShop();
+    _setTab(page);
+    if (page === 'home') {
       // Pull latest — the partner may have logged entries or settled the month
       await refresh();
+    } else if (page === 'points') {
+      pointsPane(_ptPane);
+    } else if (page === 'together') {
+      renderTogetherTiles();
+      renderLetterBanner();
+      renderPetBanner();
+      renderSharedGoal();
+      // letters, photos and the garden may not have arrived yet; the tiles fill in when they do
+      _loadStatsSources().then(() => { renderTogetherTiles(); renderPetBanner(); renderSharedGoal(); }).catch(() => {});
     }
+  }
+  function _leaveShop() {
+    const pg = document.getElementById('shop-page');
+    if (pg && pg.classList.contains('open')) pg.classList.remove('open');
+    document.documentElement.classList.remove('shop-on');
   }
 
   // Opens on what this phone already has, then asks the server for the claim
   // states (the partner may have claimed or settled) and redraws only if
-  // something changed — waiting first left the tab dead for a second.
+  // something changed — waiting first left the pane dead for a second.
   async function showTables() {
+    _leaveShop();
+    _setTab('points');
+    pointsPane('rules');
+  }
+  async function _loadRulesPane() {
     const sig = () => JSON.stringify([S.rewards, S.punishments]);
     _renderTables();
-    openModal('modal-tables');
     const before = sig();
     try { await Data.reloadTiers(); } catch {}
-    if (sig() !== before && document.getElementById('modal-tables').classList.contains('open')) _renderTables();
+    if (sig() !== before && _ptPane === 'rules') _renderTables();
   }
 
   function _renderTables() {
@@ -3612,6 +3763,10 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     const title   = document.getElementById('modal-tables-title');
     const outcome = getOutcome(outcomeScoreFor(S.activeChar), S.mode);
 
+    const note = document.getElementById('rules-note');
+    if (note) note.textContent = S.mode === 'reward'
+      ? `${charDisplayName(S.activeChar)} 本月到了几分，就能领对应的奖励（每个奖励每人每月一次）。`
+      : `本月扣分到了门槛，就要接受对应的惩罚。`;
     if (S.mode === 'reward') {
       title.textContent = '🏆 奖励表';
       const myScore = activeScore();
@@ -3679,17 +3834,21 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   }
 
   async function showHistory() {
+    _leaveShop();
+    _setTab('points');
+    pointsPane('history');
+  }
+  async function _loadHistoryPane() {
     const content = document.getElementById('history-content');
     const known = _historyFetched ? S.historyRecords : null;
     if (known) _renderHistory(known);
     else content.innerHTML = `<div class="empty-state"><div class="es-icon">⏳</div>加载中…</div>`;
-    openModal('modal-history');
     let records;
     try { records = await Data.getHistory(); } catch (err) { if (!known) content.innerHTML = `<div class="empty-state"><div class="es-icon">📅</div>历史加载失败</div>`; return; }
     const changed = !known || JSON.stringify(records) !== JSON.stringify(known);
     S.historyRecords = records;
     _historyFetched = true;
-    if (changed && document.getElementById('modal-history').classList.contains('open')) _renderHistory(records);
+    if (changed && _ptPane === 'history') _renderHistory(records);
   }
 
   function _renderHistory(records) {
@@ -3993,9 +4152,10 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
     }
     if (tip) {
       const m = days === null ? null : nextMilestone(days);
+      // two halves that each stay whole, so a narrow card breaks the line between them, never inside one
       tip.innerHTML = m
         ? (m.left === 0 ? `🎉 今天就是 ${m.label}`
-                        : `${m.label} · 还有 ${m.left} 天`)
+                        : `<span class="th-part">${m.label} ·</span> <span class="th-part">还有 ${m.left} 天</span>`)
         : '';
     }
   }
@@ -4520,14 +4680,20 @@ html[data-theme="dark"] .mg-card .mg-face{background:#352E52}
   // is still sealed for you. Letters are already cached in S, so this is free.
   function renderLetterBanner() {
     const el = document.getElementById('letter-count');
+    renderToday();
+    renderTogetherTiles();
     if (!el) return;
     const all = S.letters || [];
-    if (!all.length) { el.innerHTML = ''; return; }
+    const tile = document.getElementById('letter-banner');
     const mine = _me() === 'char2' ? 'char1' : 'char2';   // written BY them
     const unread = all.filter(l => l.charId === mine && !l.opened).length;
-    el.innerHTML = unread
-      ? `<b>${unread} 封未拆 💌</b> <span class="tb-left">共 ${all.length} 封</span>`
-      : `${all.length} 封 <span class="tb-left">都读过啦</span>`;
+    el.innerHTML = !all.length ? '写一封信给对方'
+      : unread ? `<b>${unread} 封还没拆</b> · 共 ${all.length} 封`
+      : `共 ${all.length} 封 · 都读过啦`;
+    if (tile) {
+      tile.querySelector('.tg-badge')?.remove();
+      if (unread) tile.insertAdjacentHTML('beforeend', `<span class="tg-badge" aria-label="${unread} 封还没拆">${unread}</span>`);
+    }
   }
 
   /* ── 年度回顾 ── */
@@ -8070,12 +8236,13 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   });
 
   // A tap on the open sky sends one up where the finger was, and tells the partner.
-  // Only empty header: anything that does something already (the portraits, ♫, ⚙️, cards) keeps its tap.
+  // Only empty sky: the header and the open part of 首页's couple card (§7.36). Anything that does
+  // something already (the portraits, the days, the mode switch, ♫, ⚙️, other cards) keeps its tap.
   let _fwTapAt = 0;
   document.addEventListener('click', (e) => {
     if (!_fw || e.defaultPrevented) return;
     const t = e.target;
-    if (!t || !t.closest || !(t === document.body || t.id === 'app' || t.closest('.header'))) return;
+    if (!t || !t.closest || !(t === document.body || t.id === 'app' || (t.classList && t.classList.contains('app-tab')) || t.closest('.header, .duo-card'))) return;
     if (t.closest('button, a, input, select, textarea, label, [onclick], [role="button"], .char-wrap, .mode-row, .modal-overlay')) return;
     if (document.querySelector('.modal-overlay.open, .u3d-sheet, .mg-root, #anv-root, .bdf-root')) return;
     const nowMs = performance.now();
@@ -8829,7 +8996,6 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
   }
 
   function openManageFromTable() {
-    closeModal('modal-tables');
     openManage(S.mode === 'reward' ? 'reward' : 'punishment');
   }
 
@@ -8995,18 +9161,17 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       scoreEl.textContent = myScore;
     }
     pg.classList.add('open');
+    document.documentElement.classList.add('shop-on');
     // Always reload shop tab on open
     S.shopTab = 'shop';
     _shopTabUI('shop');
     await renderShopContent();
   }
 
+  // ‹ 返回 goes back to the page you came from, and the bar says so
   function closeShop() {
-    document.getElementById('shop-page')?.classList.remove('open');
-    // Return home nav highlight
-    ['home','tables','history','shop','settings'].forEach(p =>
-      document.getElementById('nav-'+p)?.classList.remove('active'));
-    document.getElementById('nav-home')?.classList.add('active');
+    _leaveShop();
+    _setTab(document.documentElement.dataset.tab || 'home', undefined, true);
   }
 
   function shopTabSwitch(tab) {
@@ -9391,7 +9556,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
      - Parallax moves the window, the pet and the light — never a decor piece:
        the drag, clamp and placement code measure pieces (§7.247, §7.249).
      - One set of document listeners, idle while the look is off. */
-  const U3D_TILT = '.together-hero, .score-card, .letter-banner, .checkin-banner, #partner-wx, .entry-day-items, .home-duo .pet-banner-box, .home-duo .goal-box, .home-duo .goal-empty, .categories-grid .cat-card';
+  const U3D_TILT = '.together-hero, .score-card, .month-mini, .tg-tile, #partner-wx, .entry-day-items, .home-duo .pet-banner-box, .home-duo .goal-box, .home-duo .goal-empty, .categories-grid .cat-card';
   const U3D_CLAY = `<svg data-u3d width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="u3d-clay" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
     <feGaussianBlur in="SourceAlpha" stdDeviation="2.6" result="b"/>
     <feSpecularLighting in="b" surfaceScale="2.4" specularConstant=".7" specularExponent="16" lighting-color="#fff" result="s"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
@@ -9430,7 +9595,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     }
     root.classList.add('ui3d');
     if (!document.getElementById('u3d-clay')) document.body.insertAdjacentHTML('beforeend', U3D_CLAY);   // index.html carries it; a stale copy may not
-    const nav = document.querySelector('.bottom-nav'), tables = document.getElementById('nav-tables');
+    const nav = document.querySelector('.bottom-nav'), tables = document.getElementById('nav-points');
     if (nav && tables) {
       nav.insertAdjacentHTML('afterbegin', '<span class="u3d-nav-ind" data-u3d></span>');
       tables.insertAdjacentHTML('afterend', '<button type="button" class="u3d-add" data-u3d aria-label="记一笔">＋</button>');
@@ -9777,6 +9942,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
     quickEntry, quickEntries, switchCatTab, openCheckin, doCheckin, doCheckinPartner, openAddModal, openEditEntryModal, submitEntry, deleteEntry,
     openSettleModal, confirmSettle,
     nav, showTables, showHistory, showSettings, saveConfig, changePassword, logout,
+    pointsPane, openAdd, _tabTest: () => ({ tab: document.documentElement.dataset.tab || 'home', pane: _ptPane }),
     clearDemoData, resetPet,
     setTheme, setLook,
     claimReward,

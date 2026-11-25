@@ -59,10 +59,11 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
   ok(a0 && b0 && a0.show === 'nye' && a0.shared === 0 && b0.shared === 0, 'the show is running on both, nothing shared yet');
 
   console.log('\n2. A1 taps the sky');
-  await A.p.mouse.click(40, 150); await sleep(1200);   // the open strip left of the portraits
+  // the open sky is the title row's middle (the couple sit on a card below it since §7.36) and the card's open edges
+  await A.p.mouse.click(240, 44); await sleep(1200);
   const a1 = await stat(A.p), b1 = await stat(B.p);
   ok(a1.tapped === 1 && a1.last, `A1's tap launched one where the finger was ${JSON.stringify(a1.last)}`);
-  ok(Math.abs(a1.last.x - 40 / 390) < .01 && a1.last.y > .1 && a1.last.y < .82, 'at the tapped spot, as a fraction of the sky');
+  ok(Math.abs(a1.last.x - 240 / 390) < .01 && a1.last.y >= .1 && a1.last.y < .82, 'at the tapped spot, as a fraction of the sky');
   ok(b1.heard === 1 && JSON.stringify(b1.last) === JSON.stringify(a1.last), `B2's phone drew the same shell: ${JSON.stringify(b1.last)}`);
   ok(a1.heard === 0, 'A1 does not get an echo of its own');
   const toast = await B.p.evaluate(() => document.querySelector('.toast')?.textContent || '');
@@ -70,14 +71,14 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
   await B.p.screenshot({ path: `${SHOTS}/fwlive_b.png` });
 
   console.log('\n3. And back');
-  await B.p.mouse.click(400, 200); await sleep(1200);
+  await B.p.mouse.click(280, 44); await sleep(1200);
   const a2 = await stat(A.p), b2 = await stat(B.p);
   ok(b2.tapped === 1 && a2.heard === 1 && JSON.stringify(a2.last) === JSON.stringify(b2.last), `B2 taps, A1 sees it: ${JSON.stringify(a2.last)}`);
   // different screens, same fraction of the sky
-  ok(Math.abs(a2.last.x - 400 / 430) < .01, 'placed by fraction, so it lands in the same part of the sky on a different-sized phone');
+  ok(Math.abs(a2.last.x - 280 / 430) < .01, 'placed by fraction, so it lands in the same part of the sky on a different-sized phone');
 
   console.log('\n4. A volley, and the taps that are not for the sky');
-  for (let i = 0; i < 4; i++) { await A.p.mouse.click(20 + i * 12, 100 + i * 24); await sleep(260); }
+  for (let i = 0; i < 4; i++) { await A.p.mouse.click(200 + i * 22, 32 + i * 7); await sleep(260); }
   await sleep(1000);
   const a3 = await stat(A.p), b3 = await stat(B.p);
   ok(a3.tapped === 5 && b3.heard === 5, `four more taps → four more on the other phone (${a3.tapped} sent, ${b3.heard} heard)`);
@@ -89,7 +90,7 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
   const after = await stat(A.p);
   ok(after.tapped === before.tapped && /adai|char2|2/.test(sel + '2'), `tapping a portrait or ♫ still does its own job and launches nothing (${before.tapped} → ${after.tapped})`);
   await A.p.evaluate(() => App.showSettings()); await sleep(400);
-  await A.p.mouse.click(40, 150); await sleep(300);
+  await A.p.mouse.click(240, 44); await sleep(300);
   ok((await stat(A.p)).tapped === before.tapped, 'nothing launches behind an open sheet');
   await A.p.evaluate(() => document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')));
 
@@ -103,12 +104,12 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
   await sleep(700);   // the socket closes 400 ms after hiding, so a game can tell the partner it paused (§7.33)
   const quiet = (await stat(B.p)).heard;
   ok(await B.p.evaluate(() => !App._liveTest().open), 'hidden: socket closed');
-  await A.p.mouse.click(195, 120); await sleep(800);
+  await A.p.mouse.click(230, 40); await sleep(800);
   ok((await stat(B.p)).heard === quiet, 'a firework sent meanwhile is simply missed, not queued');
   await B.p.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
   ok(await joined(B.p), 'visible again: rejoined');
   const hb = (await stat(B.p)).heard;
-  await A.p.mouse.click(195, 130); await sleep(1200);
+  await A.p.mouse.click(236, 46); await sleep(1200);
   ok((await stat(B.p)).heard === hb + 1, 'and hears the next one');
   ok(!A.errs.length && !B.errs.length, 'no errors on either phone ' + [...A.errs, ...B.errs].join(' | '));
   await A.ctx.close(); await B.ctx.close();
@@ -118,18 +119,18 @@ const stat = (p) => p.evaluate(() => { const s = App._fwTest(); return s && { sh
     const C = await phone(browser, u1, { when: '2027-03-10T22:00:00+08:00' });
     await sleep(1500);
     ok(await C.p.evaluate(() => !App._liveTest().open && !App._fwTest()), 'no festival: no show, and no connection is opened at all');
-    await C.p.mouse.click(40, 150); await sleep(300);
+    await C.p.mouse.click(240, 44); await sleep(300);
     ok(await C.p.evaluate(() => !document.querySelector('.fw-canvas')), 'tapping the sky does nothing');
     ok(!C.errs.length, 'no errors ' + C.errs.join(' | '));
     await C.ctx.close();
     const D = await phone(browser, u1, { when: '2026-12-31T12:00:00+08:00' });
     await sleep(1500);
-    await D.p.mouse.click(40, 150); await sleep(400);
+    await D.p.mouse.click(240, 44); await sleep(400);
     ok((await stat(D.p)).tapped === 0, '跨年 by day: a tap launches nothing (fireworks are for the night)');
     await D.ctx.close();
     const E = await phone(browser, u1, { reduced: true });
     await sleep(1500);
-    await E.p.mouse.click(40, 150); await sleep(300);
+    await E.p.mouse.click(240, 44); await sleep(300);
     ok(await E.p.evaluate(() => !App._fwTest() && !App._liveTest().open), 'reduced motion: still dots only, no taps, no connection');
     await E.ctx.close();
   }

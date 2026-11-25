@@ -595,14 +595,25 @@ function recompute() {
 async function flush() {
   if (G.busy || !G.pending.length || !API) return;
   G.busy = true;
+  let waiting = false;
   try {
     for (let tries = 0; tries < 5 && G.pending.length; tries++) {
       const ops = G.pending.slice();
       let data = norm(G.srv.data);
-      const kept = [], lost = [];
-      for (const op of ops) { const n = apply(data, op); if (n) { data = n; kept.push(op); } else if (!landed(data, op)) lost.push(op); }
+      const kept = [], lost = [], wait = [];
+      for (const op of ops) {
+        const n = apply(data, op);
+        if (n) { data = n; kept.push(op); continue; }
+        if (landed(data, op)) continue;
+        // It builds on something the partner did that this phone has heard of but not loaded yet (they
+        // planted, you watered within the second): it waits for their save instead of being dropped.
+        // Found by home-live-test, which lost a watering one run in four.
+        if (G.remote.length && apply(fold(data, G.remote.map(r => r.op)), op)) wait.push(op);
+        else lost.push(op);
+      }
       for (const op of lost) explainLost(op, data);
-      if (!kept.length) { G.pending = G.pending.filter(o => !ops.includes(o)); continue; }
+      const gone = ops.filter(o => !kept.includes(o) && !wait.includes(o));
+      if (!kept.length) { G.pending = G.pending.filter(o => !gone.includes(o)); if (wait.length) { waiting = true; break; } continue; }
       let res;
       try { res = await API.save.put(data, G.srv.rev); }
       catch (e) {
@@ -610,13 +621,17 @@ async function flush() {
         throw e;
       }
       setSrv(data, res.rev);
-      G.pending = G.pending.filter(o => !ops.includes(o));
+      G.pending = G.pending.filter(o => !kept.includes(o) && !gone.includes(o));
       store.set(pendKey(), G.pending);
       send('saved', { rev: res.rev });
+      if (wait.length) { waiting = true; break; }
     }
     G.failAt = 0;
+    // waiting on the partner's save: load it shortly (their 'saved' usually gets here first and loads it);
+    // if it never comes, their action leaves G.remote after 30 s and ours is dropped then, and said so
+    if (waiting) later(() => loadSave(true), 1200);
     // still something unsaved after five refusals in a row (both phones busy at once): try again shortly
-    if (G.pending.length) later(flush, 2500 + Math.random() * 2000);
+    else if (G.pending.length) later(flush, 2500 + Math.random() * 2000);
   } catch (e) {
     if (e && e.status >= 400 && e.status < 500) {
       // the server refused the save itself (not a race): retrying the same thing would refuse forever
@@ -894,6 +909,7 @@ function controls() {
   const L = LVS[G.lv], a = P[meK()], up = fl(a) !== G1;
   UI.stairs.hidden = !L.stairs;
   UI.stairs.dataset.go = up ? 'up' : 'down';
+  UI.stairs.dataset.key = up ? 'W' : 'S';
   UI.stairs.innerHTML = up ? '<i>⬆</i><span>上楼</span>' : '<i>⬇</i><span>下楼</span>';
   UI.stairs.setAttribute('aria-label', up ? '上楼' : '下楼');
 }
@@ -959,7 +975,8 @@ function sheetShell(kind, title, html) {
 function helpHtml() {
   const o = esc(nameOf(peerK()));
   return `<div class="hm-help">
-    <section><h4>👣 走路</h4><p>点地板，就走过去；按住 ◀ ▶ 一直走。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。电脑上可以用方向键。</p></section>
+    <section><h4>👣 走路</h4><p>点地板，就走过去；按住 ◀ ▶ 一直走。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。</p></section>
+    <section class="hm-keys"><h4>⌨️ 电脑键盘</h4><p><kbd>←</kbd><kbd>→</kbd> 或 <kbd>A</kbd><kbd>D</kbd> 按住走路 · <kbd>↑</kbd><kbd>↓</kbd> 或 <kbd>W</kbd><kbd>S</kbd> 上下楼 · <kbd>空格</kbd> 下一步 · <kbd>E</kbd> 浇水 / 收花 / 种花 · <kbd>H</kbd> 抱抱 · <kbd>J</kbd> 招手 · <kbd>K</kbd> 坐下 · <kbd>1</kbd>–<kbd>4</kbd> 玩法 / 花园 / 房子 / 小店 · <kbd>Esc</kbd> 关掉</p></section>
     <section><h4>🌱 种花</h4><p>点空花盆选种子，种子不用买。<b>每人每天给每盆花浇一次水</b>，你和 ${o} 都浇的那天长两格，长满 5 格开花：一个人要 5 天，两个人一起 3 天。<b>三天没人浇会蔫</b>，浇一下就好（那一次不长）。</p>
       <p>开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 <b>+${PICK_EXP / 2}</b>。收满 3 / 6 / 10 / 15 朵会解锁新种子；节日还有限定种子。</p></section>
     <section><h4>💞 一起</h4><p>两个人都打开「我们的家」的时候，对方手机上马上看到你走路、浇水、收花。走到 ${o} 身边可以 🤗 抱抱；客厅有沙发就能一起 🛋️ 坐下。宠物跟着最后走动的那个人。</p></section>
@@ -1242,6 +1259,16 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 @media (max-width:389px){.hm-pad.hm-arrow{width:50px;height:50px;font-size:20px}.hm-act{width:48px;min-height:62px}.hm-act i{width:42px;height:42px;font-size:20px}.hm-ctl{gap:6px}}
 @media (max-width:339px){.hm-pad.hm-arrow{width:46px;height:46px}.hm-act{width:44px}.hm-act i{width:40px;height:40px;font-size:19px}.hm-act span{font-size:10.5px;padding:0 3px}.hm-ctl{gap:4px}.hm-ctl-l{left:8px}.hm-ctl-r{right:8px}.hm-mbtn{font-size:13px}.hm-mbtn i{margin-right:2px}}
 @media (max-width:299px){.hm-ctl-l{flex-wrap:wrap-reverse;width:100px}}
+/* a laptop shows which key does what; a touch screen never does */
+.hm-keys{display:none}
+.hm-help kbd{display:inline-block;min-width:20px;padding:1px 5px;margin:0 1px;border-radius:5px;font:700 11.5px/1.5 inherit;font-family:inherit;text-align:center;background:rgba(120,110,170,.14);box-shadow:inset 0 -1px 0 rgba(0,0,0,.18)}
+@media (hover:hover) and (pointer:fine){
+  .hm-keys{display:block}
+  .hm-act,.hm-pad,.hm-mbtn{position:relative}
+  .hm-root [data-key]::after{content:attr(data-key);position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:5px;display:grid;place-items:center;font:800 10px/1 system-ui,sans-serif;color:#3A3550;background:rgba(255,255,255,.95);box-shadow:0 1px 3px rgba(0,0,0,.28);pointer-events:none}
+  .hm-root .hm-mbtn[data-key]::after{top:-4px;right:-4px}
+  .hm-todo::before{content:'空格';display:inline-block;margin-right:7px;padding:1px 6px;border-radius:5px;font-size:10.5px;font-weight:800;background:rgba(255,255,255,.28)}
+}
 .hm-short .hm-todo{top:auto;bottom:calc(14px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 440px);animation:none}
 /* the sheets behind the buttons */
 .hm-sheet{position:absolute;inset:0;z-index:40;background:rgba(30,20,50,.38);display:flex;align-items:flex-end;justify-content:center;padding:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px))}
@@ -1380,21 +1407,21 @@ function build() {
       <span class="hm-coins" data-r="coins">🪙 0</span>
     </div>
     <nav class="hm-menu" data-r="menu" aria-label="家里的菜单">
-      <button type="button" class="hm-mbtn" data-sheet="help" aria-pressed="false" aria-label="玩法"><i>❓</i><span>玩法</span></button>
-      <button type="button" class="hm-mbtn" data-sheet="garden" aria-pressed="false" aria-label="花园"><i>🌱</i><span>花园</span></button>
-      <button type="button" class="hm-mbtn" data-sheet="house" aria-pressed="false" aria-label="房子"><i>🏠</i><span>房子</span></button>
-      <button type="button" class="hm-mbtn" data-sheet="shop" aria-pressed="false" aria-label="小店"><i>🎁</i><span>小店</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="help" data-key="1" aria-pressed="false" aria-label="玩法"><i>❓</i><span>玩法</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="garden" data-key="2" aria-pressed="false" aria-label="花园"><i>🌱</i><span>花园</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="house" data-key="3" aria-pressed="false" aria-label="房子"><i>🏠</i><span>房子</span></button>
+      <button type="button" class="hm-mbtn" data-sheet="shop" data-key="4" aria-pressed="false" aria-label="小店"><i>🎁</i><span>小店</span></button>
     </nav>
     <button type="button" class="hm-todo" data-r="todo" data-a="todo" hidden></button>
     <div class="hm-ctl hm-ctl-l" data-r="ctlL">
-      <button type="button" class="hm-pad hm-arrow" data-dir="-1" aria-label="按住往左走">◀</button>
-      <button type="button" class="hm-pad hm-arrow" data-dir="1" aria-label="按住往右走">▶</button>
-      <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" hidden><i>⬆</i><span>上楼</span></button>
+      <button type="button" class="hm-pad hm-arrow" data-dir="-1" data-key="A" aria-label="按住往左走">◀</button>
+      <button type="button" class="hm-pad hm-arrow" data-dir="1" data-key="D" aria-label="按住往右走">▶</button>
+      <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" data-key="W" hidden><i>⬆</i><span>上楼</span></button>
     </div>
     <div class="hm-ctl hm-ctl-r" data-r="ctlR">
-      <button type="button" class="hm-act" data-r="hug" data-a="hug" disabled hidden><i>🤗</i><span>抱抱</span></button>
-      <button type="button" class="hm-act" data-r="sit" data-a="sit" hidden><i>🛋️</i><span>坐下</span></button>
-      <button type="button" class="hm-act" data-a="wave"><i>👋</i><span>招手</span></button>
+      <button type="button" class="hm-act" data-r="hug" data-a="hug" data-key="H" disabled hidden><i>🤗</i><span>抱抱</span></button>
+      <button type="button" class="hm-act" data-r="sit" data-a="sit" data-key="K" hidden><i>🛋️</i><span>坐下</span></button>
+      <button type="button" class="hm-act" data-a="wave" data-key="J"><i>👋</i><span>招手</span></button>
     </div>
     <i class="hm-safeb" data-r="safeb" aria-hidden="true"></i>`;
   document.body.appendChild(root);
@@ -1406,7 +1433,6 @@ function build() {
   UI.hills.innerHTML = hills;
   root.addEventListener('click', onClick);
   UI.scene.addEventListener('click', onScenePointer);
-  UI.scene.addEventListener('keydown', onSceneKey);
   UI.house.addEventListener('keydown', (e) => { const p = e.target.closest && e.target.closest('.hm-pot'); if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); potAction(+p.dataset.i); } });
   for (const b of $$('.hm-pad[data-dir]', root)) {
     const d = +b.dataset.dir;
@@ -1467,13 +1493,51 @@ function onResize() {
   sizeMini();
   G.edge = null;
 }
-function onSceneKey(e) {
-  const a = P[meK()], L = LVS[G.lv];
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); walkMe(a.x + (e.key === 'ArrowLeft' ? -8 : 8), fl(a) || G0); }
-  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && L.stairs) { e.preventDefault(); walkMe(a.x, e.key === 'ArrowUp' ? G1 : G0); }
-}
+/* ── the keyboard (asked 2026-11-25: 「for laptop can use keyboard 我们的家」) ──
+   ← → or A D walk for as long as they are held, ↑ ↓ or W S take the stairs, Space does the 「下一步」 chip,
+   E waters / picks / plants the pot you stand by, H 抱抱, J 招手, K 坐下 (again: stand up), 1–4 the menus,
+   Esc closes a sheet or the house. Never while typing, never with ⌘/Ctrl/Alt (those are the browser's). */
+const KEY_MENU = { 1: 'help', 2: 'garden', 3: 'house', 4: 'shop' };
+const keyName = (e) => (e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key);
+const keyDir = (k) => (k === 'ArrowLeft' || k === 'a' ? -1 : k === 'ArrowRight' || k === 'd' ? 1 : 0);
 function onKey(e) {
-  if (e.key === 'Escape') { if (G.sheet) closeSheet(); else close(); }
+  if (e.key === 'Escape') { if (G.sheet) closeSheet(); else close(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
+  const k = keyName(e);
+  if (KEY_MENU[k]) { e.preventDefault(); if (G.sheetKind === KEY_MENU[k]) closeSheet(); else openSheet(KEY_MENU[k]); return; }
+  if (G.sheet || (UI.hint && !UI.hint.hidden && (k === ' ' || k === 'Enter'))) return;   // a sheet or the welcome card: their own buttons
+  const d = keyDir(k);
+  if (d) { e.preventDefault(); if (G.hold !== d) { if (G.hold) stopHold(G.hold); startHold(d); G.keyAt = performance.now(); } return; }
+  const a = P[meK()], L = LVS[G.lv];
+  if (k === 'ArrowUp' || k === 'w' || k === 'ArrowDown' || k === 's') {
+    if (!L.stairs) return;
+    e.preventDefault(); if (!e.repeat) walkMe(a.x, k === 'ArrowUp' || k === 'w' ? G1 : G0); return;
+  }
+  if (e.repeat) return;
+  if (k === ' ' || k === 'Enter') {
+    if (e.target && e.target.closest && e.target.closest('button')) return;   // a focused button presses itself
+    e.preventDefault(); if (UI.todo && !UI.todo.hidden) UI.todo.click(); return;
+  }
+  if (k === 'e') { e.preventDefault(); const i = potHere(); if (i >= 0) potAction(i); else say('走到花盆旁边，再按 E'); return; }
+  if (k === 'h') { e.preventDefault(); hug(); return; }
+  if (k === 'j') { e.preventDefault(); wave(); return; }
+  if (k === 'k') { e.preventDefault(); if (a.sit >= 0 || (G.seats && G.seats.length)) sitDown(); else say('客厅里摆一张沙发，就能坐下'); return; }
+}
+function onKeyUp(e) {
+  const d = keyDir(keyName(e));
+  if (!d || G.hold !== d) return;
+  stopHold(d);
+  // a quick tap is a step, like the old arrow keys; holding is a walk
+  if (performance.now() - (G.keyAt || 0) < 180) { const a = P[meK()]; walkMe(a.x + d * 8, fl(a) || G0); }
+}
+// a held key whose release went to another window would walk forever
+function onBlur() { stopHold(G.hold); }
+// the pot you stand by (the garden is on the ground floor), or -1
+function potHere() {
+  const a = P[meK()], L = LVS[G.lv];
+  let best = -1, bd = 8;
+  (L.pots || []).forEach((pp, i) => { const d = Math.abs(a.x - pp[0]); if (Math.abs(fl(a) - (pp[1] || G0)) < 1 && d < bd) { bd = d; best = i; } });
+  return best;
 }
 function onClick(e) {
   const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -1558,6 +1622,8 @@ function open(api) {
   for (const k of ['cs', 'yy']) P[k].el.querySelector('.hm-tag').textContent = (k === meK() ? '我 · ' : '') + nameOf(k);
   tickDay(); renderHouse(); renderSky(); renderCoins(); status();
   document.addEventListener('keydown', onKey);
+  document.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', onBlur);
   document.addEventListener('visibilitychange', onVis);
   if (API.online) {
     API.live.on('hm', onLive);
@@ -1586,6 +1652,8 @@ function close(quiet) {
   for (const t of G.timers) clearTimeout(t); G.timers = [];
   try { G.ro && G.ro.disconnect(); } catch (e) {}
   document.removeEventListener('keydown', onKey);
+  document.removeEventListener('keyup', onKeyUp);
+  window.removeEventListener('blur', onBlur);
   document.removeEventListener('visibilitychange', onVis);
   removeEventListener('resize', onResize);
   if (API && API.online) { try { API.live.on('hm', () => {}); API.live.want(false); } catch (e) {} }
@@ -1601,12 +1669,16 @@ function flushOnClose() {
   (async () => {
     let srv = { data: G.srv.data, rev: G.srv.rev };
     for (let tries = 0; tries < 4 && ops.length; tries++) {
-      let data = norm(srv.data); for (const op of ops) data = apply(data, op) || data;
+      // an action that does not apply yet (it builds on the partner's save, not loaded) stays on the phone's
+      // list and is replayed the next time the house opens, instead of being taken off unsent
+      let data = norm(srv.data); const done = [];
+      for (const op of ops) { const n = apply(data, op); if (n) { data = n; done.push(op); } else if (landed(data, op)) done.push(op); }
+      const clear = () => { const sent = new Set(done.map(o => JSON.stringify(o))); store.set(pendKeyFor(api), store.get(pendKeyFor(api), []).filter(o => !sent.has(JSON.stringify(o)))); };
+      if (!done.some(op => apply(norm(srv.data), op))) { clear(); return null; }   // nothing new to write
       try {
         const r = await api.save.put(data, srv.rev);
         // take only what this sent off the phone's list: the house may already be open again with new actions
-        const sent = new Set(ops.map(o => JSON.stringify(o)));
-        store.set(pendKeyFor(api), store.get(pendKeyFor(api), []).filter(o => !sent.has(JSON.stringify(o))));
+        clear();
         try { api.onSave(data, (data.picked || 0) > ((srv.data && srv.data.picked) || 0)); } catch (e) {}
         return r;
       }

@@ -219,7 +219,7 @@ async function addEntry(p, date, pts, desc) {
     const rows = await p.$$eval('.history-month', a => a.map(x => x.innerText.replace(/\s+/g, ' ').trim()));
     ok(rows.filter(r => /2026-09 第 [12] 轮/.test(r)).length === 2 && rows.some(r => r === '2026-08'), '两行 9 月标「第 1 轮 / 第 2 轮」，8 月不标: ' + JSON.stringify(rows));
     await p.screenshot({ path: `${SHOTS}/settle_04_rounds.png` });
-    await p.evaluate(() => App.closeModal('modal-history'));
+    await p.evaluate(() => App.nav('home'));   // 历史 is a pane of 积分 now, not a sheet (§7.36)
     const yr = await p.evaluate(() => App._yearReviewFullTest(2026));
     ok(yr.settledPts === 306 && yr.livePts === 12 && yr.totalPts === 318, `年度回顾：已结算 306（两轮都算）+ 本轮 12（含 9 月补记）= ${yr.totalPts}（${yr.settledPts}+${yr.livePts}）`);
     ok(yr.settledMonths === 2, `「结算过的月份」是 2 个，不是 3 行（${yr.settledMonths}）`);

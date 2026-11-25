@@ -125,7 +125,8 @@ const POST_ENTRY = (req) => /\/functions\/v1\/entries$/.test(req.url()) && req.m
   await p.evaluate(() => { App.openCheckin(); App.doCheckin(); });
   await sleep(250);
   ok(await score() === s0 + (new Date().getDay() === 0 ? 5 : 2) || await score() > s0, 'the check-in counts at once');
-  ok(/已签到/.test(await p.evaluate(() => document.getElementById('checkin-banner-badge')?.textContent || '')), 'the card says 已签到 straight away');
+  // 首页's 今天 folds the 签到 row into 「✓ CS 已签到」 the moment it is tapped (§7.36)
+  ok(await p.evaluate(() => !document.getElementById('checkin-banner') && [...document.querySelectorAll('#today-card .td-chip')].some(c => /已签到/.test(c.textContent))), 'the card says 已签到 straight away');
   await clearToast();
   await p.evaluate(() => { App.doCheckin(); });
   ok(/已经签到/.test(await toast()), 'a second tap while it saves is turned away');
@@ -149,15 +150,15 @@ const POST_ENTRY = (req) => /\/functions\/v1\/entries$/.test(req.url()) && req.m
   await p.route(/functions\/v1\/(rewards|punishments)/, async r => { await sleep(2000); r.continue(); });
   await call('/rewards', { method: 'POST', token: T2, body: { icon: '🎬', name: '看电影', minPts: 150, desc: '测试' } });   // the partner adds one meanwhile
   const ts = Date.now();
-  await p.evaluate(() => { App.nav('tables'); });
-  await p.waitForFunction(() => document.getElementById('modal-tables').classList.contains('open'), null, { timeout: 3000 });
+  await p.evaluate(() => { App.nav('tables'); });   // 积分 › 奖惩表 (§7.36)
+  await p.waitForFunction(() => !document.getElementById('pt-rules').hidden && document.querySelectorAll('#modal-tables-content .tier-row').length > 0, null, { timeout: 3000 });
   const opened = Date.now() - ts;
-  ok(opened < 400, `积分表 open in ${opened} ms with the server held back 2 s`);
+  ok(opened < 400, `奖惩表 open in ${opened} ms with the server held back 2 s`);
   ok(await p.evaluate(() => document.querySelectorAll('#modal-tables-content .tier-row').length) === 1, 'showing what the phone had');
   await sleep(2800);
-  ok(await p.evaluate(() => document.querySelectorAll('#modal-tables-content .tier-row').length) === 2, 'and the partner\'s new reward arrives in the open sheet');
+  ok(await p.evaluate(() => document.querySelectorAll('#modal-tables-content .tier-row').length) === 2, 'and the partner\'s new reward arrives on the open pane');
   await p.unroute(/functions\/v1\/(rewards|punishments)/);
-  await p.evaluate(() => App.closeModal('modal-tables'));
+  await p.evaluate(() => App.nav('home'));
 
   console.log('\n7. 历史 never says "none" before it knows');
   await p.route(/functions\/v1\/history/, async r => { await sleep(3000); r.continue(); });
@@ -172,7 +173,7 @@ const POST_ENTRY = (req) => /\/functions\/v1\/entries$/.test(req.url()) && req.m
   await sleep(4000);
   ok(/还没有历史记录/.test(await p.evaluate(() => document.getElementById('history-content').textContent)), 'then the real answer');
   await p.unroute(/functions\/v1\/history/);
-  await p.evaluate(() => App.closeModal('modal-history'));
+  await p.evaluate(() => App.nav('home'));
 
   console.log('\n8. 继续 uses what loaded behind the splash');
   await p.goto(APP_URL); await p.waitForFunction(() => typeof App !== 'undefined' && App.connect);

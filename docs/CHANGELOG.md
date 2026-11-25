@@ -12,6 +12,35 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-25 (evening) — a clearer home page, and five buttons at the bottom
+
+The home page was one long scroll with a dozen things the same size. Now it
+shows the two of you and today first: one card at the top holds both of you,
+the days together, the weather and 奖励 / 惩罚 mode; under it, 「今天」 lists only
+what is still to do — check in, water the garden, open a sealed letter, play a
+game, settle a month left open — each with its own button, and what is done
+turns into ✓. Then this month's progress, and the four scores you use most.
+The page is about 40% as long as before.
+
+The bottom bar is now 首页 · 积分 · ＋ · 一起 · 商店, the same on every page:
+- **积分** — this month (whose points, the score card, every score, the list),
+  past months, and the reward / punishment tables, switched at the top.
+- **＋** — add points from anywhere.
+- **一起** — 我们的家, 小窝, 共同目标, 小游戏, 情书 and 我们的时光, each saying what
+  is waiting there.
+- **商店** — the shop, with the bar still underneath.
+
+⚙️ 设置 is in the top-right corner of every page. The colours, the sky, the
+moon and the two dogs are unchanged; nothing was removed, only moved.
+
+我们的家 on a laptop can be played from the keyboard: hold ← → (or A D) to
+walk, ↑ ↓ (or W S) for the stairs, Space for 「下一步」, E to water or pick at
+the pot you are standing by, H 抱抱, J 招手, K 坐下, 1–4 for the menus. Each
+button shows its key on a laptop.
+
+Fixed: if one of you planted a flower and the other watered it within about a
+second, the watering could be lost. It now waits for the planting to be saved.
+
 ## 2026-11-25 (later) — 我们的家 goes full screen
 
 The house now fills the whole screen like a game, and is about twice as big on

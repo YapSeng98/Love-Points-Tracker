@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <!-- HTML freshness marker: app.js checks this and force-reloads once if the
        cached index.html is older than the running app.js expects -->
-  <meta name="app-html-v" content="2026.11.18a">
+  <meta name="app-html-v" content="2026.11.25a">
   <title>🐾 恋爱积分簿</title>
   <script>
     // Stamp theme AND time-of-day before first paint (no flash).
@@ -29,7 +29,7 @@
       var _lk = (location.search.match(/[?&]look=(ui3d|classic)/) || [])[1] || localStorage.getItem('look');
       if (_lk !== 'classic') {
         document.documentElement.classList.add('ui3d');
-        document.write('<link rel="stylesheet" id="ui3d-css-pre" href="ui3d.css?h=2026.11.15c">');
+        document.write('<link rel="stylesheet" id="ui3d-css-pre" href="ui3d.css?h=2026.11.25a">');
       }
     } catch (e) {}
   </script>
@@ -668,6 +668,292 @@
       letter-spacing: 0.02em; transition: color 0.2s;
     }
     .nav-item.active .nav-label { color: var(--blue-ink); font-weight: 700; }
+
+    /* ── Pages: 首页 · 积分 · 一起 (CLAUDE.md §7.36) ──
+       One page at a time, switched by the bottom bar. 首页 keeps the header,
+       the hero and only what matters today; scoring lives on 积分; the places
+       you go together live on 一起. 商店 is the shop page with the bar above it. */
+    .app-tab[hidden], .pt-pane[hidden] { display: none !important; }
+    .app-tab { animation: tab-in .26s ease both; }
+    @keyframes tab-in { from { opacity: 0; transform: translateY(8px); } }
+    .tab-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 14px;
+    }
+    .tab-title { margin: 0; font-size: 24px; font-weight: 900; color: var(--dark); letter-spacing: 0.02em; line-height: 1.2; }
+
+    /* a section on 首页: a heading, a short note, and where to see more */
+    .home-sec {
+      display: flex; align-items: center; gap: 8px;
+      margin: 18px 20px 9px; min-height: 28px;
+    }
+    .home-sec h2 { margin: 0; font-size: 17px; font-weight: 800; color: var(--dark); letter-spacing: 0.02em; }
+    .home-sec-note { font-size: 12.5px; font-weight: 700; color: var(--sub-ink); }
+    .home-sec-note.all-done { color: #2E7D52; }
+    .home-sec-link {
+      margin-left: auto; min-height: 36px; padding: 0 4px 0 12px; border: 0; background: none; cursor: pointer;
+      font: inherit; font-size: 13.5px; font-weight: 800; color: var(--blue-ink);
+    }
+    .home-sec-for:not(:empty) {
+      font-size: 12px; font-weight: 800; color: #fff; padding: 3px 11px; border-radius: 20px;
+      background: #2E6DA6;
+    }
+    .home-sec-for.char2 { background: #B83C74; }
+
+    /* 今天 — rows only for what is still to do; done things fold into chips */
+    .today-card {
+      margin: 0 16px; padding: 4px 16px; border-radius: 20px;
+      background: var(--card); border: 1.5px solid var(--card-border); box-shadow: var(--shadow-sm);
+    }
+    .today-card:empty { min-height: 66px; }
+    .td-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+    .td-row + .td-row, .td-row + .td-done { border-top: 1px solid var(--card-border); }
+    .td-main {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: left;
+      border: 0; background: none; padding: 2px 0; cursor: pointer; font: inherit; color: inherit;
+    }
+    .td-ic {
+      width: 42px; height: 42px; flex: none; border-radius: 14px; display: grid; place-items: center;
+      font-size: 21px; background: rgba(91,155,213,0.14);
+    }
+    .td-ic.garden { background: rgba(107,203,119,0.18); }
+    .td-ic.letter { background: rgba(232,96,154,0.15); }
+    .td-ic.games  { background: rgba(160,109,208,0.15); }
+    .td-ic.settle { background: rgba(255,184,0,0.20); }
+    .td-txt { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .td-t { font-size: 15px; font-weight: 800; color: var(--dark); line-height: 1.25; }
+    .td-s { font-size: 12.5px; font-weight: 600; color: var(--sub-ink); line-height: 1.35; }
+    .td-go {
+      flex: none; min-height: 40px; min-width: 76px; padding: 0 15px; border: 0; border-radius: 20px; cursor: pointer;
+      font: inherit; font-size: 13.5px; font-weight: 800; color: #fff; white-space: nowrap;
+      background: linear-gradient(135deg, #3F80BE, #2E6DA6); box-shadow: 0 4px 12px -4px rgba(46,109,166,0.6);
+      transition: transform 0.15s;
+    }
+    .td-go:active, .td-main:active { transform: scale(0.95); }
+    .td-go.garden { background: linear-gradient(135deg, #2F8540, #256E33); box-shadow: 0 4px 12px -4px rgba(47,133,64,0.6); }
+    .td-go.letter { background: linear-gradient(135deg, #C2417A, #A8336A); box-shadow: 0 4px 12px -4px rgba(194,65,122,0.6); }
+    .td-go.games  { background: linear-gradient(135deg, #8463C8, #6E4FB5); box-shadow: 0 4px 12px -4px rgba(126,91,196,0.6); }
+    .td-go.settle { color: #4A3000; background: linear-gradient(135deg, #FFD15C, #FFB21E); box-shadow: 0 4px 12px -4px rgba(240,154,0,0.6); }
+    .td-done { display: flex; flex-wrap: wrap; gap: 6px; padding: 11px 0 12px; }
+    .td-chip {
+      min-height: 32px; padding: 0 12px; border-radius: 16px; border: 0; cursor: pointer;
+      font: inherit; font-size: 12.5px; font-weight: 700; color: #2E7D52; background: rgba(107,203,119,0.16);
+    }
+    .td-chip::before { content: '✓ '; font-weight: 900; }
+    .td-all { font-size: 13.5px; font-weight: 800; color: #2E7D52; padding: 2px 2px 0; flex-basis: 100%; }
+
+    /* 本月 — one line of progress; tap for everything on 积分 */
+    .month-mini {
+      margin: 0 16px; padding: 14px 18px 13px; border-radius: 20px; cursor: pointer;
+      background: var(--card); border: 1.5px solid var(--card-border); box-shadow: var(--shadow-sm);
+      transition: transform 0.15s;
+    }
+    .month-mini:active { transform: scale(0.985); }
+    .month-mini:focus-visible, .td-main:focus-visible, .td-go:focus-visible, .tg-tile:focus-visible, .who-btn:focus-visible,
+    .pt-seg button:focus-visible, .home-sec-link:focus-visible, .td-chip:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    .mm-top { display: flex; align-items: baseline; gap: 9px; }
+    .mm-who { font-size: 12px; font-weight: 800; color: #fff; padding: 3px 11px; border-radius: 20px; background: #2E6DA6; align-self: center; }
+    .mm-who.char2 { background: #B83C74; }
+    .mm-num { font-size: 28px; font-weight: 900; line-height: 1; color: var(--blue-ink); font-variant-numeric: tabular-nums; }
+    .mm-num.neg { color: var(--red-ink); }
+    .mm-num small { font-size: 13px; font-weight: 800; margin-left: 2px; }
+    .mm-pct { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--sub-ink); }
+    .mm-bar { height: 10px; border-radius: 6px; margin: 11px 0 9px; background: rgba(91,155,213,0.15); overflow: hidden; }
+    .mm-bar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #A8D8F5, #5B9BD5); transition: width 0.5s ease; }
+    .mm-bar i.punishment { background: linear-gradient(90deg, #FFB3C6, #FF6B6B); }
+    .mm-status { font-size: 13px; font-weight: 700; color: var(--sub-ink); line-height: 1.45; }
+    .mm-status .status-badge { font-size: 11.5px; }
+    .mm-due {
+      display: inline-block; margin-top: 9px; font-size: 12.5px; font-weight: 800; color: #8A5A00;
+      background: rgba(255,184,0,0.20); padding: 5px 12px; border-radius: 14px;
+    }
+    #quick-top .categories-grid { grid-template-columns: 1fr 1fr; }
+    #quick-top .empty-state { padding: 18px 16px; }
+
+    /* 积分 */
+    .pt-seg {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 0 16px 14px; padding: 4px;
+      border-radius: 16px; background: rgba(91,155,213,0.12);
+    }
+    .pt-seg button {
+      min-height: 40px; border: 0; border-radius: 12px; background: transparent; cursor: pointer;
+      font: inherit; font-size: 14px; font-weight: 800; color: var(--sub-ink); transition: background 0.2s, color 0.2s;
+    }
+    .pt-seg button[aria-selected="true"] { background: var(--card); color: var(--blue-ink); box-shadow: 0 3px 10px -3px rgba(91,155,213,0.45); }
+    .who-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 4px; }
+    .who-btn {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; padding: 0 16px;
+      border-radius: 16px; cursor: pointer; font: inherit; color: var(--dark); text-align: left;
+      background: var(--card); border: 1.5px solid var(--card-border); box-shadow: var(--shadow-sm);
+      transition: background 0.2s, color 0.2s, transform 0.15s;
+    }
+    .who-btn:active { transform: scale(0.96); }
+    .who-btn b { font-size: 14.5px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .who-btn span { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--blue-ink); }
+    .who-btn.char2 span { color: #C2417A; }
+    .who-btn.on { color: #fff; border-color: transparent; background: linear-gradient(135deg, #3F80BE, #2E6DA6); box-shadow: 0 8px 16px -8px rgba(46,109,166,0.8); }
+    .who-btn.on.char2 { background: linear-gradient(135deg, #C2417A, #A8336A); box-shadow: 0 8px 16px -8px rgba(194,65,122,0.8); }
+    .who-btn.on span { color: #fff; }
+    .who-hint { margin: 6px 20px 4px; font-size: 12px; font-weight: 600; color: var(--sub-ink); }
+    .pt-list { padding: 0 16px; }
+    .pt-list .history-item, .pt-list .tier-row {
+      background: var(--card); border: 1.5px solid var(--card-border); box-shadow: var(--shadow-sm);
+    }
+    .pt-list .tier-row.current-tier { border-color: var(--blue); }
+    .pt-note { margin: 0 20px 12px; font-size: 12.5px; font-weight: 600; color: var(--sub-ink); line-height: 1.55; }
+    .pt-note:empty { display: none; }
+    .rules-head { display: flex; align-items: center; gap: 10px; margin: 2px 20px 6px; }
+    .rules-title { margin: 0; font-size: 17px; font-weight: 800; color: var(--dark); }
+
+    /* 一起 — every place you go together, each saying what is waiting there */
+    .tg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 0 16px; }
+    .tg-grid .home-duo { grid-column: 1 / -1; margin: 0; }
+    .tg-tile {
+      position: relative; min-width: 0; min-height: 112px; padding: 14px 16px 13px;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left;
+      border-radius: 20px; cursor: pointer; font: inherit; color: inherit;
+      background: var(--card); border: 1.5px solid var(--card-border); box-shadow: var(--shadow-sm);
+      transition: transform 0.15s;
+    }
+    .tg-tile:active { transform: scale(0.97); }
+    .tg-wide { grid-column: 1 / -1; }
+    .tg-ic {
+      width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 6px;
+      font-size: 22px; background: rgba(160,109,208,0.15);
+    }
+    .tg-ic.tg-pink { background: rgba(232,96,154,0.15); }
+    .tg-name { display: flex; align-items: center; gap: 6px; font-size: 15.5px; font-weight: 800; color: var(--dark); line-height: 1.25; }
+    .tg-name i { font-style: normal; font-size: 20px; }
+    .tg-sub { font-size: 12.5px; font-weight: 600; color: var(--sub-ink); line-height: 1.45; }
+    .tg-sub b { color: #C2417A; font-weight: 800; }
+    .tg-badge {
+      position: absolute; top: 10px; right: 12px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px;
+      display: grid; place-items: center; font-size: 12.5px; font-weight: 900; color: #fff;
+      background: linear-gradient(135deg, #C2417A, #A8336A); box-shadow: 0 3px 8px -2px rgba(194,65,122,0.6);
+    }
+    #hm-home {
+      flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; min-height: 120px;
+      background: linear-gradient(135deg, rgba(155,208,138,0.24), rgba(91,155,213,0.12)), var(--card);
+    }
+    #hm-home .tg-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .tg-go {
+      align-self: flex-start; margin-top: 6px; font-size: 13px; font-weight: 800; color: #fff;
+      padding: 7px 15px; border-radius: 18px; background: linear-gradient(135deg, #2F8540, #256E33);
+      box-shadow: 0 4px 12px -4px rgba(47,133,64,0.6);
+    }
+    .tg-house { width: 128px; height: auto; flex: none; margin-right: -4px; }
+    .tg-row { flex-direction: row; align-items: center; gap: 12px; min-height: 76px; }
+    .tg-row .tg-ic { margin: 0; flex: none; }
+    .tg-row .tg-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+    .tg-chev { font-size: 20px; font-weight: 700; color: var(--sub); }
+    @media (max-width: 359px) {
+      .tg-grid .home-duo { grid-template-columns: 1fr; }   /* 「一起去旅行」 broke over three lines in half a 320px screen */
+      .tg-house { width: 96px; }
+      .td-go { min-width: 0; padding: 0 12px; }
+      .who-btn { padding: 0 12px; }
+    }
+
+    /* the bar: real buttons now; ＋ is raised in the classic look (the new look draws its own) */
+    button.nav-item { appearance: none; -webkit-appearance: none; background: none; border: 0; margin: 0; font: inherit; color: inherit; }
+    .nav-item:focus-visible { outline: 3px solid var(--blue); outline-offset: 1px; }
+    .nav-add .nav-icon-wrap {
+      width: 42px; height: 42px; border-radius: 50%; margin-top: -16px;
+      background: linear-gradient(135deg, #5B9BD5, #3D7BB8) !important; box-shadow: 0 6px 14px rgba(61,123,184,0.45);
+    }
+    .nav-add .nav-icon { color: #fff; font-size: 24px; font-weight: 800; line-height: 1; }
+    html.ui3d #nav-add { display: none; }
+    /* 月末结算 floats only on 积分 (classic); the new look keeps it in the score card */
+    html:not([data-tab="points"]) .settle-fab-dock, html.shop-on .settle-fab-dock { display: none; }
+    /* the sun, the moon and a festival's sky belong to 首页's header; on the other pages they sat behind the buttons */
+    html[data-tab="points"] .sky-bg :is(.sun, .moon, .home-fest-layer),
+    html[data-tab="together"] .sky-bg :is(.sun, .moon, .home-fest-layer) { visibility: hidden; }
+    /* 商店 is a page of its own — the bar stays above it, and its list ends above the bar */
+    html.shop-on .bottom-nav { z-index: 92; }
+    html.shop-on .shop-content { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+    /* ＋ opens the 自定义记分 form from any page, the shop included (90) and the bar above it (92) — §1.3 */
+    #modal-add { z-index: 96; }
+
+    html[data-theme="dark"] .home-sec-note.all-done,
+    html[data-theme="dark"] .td-chip, html[data-theme="dark"] .td-all { color: #7FD98E; }
+    html[data-theme="dark"] .td-chip { background: rgba(107,203,119,0.14); }
+    html[data-theme="dark"] .mm-due { color: #FFD27A; background: rgba(255,184,0,0.16); }
+    html[data-theme="dark"] .pt-seg { background: rgba(120,170,220,0.12); }
+    html[data-theme="dark"] .pt-seg button[aria-selected="true"] { background: #2A3A55; color: #CFE4FA; box-shadow: 0 3px 10px -3px rgba(0,0,0,0.6); }
+    html[data-theme="dark"] .who-btn.char2 span, html[data-theme="dark"] .tg-sub b { color: #FF9EC4; }
+    html[data-theme="dark"] .who-btn.on span { color: #fff; }
+    html[data-theme="dark"] #hm-home { background: linear-gradient(135deg, rgba(107,203,119,0.16), rgba(91,155,213,0.10)), var(--card); }
+    @media (prefers-reduced-motion: reduce) {
+      .app-tab { animation: none; }
+      .mm-bar i { transition: none; }
+    }
+
+    /* ── 你们两个 (CLAUDE.md §7.36): the hero card now holds the couple ──
+       The suggested design: both portraits, the days in the middle, weather and
+       the mode underneath, in the hero's own colours. The portraits are smaller
+       than they were in the open header, so 今天 is on the first screen. */
+    .duo-card { margin: 2px 16px 12px; padding: 14px 10px 10px; cursor: default; }
+    .duo-card:active { transform: none; }
+    .duo-card .characters-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+      align-items: end; gap: 2px; margin: 0;
+    }
+    .duo-card .char-svg, .duo-card .char-img-custom { width: 76px; height: 89px; }
+    .duo-card .char-name { font-size: 12.5px; font-weight: 700; color: var(--sub-ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .duo-card .char-score-badge { margin-top: 3px; }
+    .duo-card .char-wrap.not-selected { opacity: 0.62; }
+    .duo-card .th-mid {
+      align-self: center; min-width: 0; padding: 4px 2px 6px; border-radius: 16px; cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .duo-card .th-mid:active { transform: scale(0.96); }
+    .duo-card .th-mid:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    .duo-card .th-days { font-size: 44px; }
+    .duo-card .th-next:not(:empty) { margin-top: 8px; padding: 4px 11px; font-size: 11.5px; line-height: 1.35; max-width: 100%; }
+    .th-part { display: inline-block; white-space: nowrap; }
+    /* the names sit on the hero's pink now: YY's own pink (an inline colour) was too faint on it */
+    .duo-card #char-name-1 { color: #2E6DA6 !important; }
+    .duo-card #char-name-2 { color: #B83C74 !important; }
+    html[data-theme="dark"] .duo-card #char-name-1 { color: #93C4F2 !important; }
+    html[data-theme="dark"] .duo-card #char-name-2 { color: #FF9EC4 !important; }
+    .duo-foot {
+      display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 14px;
+      margin: 10px 6px 0; padding-top: 9px; border-top: 1px solid rgba(232,96,154,0.18);
+    }
+    .duo-foot #partner-wx {
+      margin: 0; padding: 0; background: none; border: 0; box-shadow: none;
+      font-size: 12.5px; gap: 5px; min-width: 0; flex-wrap: wrap; justify-content: center;
+    }
+    html[data-theme="dark"] .duo-foot #partner-wx { background: none; border: 0; }
+    .duo-foot #partner-wx .pwx-ico { font-size: 15px; }
+    .duo-foot #partner-wx .pwx-txt { font-weight: 700; color: var(--sub-ink); }
+    .duo-foot .mode-row { padding: 0; gap: 7px; }
+    .duo-foot .mode-label { font-size: 12.5px; font-weight: 700; color: var(--sub-ink); }
+    .duo-foot .mode-label.active { color: var(--dark); }
+    .duo-foot .mode-toggle-wrap { width: 52px; height: 28px; }
+    .duo-foot .mode-knob { width: 20px; height: 20px; }
+    .duo-foot .mode-toggle-wrap.punishment .mode-knob { transform: translateX(24px); }
+    html[data-theme="dark"] .duo-foot { border-top-color: rgba(255,150,190,0.20); }
+    @media (max-width: 359px) {
+      .duo-card .char-svg, .duo-card .char-img-custom { width: 62px; height: 73px; }
+      .duo-card .th-days { font-size: 38px; }
+      .duo-card .th-next:not(:empty) { font-size: 10.5px; padding: 4px 8px; }
+    }
+    @media (min-width: 400px) {
+      .duo-card .char-svg, .duo-card .char-img-custom { width: 84px; height: 98px; }
+    }
+    /* on a fireworks night the card lets the show through (CLAUDE.md §7.235) */
+    html[data-period="night"]:has(.sky-bg .fw-canvas) .duo-card {
+      background: linear-gradient(135deg, rgba(232,96,154,0.10), rgba(160,109,208,0.08));
+    }
+    /* 首页's sun and moon sit in the title row now: the card took the open sky they used to fill */
+    html:not([data-tab="points"]):not([data-tab="together"]) .sky-bg .sun {
+      top: 12px; right: 108px; transform: scale(0.64); transform-origin: top right;
+    }
+    html:not([data-tab="points"]):not([data-tab="together"])[data-period="morning"] .sky-bg .sun { top: 16px; }
+    html:not([data-tab="points"]):not([data-tab="together"])[data-period="dusk"] .sky-bg .sun { top: 22px; }
+    html:not([data-tab="points"]):not([data-tab="together"]) .sky-bg .moon {
+      top: 18px; right: 112px; transform: rotate(10deg) scale(0.8); transform-origin: top right;
+    }
 
     /* ── Settle FAB ── */
     /* Corner-anchored, not centered: a full-width-spanning centered pill sat
@@ -3929,6 +4215,8 @@
 
 <!-- Main app -->
 <div id="app">
+<!-- 首页 · 积分 · 一起 — one page at a time; the bottom bar switches them (CLAUDE.md §7.36) -->
+<section class="app-tab" id="tab-home" data-tab="home" aria-label="首页">
   <!-- Header -->
   <div class="header">
     <div class="header-top">
@@ -3941,176 +4229,209 @@
       </div>
     </div>
 
-    <!-- Characters -->
-    <div class="characters-row">
-      <div class="char-wrap pochacco selected" id="char-pochacco" onclick="App.selectChar('char1')">
-        <div class="char-img-wrap" id="char-img-wrap-1">
-          <!-- Initial placeholder (app.js replaces with POCHACCO_SVG) -->
-          <svg class="char-svg" id="char-svg-1" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(0,0,0,0.09)"/>
-            <g id="pochacco-left-ear">
-              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
-            </g>
-            <g id="pochacco-right-ear">
-              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
-            </g>
-            <ellipse cx="55" cy="86" rx="37" ry="42" fill="white" stroke="#D8D8D8" stroke-width="1.5"/>
-            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#F8F8F8" stroke="#E0E0E0" stroke-width="1"/>
-            <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <circle id="c1-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
-            <circle id="c1-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
-            <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
-            <path id="pochacco-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <rect x="33" y="90" width="44" height="8" rx="4" fill="#5B9BD5" stroke="#2B6AB3" stroke-width="0.5"/>
-            <circle cx="55" cy="94" r="3.5" fill="#2B6AB3"/>
-            <circle cx="55" cy="94" r="1.5" fill="#A8D4F8"/>
-          </svg>
-        </div>
-        <div class="char-name" id="char-name-1">线条小狗·他</div>
-        <div class="char-score-badge zero" id="char1-score-badge">+0</div>
-      </div>
-
-      <div class="vs-heart">💙</div>
-
-      <!-- 阿呆 character -->
-      <div class="char-wrap adai not-selected" id="char-adai" onclick="App.selectChar('char2')">
-        <div class="char-img-wrap" id="char-img-wrap-2">
-          <svg class="char-svg" id="char-svg-2" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(255,143,160,0.15)"/>
-            <g id="adai-left-ear">
-              <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
-            </g>
-            <g id="adai-right-ear">
-              <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
-            </g>
-            <ellipse cx="55" cy="86" rx="37" ry="42" fill="#FFC8DE" stroke="#D9607A" stroke-width="1.8"/>
-            <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FFD9EB" stroke="#D9607A" stroke-width="1"/>
-            <path d="M 55 38 Q 42 28 38 36 Q 36 44 44 47 Q 50 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
-            <path d="M 55 38 Q 68 28 72 36 Q 74 44 66 47 Q 60 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
-            <ellipse cx="55" cy="40.5" rx="5.5" ry="6" fill="#E8607A"/>
-            <circle cx="55" cy="39" r="2.5" fill="#FFB3C6"/>
-            <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <circle id="c2-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
-            <circle id="c2-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
-            <line x1="38" y1="52" x2="35.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="41.5" y1="51" x2="40" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="72" y1="52" x2="74.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
-            <line x1="68.5" y1="51" x2="70" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
-            <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
-            <path id="adai-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <rect x="33" y="90" width="44" height="8" rx="4" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.5"/>
-            <circle cx="55" cy="94" r="3.5" fill="#E8607A"/>
-            <circle cx="55" cy="94" r="1.5" fill="#FFD4E8"/>
-          </svg>
-        </div>
-        <div class="char-name" id="char-name-2" style="color:#FF8FA0">线条小狗·她</div>
-        <div class="char-score-badge zero" id="char2-score-badge">+0</div>
-      </div>
-    </div>
-
-    <!-- Mode toggle -->
-    <div class="mode-row">
-      <span class="mode-label" id="label-reward">🏆 奖励模式</span>
-      <div class="mode-toggle-wrap reward" id="mode-toggle" onclick="App.toggleMode()">
-        <div class="mode-knob" id="mode-knob">🏆</div>
-      </div>
-      <span class="mode-label" id="label-punishment">😈 惩罚模式</span>
-    </div>
   </div>
 
-  <!-- Together banner -->
-  <!-- 在一起的时光 — the emotional centrepiece, so it gets the hero slot -->
-  <div class="together-hero" id="together-banner" onclick="App.showLovePage()">
-    <div class="th-days" id="together-days">--</div>
-    <div class="th-label">天在一起 💑</div>
-    <div class="th-next" id="together-next"></div>
+  <!-- 你们两个: both portraits, the days together in the middle, the weather and the
+       mode underneath — one card, so 今天 is on the first screen (the suggested design, §7.36) -->
+  <div class="together-hero duo-card" id="together-banner">
+      <div class="characters-row">
+        <div class="char-wrap pochacco selected" id="char-pochacco" onclick="App.selectChar('char1')">
+          <div class="char-img-wrap" id="char-img-wrap-1">
+            <!-- Initial placeholder (app.js replaces with POCHACCO_SVG) -->
+            <svg class="char-svg" id="char-svg-1" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(0,0,0,0.09)"/>
+              <g id="pochacco-left-ear">
+                <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
+              </g>
+              <g id="pochacco-right-ear">
+                <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#F0F0F0" stroke="#D8D8D8" stroke-width="1.5"/>
+              </g>
+              <ellipse cx="55" cy="86" rx="37" ry="42" fill="white" stroke="#D8D8D8" stroke-width="1.5"/>
+              <ellipse cx="55" cy="65" rx="27" ry="24" fill="#F8F8F8" stroke="#E0E0E0" stroke-width="1"/>
+              <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <circle id="c1-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
+              <circle id="c1-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
+              <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
+              <path id="pochacco-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <rect x="33" y="90" width="44" height="8" rx="4" fill="#5B9BD5" stroke="#2B6AB3" stroke-width="0.5"/>
+              <circle cx="55" cy="94" r="3.5" fill="#2B6AB3"/>
+              <circle cx="55" cy="94" r="1.5" fill="#A8D4F8"/>
+            </svg>
+          </div>
+          <div class="char-name" id="char-name-1">线条小狗·他</div>
+          <div class="char-score-badge zero" id="char1-score-badge">+0</div>
+        </div>
+
+        <!-- in the middle: how many days, the next day to look forward to; a tap opens 我们的时光 -->
+        <div class="th-mid" role="button" tabindex="0" aria-label="在一起的天数，打开我们的时光" onclick="App.showLovePage()">
+          <div class="th-days" id="together-days">--</div>
+          <div class="th-label">天在一起 💑</div>
+          <div class="th-next" id="together-next"></div>
+        </div>
+
+        <!-- 阿呆 character -->
+        <div class="char-wrap adai not-selected" id="char-adai" onclick="App.selectChar('char2')">
+          <div class="char-img-wrap" id="char-img-wrap-2">
+            <svg class="char-svg" id="char-svg-2" viewBox="0 0 110 132" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="55" cy="127" rx="25" ry="4" fill="rgba(255,143,160,0.15)"/>
+              <g id="adai-left-ear">
+                <path d="M 28 45 Q 4 43 4 65 Q 4 86 18 93 Q 32 98 39 82 Q 46 64 36 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
+              </g>
+              <g id="adai-right-ear">
+                <path d="M 82 45 Q 106 43 106 65 Q 106 86 92 93 Q 78 98 71 82 Q 64 64 74 43 Z" fill="#FFB8D0" stroke="#D9607A" stroke-width="1.8"/>
+              </g>
+              <ellipse cx="55" cy="86" rx="37" ry="42" fill="#FFC8DE" stroke="#D9607A" stroke-width="1.8"/>
+              <ellipse cx="55" cy="65" rx="27" ry="24" fill="#FFD9EB" stroke="#D9607A" stroke-width="1"/>
+              <path d="M 55 38 Q 42 28 38 36 Q 36 44 44 47 Q 50 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
+              <path d="M 55 38 Q 68 28 72 36 Q 74 44 66 47 Q 60 49 55 43 Z" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.8"/>
+              <ellipse cx="55" cy="40.5" rx="5.5" ry="6" fill="#E8607A"/>
+              <circle cx="55" cy="39" r="2.5" fill="#FFB3C6"/>
+              <path d="M 40 49 Q 44.5 46 49 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <path d="M 61 49 Q 65.5 46 70 49" stroke="#2A2A2A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <circle id="c2-eye-l" cx="44" cy="56" r="4.5" fill="#2A2A2A"/>
+              <circle id="c2-eye-r" cx="66" cy="56" r="4.5" fill="#2A2A2A"/>
+              <line x1="38" y1="52" x2="35.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+              <line x1="41.5" y1="51" x2="40" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+              <line x1="72" y1="52" x2="74.5" y2="49" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+              <line x1="68.5" y1="51" x2="70" y2="48" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round"/>
+              <ellipse cx="55" cy="66" rx="4" ry="2.5" fill="#2A2A2A"/>
+              <path id="adai-mouth" d="M 46.5 70 Q 55 80 63.5 70" stroke="#2A2A2A" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <rect x="33" y="90" width="44" height="8" rx="4" fill="#FF8FA0" stroke="#E8607A" stroke-width="0.5"/>
+              <circle cx="55" cy="94" r="3.5" fill="#E8607A"/>
+              <circle cx="55" cy="94" r="1.5" fill="#FFD4E8"/>
+            </svg>
+          </div>
+          <div class="char-name" id="char-name-2" style="color:#FF8FA0">线条小狗·她</div>
+          <div class="char-score-badge zero" id="char2-score-badge">+0</div>
+        </div>
+      </div>
+    <div class="duo-foot">
+      <div id="partner-wx" class="hidden"></div>
+      <div class="mode-row">
+        <span class="mode-label" id="label-reward">🏆 奖励</span>
+        <div class="mode-toggle-wrap reward" id="mode-toggle" onclick="App.toggleMode()">
+          <div class="mode-knob" id="mode-knob">🏆</div>
+        </div>
+        <span class="mode-label" id="label-punishment">😈 惩罚</span>
+      </div>
+    </div>
   </div>
 
   <div id="season-card" class="hidden"></div>
-  <div id="partner-wx" class="hidden"></div>
 
-  <!-- 小窝 and 共同目标 are both progress, so they pair as two tiles -->
-  <div class="home-duo">
-    <div id="pet-banner"></div>
-    <div id="goal-card"></div>
+  <!-- 今天: what is still to do, each with its own button; what is done folds into one line -->
+  <div class="home-sec" id="today-sec"><h2>今天</h2><span class="home-sec-note" id="today-note"></span></div>
+  <div class="today-card" id="today-card"></div>
+
+  <!-- 本月: one line of progress — everything else about points is on 积分 -->
+  <div class="home-sec"><h2>本月</h2><button type="button" class="home-sec-link" onclick="App.nav('points')">查看积分 ›</button></div>
+  <div class="month-mini" id="month-mini" role="button" tabindex="0" aria-label="本月积分，打开积分" onclick="App.nav('points')"></div>
+
+  <!-- 常用记分: the four used most this month; all of them are under ＋ -->
+  <div class="home-sec"><h2>常用记分</h2><span class="home-sec-for char1" id="quick-for"></span><button type="button" class="home-sec-link" onclick="App.openAdd()">全部 ›</button></div>
+  <div id="quick-top"></div>
+</section>
+
+<!-- 积分: this month, past months, and the reward / punishment tables -->
+<section class="app-tab" id="tab-points" data-tab="points" aria-label="积分" hidden>
+  <div class="tab-head"><h1 class="tab-title">📊 积分</h1><button type="button" class="settings-btn" onclick="App.showSettings()" aria-label="设置">⚙️</button></div>
+  <div class="pt-seg" role="tablist" aria-label="积分">
+    <button type="button" role="tab" id="pt-tab-month" data-pane="month" aria-selected="true" aria-controls="pt-month" onclick="App.pointsPane('month')">本月</button>
+    <button type="button" role="tab" id="pt-tab-history" data-pane="history" aria-selected="false" aria-controls="pt-history" onclick="App.pointsPane('history')">历史</button>
+    <button type="button" role="tab" id="pt-tab-rules" data-pane="rules" aria-selected="false" aria-controls="pt-rules" onclick="App.pointsPane('rules')">奖惩表</button>
   </div>
 
-  <!-- Letter banner (情书, private between the couple only) -->
-  <div class="letter-banner" id="letter-banner" onclick="App.showLetters()">
-    <div class="letter-banner-left">
-      <span style="font-size:20px">💌</span>
-      <div>
-        <div class="letter-banner-title">情书</div>
-        <div class="letter-banner-sub">写一封信给对方</div>
-      </div>
-    </div>
-    <div class="tb-right">
-      <div class="tb-next" id="letter-count"></div>
-      <div class="letter-banner-arrow">›</div>
-    </div>
-  </div>
+  <div class="pt-pane" id="pt-month" role="tabpanel" aria-labelledby="pt-tab-month">
+    <!-- whose points: the same switch as tapping a portrait on 首页 -->
+    <div class="who-switch" id="who-switch" role="group" aria-label="看谁的分"></div>
 
-  <!-- Daily check-in banner -->
-  <div class="checkin-banner" id="checkin-banner" onclick="App.openCheckin()">
-    <div class="checkin-banner-left">
-      <span style="font-size:22px">📅</span>
-      <div>
-        <div class="checkin-banner-title">每日签到</div>
-        <div class="checkin-banner-sub" id="checkin-banner-sub">每天登录领积分</div>
+    <!-- Score card -->
+    <div class="score-card">
+      <div class="score-card-header">
+        <div class="month-label" id="month-label">-- 年 -- 月</div>
+        <span style="font-size:18px;opacity:0.85">🐾 ⭐ 🐾</span>
       </div>
-    </div>
-    <div class="checkin-banner-badge" id="checkin-banner-badge">签到</div>
-  </div>
-
-  <!-- Score card -->
-  <div class="score-card">
-    <div class="score-card-header">
-      <div class="month-label" id="month-label">-- 年 -- 月</div>
-      <span style="font-size:18px;opacity:0.85">🐾 ⭐ 🐾</span>
-    </div>
-    <div class="score-card-body">
-      <div class="score-display">
-        <div class="score-number positive" id="score-number">0</div>
-        <div class="score-unit">分</div>
-      </div>
-
-      <div class="progress-section">
-        <div class="progress-labels">
-          <span class="progress-label" id="progress-left-label">0 分</span>
-          <span class="progress-pct" id="progress-pct">0%</span>
-          <span class="progress-label" id="progress-right-label">100 分</span>
+      <div class="score-card-body">
+        <div class="score-display">
+          <div class="score-number positive" id="score-number">0</div>
+          <div class="score-unit">分</div>
         </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill reward" id="progress-fill" style="width:0%">
-            <span class="progress-paw">🐾</span>
+
+        <div class="progress-section">
+          <div class="progress-labels">
+            <span class="progress-label" id="progress-left-label">0 分</span>
+            <span class="progress-pct" id="progress-pct">0%</span>
+            <span class="progress-label" id="progress-right-label">100 分</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill reward" id="progress-fill" style="width:0%">
+              <span class="progress-paw">🐾</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="status-text" id="status-text">还差 <span id="status-gap">100</span> 分达成奖励</div>
-      <div class="entry-stats">
-        <div class="entry-stat-chip good" id="stat-good">✅ 0 次好行为</div>
-        <div class="entry-stat-chip bad"  id="stat-bad">😣 0 次扣分</div>
-        <div class="entry-stat-chip shop" id="stat-shop" style="display:none">🛒 0 次兑换</div>
+        <div class="status-text" id="status-text">还差 <span id="status-gap">100</span> 分达成奖励</div>
+        <div class="entry-stats">
+          <div class="entry-stat-chip good" id="stat-good">✅ 0 次好行为</div>
+          <div class="entry-stat-chip bad"  id="stat-bad">😣 0 次扣分</div>
+          <div class="entry-stat-chip shop" id="stat-shop" style="display:none">🛒 0 次兑换</div>
+        </div>
       </div>
+    </div>
+
+    <!-- Categories (quick entry) -->
+    <div class="section-title">✏️ 记分 <button class="manage-btn" onclick="App.openManage('category')">⚙️ 管理</button></div>
+    <div class="active-for-row">正在为 <span class="active-char-chip char1" id="active-for-chip">加载中</span> 记分</div>
+    <div id="categories-grid">
+      <div class="categories-grid"><div class="loading"><div class="spinner"></div> 加载中…</div></div>
+    </div>
+    <button class="add-custom-btn" onclick="App.openAddModal()">＋ 自定义记录</button>
+
+    <!-- Recent entries -->
+    <div class="section-title">📋 本月记录</div>
+    <div class="entries-list" id="entries-list">
+      <div class="loading"><div class="spinner"></div> 加载中…</div>
     </div>
   </div>
 
-  <!-- Categories (quick entry) -->
-  <div class="section-title">✏️ 快速记分 <button class="manage-btn" onclick="App.openManage('category')">⚙️ 管理</button></div>
-  <div class="active-for-row">正在为 <span class="active-char-chip char1" id="active-for-chip">加载中</span> 记分</div>
-  <div id="categories-grid">
-    <div class="categories-grid"><div class="loading"><div class="spinner"></div> 加载中…</div></div>
+  <div class="pt-pane" id="pt-history" role="tabpanel" aria-labelledby="pt-tab-history" hidden>
+    <p class="pt-note">每次月末结算以后，两个人的分数和换到的结果都记在这里。</p>
+    <div class="pt-list" id="history-content"></div>
   </div>
-  <button class="add-custom-btn" onclick="App.openAddModal()">＋ 自定义记录</button>
 
-  <!-- Recent entries -->
-  <div class="section-title">📋 本月记录</div>
-  <div class="entries-list" id="entries-list">
-    <div class="loading"><div class="spinner"></div> 加载中…</div>
+  <div class="pt-pane" id="pt-rules" role="tabpanel" aria-labelledby="pt-tab-rules" hidden>
+    <div class="rules-head"><h2 class="rules-title" id="modal-tables-title">🏆 奖励表</h2><button class="manage-btn" id="tables-manage-btn" onclick="App.openManageFromTable()">⚙️ 管理</button></div>
+    <p class="pt-note" id="rules-note"></p>
+    <div class="pt-list" id="modal-tables-content"></div>
   </div>
+</section>
+
+<!-- 一起: the places you go together -->
+<section class="app-tab" id="tab-together" data-tab="together" aria-label="一起" hidden>
+  <div class="tab-head"><h1 class="tab-title">💞 一起</h1><button type="button" class="settings-btn" onclick="App.showSettings()" aria-label="设置">⚙️</button></div>
+  <div class="tg-grid" id="tg-grid">
+    <button type="button" class="tg-tile tg-wide" id="hm-home" onclick="App.openHome()">
+      <span class="tg-txt"><span class="tg-name"><i aria-hidden="true">🏡</i>我们的家</span><span class="tg-sub" id="hm-home-sub">一起走进家里，在花园种花</span><span class="tg-go">回家 ›</span></span>
+      <svg class="tg-house" viewBox="0 0 132 84" aria-hidden="true"><ellipse cx="66" cy="80" rx="62" ry="4" fill="rgba(60,90,40,.16)"/><rect x="0" y="74" width="132" height="8" rx="4" fill="#9BD08A"/><circle cx="14" cy="60" r="11" fill="#7CC47F"/><rect x="12" y="62" width="4" height="13" rx="1.5" fill="#B07F56"/><path d="M22 40L66 10L110 40Z" fill="#EE8796" stroke="#C9566A" stroke-width="2.4" stroke-linejoin="round"/><rect x="30" y="38" width="72" height="37" rx="3" fill="#FCEBDA" stroke="#D2A47E" stroke-width="2.2"/><rect x="70" y="46" width="20" height="15" rx="2.5" fill="#BFE4FF" stroke="#fff" stroke-width="2"/><rect x="39" y="52" width="14" height="23" rx="2.5" fill="#C99B74"/><circle cx="50" cy="64" r="1.3" fill="#7A5638"/><circle cx="111" cy="71" r="4" fill="#FF9EB8"/><circle cx="121" cy="72" r="3.4" fill="#FFD36E"/></svg>
+    </button>
+    <!-- 小窝 and 共同目标 are both progress, so they pair as two tiles -->
+    <div class="home-duo">
+      <div id="pet-banner"></div>
+      <div id="goal-card"></div>
+    </div>
+    <button type="button" class="tg-tile" id="mg-home" onclick="App.openGames()">
+      <span class="tg-ic" aria-hidden="true">🎮</span><span class="tg-name">小游戏</span><span class="tg-sub" id="mg-home-sub">一起回家 · 默契拍拍 · 接零食 · 翻牌</span>
+    </button>
+    <!-- 情书, private between the couple only -->
+    <button type="button" class="tg-tile" id="letter-banner" onclick="App.showLetters()">
+      <span class="tg-ic tg-pink" aria-hidden="true">💌</span><span class="tg-name">情书</span><span class="tg-sub" id="letter-count">写一封信给对方</span>
+    </button>
+    <button type="button" class="tg-tile tg-wide tg-row" id="tg-love" onclick="App.showLovePage()">
+      <span class="tg-ic tg-pink" aria-hidden="true">📷</span><span class="tg-txt"><span class="tg-name">我们的时光</span><span class="tg-sub" id="tg-love-sub">照片 · 年度回顾 · 周年悄悄话</span></span><span class="tg-chev" aria-hidden="true">›</span>
+    </button>
+  </div>
+</section>
 </div>
 
 <!-- Love page (full-screen) -->
@@ -4545,42 +4866,31 @@
 <!-- Monthly settle FAB (floats above nav, docked to the nav's own right edge) -->
 <div class="settle-fab-dock"><button class="settle-fab" onclick="App.openSettleModal()">🎯 月末结算</button></div>
 
-<!-- Bottom nav (5 items, floating pill) -->
-<nav class="bottom-nav">
-  <div class="nav-item active" onclick="App.nav('home')" id="nav-home">
-    <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div>
-    <div class="nav-label">主页</div>
-  </div>
-  <div class="nav-item" onclick="App.nav('tables')" id="nav-tables">
-    <div class="nav-icon-wrap"><div class="nav-icon">📊</div></div>
-    <div class="nav-label">积分表</div>
-  </div>
-  <div class="nav-item" onclick="App.nav('history')" id="nav-history">
-    <div class="nav-icon-wrap"><div class="nav-icon">📅</div></div>
-    <div class="nav-label">历史</div>
-  </div>
-  <div class="nav-item" onclick="App.nav('shop')" id="nav-shop">
-    <div class="nav-icon-wrap"><div class="nav-icon">🛒</div></div>
-    <div class="nav-label">商店</div>
-  </div>
-  <div class="nav-item" onclick="App.nav('settings')" id="nav-settings">
-    <div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div>
-    <div class="nav-label">设置</div>
-  </div>
+<!-- Bottom nav: 首页 · 积分 · ＋ · 一起 · 商店 — the same five on every page (CLAUDE.md §7.36) -->
+<nav class="bottom-nav" aria-label="主导航">
+  <button type="button" class="nav-item active" onclick="App.nav('home')" id="nav-home" aria-current="page">
+    <span class="nav-icon-wrap"><span class="nav-icon">🏠</span></span>
+    <span class="nav-label">首页</span>
+  </button>
+  <button type="button" class="nav-item" onclick="App.nav('points')" id="nav-points">
+    <span class="nav-icon-wrap"><span class="nav-icon">📊</span></span>
+    <span class="nav-label">积分</span>
+  </button>
+  <button type="button" class="nav-item nav-add" onclick="App.openAdd()" id="nav-add" aria-label="记一笔">
+    <span class="nav-icon-wrap"><span class="nav-icon">＋</span></span>
+    <span class="nav-label">记一笔</span>
+  </button>
+  <button type="button" class="nav-item" onclick="App.nav('together')" id="nav-together">
+    <span class="nav-icon-wrap"><span class="nav-icon">💞</span></span>
+    <span class="nav-label">一起</span>
+  </button>
+  <button type="button" class="nav-item" onclick="App.nav('shop')" id="nav-shop">
+    <span class="nav-icon-wrap"><span class="nav-icon">🛒</span></span>
+    <span class="nav-label">商店</span>
+  </button>
 </nav>
 
 <!-- Tables modal -->
-<div class="modal-overlay" id="modal-tables">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;margin-bottom:20px">
-      <div class="modal-title" style="margin-bottom:0;flex:1" id="modal-tables-title">📊 积分表</div>
-      <button class="manage-btn" id="tables-manage-btn" onclick="App.openManageFromTable()">⚙️ 管理</button>
-    </div>
-    <div id="modal-tables-content"></div>
-  </div>
-</div>
-
 <!-- Add entry modal -->
 <div class="modal-overlay" id="modal-add">
   <div class="modal-sheet">
@@ -4620,15 +4930,6 @@
       <button class="btn-secondary" onclick="App.closeModal('modal-settle')">再想想</button>
       <button class="btn-primary" onclick="App.confirmSettle()" style="flex:1">确认结算 🎊</button>
     </div>
-  </div>
-</div>
-
-<!-- History modal -->
-<div class="modal-overlay" id="modal-history">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">📅 历史记录</div>
-    <div id="history-content"></div>
   </div>
 </div>
 

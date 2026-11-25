@@ -87,7 +87,7 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     if (await p.$('.u3d-add')) {
       report('＋ sheet open, pick, close', await watch(p, 3000, async () => { await p.click('.u3d-add'); await sleep(800); await p.click('.u3d-cat >> nth=0'); await p.click('.u3d-cat >> nth=1'); await sleep(400); await p.evaluate(() => document.querySelector('.u3d-sheet-veil').click()); }));
     }
-    report('积分表 → 历史 → 主页', await watch(p, 3600, async () => { await p.evaluate(() => App.nav('rewards')); await sleep(900); await p.evaluate(() => document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'))); await p.evaluate(() => App.nav('history')); await sleep(900); await p.evaluate(() => document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'))); await p.evaluate(() => App.nav('home')); }));
+    report('积分 → 历史 → 奖惩表 → 一起 → 首页', await watch(p, 4200, async () => { await p.evaluate(() => App.nav('points')); await sleep(800); await p.evaluate(() => App.pointsPane('history')); await sleep(700); await p.evaluate(() => App.pointsPane('rules')); await sleep(700); await p.evaluate(() => App.pointsPane('month')); await p.evaluate(() => App.nav('together')); await sleep(800); await p.evaluate(() => App.nav('home')); }));
     report('记一笔 → refresh', await watch(p, 2500, async () => { await p.evaluate(() => App.quickEntry('c1')); }));
     report('小窝 opens, idle', await watch(p, 3500, async () => { await p.evaluate(() => App.showPetHome()); }));
     report('小窝, poke the pet', await watch(p, 2000, async () => { await p.evaluate(() => App.pokePet()); await sleep(500); await p.evaluate(() => App.pokePet()); }));

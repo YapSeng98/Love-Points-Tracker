@@ -58,7 +58,7 @@ html.ui3d body::before {
 }
 
 /* ── surfaces: depth from a top highlight and a coloured shadow ── */
-html.ui3d :is(.score-card, .letter-banner, .checkin-banner, #partner-wx, #season-card, #bday-card,
+html.ui3d :is(.score-card, .today-card, .month-mini, .tg-tile, .who-btn, .pt-list .history-item, .pt-list .tier-row, #partner-wx, #season-card, #bday-card,
   .entry-day-items, .home-duo .pet-banner-box, .home-duo .pet-adopt, .home-duo .goal-box, .home-duo .goal-empty,
   .add-custom-btn, .cat-tab) {
   border-color: var(--u-edge);
@@ -561,4 +561,47 @@ html[data-theme="dark"] .u3d-chip b { color: #85B3E6; } html[data-theme="dark"] 
 @media (prefers-reduced-motion: reduce) {
   html.ui3d body::before, html.ui3d .together-hero, html.ui3d .u3d-add::before, html.ui3d .char-img-wrap::after, html.ui3d .u3d-mote, html.ui3d .u3d-room-light, html.ui3d .u3d-settle-chip.due, html.ui3d .sp-paw-logo, html.ui3d .setup-logo, html.ui3d .sp-btn { animation: none !important; }
   .u3d-sheet, .u3d-sheet-veil { transition-duration: .01ms; }
+}
+
+/* ── 首页 · 积分 · 一起 (CLAUDE.md §7.36): the new cards in the same light ── */
+html.ui3d .home-sec h2 { font-size: 18px; }
+html.ui3d .today-card { padding: 4px 16px; }
+html.ui3d .td-ic, html.ui3d .tg-ic {
+  box-shadow: inset 0 1px 0 var(--u-hi), inset -2px -3px 6px rgba(var(--u-shade), .08), 0 6px 12px -8px rgba(var(--u-shade), .45);
+}
+html.ui3d .td-go, html.ui3d .tg-go, html.ui3d .tg-badge, html.ui3d .who-btn.on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42), inset 0 -2px 4px rgba(0, 0, 0, .12), 0 8px 16px -8px rgba(var(--u-shade), .75);
+  transition: transform .45s var(--u-spring);
+}
+html.ui3d .td-go:active, html.ui3d .who-btn:active { transform: scale(.93); }
+html.ui3d .mm-num { font-size: 30px; text-shadow: 0 1px 0 var(--u-hi), 0 6px 12px rgba(var(--u-shade), .18); }
+html.ui3d .mm-bar { background: rgba(var(--u-shade), .10); box-shadow: inset 0 1px 2px rgba(var(--u-shade), .16); }
+html.ui3d .mm-bar i { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5); }
+html.ui3d .pt-seg {
+  background: var(--u-glass); border: 1px solid var(--u-edge);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 var(--u-hi), 0 10px 22px -16px rgba(var(--u-shade), .5);
+}
+html.ui3d .pt-seg button { transition: background .35s var(--u-spring), color .2s, box-shadow .3s; }
+html.ui3d .pt-seg button[aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(236, 242, 255, .92)); color: #245E94;
+  box-shadow: inset 0 1px 0 #fff, 0 6px 14px -6px rgba(70, 110, 200, .5);
+}
+html.ui3d[data-theme="dark"] .pt-seg button[aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(90, 84, 140, .92), rgba(60, 55, 100, .92)); color: #EDE6FF;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15), 0 6px 14px -6px rgba(0, 0, 0, .6);
+}
+html.ui3d .tab-title { text-shadow: 0 1px 0 var(--u-hi), 0 6px 14px rgba(var(--u-shade), .16); }
+html.ui3d #hm-home .tg-house { filter: drop-shadow(0 8px 8px rgba(var(--u-shade), .18)); }
+@media (prefers-reduced-motion: reduce) {
+  html.ui3d .td-go, html.ui3d .who-btn, html.ui3d .pt-seg button { transition: none; }
+}
+
+/* 你们两个 (§7.36): the hero's light now holds the couple */
+html.ui3d .duo-card .th-days { font-size: 48px; }
+html.ui3d .duo-foot { border-top-color: rgba(var(--u-shade), .12); }
+html.ui3d[data-period="night"]:has(.sky-bg .fw-canvas) .duo-card {
+  background:
+    linear-gradient(145deg, rgba(59, 33, 66, .34), rgba(31, 43, 74, .30)) padding-box,
+    conic-gradient(from var(--u-ang), #FF8FC0, #C69CFF, #8FC4FF, #FFD08F, #FF8FC0) border-box;
 }

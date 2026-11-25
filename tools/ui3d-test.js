@@ -60,7 +60,8 @@ const looks = (p) => p.evaluate(() => ({
   css: !!document.getElementById('ui3d-css'),
   plus: !!document.querySelector('.u3d-add'),
   fab: getComputedStyle(document.querySelector('.settle-fab-dock')).display !== 'none',
-  navSettings: getComputedStyle(document.getElementById('nav-settings')).display !== 'none',
+  // the classic bar's own ＋ 记一笔 (the new look draws its raised one instead) — CLAUDE.md §7.36
+  navAdd: (() => { const e = document.getElementById('nav-add'); return !!e && getComputedStyle(e).display !== 'none'; })(),
   leftovers: document.querySelectorAll('[data-u3d]').length,
 }));
 const stored = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('love_score_data')));
@@ -74,7 +75,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     const { p, ctx, errs } = await phone(browser, '2026-11-15T15:00:00+08:00');
     await cssReady(p);
     const l = await looks(p);
-    ok(l.on && l.css && l.plus && !l.fab && !l.navSettings, `on by default, nobody has to switch it: ＋ in the bar, no floating 月末结算 ${JSON.stringify(l)}`);
+    ok(l.on && l.css && l.plus && !l.fab && !l.navAdd, `on by default, nobody has to switch it: ＋ in the bar, no floating 月末结算 ${JSON.stringify(l)}`);
     // two fixes that apply to everyone, whichever look
     const desc = await p.evaluate(() => { const d = document.querySelector('#entry-e0 .entry-desc'); return { text: d.textContent, tags: d.querySelectorAll('b').length }; });
     ok(desc.text === '<b>粗</b>' && desc.tags === 0, `an entry note is shown as typed, not run as page code: 「${desc.text}」`);
@@ -96,7 +97,10 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     ok(/经典/.test(toast) && /这台手机/.test(toast), `says it is this phone only: 「${toast.trim()}」`);
     await p.evaluate(() => App.closeModal('modal-settings'));
     let l = await looks(p);
-    ok(!l.on && !l.plus && l.fab && l.navSettings && !l.leftovers, `经典: 月末结算 button and 设置 tab back, nothing left over ${JSON.stringify(l)}`);
+    ok(!l.on && !l.plus && l.navAdd && !l.leftovers, `经典: the bar's own ＋ 记一笔 instead of the raised one, nothing left over ${JSON.stringify(l)}`);
+    await p.evaluate(() => App.nav('points')); await sleep(400);
+    ok((await looks(p)).fab, '经典: the floating 月末结算 is back, on 积分');
+    await p.evaluate(() => App.nav('home')); await sleep(300);
     await p.reload(); await p.waitForFunction(() => typeof App !== 'undefined' && App.demoMode);
     await p.evaluate(() => { document.getElementById('start-page')?.remove(); App.demoMode(); }); await sleep(1200);
     l = await looks(p);
@@ -118,14 +122,14 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     await cssReady(p);
     const geo = await p.evaluate(() => {
       const r = (s) => document.querySelector(s).getBoundingClientRect();
-      const plus = r('.u3d-add'), t = r('#nav-tables'), h = r('#nav-history'), ind = r('.u3d-nav-ind'), home = r('#nav-home');
+      const plus = r('.u3d-add'), t = r('#nav-points'), h = r('#nav-together'), ind = r('.u3d-nav-ind'), home = r('#nav-home');
       return { between: plus.left > t.right - 2 && plus.right < h.left + 2, size: Math.round(plus.width), ind: Math.abs((ind.left + ind.width / 2) - (home.left + home.width / 2)) < 3 };
     });
-    ok(geo.between && geo.size >= 56, `＋ sits between 积分表 and 历史, ${geo.size}px`);
-    ok(geo.ind, 'the lit pill sits under 主页');
-    await p.evaluate(() => App.nav('history')); await sleep(700);
-    const moved = await p.evaluate(() => { const i = document.querySelector('.u3d-nav-ind').getBoundingClientRect(), h = document.getElementById('nav-history').getBoundingClientRect(); return Math.abs((i.left + i.width / 2) - (h.left + h.width / 2)) < 3; });
-    ok(moved, 'and slides to 历史 when it is picked');
+    ok(geo.between && geo.size >= 56, `＋ sits between 积分 and 一起, ${geo.size}px`);
+    ok(geo.ind, 'the lit pill sits under 首页');
+    await p.evaluate(() => App.nav('together')); await sleep(700);
+    const moved = await p.evaluate(() => { const i = document.querySelector('.u3d-nav-ind').getBoundingClientRect(), h = document.getElementById('nav-together').getBoundingClientRect(); return Math.abs((i.left + i.width / 2) - (h.left + h.width / 2)) < 3; });
+    ok(moved, 'and slides to 一起 when it is picked');
     await p.evaluate(() => document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')));
     await p.evaluate(() => App.nav('home')); await sleep(500);
 
@@ -192,6 +196,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
   {
     const { p, ctx, errs } = await phone(browser, '2026-11-15T15:00:00+08:00', { look: 'ui3d' });
     await cssReady(p);
+    await p.evaluate(() => App.nav('points')); await sleep(500);   // the score card and 本月记录 live on 积分 (§7.36)
     let chip = await p.evaluate(() => { const c = document.querySelector('.score-card-header .u3d-settle-chip'); return c && { due: c.classList.contains('due'), h: c.getBoundingClientRect().height }; });
     ok(chip && !chip.due, 'the 月末结算 chip is in the score card, quiet mid-month');
     await p.click('.u3d-settle-chip'); await sleep(700);
@@ -210,11 +215,13 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     await p.click('#entry-e2 .entry-cat'); await sleep(300);
     ok(await p.evaluate(() => !document.querySelector('#entry-e1').classList.contains('u3d-open') && document.querySelector('#entry-e2').classList.contains('u3d-open')), 'opening another row closes the first');
 
+    await p.evaluate(() => App.nav('home')); await sleep(400);
     await p.evaluate(() => window.scrollTo(0, 0)); await sleep(300);
     const hero = await p.$('.together-hero'); const hb = await hero.boundingBox();
-    await p.mouse.move(hb.x + hb.width * .85, hb.y + hb.height * .2); await p.mouse.down(); await sleep(150);
+    // the card's open corner, bottom right — the portraits and the days sit on it since §7.36, and they have taps of their own
+    await p.mouse.move(hb.x + hb.width * .92, hb.y + hb.height * .9); await p.mouse.down(); await sleep(150);
     const tilt = await p.evaluate(() => { const h = document.querySelector('.together-hero'); return { cls: h.classList.contains('u3d-tilt'), ry: h.style.getPropertyValue('--u-ry'), tr: getComputedStyle(h).transform }; });
-    await p.mouse.up(); await sleep(700);   // a press on the hero is also a tap: it opens 我们的时光, as it should
+    await p.mouse.up(); await sleep(700);
     const back = await p.evaluate(() => { const h = document.querySelector('.together-hero'); return { cls: h.classList.contains('u3d-tilt'), tr: getComputedStyle(h).transform }; });
     ok(tilt.cls && parseFloat(tilt.ry) > 2 && tilt.tr !== 'none', `pressing a card tilts it toward the finger (rotateY ${tilt.ry})`);
     ok(!back.cls && back.tr === 'none', 'and it springs back flat when let go');
@@ -273,7 +280,7 @@ const cssReady = (p) => p.waitForFunction(() => getComputedStyle(document.queryS
     await p.evaluate(() => { App.showSettings(); }); await sleep(400);
     await p.selectOption('#cfg-look', 'classic'); await sleep(400);
     const l = await looks(p);
-    ok(!l.on && !l.plus && l.fab && l.navSettings && l.leftovers === 0, `back to 经典 exactly ${JSON.stringify(l)}`);
+    ok(!l.on && !l.plus && l.navAdd && l.leftovers === 0, `back to 经典 exactly ${JSON.stringify(l)}`);
     ok(await p.evaluate(() => getComputedStyle(document.querySelector('#entry-e1 .entry-edit')).display !== 'none'), '✏️ and 🗑️ show on every row again');
     ok(await p.evaluate(() => localStorage.getItem('look')) === 'classic', 'and the choice is remembered');
     ok(!errs.length, 'no errors ' + errs.join(' | '));

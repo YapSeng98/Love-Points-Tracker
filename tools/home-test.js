@@ -41,8 +41,8 @@ function seed({ exp = 0, owned = [], save = null, entries = {} } = {}) {
 // 1600 points this month: the pet's EXP is 1600 and the wallet 800 小窝币
 const POINTS = (n = 1600) => ({ '2026-11': [{ id: 'e1', catId: '', catName: '测试', icon: '🧪', pts: n, desc: 'test', charId: 'char1', month: '2026-11', date: '2026-11-01' }] });
 
-async function open(browser, { when = '2026-11-25T15:00:00', theme = 'light', w = 390, h = 844, data = seed(), reduced = false, hinted = true } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, timezoneId: 'Asia/Singapore', deviceScaleFactor: 2, hasTouch: true, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+async function open(browser, { when = '2026-11-25T15:00:00', theme = 'light', w = 390, h = 844, data = seed(), reduced = false, hinted = true, touch = true, mobile = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, timezoneId: 'Asia/Singapore', deviceScaleFactor: 2, hasTouch: touch, ...(mobile ? { isMobile: true } : {}), reducedMotion: reduced ? 'reduce' : 'no-preference' });
   const p = await ctx.newPage();
   const errs = [];
   p.on('pageerror', e => errs.push(String(e)));
@@ -137,6 +137,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
   {
     const { p, ctx, errs } = await open(browser, { data: seed({ entries: POINTS() }) });
     ok(await p.evaluate(() => /一起走进家里/.test(document.getElementById('hm-home-sub')?.textContent || '')), 'the home card invites them in');
+    await p.evaluate(() => App.nav('together')); await sleep(300);   // the tile is on 一起 (§7.36)
     await p.click('#hm-home'); await p.waitForFunction(() => !!(window.HomeGame && HomeGame.test.state()), null, { timeout: 15000 }); await sleep(300);
     ok(await p.evaluate(() => document.documentElement.classList.contains('game-cover')), 'the app behind holds still while the house is open (game-cover)');
     const coin0 = await p.evaluate(() => App._coinTest());
@@ -535,6 +536,89 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     ok(await p.evaluate(() => { const b = document.querySelector('[data-a="hug"]'); return b.disabled && b.hidden; }), '🤗 抱抱 appears only when someone is next to you');
     ok(await p.evaluate(() => document.querySelector('[data-r="stairs"]').hidden), 'no stairs button in a one-storey house');
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
+    await ctx.close();
+  }
+  }
+
+  if (want(11)) {
+  console.log('\n11. A laptop: the whole house from the keyboard');
+  {
+    const { p, ctx, errs } = await open(browser, { w: 1280, h: 800, touch: false, data: seed({ owned: ['hm_lv2', 'hm_lv3'], entries: POINTS() }) });
+    await enter(p);
+    const S = () => st(p);
+    // ← → / A D walk for as long as they are held
+    await p.evaluate(() => HomeGame.test.teleport(60, 0)); await sleep(150);
+    let x0 = (await S()).cs.x;
+    await p.keyboard.down('ArrowRight'); await sleep(700);
+    const mid = (await S()).cs;
+    await p.keyboard.up('ArrowRight'); await sleep(350);
+    let x1 = (await S()).cs.x;
+    ok(mid.hold === 1 && x1 > x0 + 6, `holding → walks right while held (${x0.toFixed(1)} → ${x1.toFixed(1)})`);
+    const after = (await S()).cs.x; await sleep(400);
+    ok(Math.abs((await S()).cs.x - after) < .6, '…and stops when it is let go');
+    await p.keyboard.down('a'); await sleep(600); await p.keyboard.up('a'); await sleep(350);
+    ok((await S()).cs.x < x1 - 4, 'A walks left too');
+    // the window losing focus mid-walk must not leave you walking
+    await p.keyboard.down('d'); await sleep(250);
+    await p.evaluate(() => window.dispatchEvent(new Event('blur'))); await sleep(200);
+    const b0 = (await S()).cs.x; await sleep(500);
+    ok((await S()).cs.hold === 0 && Math.abs((await S()).cs.x - b0) < 1.2, 'leaving the window stops the walk (no key-up ever comes)');
+    await p.keyboard.up('d');
+    // ↑ / W go upstairs, ↓ / S come down
+    await p.keyboard.press('w'); await idle(p);
+    ok((await S()).cs.f === 56, 'W takes the stairs up');
+    await p.keyboard.press('ArrowDown'); await idle(p);
+    ok((await S()).cs.f === 86, '↓ comes back down');
+    // Space does the 「下一步」 chip; E uses the pot you stand by
+    const chip = await p.evaluate(() => { const t = document.querySelector('.hm-todo'); return t && !t.hidden ? t.textContent : ''; });
+    await p.keyboard.press(' '); await sleep(300);
+    const spaced = await p.evaluate(() => !!document.querySelector('.hm-sheet .hm-seed') || HomeGame.test.state().cs.path > 0);
+    ok(chip && spaced, `空格 does what the chip says (「${chip}」)`);
+    await p.evaluate(() => document.querySelector('.hm-sheet [data-a="close-sheet"]')?.click()); await sleep(200);
+    const px = await p.evaluate(() => HomeGame.test.LVS[HomeGame.test.state().lv].pots[0][0]);
+    await p.evaluate((x) => HomeGame.test.teleport(x + 2, 0), px); await sleep(150);
+    await p.keyboard.press('e'); await sleep(400);
+    ok(await p.evaluate(() => !!document.querySelector('.hm-sheet .hm-seed')), 'E by an empty pot asks which seed');
+    await p.keyboard.press('Escape'); await sleep(250);
+    ok(await p.evaluate(() => !document.querySelector('.hm-sheet') && !!document.querySelector('.hm-root')), 'Esc closes the sheet, not the house');
+    await p.evaluate(() => HomeGame.test.teleport(80, 0)); await sleep(150);   // inside, away from every pot
+    await p.keyboard.press('e'); await sleep(300);
+    ok(/走到花盆旁边/.test(await toast(p)), `E away from the pots says where to go: 「${await toast(p)}」`);
+    // H hugs (or says why not), J waves, K sits on the 客厅's sofa
+    await p.keyboard.press('h'); await sleep(250);
+    ok(/抱抱|不在家/.test(await toast(p)), `H: 抱抱, or why not: 「${await toast(p)}」`);
+    await p.keyboard.press('j'); await sleep(250);
+    ok(await p.evaluate(() => [...document.querySelectorAll('.hm-pop')].some(e => e.textContent === '👋')), 'J waves');
+    const sofa = await p.evaluate(() => !document.querySelector('[data-r="sit"]').hidden);
+    await p.keyboard.press('k'); await idle(p); await sleep(400);
+    if (sofa) {
+      ok(/站起来/.test(await p.textContent('[data-r="sit"]')), 'K walks to the sofa and sits (the button now says 站起来)');
+      await p.keyboard.press('k'); await sleep(300);
+      ok(/坐下/.test(await p.textContent('[data-r="sit"]')), '…and K again stands up');
+    } else ok(/沙发/.test(await toast(p)), `no sofa in the 客厅: K says so (「${await toast(p)}」)`);
+    // 1–4 open the menus, the same key closes; the browser's own shortcuts are left alone
+    await p.keyboard.press('2'); await sleep(250);
+    ok(await p.evaluate(() => document.querySelector('[data-sheet="garden"]').getAttribute('aria-pressed') === 'true'), '2 opens 🌱 花园');
+    await p.keyboard.press('2'); await sleep(250);
+    ok(await p.evaluate(() => !document.querySelector('.hm-sheet')), '…and 2 again closes it');
+    await p.keyboard.press('1'); await sleep(250);
+    ok(await p.evaluate(() => { const k = document.querySelector('.hm-sheet .hm-keys'); return !!k && getComputedStyle(k).display !== 'none'; }), '❓ 玩法 lists the keys on a laptop');
+    await p.keyboard.press('Escape'); await sleep(200);
+    x0 = (await S()).cs.x;
+    await p.keyboard.down('Meta'); await p.keyboard.down('ArrowRight'); await sleep(400); await p.keyboard.up('ArrowRight'); await p.keyboard.up('Meta'); await sleep(200);
+    ok(Math.abs((await S()).cs.x - x0) < .6, '⌘ → is the browser\'s, not a walk');
+    // each button shows its key on a laptop
+    const keys = await p.evaluate(() => [...document.querySelectorAll('.hm-root [data-key]')].filter(b => b.offsetParent).map(b => b.dataset.key + ':' + getComputedStyle(b, '::after').content.replace(/"/g, '')));
+    ok(keys.length >= 7 && keys.every(k => k.split(':')[0] === k.split(':')[1]), `the keys are drawn on the buttons: ${keys.join(' ')}`);
+    await p.screenshot({ path: `${SHOTS}/hm_keyboard_1280.png` });
+    ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
+    await ctx.close();
+  }
+  {
+    // a phone never shows the keys
+    const { p, ctx } = await open(browser, { mobile: !WEBKIT });
+    await enter(p);
+    ok(await p.evaluate(() => [...document.querySelectorAll('.hm-root [data-key]')].every(b => getComputedStyle(b, '::after').content === 'none')), 'a touch screen shows no key labels');
     await ctx.close();
   }
   }

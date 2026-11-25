@@ -581,8 +581,9 @@ colour, kind, and a seed; each phone grows the identical shell from them
   silent when it fails; an ordinary night opens no connection at all. A refused
   join refreshes the access token once (they last an hour, §0.0) and retries.
 - **Never trust the wire**: a place outside 0–1 or an unknown kind is dropped.
-- Only the empty header counts as sky. Portraits, ♫, ⚙️, the mode switch and
-  anything behind an open sheet keep their own taps.
+- Only empty sky counts: the title row, the open edges of 首页's couple card
+  and the gaps between cards (§7.36). Portraits, the days, ♫, ⚙️, the mode
+  switch and anything behind an open sheet keep their own taps.
 - Found building it: **the sign-in path never called the session-up hook**
   (`flushWeather`) — register and a resumed session did. So after a fresh
   sign-in the weather held at module load (§7.215) waited for the next
@@ -870,8 +871,8 @@ in 小窝's panel and one beside 播放回忆, both added from JS; styles are in
 
 - **A feature whose only door is two screens deep does not exist.** The day it
   shipped the user asked why they couldn't see it: the button was only inside
-  小窝. The home page now has a 小游戏 card under 每日签到, built from that
-  card's own classes so it shares the stack's width, inset and gap (§7.255).
+  小窝. Since §7.36 the doors are 首页's 今天 (a row until the day's first
+  points) and the 小游戏 tile on 一起, one tap from any page.
 
 `tools/games-test.js` plays both: the pet really catches what it is under, each
 hazard, every level's shape, running out of time / hearts / moves, the payout
@@ -1211,8 +1212,9 @@ WebKit, `ONLY=smooth,cuts,…` runs sections). `tools/coop-bot.js` is the bot.
 Built 2026-11-25 after a plan page and a playable preview the user tried (house +
 garden + upgrades, a city later). Lives in `home.js`, loaded on first open
 (`home.js?v=APP_VERSION`); its styles (`hm-*`) go in when the file loads, not
-while opening. Doors: a home card under 小游戏 (`#hm-home`, it says what waits in
-the garden) and 「🏡 带它回家 · 去花园」 in the 小窝's panel. Overlay z-index 150, the
+while opening. Doors: the 我们的家 tile on 一起 (`#hm-home`, it says what waits in
+the garden), 首页's 今天 when a pot wants water or a flower is out (§7.36), and
+「🏡 带它回家 · 去花园」 in the 小窝's panel. Overlay z-index 150, the
 seed sheet 155, `game-cover` like the games (§7.32).
 
 - **The 客厅 is their 小窝.** `api.room()` hands over the 小窝's own pieces
@@ -1260,8 +1262,14 @@ seed sheet 155, `game-cover` like the games (§7.32).
 - **Off screen:** the partner gets a 「‹ 名字」 tag at that edge, which walks you to
   where they are GOING — walking to where they were left you halfway when they
   were still on their way.
-- **Moving:** tap the floor or a pot, hold ◀ ▶, arrow keys, the stairs button, or
-  tap upstairs. A pot takes taps a little beside it and on the flower above (±4.6%,
+- **Moving:** tap the floor or a pot, hold ◀ ▶, the stairs button, or tap upstairs.
+- **A laptop plays it from the keyboard** (asked 2026-11-25): ← → / A D walk while
+  held (a blur stops it — the key-up may never come), ↑ ↓ / W S the stairs, Space
+  the 「下一步」 chip, E the pot you stand by, H 抱抱, J 招手, K 坐下 / 站起来, 1–4 the
+  menus, Esc a sheet or the house. Document-wide while the house is open; never
+  while typing or with ⌘/Ctrl/Alt; a sheet open blocks the world keys. Each
+  button wears its key (`data-key`, drawn by CSS) only under
+  `(hover:hover) and (pointer:fine)`, and ❓ 玩法 lists them there. A pot takes taps a little beside it and on the flower above (±4.6%,
   no more: at Lv3 the pots stand 8% apart, and a first version's thumb-sized zone
   made the whole lawn open the seed sheet). `click`, not `pointerdown`: a swipe
   that starts on the house scrolls the page and must not walk anyone. You stand
@@ -1309,6 +1317,15 @@ seed sheet 155, `game-cover` like the games (§7.32).
   lagged.
 - A save refused outright (4xx, not 409) drops the pending actions and reloads
   instead of retrying forever; five lost races in a row retry 2.5–4.5 s later.
+- **An action that builds on the partner's unsaved one waits, it is not dropped.**
+  The partner plants, you water within the second: your phone has *heard* the
+  planting (`G.remote`) but not *loaded* its save, so `apply()` on the save
+  found no pot and the watering was thrown away as lost — silently, one run in
+  four of home-live-test. `flush()` now keeps an action that applies on top of
+  `G.remote`, saves the rest, and loads the partner's save 1.2 s later (their
+  `saved` usually arrives first); `flushOnClose` keeps such an action on the
+  phone for the next open. Only when the partner's action expires (30 s) is
+  ours dropped. home-live-test §8a forces it by holding the reads back.
 - Upgrades (小平房 600, 两层小楼 1500) and festival pieces are decor-buy
   purchases with `hm_*` ids (`Data.buyHouse`): one wallet, the buyer is the login.
 
@@ -1626,6 +1643,69 @@ Two separate mistakes, both worth remembering:
 
 ---
 
+## 7.36 🧭 首页 · 积分 · ＋ · 一起 · 商店 — where everything lives
+
+Asked for 2026-11-25: 「the main page looks so messy … improve the system design
+for the navigation and user view」. A plan page with a clickable phone was
+approved with 「the theme dun change, just the card and the idea for the
+navigation button」, and after the first build 「the design can use back
+previous suggest design」 — the couple's card at the top, as the plan drew it.
+The look (colours, sky, clay portraits, 新外观) is the same; what moved is
+where things live. Home went from 3013px (3.6 screens at 390×844) to 1176px.
+
+| page | what is on it |
+|---|---|
+| 🏠 首页 | the title row; **one card for the two of you** (both portraits, the days together in the middle, weather and the mode switch underneath); 今天; 本月; 常用记分 |
+| 📊 积分 | 本月 (whose points, the score card, every score, 本月记录) · 历史 · 奖惩表 — panes in the page, not sheets |
+| ＋ | the 记一笔 sheet (新外观) or the 自定义记分 form (经典), from any page |
+| 💞 一起 | 我们的家, 小窝 + 共同目标, 小游戏, 情书, 我们的时光 |
+| 🛒 商店 | the shop page, with the bar raised above it |
+
+⚙️ 设置 is the top-right button on every page. The pages are `section.app-tab`
+inside `#app`; `_setTab()` shows one, marks its button `aria-current`, keeps
+each page's scroll (tapping the page you are on goes to its top) and stamps
+`html[data-tab]`. **The old names still work**: `nav('tables')`/`showTables()`
+open 积分 › 奖惩表, `nav('history')`/`showHistory()` 积分 › 历史, `nav('settings')`
+the ⚙️ — the tests and the films call them.
+
+- **今天 lists only what is still to do, each with its own button**: 签到 (one
+  tap checks in, no calendar first), an older month left open (去结算), the
+  garden (home.js's own `grow()`, never a second copy), a letter sealed for
+  you, a game not played today. Done things fold into ✓ chips (each opens its
+  place); nothing left says 「今天都做完了」. The 签到 row and the 本月 card follow
+  the whose-points switch, like the calendar they open (§6); letters and games
+  are about the login, `_me()`.
+- **本月 is the score card in one line** — same number, same percent, same
+  status (`_progressStatus`, shared, with the `#status-gap` id stripped so the
+  page never holds two).
+- **常用记分: the four used most this month, shown in the grid's own order**, so
+  a tile never moves under the next tap. Fewer than four used → the smallest 加分.
+- **The couple's card is the hero (`.together-hero.duo-card`).** The portraits
+  sit on its sides at 76px (62 under 360, 84 over 400) with the crowns still on
+  their heads (sized in % of the portrait); the days are `.th-mid`, the one part
+  that opens 我们的时光 — a tap on a portrait still picks whose points. The
+  milestone is two `nowrap` halves, so a narrow card breaks between them.
+- **The sky had to move, not go.** The card took the open strip where the sun
+  and the moon lived, so on 首页 they sit in the title row (scaled, the real
+  moon phase untouched); on 积分 and 一起 they and the festival layer are hidden —
+  they sat behind the segmented control and the ⚙️. On a fireworks night the
+  card turns see-through (`:has(.sky-bg .fw-canvas)`, night only), and **sky
+  taps** count on the card's open edges and in the gaps between cards
+  (`.app-tab` itself) as well as the title row (§7.235).
+- **商店 is a page, the bar stays.** `html.shop-on` lifts the bar to 92 over the
+  shop page (90), pads the shop's list to end above it, and ‹ 返回 goes back to
+  the page you came from. **`#modal-add` is z 96**: ＋ in 经典 opened the form
+  *behind* the shop page — nav-test found it on its first run (§1.3 again).
+- **Every door is one tap from anywhere.** Nothing that used to be on 首页 was
+  removed; 一起's tiles each say what waits there (the garden's pots, a badge
+  for a sealed letter, 今天还能拿分).
+
+`tools/nav-test.js` (`ONLY=…`, `LOOK=classic`): the bar in order and in both
+looks, every page and pane, 今天's rows and buttons (both partners), 本月 = the
+score card, the four tiles, each 一起 tile opening its place, the shop under
+the bar, ＋ on top from every page, 320–1280 by day and night with nothing
+under the bar or off the side, keyboard, reduced motion, and HTML_V = the meta.
+
 ## 7.27 🔁 The stale-HTML guard must COMPARE, not just check presence
 
 `app.js` is always fetched fresh; `index.html` (which carries every bit of CSS
@@ -1754,6 +1834,9 @@ partner's film. Table `anniv_notes`, function `anniv-note`.
 ---
 
 ## 7.26 🏠 Home layout: hero + duo + rows
+
+> Superseded by §7.36 (the couple's card, 今天, 本月, 常用记分; the duo moved to 一起).
+> Kept for the two measuring lessons below, which still hold.
 
 The home cards were five identical full-width rows. Measured, each was ~430px
 with the content hugging the left and a lone `›` on the right — **270–283px of
@@ -1898,7 +1981,7 @@ What made the difference, and what must not come back:
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
   coop-live-test.js, coop-net-test.js, coop-stars-test.js, home-test.js,
-  home-live-test.js, sync-live-test.js — serve the repo
+  home-live-test.js, sync-live-test.js, nav-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
 □ node supabase/cleanup-test-accounts.mjs --yes   (the suites leave couples behind)
@@ -2009,8 +2092,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
-| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone |
-| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, sitting together, the off-screen tag walking you to your partner, where you left |
+| `node tools/nav-test.js` | 首页 · 积分 · ＋ · 一起 · 商店 (§7.36, `ONLY=…`, `LOOK=classic`): the bar in order in both looks, every page and pane and the old names landing in them, 今天's rows and each button (and YY's side), 本月 = the score card, the four tiles staying put, every 一起 tile opening its place, the shop under the bar, ＋ on top from every page, 320–1280 by day and night with nothing under the bar or off the side, keyboard, reduced motion, HTML_V = the meta |
+| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
+| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, watering a pot the partner planted a moment ago before their save arrives (§8a — it waits, it is not lost), sitting together, the off-screen tag walking you to your partner, where you left |
 | `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, one house save, each person's own progress slot (the partner reads, can't write), another couple, direct Postgres |
 | `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); the garden is the same on both; the second device isn't taken for the partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |

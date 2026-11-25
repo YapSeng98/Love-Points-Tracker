@@ -174,6 +174,21 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok((await st(B.p)).pots.length === 3, 'the bigger garden has 3 pots');
   await A.p.screenshot({ path: `${SHOTS}/hmlive_a.png` }); await B.p.screenshot({ path: `${SHOTS}/hmlive_b.png` });
 
+  console.log('\n8a. Watering a pot the partner planted a moment ago, before their save reaches this phone');
+  // B2 hears A1's planting at once but can't load the save that has it (its reads are held back): the
+  // watering must wait for that save, not be dropped. home-live-test lost it one run in four before.
+  const HOLD = /functions\/v1\/game-save\?game=home/;
+  await B.p.route(HOLD, async r => { if (r.request().method() === 'GET') await sleep(3000); r.continue().catch(() => {}); });
+  await A.p.evaluate(() => HomeGame.test.act({ t: 'plant', pot: 2, seed: 'daisy' }));
+  ok(await until(B.p, () => { const q = HomeGame.test.state().pots[2]; return !!q && q.seed === 'daisy'; }, null, 8000), 'B2 sees the new daisy at once (heard over the channel, not loaded yet)');
+  const id8 = (await st(B.p)).pots[2].id;
+  ok(await B.p.evaluate((id) => HomeGame.test.act({ t: 'water', pot: 2, id }), id8), 'B2 waters it straight away');
+  await sleep(5000); await B.p.unroute(HOLD);
+  await idle(A.p); await idle(B.p); await sleep(2000);
+  const p8 = (await call('/game-save?game=home', { token: A_T })).data.data.pots[2];
+  ok(!!p8 && p8.seed === 'daisy' && !!(((p8.w || {})[TODAY] || 0) & 2), `the watering waited for the planting's save and was kept (bits ${p8 && (p8.w || {})[TODAY]})`);
+  ok(!(await st(B.p)).pending, '…and nothing is left unsaved on B2');
+
   console.log('\n8b. Sitting on the sofa together');
   await A.p.click('[data-a="sit"]'); await idle(A.p);
   ok(await until(B.p, () => document.querySelector('.hm-ch:not(.hm-me)').classList.contains('hm-sit'), null, 8000), 'A1 sits down, and B2\'s phone shows A1 on the sofa');
