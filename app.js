@@ -2918,6 +2918,8 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
     const online = !!(S.usingSN && S.matchId && S.apiKey);
     return {
       me: _me() === 'char2' ? 'yy' : 'cs',
+      // the house says when what stands on its floors is in: the app behind goes still in the frame after that
+      ready: () => requestAnimationFrame(_gameCover),
       names: { cs: charDisplayName('char1'), yy: charDisplayName('char2') },
       online, matchId: S.matchId || '',
       pet,
@@ -2971,8 +2973,10 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       closeGames();
       if (document.getElementById('pet-page')?.classList.contains('open')) closePetHome();
       window.HomeGame.open(_homeApi());
-      // the app behind goes still a frame later, so the house's first paint doesn't wait on restyling it
-      requestAnimationFrame(_gameCover);
+      // the app behind goes still once the house is in (api.ready, a frame after its furniture): restyling the ~3000
+      // elements behind it in the same frame as building the house made one 120–170 ms frame on a slowed phone.
+      // (and in any case a moment later, should the house be closed before it got that far)
+      setTimeout(_gameCover, 700);
     } catch (e) { showToast('家没打开，网络好像不太好，再试一次'); }
   }
   function closeHome() { if (window.HomeGame) window.HomeGame.close(); }

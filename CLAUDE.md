@@ -1527,6 +1527,16 @@ real for the 我们的家」.
   the list under the house is drawn two frames later, the size comes from the
   ResizeObserver instead of a forced layout, and the app behind goes still
   (`game-cover`) a frame after the house paints.
+- **Opening comes in stages** (2026-11-27), because smooth-test's 「我们的家 opens」 had sat on its 120 ms line since
+  v-79 and failed on and off (worst frame at 4× CPU: v-84 85–138 ms over twelve runs, v-85 110–167). A trace with every frame marked showed two
+  frames doing too much: the first one (the buttons, the house, laid out at no size and then again at its real size
+  when the ResizeObserver answered) and the next one (the furniture, plus the restyle of the ~3000 elements behind the
+  house that `game-cover` causes — 50–60 ms on its own). Now: (1) the buttons, and the size — the house's layers
+  stay `display:none` (`hm-unsized`) until `onResize` knows it, so they are styled and laid out once; (2) the house
+  and the sky; (3) the furniture, and then `api.ready()`; (4) the app behind goes still (`requestAnimationFrame(
+  _gameCover)` in `ready`, with a 700 ms fallback). The house fades in over 0.3 s, so nobody sees it arrive in parts.
+  Worst frame 90–95 ms, three runs out of three. About a third of the first frame's layout is first-use fonts (the
+  800/900 CJK weights and emoji): warming them first took it from 33 to 21 ms — not done, noted.
 
 ### Progress that follows you to every device (game-save 'play')
 

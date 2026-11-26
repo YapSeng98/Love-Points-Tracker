@@ -853,7 +853,7 @@ function renderHouse(opening) {
   UI.house.innerHTML = h + fd.h;
   clockTick();
   cancelAnimationFrame(G.propsRaf); G.propsRaf = 0;
-  if (opening) { G.propsRaf = requestAnimationFrame(() => { G.propsRaf = 0; if (G.open && UI.props) renderProps(L, room, fd); }); return; }
+  if (opening) { G.propsRaf = requestAnimationFrame(() => { G.propsRaf = 0; if (G.open && UI.props) { renderProps(L, room, fd); try { if (API && API.ready) API.ready(); } catch (e) {} } }); return; }
   renderProps(L, room, fd);
 }
 // what stands on the floors: the 客厅's furniture, the house's own, the garden's things, the balcony's rail, the pots
@@ -1699,6 +1699,7 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
 .hm-band{position:absolute;left:0;top:0;width:100px;height:75px}
 .hm-lay{position:absolute;inset:0;will-change:transform}
 .hm-abs{position:absolute}
+.hm-unsized .hm-band,.hm-unsized .hm-ground,.hm-unsized .hm-sky{display:none}
 .hm-sun{position:absolute;right:8%;top:10%;width:clamp(34px,10vmin,64px);aspect-ratio:1;border-radius:50%;background:#FFE58F;box-shadow:0 0 0 10px rgba(255,229,143,.35)}
 .hm-dusk .hm-sun{top:46%;background:#FFB36B;box-shadow:0 0 0 10px rgba(255,170,100,.3)}
 .hm-night .hm-sun{background:#F4EDCA;box-shadow:0 0 0 8px rgba(244,237,202,.15)}
@@ -2035,7 +2036,9 @@ function later(fn, ms) { const t = setTimeout(() => { G.timers = G.timers.filter
 function build() {
   css();
   const root = document.createElement('div');
-  root.className = 'hm-root'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', '我们的家');
+  // hm-unsized: the house's drawing stays out of layout until onResize knows its size (the ResizeObserver's first
+  // call, in the same frame) — otherwise the first frame styled and laid it out at no size, then all over again
+  root.className = 'hm-root hm-unsized'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', '我们的家');
   root.innerHTML = `
     <div class="hm-scene" data-r="scene" tabindex="0" aria-label="我们的家：点地板走过去，点花盆浇水；电脑上可以用方向键">
       <div class="hm-sky" data-r="sky"></div>
@@ -2156,6 +2159,7 @@ function onResize() {
   UI.root.style.setProperty('--hm-u', s.toFixed(3) + 'px');
   UI.todo.style.top = short ? '' : (menuB + 4).toFixed(0) + 'px';
   UI.toast.style.top = (top + 2).toFixed(0) + 'px';
+  UI.root.classList.remove('hm-unsized');
   sizeMini();
   G.edge = null;
 }
@@ -2268,7 +2272,13 @@ function tickDay(force, opening) {
       for (const f of Object.keys(FESTS)) sc.classList.toggle('hm-f-' + f, f === fest);
       for (const s of ['spring', 'summer', 'autumn', 'winter']) sc.classList.toggle('hm-s-' + s, s === season);
     }
-    renderHouse(opening); renderSky(); renderPanel();
+    // Opening is staged a frame at a time — the house fades in over 0.3 s, so nobody sees it arrive in parts, and on a
+    // slow phone no single frame has to do it all: (1) the buttons, and the house's size from the ResizeObserver;
+    // (2) the house and the sky; (3) what stands on the floors; then the app behind goes still (API.ready). Done in one
+    // or two frames, the first one ran to 110–170 ms at 4× CPU (smooth-test).
+    if (opening) { cancelAnimationFrame(G.houseRaf); G.houseRaf = requestAnimationFrame(() => { G.houseRaf = 0; if (!G.open) return; renderHouse(true); renderSky(); }); }
+    else { renderHouse(); renderSky(); }
+    renderPanel();
   }
 }
 function open(api) {
@@ -2321,7 +2331,7 @@ function close(quiet) {
   G.open = false;
   closeSheet();
   if (G.raf) cancelAnimationFrame(G.raf); G.raf = 0;
-  cancelAnimationFrame(G.propsRaf); G.propsRaf = 0;
+  cancelAnimationFrame(G.propsRaf); G.propsRaf = 0; cancelAnimationFrame(G.houseRaf); G.houseRaf = 0;
   clearInterval(G.beat); clearInterval(G.poll); clearInterval(G.tick); clearTimeout(G.helloT);
   for (const t of G.timers) clearTimeout(t); G.timers = [];
   try { G.ro && G.ro.disconnect(); } catch (e) {}
