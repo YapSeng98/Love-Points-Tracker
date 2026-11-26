@@ -4,7 +4,7 @@
 //   node supabase/cleanup-test-accounts.mjs --yes      (it leaves the couple behind)
 //
 // What has to hold between two phones: each sees the other arrive and leave, walk (tap and hold) and
-// wave and hug; the garden is ONE garden — a planting, a watering, a flower picked on one phone is on
+// wave; 💞 互动 — a hug, a kiss, a high five — plays on both, and hand in hand the one who walks leads on both phones; the garden is ONE garden — a planting, a watering, a flower picked on one phone is on
 // the other within a moment and in the saved game; two phones acting on the same pot at the same
 // instant end in one agreed result (both waterings count, one flower is picked once, one seed wins a
 // pot) with the loser told why; an upgrade bought on one phone builds the house on both; the pet EXP
@@ -101,17 +101,45 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   ok(sa5.cs.y > sa4.cs.y + 3 && sa5.cs.x < sa4.cs.x - 4 && Math.abs(sa5.cs.x - sb5.cs.x) < 2 && Math.abs(sa5.cs.y - sb5.cs.y) < 1, `out and left at once: B2's phone walked it too (${sa5.cs.x.toFixed(1)},${sa5.cs.y.toFixed(1)} / ${sb5.cs.x.toFixed(1)},${sb5.cs.y.toFixed(1)})`);
   ok(sb3.lead === 'peer', 'the pet follows whoever moved last — on B2\'s phone that is A1');
 
-  console.log('\n3. Waving and hugging');
+  console.log('\n3. Waving, and 💞 互动 on both phones');
   await A.p.click('[data-a="wave"]'); await sleep(900);
   ok(/A1 在跟你招手/.test(await toastOf(B.p)), `B2 sees the wave: 「${await toastOf(B.p)}」`);
   // B2 walks to A1; both phones then have them side by side
   await B.p.evaluate(() => { const s = HomeGame.test.state(); HomeGame.test.walk(s.cs.x + 5, 0, s.cs.y); });
   await idle(B.p); await sleep(1500);
   ok(await until(A.p, () => HomeGame.test.state().near, null, 6000), 'A1\'s phone sees B2 come and stand next to A1');
-  ok(await A.p.evaluate(() => !document.querySelector('[data-a="hug"]').disabled), '…so 抱抱 is on');
-  await A.p.click('[data-a="hug"]'); await sleep(250);
-  const hugA = await A.p.evaluate(() => document.querySelectorAll('.hm-ch.hm-hug').length), hugB = await until(B.p, () => document.querySelectorAll('.hm-ch.hm-hug').length === 2, null, 3000);
-  ok(hugA === 2 && hugB, 'the hug plays on both phones');
+  ok(await A.p.evaluate(() => !document.querySelector('[data-r="hug"]').disabled), '…so 💞 互动 is on');
+  await A.p.click('[data-r="hug"]'); await sleep(150);
+  ok(await A.p.evaluate(() => !document.querySelector('.hm-acts').hidden && document.querySelectorAll('.hm-acts .hm-actb').length === 4), '💞 opens four things to do together');
+  await A.p.click('.hm-actb[data-act="hug"]');
+  const hugA = await until(A.p, () => document.querySelectorAll('.hm-ch.hm-hug').length === 2, null, 4000), hugB = await until(B.p, () => document.querySelectorAll('.hm-ch.hm-hug').length === 2, null, 5000);
+  ok(hugA && hugB, '抱抱: A1 walks up to B2 and the hug plays on both phones');
+  const [ha, hb] = [await st(A.p), await st(B.p)];
+  ok(Math.abs(ha.cs.x - hb.cs.x) < 1 && Math.abs((ha.yy.x - ha.cs.x) - (hb.yy.x - hb.cs.x)) < 1, `…standing in the same place on both (${(ha.yy.x - ha.cs.x).toFixed(1)} / ${(hb.yy.x - hb.cs.x).toFixed(1)} apart)`);
+  await sleep(1900);
+  // the other way round: B2 kisses A1, and on both phones it is A1 who blushes
+  await B.p.click('[data-r="hug"]'); await sleep(150); await B.p.click('.hm-actb[data-act="kiss"]');
+  const kissB = await until(B.p, () => document.querySelectorAll('.hm-ch.hm-kiss').length === 2, null, 4000), kissA = await until(A.p, () => /hm-blush/.test(HomeGame.test.classes().cs) && document.querySelectorAll('.hm-ch.hm-kiss').length === 2, null, 5000);
+  ok(kissA && kissB && /hm-blush/.test((await B.p.evaluate(() => HomeGame.test.classes())).cs), '亲亲 from B2: it plays on both, and on both A1 blushes');
+  await sleep(1800);
+  // 牵手: A1 walks off and B2 comes along on both phones; B2 lets go from B2's phone
+  await A.p.click('[data-r="hug"]'); await sleep(150); await A.p.click('.hm-actb[data-act="hand"]');
+  const handA = await until(A.p, () => !!HomeGame.test.hand(), null, 4000), handB = await until(B.p, () => !!HomeGame.test.hand(), null, 5000);
+  ok(handA && handB, '牵手 from A1: holding hands on both phones');
+  const h0 = await st(A.p);
+  await A.p.evaluate((x) => HomeGame.test.walk(x, 0), h0.cs.x - 12);
+  await idle(A.p); await sleep(2500);
+  const [ka, kb] = [await st(A.p), await st(B.p)];
+  ok(Math.abs(ka.cs.x - (h0.cs.x - 12)) < 1 && Math.abs(kb.cs.x - ka.cs.x) < 1.5 && Math.abs(kb.yy.x - ka.yy.x) < 1.5 && Math.abs(Math.abs(kb.yy.x - kb.cs.x) - 3.6) < 1, `A1 walks off: B2 comes along at A1's side on both phones (A1 ${ka.cs.x.toFixed(1)}/${kb.cs.x.toFixed(1)}, B2 ${ka.yy.x.toFixed(1)}/${kb.yy.x.toFixed(1)})`);
+  // then B2 sets off the other way: B2 leads now, and A1 comes along — on both phones
+  const h1 = await st(B.p);
+  await B.p.evaluate((x) => HomeGame.test.walk(x, 0), h1.yy.x + 14);
+  await idle(B.p); await sleep(2500);
+  const [la, lb] = [await st(A.p), await st(B.p)];
+  ok(Math.abs(lb.yy.x - (h1.yy.x + 14)) < 1 && Math.abs(la.yy.x - lb.yy.x) < 1.5 && Math.abs(la.cs.x - lb.cs.x) < 1.5 && Math.abs(Math.abs(la.yy.x - la.cs.x) - 3.6) < 1 && !!(await A.p.evaluate(() => HomeGame.test.hand())), `then B2 sets off the other way: B2 leads and A1 comes along, on both phones (A1 ${la.cs.x.toFixed(1)}/${lb.cs.x.toFixed(1)}, B2 ${la.yy.x.toFixed(1)}/${lb.yy.x.toFixed(1)})`);
+  await B.p.click('[data-r="hug"]'); await sleep(150); await B.p.click('.hm-actb[data-act="hand"]');
+  const goneB = await until(B.p, () => !HomeGame.test.hand(), null, 3000), goneA = await until(A.p, () => !HomeGame.test.hand() && !document.querySelector('.hm-ch.hm-holding'), null, 5000);
+  ok(goneA && goneB, '放手 on B2\'s phone lets go on both');
 
   console.log('\n4. One garden: plant on one phone, it is planted on both');
   await toGarden(A.p); await idle(A.p);

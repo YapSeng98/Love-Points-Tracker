@@ -12,6 +12,20 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-26 (late) — 我们的家: doing things together, and a house that feels lived in
+
+Next to each other, a new 💞 互动 button offers 抱抱, 亲亲, 击掌 and 牵手:
+you walk up to your partner, turn to face each other, and it plays on both
+phones. Holding hands, whoever walks leads and the other walks alongside, on
+both phones, until one of you lets go (or you take the stairs). Two people
+standing together turn to each other, and their name tags no longer overlap.
+
+You now walk around the sofa, the beds, the tables and the pots instead of
+through them. The rooms have a bookshelf, a fridge, a plant and a wall clock
+that keeps the phone's time; the garden has a flower bed along the fence,
+grass, birds by day, fireflies at night, butterflies in spring and summer, and
+a tree that sways. None of it moves with reduced motion on.
+
 ## 2026-11-26 (night) — 🛠️ 关卡编辑: make a 一起回家 level for each other
 
 A new card on 一起回家's screen lets you build a level of your own on a grid —

@@ -9,7 +9,10 @@
 // stick, the keys, walls that are wall at the back and a doorway at the front, the stairs, further back drawn smaller
 // and behind the furniture, a view that follows you through a bigger house), the upgrades and festival pieces paid from the one wallet, the
 // festivals arriving by date, a save whose answer is lost on the way back, actions kept when the
-// network is down, and the screen at 360–1280 in both themes and with reduced motion.
+// network is down, and the screen at 360–1280 in both themes and with reduced motion. And the two of you together
+// (§12): 💞 互动 — 抱抱 亲亲 击掌 牵手, walking up to each other first and facing each other — hand in hand with whoever
+// walks leading, walking round the furniture instead of through it, and the house's own life (birds by day,
+// fireflies at night, butterflies in spring, a clock that keeps the phone's time, none of it under reduced motion).
 // Two phones are tools/home-live-test.js. BROWSER=webkit runs it all in WebKit (the iPhone's engine).
 
 const { chromium, webkit } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
@@ -266,7 +269,11 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     // a tap from the back of one room to the back of another goes round by the doorways
     await p.evaluate(([y]) => HomeGame.test.teleport(60, 0, y), [B0 + .4]); await sleep(150);
     const r = await p.evaluate(([y]) => HomeGame.test.route(120, y, 0), [B0 + .4]);
-    ok(r.length === 3 && r[0].y >= PY && r[1].y >= PY && Math.abs(r[2].y - (B0 + .4)) < .01 && r[2].x === 120, `the back of the 客厅 → the back of the kitchen: forward to the doorways, along, and back (${r.map(q => q.x.toFixed(0) + ',' + q.y.toFixed(0)).join(' → ')})`);
+    // (round the sofa and the kitchen table on the way: what matters is out through the front, every wall crossed in its doorway)
+    const wl = (await p.evaluate(() => HomeGame.test.geo().walls[0])).filter(w => w > 60 && w < 120), pts = [{ x: 60, y: B0 + .4 }, ...r], cross = [];
+    for (let i = 1; i < pts.length; i++) for (const w of wl) { const a = pts[i - 1], b = pts[i]; if ((a.x - w) * (b.x - w) < 0) cross.push(a.y + (b.y - a.y) * (w - a.x) / (b.x - a.x)); }
+    const end = r[r.length - 1], dup = r.some((q, i) => i && Math.hypot(q.x - r[i - 1].x, q.y - r[i - 1].y) < .3);
+    ok(r[0].y >= PY && cross.length === wl.length && cross.every(y => y >= PY - .01) && Math.abs(end.y - (B0 + .4)) < .01 && end.x === 120 && !dup, `the back of the 客厅 → the back of the kitchen: forward to the doorways, along, and back (${r.map(q => q.x.toFixed(0) + ',' + q.y.toFixed(0)).join(' → ')})`);
     await p.evaluate(([y]) => HomeGame.test.walk(120, 0, y), [B0 + .4]); await idle(p);
     s = await st(p);
     ok(s.cs.where === '厨房' && Math.abs(s.cs.x - 120) < .5 && Math.abs(s.cs.y - (B0 + .4)) < .5, `…and gets there (${s.cs.where})`);
@@ -475,7 +482,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
   for (const [w, h, lv] of [[280, 653, 3], [320, 568, 3], [360, 740, 1], [390, 844, 1], [430, 932, 1], [667, 375, 3], [844, 390, 3], [820, 1180, 2], [1280, 800, 3], [1920, 1080, 1]]) for (const theme of ['light', 'dark']) {
     const { p, ctx, errs } = await open(browser, { w, h, theme, data: seed({ owned: lv === 3 ? ['hm_lv2', 'hm_lv3'] : lv === 2 ? ['hm_lv2'] : [] }), hinted: false });
     await enter(p);
-    if (w < 400) { await p.evaluate(() => { const g = document.querySelector('[data-a="hug"]'); g.hidden = false; g.disabled = false; document.querySelector('[data-a="sit"]').hidden = false; }); await sleep(100); }
+    if (w < 400) { await p.evaluate(() => { const g = document.querySelector('[data-r="hug"]'); g.hidden = false; g.disabled = false; document.querySelector('[data-a="sit"]').hidden = false; }); await sleep(100); }
     const m = await p.evaluate(() => {
       const root = document.querySelector('.hm-root'), rr = root.getBoundingClientRect(), band = document.querySelector('.hm-band').getBoundingClientRect();
       const st = HomeGame.test.state(), vis = (e) => e && e.offsetParent && getComputedStyle(e).visibility !== 'hidden';
@@ -577,7 +584,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     // the buttons at the bottom
     await p.click('[data-a="wave"]'); await sleep(150);
     ok(await p.evaluate(() => [...document.querySelectorAll('.hm-pop')].some(e => e.textContent === '👋')), '👋 招手 waves');
-    ok(await p.evaluate(() => { const b = document.querySelector('[data-a="hug"]'); return b.disabled && b.hidden; }), '🤗 抱抱 appears only when someone is next to you');
+    ok(await p.evaluate(() => { const b = document.querySelector('[data-r="hug"]'); return b.disabled && b.hidden; }), '💞 互动 appears only when someone is next to you');
     ok(await p.evaluate(() => document.querySelector('[data-r="stairs"]').hidden), 'no stairs button in a one-storey house');
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
     await ctx.close();
@@ -675,6 +682,138 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     const { p, ctx } = await open(browser, { mobile: !WEBKIT });
     await enter(p);
     ok(await p.evaluate(() => [...document.querySelectorAll('.hm-root [data-key]')].every(b => getComputedStyle(b, '::after').content === 'none')), 'a touch screen shows no key labels');
+    await ctx.close();
+  }
+  }
+
+  if (want(12)) {
+  console.log('\n12. The two of you: 💞 互动, hand in hand, round the furniture — and a house that lives');
+  {
+    const { p, ctx, errs } = await open(browser, { w: 390, h: 844 });
+    await enter(p);
+    const S = () => st(p), C = () => p.evaluate(() => HomeGame.test.classes());
+    const btn = () => p.evaluate(() => { const b = document.querySelector('[data-r="hug"]'); return !b.hidden && !b.disabled; });
+    const Y = 88.5;   // in front of the garden's pots, clear of everything
+    ok(!(await btn()), 'nobody home: no 💞 互动');
+    await p.evaluate(() => HomeGame.test.interact('hug')); await sleep(150);
+    ok(/不在家/.test(await toast(p)), `…and asking anyway says why: 「${await toast(p)}」`);
+    await p.evaluate((y) => { HomeGame.test.teleport(10, 0, y); HomeGame.test.fakePeer(30, y); }, Y); await sleep(250);
+    ok(!(await btn()), 'YY home but across the garden: still no 💞');
+    await p.evaluate(() => HomeGame.test.interact('kiss')); await sleep(150);
+    ok(/走到 YY 身边/.test(await toast(p)), `…asking says to go to her first: 「${await toast(p)}」`);
+    await p.evaluate((y) => HomeGame.test.teleport(24, 0, y), Y); await sleep(300);
+    ok(await btn(), 'next to her: 💞 互动 is there');
+    // the menu: four things, big enough for a thumb, closed again by its own button
+    await p.click('[data-r="hug"]'); await sleep(200);
+    const menu = await p.evaluate(() => { const m = document.querySelector('.hm-acts'); return { open: !m.hidden, n: m.querySelectorAll('.hm-actb').length, words: [...m.querySelectorAll('.hm-actb span')].map(e => e.textContent).join(' '), small: [...m.querySelectorAll('.hm-actb')].filter(b => b.getBoundingClientRect().height < 40).length, exp: document.querySelector('[data-r="hug"]').getAttribute('aria-expanded') }; });
+    ok(menu.open && menu.n === 4 && menu.words === '抱抱 亲亲 击掌 牵手' && !menu.small && menu.exp === 'true', `💞 opens 「${menu.words}」, each ≥ 40px tall`);
+    await p.click('[data-r="hug"]'); await sleep(150);
+    ok(await p.evaluate(() => document.querySelector('.hm-acts').hidden), '…and its own button closes it again');
+    // 抱抱: CS walks up to her, they face each other and lean in, hearts
+    await p.click('[data-r="hug"]'); await sleep(150);
+    await p.click('.hm-actb[data-act="hug"]');
+    const hugged = await p.waitForFunction(() => document.querySelectorAll('.hm-ch.hm-hug').length === 2, null, { timeout: 5000 }).then(() => true, () => false);
+    let s = await S(), c = await C();
+    ok(hugged && Math.abs(s.yy.x - s.cs.x - 3.2) < .5 && Math.abs(s.cs.y - s.yy.y) < .3, `抱抱: CS walks up to YY first and they hug (${(s.yy.x - s.cs.x).toFixed(1)} apart)`);
+    ok(!/hm-flip/.test(c.cs) && /hm-flip/.test(c.yy) && /hm-happy/.test(c.cs) && /hm-happy/.test(c.yy), 'they turn to face each other, with happy eyes');
+    ok(await p.evaluate(() => [...document.querySelectorAll('.hm-say')].some(e => e.textContent === '抱抱～') && document.querySelectorAll('.hm-heart').length > 0), '「抱抱～」 over CS, and hearts');
+    await sleep(1900);
+    ok(!/hm-hug/.test((await C()).cs), '…and it ends by itself');
+    // 亲亲: she blushes
+    await p.click('[data-r="hug"]'); await sleep(150); await p.click('.hm-actb[data-act="kiss"]');
+    const kissed = await p.waitForFunction(() => document.querySelectorAll('.hm-ch.hm-kiss').length === 2, null, { timeout: 4000 }).then(() => true, () => false);
+    c = await C(); s = await S();
+    ok(kissed && /hm-blush/.test(c.yy) && !/hm-blush/.test(c.cs) && Math.abs(s.yy.x - s.cs.x - 2.8) < .5, `亲亲: closer still (${(s.yy.x - s.cs.x).toFixed(1)}), and YY blushes`);
+    await sleep(1700);
+    // 击掌: an arm's length, and a 啪
+    await p.click('[data-r="hug"]'); await sleep(150); await p.click('.hm-actb[data-act="five"]');
+    const fived = await p.waitForFunction(() => document.querySelectorAll('.hm-ch.hm-five').length === 2, null, { timeout: 4000 }).then(() => true, () => false);
+    await sleep(350); s = await S();
+    ok(fived && Math.abs(s.yy.x - s.cs.x - 4.4) < .5 && await p.evaluate(() => [...document.querySelectorAll('.hm-say')].some(e => e.textContent === '啪！')), `击掌: an arm's length apart (${(s.yy.x - s.cs.x).toFixed(1)}), and YY says 啪！`);
+    await sleep(900);
+    // 牵手: whoever walks leads, the other walks beside them
+    await p.click('[data-r="hug"]'); await sleep(150); await p.click('.hm-actb[data-act="hand"]');
+    const held = await p.waitForFunction(() => !!HomeGame.test.hand(), null, { timeout: 4000 }).then(() => true, () => false);
+    c = await C();
+    ok(held && /hm-holding/.test(c.cs) && /hm-holding/.test(c.yy), '牵手: they hold hands');
+    ok(await p.evaluate(() => /放手/.test(document.querySelector('.hm-actb[data-act="hand"]').textContent)), '…and 牵手 in the menu now says 放手');
+    await p.evaluate((y) => HomeGame.test.walk(12, 0, y + 1.5), Y);
+    await p.waitForFunction(() => { const s = HomeGame.test.state(); return !s.cs.path && !s.yy.path; }, null, { timeout: 8000 }).catch(() => {});
+    await sleep(400); s = await S();
+    ok(Math.abs(s.yy.x - (s.cs.x + 3.6)) < .8 && Math.abs(s.yy.y - s.cs.y) < .6 && !!(await p.evaluate(() => HomeGame.test.hand())), `CS walks off: YY comes along at CS's side, still holding hands (CS ${s.cs.x.toFixed(1)},${s.cs.y.toFixed(1)} · YY ${s.yy.x.toFixed(1)},${s.yy.y.toFixed(1)})`);
+    await p.evaluate((y) => HomeGame.test.peerWalk(30, 0, y), Y);
+    await sleep(300);
+    await p.waitForFunction(() => { const s = HomeGame.test.state(); return !s.cs.path && !s.yy.path; }, null, { timeout: 8000 }).catch(() => {});
+    await sleep(400); s = await S();
+    ok(Math.abs(s.cs.x - (s.yy.x - 3.6)) < .8 && Math.abs(s.yy.x - 30) < .6, `YY leads the other way: CS goes with her, on her left (CS ${s.cs.x.toFixed(1)} · YY ${s.yy.x.toFixed(1)})`);
+    await p.keyboard.press('l'); await sleep(200);
+    c = await C();
+    ok(!(await p.evaluate(() => HomeGame.test.hand())) && !/hm-holding/.test(c.cs + c.yy), 'L (or 放手) lets go');
+    // name tags of two people side by side don't sit on each other
+    c = await C();
+    ok(/hm-tagup/.test(s.yy.x > s.cs.x ? c.yy : c.cs) && !/hm-tagup/.test(s.yy.x > s.cs.x ? c.cs : c.yy), 'side by side, the right-hand name tag moves up out of the way');
+    ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
+    await ctx.close();
+  }
+  {
+    // the two-storey house on a laptop: furniture to walk round, the stairs part held hands, the house's own life
+    const { p, ctx, errs } = await open(browser, { w: 1280, h: 800, touch: false, when: '2026-11-25T15:00:00', data: seed({ owned: ['hm_lv2', 'hm_lv3'] }) });
+    await enter(p);
+    const S = () => st(p);
+    const obst = await p.evaluate(() => HomeGame.test.obst());
+    const kinds = [...new Set(obst.map(o => o.what))];
+    ok(['🛋️', 'bed', 'table', 'stove', 'fridge', 'shelf', 'bench', 'pot'].every(k => kinds.includes(k)), `everything standing on a floor is something to walk round: ${kinds.join(' ')}`);
+    const sofa = obst.find(o => o.what === '🛋️'), g = await p.evaluate(() => HomeGame.test.geo());
+    const cx = (sofa.x0 + sofa.x1) / 2;
+    ok(!(await p.evaluate(([f, x0, y0, x1, y1]) => HomeGame.test.clearLine(f, x0, y0, x1, y1), [0, cx, sofa.y1 + .6, cx, g.band[0][0] + .3])) && await p.evaluate(([f, x, y0, y1]) => HomeGame.test.clearLine(f, x, y0, x, y1), [0, sofa.x1 + .8, sofa.y1 + .6, g.band[0][0] + .3]), 'there is no straight line through the sofa, and there is one beside it');
+    await p.evaluate(([x, y]) => HomeGame.test.teleport(x, 0, y), [cx, sofa.y1 + .7]); await sleep(150);
+    const r = await p.evaluate(([x, y]) => HomeGame.test.route(x, y, 0), [cx, g.band[0][0] + .3]);
+    ok(r.length >= 2, `a walk to just behind the sofa goes round it (${r.map(q => q.x.toFixed(1) + ',' + q.y.toFixed(1)).join(' → ')})`);
+    await p.evaluate(([x, y]) => HomeGame.test.walk(x, 0, y), [cx, g.band[0][0] + .3]);
+    let inside = 0;
+    for (let k = 0; k < 45; k++) { await sleep(70); const c = (await S()).cs; if (c.x > sofa.x0 + .1 && c.x < sofa.x1 - .1 && c.y > sofa.y0 + .1 && c.y < sofa.y1 - .1) inside++; if (!c.path && k > 4) break; }
+    let cs = (await S()).cs;
+    ok(!inside && Math.abs(cs.y - (g.band[0][0] + .3)) < .4, `…and never through it: behind it at y ${cs.y.toFixed(1)}, 0 frames inside`);
+    await p.keyboard.down('ArrowDown'); await sleep(900); await p.keyboard.up('ArrowDown'); await sleep(250);
+    cs = (await S()).cs;
+    ok(cs.y <= sofa.y0 + .15, `↓ from behind it stops at the sofa's back (y ${cs.y.toFixed(1)} ≤ ${sofa.y0.toFixed(1)})`);
+    await p.keyboard.press('k'); await idle(p); await sleep(600);
+    ok((await S()).cs.sit >= 0, 'and sitting on it still works: K walks round and sits down');
+    await p.keyboard.press('k'); await sleep(200);
+    const t0 = await p.evaluate(() => { const t = performance.now(); for (let k = 0; k < 20; k++) HomeGame.test.route(130, 84, 0); return (performance.now() - t) / 20; });
+    ok(t0 < 8, `finding a way across the whole house takes ${t0.toFixed(2)} ms`);
+    // hand in hand up to the stairs: they let go there
+    await p.evaluate(() => { HomeGame.test.teleport(60, 0, 90); HomeGame.test.fakePeer(63.6, 90); }); await sleep(250);
+    await p.evaluate(() => HomeGame.test.interact('hand'));
+    await p.waitForFunction(() => !!HomeGame.test.hand(), null, { timeout: 4000 }).catch(() => {});
+    await p.evaluate(() => HomeGame.test.walk(70, 1)); await sleep(2500);
+    ok(!(await p.evaluate(() => HomeGame.test.hand())), 'holding hands, CS takes the stairs: they let go there');
+    await idle(p);
+    // the house's own life: birds by day, a clock that keeps the phone's time
+    let life = await p.evaluate(() => ({ birds: document.querySelectorAll('.hm-bird').length, flies: document.querySelectorAll('.hm-fly').length, clocks: [...document.querySelectorAll('.hm-clock')].map(c => [...c.children].map(h => Math.round(parseFloat(h.style.transform.slice(7)))).join(' ')), tree: getComputedStyle(document.querySelector('.hm-tree svg')).animationName, svg: document.querySelectorAll('.hm-svg *').length }));
+    ok(life.birds === 3 && !life.flies, `by day: birds cross the sky, no fireflies (${life.birds} / ${life.flies})`);
+    ok(life.clocks.length === 1 && life.clocks[0] === '90 0', `a clock on the upstairs wall says 3 o'clock (hands at ${life.clocks[0]}°)`);
+    ok(life.tree === 'hm-breeze', 'the garden tree moves in the breeze');
+    ok(life.svg < 260, `the whole house is still one light drawing (${life.svg} elements)`);
+    await at(p, '2026-11-25T15:40:00');
+    life = await p.evaluate(() => [...document.querySelectorAll('.hm-clock')].map(c => [...c.children].map(h => Math.round(parseFloat(h.style.transform.slice(7)))).join(' ')));
+    ok(life[0] === '110 240', `forty minutes later it says 3:40 (hands at ${life[0]}°)`);
+    await at(p, '2026-11-25T21:30:00');
+    life = await p.evaluate(() => ({ night: document.documentElement.dataset.period, birds: document.querySelectorAll('.hm-bird').length, flies: document.querySelectorAll('.hm-fly').length }));
+    ok(life.night === 'night' && !life.birds && life.flies === 8, `at night: fireflies in the garden, no birds (${life.flies} / ${life.birds})`);
+    await at(p, '2027-04-20T10:00:00');
+    life = await p.evaluate(() => ({ bf: document.querySelectorAll('.hm-bfly').length, season: HomeGame.test.state().season }));
+    ok(life.season === 'spring' && life.bf === 2, `a spring morning: butterflies by the flowers (${life.bf})`);
+    await p.screenshot({ path: `${SHOTS}/hm_life_1280.png` });
+    ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
+    await ctx.close();
+  }
+  {
+    // the small houses: a clock in 小平房's bedroom, none in 小木屋; reduced motion keeps the sky and the garden still
+    const { p, ctx } = await open(browser, { w: 820, h: 1180, data: seed({ owned: ['hm_lv2'] }), reduced: true });
+    await enter(p);
+    const life = await p.evaluate(() => ({ clocks: document.querySelectorAll('.hm-clock').length, moving: document.querySelectorAll('.hm-bird, .hm-fly, .hm-bfly').length, tree: getComputedStyle(document.querySelector('.hm-tree svg')).animationName }));
+    ok(life.clocks === 1 && !life.moving && life.tree === 'none', `小平房 has its clock; reduced motion: no birds, fireflies or butterflies, the tree still (${JSON.stringify(life)})`);
     await ctx.close();
   }
   }

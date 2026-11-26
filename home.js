@@ -52,11 +52,12 @@ function charSvg(k) {
     <ellipse cx="${cs ? 9 : 15}" cy="${cs ? 46 : 38}" rx="11" ry="${cs ? 23 : 15}" fill="${c.ear}" stroke="${c.earEdge}" stroke-width="2.6" transform="rotate(${cs ? 12 : -24} ${cs ? 9 : 15} ${cs ? 46 : 38})"/>
     <ellipse cx="${cs ? 91 : 85}" cy="${cs ? 46 : 38}" rx="11" ry="${cs ? 23 : 15}" fill="${c.ear}" stroke="${c.earEdge}" stroke-width="2.6" transform="rotate(${cs ? -12 : 24} ${cs ? 91 : 85} ${cs ? 46 : 38})"/>
     <path d="M50 8C79 8 93 31 93 59C93 86 76 100 50 100C24 100 7 86 7 59C7 31 21 8 50 8Z" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.8"/>
-    <ellipse cx="11" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(24 11 72)"/><ellipse cx="89" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(-24 89 72)"/>
+    <g class="hm-hl"><ellipse cx="11" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(24 11 72)"/></g><g class="hm-hr"><ellipse cx="89" cy="72" rx="7" ry="10" fill="url(#${id})" stroke="${c.edge}" stroke-width="2.6" transform="rotate(-24 89 72)"/></g>
     ${cs ? '<path d="M17 74Q50 88 83 74L84 82Q50 97 16 82Z" fill="#7FB2EC" stroke="#4F86C6" stroke-width="2.2" stroke-linejoin="round"/><path d="M62 86L70 100L60 97Z" fill="#7FB2EC" stroke="#4F86C6" stroke-width="2.2" stroke-linejoin="round"/>'
          : '<path d="M50 84C46 79 39 82 42 88C44 92 50 95 50 95C50 95 56 92 58 88C61 82 54 79 50 84Z" fill="#FF8FB3"/>'}
-    <ellipse cx="24" cy="60" rx="8" ry="5" fill="#FF9CB8" opacity=".55"/><ellipse cx="76" cy="60" rx="8" ry="5" fill="#FF9CB8" opacity=".55"/>
-    <circle cx="34" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="66" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="35.2" cy="48.8" r="1.2" fill="#fff"/><circle cx="67.2" cy="48.8" r="1.2" fill="#fff"/>
+    <g class="hm-cheek"><ellipse cx="24" cy="60" rx="8" ry="5" fill="#FF9CB8"/><ellipse cx="76" cy="60" rx="8" ry="5" fill="#FF9CB8"/></g>
+    <g class="hm-eyes"><circle cx="34" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="66" cy="50" r="3.6" fill="#3A2F3C"/><circle cx="35.2" cy="48.8" r="1.2" fill="#fff"/><circle cx="67.2" cy="48.8" r="1.2" fill="#fff"/></g>
+    <path class="hm-joyeyes" d="M29 51.5Q34 45.5 39 51.5M61 51.5Q66 45.5 71 51.5" fill="none" stroke="#3A2F3C" stroke-width="2.6" stroke-linecap="round"/>
     <path d="M45 57Q47.5 60 50 57Q52.5 60 55 57" fill="none" stroke="#3A2F3C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     ${cs ? '' : '<path d="M62 14L47 6L49 23Z M62 14L77 7L74 24Z" fill="#FF8FB3" stroke="#D9558C" stroke-width="2" stroke-linejoin="round"/><circle cx="62" cy="14.5" r="5" fill="#FFB3CB" stroke="#D9558C" stroke-width="2"/>'}
     </g></g></svg>`;
@@ -72,6 +73,9 @@ const ART = {
   stove: `${SH}<rect x="14" y="40" width="72" height="50" rx="6" fill="#EEF2F7" stroke="#9AA6B8" stroke-width="3"/><rect x="22" y="58" width="56" height="26" rx="4" fill="#C9D3E2" stroke="#9AA6B8" stroke-width="2.5"/><ellipse cx="50" cy="36" rx="20" ry="6" fill="#E07A5F" stroke="#B5523A" stroke-width="2.5"/><path d="M42 26q4-8 0-14M52 26q4-8 0-14" stroke="#C9D3E2" stroke-width="3" fill="none" stroke-linecap="round"/>`,
   table: `${SH}<rect x="10" y="50" width="80" height="10" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="18" y="58" width="7" height="32" fill="#B98A5E"/><rect x="75" y="58" width="7" height="32" fill="#B98A5E"/><path d="M44 50h12l-2-16h-8z" fill="#BFE3F5" stroke="#8FB9D0" stroke-width="2"/><circle cx="50" cy="28" r="7" fill="#FF8FB3"/><circle cx="50" cy="28" r="3" fill="#FFE27A"/>`,
   pethouse: `${SH}<rect x="16" y="44" width="68" height="46" rx="4" fill="#F2C08E" stroke="#B98A5E" stroke-width="3"/><path d="M8 48L50 14L92 48Z" fill="#7FB2EC" stroke="#5F8CC8" stroke-width="3" stroke-linejoin="round"/><path d="M38 90V70a12 12 0 0124 0V90Z" fill="#6B4A3A"/>`,
+  fridge: `${SH}<rect x="24" y="8" width="52" height="84" rx="8" fill="#EEF4F8" stroke="#9FB3C3" stroke-width="3"/><path d="M24 40H76" stroke="#9FB3C3" stroke-width="3"/><rect x="65" y="15" width="4" height="17" rx="2" fill="#9FB3C3"/><rect x="65" y="47" width="4" height="24" rx="2" fill="#9FB3C3"/><circle cx="37" cy="25" r="4.5" fill="#FF8FB3"/><rect x="33" y="52" width="15" height="10" rx="2" fill="#FFD75E"/><path d="M31 14V33" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/>`,
+  shelf: `${SH}<rect x="14" y="12" width="72" height="80" rx="4" fill="#C99B74" stroke="#9A6F4A" stroke-width="3"/><rect x="20" y="18" width="60" height="21" fill="#A97A50"/><rect x="20" y="45" width="60" height="21" fill="#A97A50"/><rect x="20" y="72" width="60" height="14" fill="#A97A50"/><rect x="23" y="22" width="6" height="17" fill="#7FB2EC"/><rect x="30" y="20" width="6" height="19" fill="#FF8FB3"/><rect x="37" y="24" width="5" height="15" fill="#FFD75E"/><rect x="45" y="21" width="7" height="18" fill="#8FD19E" transform="rotate(8 48 30)"/><rect x="24" y="49" width="7" height="17" fill="#C69CFF"/><rect x="32" y="51" width="6" height="15" fill="#FF9E6B"/><circle cx="64" cy="58" r="7" fill="#6FBF73"/><rect x="60" y="58" width="8" height="8" fill="#E58A5C"/><rect x="40" y="76" width="22" height="10" rx="2" fill="#FFF6EA"/><path d="M18 16V88" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>`,
+  plant: `${SH}<ellipse cx="38" cy="40" rx="9" ry="20" fill="#5DB565" stroke="#3F8F4F" stroke-width="3" transform="rotate(-24 38 40)"/><ellipse cx="62" cy="38" rx="9" ry="22" fill="#6CC274" stroke="#3F8F4F" stroke-width="3" transform="rotate(20 62 38)"/><ellipse cx="50" cy="32" rx="9" ry="24" fill="#84CC84" stroke="#3F8F4F" stroke-width="3"/><path d="M34 62H66L61 92H39Z" fill="#E58A5C" stroke="#B9653C" stroke-width="3" stroke-linejoin="round"/><rect x="31" y="58" width="38" height="8" rx="3" fill="#F2A275" stroke="#B9653C" stroke-width="3"/><path d="M45 26q3 -10 6 0" stroke="#fff" stroke-width="2.5" fill="none" opacity=".7"/>`,
   bench: `${SH}<rect x="8" y="46" width="84" height="10" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="8" y="30" width="84" height="9" rx="4" fill="#D6AE86" stroke="#9A6F4A" stroke-width="3"/><rect x="16" y="54" width="7" height="36" fill="#9A6F4A"/><rect x="77" y="54" width="7" height="36" fill="#9A6F4A"/>`,
 };
 const art = (k) => `<svg viewBox="0 0 100 100" aria-hidden="true">${ART[k]}</svg>`;
@@ -147,19 +151,19 @@ const LVS = {
        things: [], pots: [[13, G0], [26, G0]], garden_things: [['tree', 6, 80, 9]] },
   2: { name: '小平房', world: 132, garden: 40,
        floors: [{ back: 76, front: 92 }],
-       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, top: 46, f: 0 }, { id: 'bed', n: '卧室', x0: 92, x1: 128, top: 46, f: 0, win: [.5, 7, 8] }],
+       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, top: 46, f: 0 }, { id: 'bed', n: '卧室', x0: 92, x1: 128, top: 46, f: 0, win: [.5, 7, 8], clock: .84 }],
        roof: [36, 132, 20, 46], chim: [118, 4, 9],
-       things: [['bed', 111, 81, 15], ['bear', 98.5, 80.5, 4.5], ['lamp', 124, 80, 4]],
+       things: [['shelf', 101, 79.2, 10], ['bed', 113, 81, 15], ['bear', 121.2, 81.6, 4], ['lamp', 124, 80, 4], ['plant', 98.6, 89.4, 5]],
        pots: [[9, G0], [20, G0], [31, G0]], garden_things: [['tree', 4, 80, 7.5], ['pethouse', 35.4, 80.5, 6]] },
   3: { name: '两层小楼', world: 142, garden: 40,
        floors: [{ back: 78, front: 92 }, { back: 45.5, front: 56 }],
        rooms: [
          { id: 'living', n: '客厅', x0: 40, x1: 92, top: 59, f: 0 }, { id: 'hall', n: '楼梯', x0: 92, x1: 104, top: 59, f: 0 },
-         { id: 'kitchen', n: '厨房', x0: 104, x1: 140, top: 59, f: 0, win: [.62, 6, 6] },
-         { id: 'bed', n: '二楼卧室', x0: 40, x1: 92, top: 24, f: 1, win: [.36, 7, 7.5] }, { id: 'hall2', n: '楼梯', x0: 92, x1: 104, top: 24, f: 1 },
+         { id: 'kitchen', n: '厨房', x0: 104, x1: 140, top: 59, f: 0, win: [.5, 6, 6] },
+         { id: 'bed', n: '二楼卧室', x0: 40, x1: 92, top: 24, f: 1, win: [.36, 7, 7.5] }, { id: 'hall2', n: '楼梯', x0: 92, x1: 104, top: 24, f: 1, clock: .4 },
          { id: 'balcony', n: '阳台', x0: 104, x1: 140, top: 24, f: 1, open: true }],
        roof: [36, 144, 6, 24], chim: [128, 4, 8],
-       things: [['stove', 112, 82, 9], ['table', 128.5, 85.5, 11], ['bed', 66, 49.5, 15], ['bear', 46.5, 49, 4], ['lamp', 87, 48.5, 4], ['bench', 133, 48.8, 8]],
+       things: [['stove', 112, 82, 9], ['table', 124, 86, 11], ['fridge', 133, 81, 10.5], ['shelf', 49.6, 48.2, 10], ['bed', 67, 49.5, 15], ['bear', 56.6, 49.6, 4], ['lamp', 87, 48.5, 4], ['bench', 133, 48.8, 8]],
        pots: [[8, G0], [16, G0], [24, G0], [32, G0], [111, G1], [121, G1]],
        garden_things: [['tree', 4, 80, 7.5], ['pethouse', 35.4, 80.5, 5.6]],
        stairs: { bx: 94.2, by: 86.5, tx: 101.6, ty: 50.5 }, pond: [3, 93.6, 24, 5], balcony: [104, 140] },
@@ -414,8 +418,101 @@ function within(fi, x0, y0, x1, y1) {
   if (y1 < py) pts.push({ x: x1, y: y1, fi });
   return pts;
 }
+/* ── walking round the furniture (2026-11-26: 「make the entire design make it more real」) ──
+   Everything that stands on a floor has a footprint on it (the sofa, the beds, the table, the stove, the pots, the
+   tree's trunk, the 小窝's own pieces): the stick and the keys slide you along it instead of through it, and a walk
+   finds its way round it (A* on a grid of the floor, then straightened), by the doorways as before. A walk that ENDS in
+   one — a seat on the sofa, a spot beside the bed — goes to the nearest free square and then steps in. */
+const BODY_X = 1.2, BODY_Y = .5;   // half a person across, and into the room
+// footprint of something standing at (x, y) — its feet at its front, `depth` behind them — on floor fi
+function addObst(x, y, halfW, depth, fi, what) { G.obst.push({ x0: x - halfW - BODY_X, x1: x + halfW + BODY_X, y0: y - depth - BODY_Y, y1: y + .25 + BODY_Y, fi, what }); }
+const blocked = (x, y, fi) => { for (const o of G.obst || []) if (o.fi === fi && x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1) return true; return false; };
+const wallAt = (fi, x, y) => fi >= 0 && y < passY(fi) && walls(fi).some(b => Math.abs(x - b) < WALL_W);
+// can you walk straight from one point to the other? (an end that is itself inside something doesn't count against it)
+function clearLine(fi, x0, y0, x1, y1) {
+  if (fi < 0) return true;
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, (y1 - y0) * 1.6) / .3)), s0 = blocked(x0, y0, fi), s1 = blocked(x1, y1, fi);
+  for (let k = 1; k < n; k++) {
+    const t = k / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+    if ((s0 && t * n < 4) || (s1 && (1 - t) * n < 4)) continue;
+    if (blocked(x, y, fi) || wallAt(fi, x, y)) return false;
+  }
+  return true;
+}
+// A* over the floor: squares of 1 across and 0.7 into the room, eight ways, a step into the room costing more
+function astar(fi, sx, sy, gx, gy) {
+  const [X0, X1] = xRange(fi), [B, F] = band(fi), DX = 1, DY = .7;
+  const W = Math.floor((X1 - X0) / DX) + 1, H = Math.floor((F - B) / DY) + 1, N = W * H;
+  const px = (i) => X0 + i * DX, py = (j) => B + j * DY;
+  const idx = (x, y) => clamp(Math.round((y - B) / DY), 0, H - 1) * W + clamp(Math.round((x - X0) / DX), 0, W - 1);
+  const free = new Uint8Array(N);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) free[j * W + i] = blocked(px(i), py(j), fi) || wallAt(fi, px(i), py(j)) ? 0 : 1;
+  let s = idx(sx, sy), g = idx(gx, gy);
+  free[s] = 1;
+  if (!free[g]) {   // the nearest free square to where you are going
+    let best = -1, bd = Infinity;
+    for (let k = 0; k < N; k++) if (free[k]) { const d = Math.hypot(px(k % W) - gx, (py((k / W) | 0) - gy) * 1.6); if (d < bd) { bd = d; best = k; } }
+    if (best < 0) return null;
+    g = best;
+  }
+  const cost = new Float32Array(N).fill(Infinity), from = new Int32Array(N).fill(-1), shut = new Uint8Array(N);
+  const hx = (k) => Math.hypot(px(k % W) - px(g % W), (py((k / W) | 0) - py((g / W) | 0)) * 1.6);
+  const heap = [], push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const q = (i - 1) >> 1; if (heap[q][0] <= heap[i][0]) break; [heap[q], heap[i]] = [heap[i], heap[q]]; i = q; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top[1]; };
+  cost[s] = 0; push(s, hx(s));
+  while (heap.length) {
+    const k = pop();
+    if (k === g) break;
+    if (shut[k]) continue;
+    shut[k] = 1;
+    const i = k % W, j = (k / W) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= W || nj >= H) continue;
+      const n = nj * W + ni; if (!free[n] || shut[n]) continue;
+      if (di && dj && (!free[j * W + ni] || !free[nj * W + i])) continue;   // no squeezing between two corners
+      const c = cost[k] + Math.hypot(di * DX, dj * DY * 1.6);
+      if (c < cost[n]) { cost[n] = c; from[n] = k; push(n, c + hx(n)); }
+    }
+  }
+  if (!isFinite(cost[g])) return null;
+  const cells = []; for (let k = g; k !== -1 && k !== s; k = from[k]) cells.push([px(k % W), py((k / W) | 0)]);
+  cells.reverse();
+  // straightened: keep only the corners you can't see past
+  const out = []; let ax = sx, ay = sy;
+  for (let k = 0; k < cells.length; k++) {
+    const nxt = cells[k + 1];
+    if (!nxt || !clearLine(fi, ax, ay, nxt[0], nxt[1])) { out.push(cells[k]); [ax, ay] = cells[k]; }
+  }
+  return out;
+}
+// a walk's points, with a way found round anything in the way between each two on the same floor
+function roundAbout(a, pts) {
+  const out = []; let x = a.x, y = a.y, f = a.fi;
+  for (const q of pts) {
+    if (q.fi === f && f >= 0 && !clearLine(f, x, y, q.x, q.y)) {
+      const mid = astar(f, x, y, q.x, q.y);
+      // a grid square on top of where you are or where you are going is no corner: leave it out
+      if (mid) for (const m of mid) if (Math.hypot(m[0] - x, m[1] - y) > .45 && Math.hypot(m[0] - q.x, m[1] - q.y) > .45) { out.push({ x: m[0], y: m[1], fi: f }); x = m[0]; y = m[1]; }
+    }
+    out.push(q); x = q.x; y = q.y; f = q.fi;
+  }
+  return out;
+}
 // a walk to (x, y) on floor fi, from wherever a is: up or down the stairs when it is the other floor
 function route(a, x, y, fi) {
+  const pts = roundAbout(a, route0(a, x, y, fi)), out = [];
+  // then pulled straight: a corner you can see past from the last one kept (same floor, no furniture and no back part of
+  // a wall in between) is left out, so a doorway's waypoint and a way round a table don't make a zigzag together
+  let px = a.x, py = a.y, pf = a.fi;
+  for (let i = 0; i < pts.length; i++) {
+    const q = pts[i], n = pts[i + 1];
+    if (n && pf >= 0 && q.fi === pf && n.fi === pf && clearLine(pf, px, py, n.x, n.y)) continue;
+    out.push(q); px = q.x; py = q.y; pf = q.fi;
+  }
+  return out;
+}
+function route0(a, x, y, fi) {
   const L = LVS[G.lv], s = L.stairs;
   if (!s) fi = 0;
   [x, y] = clampPos(x, y, fi);
@@ -481,12 +578,29 @@ function houseSvg(L, room) {
   flush();
   grad('hm3edge', [[0, 'rgba(40,70,30,.22)'], [1, 'rgba(40,70,30,0)']]);
   g.push(`<rect x="-90" y="${lb}" width="${W + 180}" height="2.4" fill="url(#hm3edge)"/>`);
+  // tufts of grass on the lawn in front of the house (seeded, so the same tufts every time)
+  if (!xmas) { let t = 7; const rnd = () => { t = (t * 9301 + 49297) % 233280; return t / 233280; }; for (let k = 0; k < 70; k++) { const x = -20 + rnd() * (W + 40), y = 94.5 + rnd() * 5, h = .8 + rnd() * .7; add(stroke(tone(S === 'winter' ? '#B9CDB5' : S === 'autumn' ? '#97A852' : '#6FAE63', night(-.5)), 1), seg([x - .3, y], [x - .5, y - h]) + seg([x, y], [x, y - h * 1.2]) + seg([x + .3, y], [x + .55, y - h])); } flush(); }
   // ── the garden: a picket fence along the back, stepping stones to the door, the pond
   if (L.garden) {
     const fy = lb + 1.4, fh = 6.4, pk = N ? '#8E8798' : '#FFF6EA', pkS = N ? '#6E687A' : '#E3D2BD';
     add(`fill="${pkS}"`, box(1, fy - fh * .62, L.garden - 2, .9) + box(1, fy - fh * .28, L.garden - 2, .9));
     for (let x = 1.4; x < L.garden - 1.5; x += 2.3) { add(`fill="${pk}"`, shape([[x, fy], [x, fy - fh + .9], [x + .55, fy - fh], [x + 1.1, fy - fh + .9], [x + 1.1, fy]])); add(`fill="${pkS}" opacity=".9"`, box(x + .8, fy - fh + .9, .3, fh - .9)); }
     flush();
+    // a bed along the fence: a low hedge, and round blossoms in the season's colours on it (none in winter, none under snow).
+    // A blob is an ellipse in scene units: 1 unit down the screen is .75 of one across, so ry = rx / .75 reads as round.
+    if (!xmas) {
+      const blob = (x, y, rx, ry) => `M${(x - rx).toFixed(2)},${y.toFixed(2)}a${rx},${ry} 0 1,0 ${2 * rx},0a${rx},${ry} 0 1,0 ${-2 * rx},0`;
+      const leaf = [S === 'winter' ? '#5E8C62' : '#4F9A55', S === 'winter' ? '#76A178' : '#67B46B'].map(c => tone(c, night(-.5)));
+      for (let x = 1.6, k = 0; x < L.garden - 1.6; x += 1.15, k++) add(`fill="${leaf[k % 2]}"`, blob(x, fy + .35 + (k % 2) * .18, .95, 1.05));
+      flush();
+      if (S !== 'winter') {
+        const cols = S === 'autumn' ? ['#E8742E', '#C7432E', '#F2B33D', '#F09A3E'] : ['#FF8FB3', '#FFD75E', '#C69CFF', '#FFFFFF', '#FF9E6B'], at = [];
+        for (let x = 2.1, k = 0; x < L.garden - 2; x += 1.55, k++) { const y = fy - .3 + ((k * 7) % 3) * .32; at.push([x, y]); add(`fill="${tone(cols[k % cols.length], night(-.45))}"`, blob(x, y, .52, .66)); }
+        flush();
+        for (const [x, y] of at) add(`fill="${tone('#FFF0A8', night(-.45))}"`, blob(x, y - .05, .17, .22));
+        flush();
+      }
+    }
     const r0 = L.rooms[0];
     for (const [sx, sy, s] of [[r0.x0 - 3, F0.front - 3.6, 1], [r0.x0 - 7.5, F0.front - 1.9, .92], [r0.x0 - 12.2, F0.front - .4, .86]]) g.push(`<ellipse cx="${sx}" cy="${sy}" rx="${(1.9 * s).toFixed(2)}" ry="${(1.1 * s).toFixed(2)}" fill="${N ? '#7B7D8C' : '#D9D2C6'}"/><ellipse cx="${sx - .2}" cy="${sy - .25}" rx="${(1.3 * s).toFixed(2)}" ry="${(.55 * s).toFixed(2)}" fill="rgba(255,255,255,${N ? .12 : .45})"/>`);
   }
@@ -668,6 +782,9 @@ function livingPieces(r, room) {
     const y = F.back + (F.front - F.back) * t, xl = r.x0 + dx * (1 - t), xr = r.x1 - dx * (1 - t), x = xl + (xr - xl) * clamp(+o.x || 50, 0, 100) / 100;
     const sz = size * depthS(y, r.f);
     if (o.art === '🛋️') G.sofas.push({ x, y, size: sz });
+    // its footprint: as wide as it is drawn (the room's own size unit, in floor units), about half that deep
+    const wU = sz * Math.min((r.x1 - r.x0) * .36, (F.front - r.top) * .62 * .75);
+    addObst(x, y, wU * .38, Math.min(2.6, wU * .32), r.f, o.art || 'piece');
     return `<div class="hm-mp hm-mpf" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 10)};font-size:calc(var(--hm-mh, 60px) * ${sz.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
   }).join('');
 }
@@ -681,7 +798,12 @@ function photoWall() {
 }
 // what stands on a floor (the house's own furniture, the garden's things): smaller further back, ordered by where it stands
 const propSvg = (svg, x, y, w, cls = '') => `<div class="hm-abs hm-thing${cls ? ' ' + cls : ''}" style="left:${x}%;top:${y}%;width:${(w * depthS(y, floorOfY(y))).toFixed(2)}%;z-index:${Math.round(y * 10)}">${svg}</div>`;
-const propThing = (k, x, y, w, cls = '') => propSvg(art(k), x, y, w, cls);
+const THING_FOOT = { bed: [.44, 2.4], table: [.42, 1.6], stove: [.42, 1.8], bench: [.44, 1.2], bear: [.3, .7], lamp: [.18, .5], pethouse: [.42, 1.6], tree: [.12, 1], fridge: [.42, 1.6], shelf: [.44, 1], plant: [.3, .7] };
+const propThing = (k, x, y, w, cls = '') => {
+  const f = THING_FOOT[k];
+  if (f && G.obst) addObst(x, y, w * depthS(y, floorOfY(y)) * f[0], f[1], floorOfY(y), k);
+  return propSvg(art(k), x, y, w, cls);
+};
 // the front door: the doorway at the front of the 客厅's left wall, where a festival hangs things
 function doorAt(L) { const r = L.rooms[0], F = L.floors[0]; return { x: r.x0, y0: F.front - (F.front - r.top) * DOOR_V, y1: F.front }; }
 // → what goes on the house (h) and what stands on the lawn among the two of you (p)
@@ -717,13 +839,26 @@ function renderHouse(opening) {
   let h = houseSvg(L, room) + backWall(L.rooms[0], room);
   for (const r of L.rooms) if (!/^hall/.test(r.id)) h += `<span class="hm-abs hm-rn" style="left:${(r.x0 + r.x1) / 2}%;top:${r.top}%">${r.n}</span>`;
   if (!REDUCE && G.chimTop) h += `<div class="hm-abs hm-smoke" style="left:${G.chimTop[0]}%;top:${G.chimTop[1]}%" aria-hidden="true"><i></i><i></i><i></i></div>`;
+  // the garden's little lives: fireflies at night, butterflies by the flowers on a spring or summer day
+  if (!REDUCE && L.garden) {
+    const F0 = L.floors[0];
+    if (G.night) for (let k = 0; k < 8; k++) h += `<i class="hm-fly" style="left:${(3 + (k * 4.7) % (L.garden - 6)).toFixed(1)}%;top:${(F0.back - 3 + (k * 3.3) % 12).toFixed(1)}%;animation-delay:${-(k * .83).toFixed(2)}s;animation-duration:${(3.4 + (k % 3) * .7).toFixed(1)}s"></i>`;
+    else if (G.season === 'spring' || G.season === 'summer') for (const [x, dl] of [[10, 0], [27, -2.6]]) h += `<i class="hm-bfly" style="left:${x}%;top:${F0.back - 6}%;animation-delay:${dl}s">🦋</i>`;
+  }
+  // a clock on the wall, its hands set by the phone's own clock (and moved on every minute by the house's tick)
+  for (const r of L.rooms) if (r.clock) {
+    const dx = dxOf(r), F = L.floors[r.f], ax = r.x0 + dx, bx = r.x1 - dx, ay = r.top + DC;
+    h += `<div class="hm-abs hm-clock" style="left:${(ax + (bx - ax) * r.clock).toFixed(2)}%;top:${(ay + (F.back - ay) * .3).toFixed(2)}%" aria-hidden="true"><i></i><i></i></div>`;
+  }
   UI.house.innerHTML = h + fd.h;
+  clockTick();
   cancelAnimationFrame(G.propsRaf); G.propsRaf = 0;
   if (opening) { G.propsRaf = requestAnimationFrame(() => { G.propsRaf = 0; if (G.open && UI.props) renderProps(L, room, fd); }); return; }
   renderProps(L, room, fd);
 }
 // what stands on the floors: the 客厅's furniture, the house's own, the garden's things, the balcony's rail, the pots
 function renderProps(L, room, fd) {
+  G.obst = [];
   let p = livingPieces(L.rooms[0], room);
   for (const [k, x, y, w] of L.things) p += propThing(k, x, y, w);
   for (const [k, x, y, w] of L.garden_things) {
@@ -733,12 +868,17 @@ function renderProps(L, room, fd) {
   // the balcony's rail stands in front of whoever is out there
   if (L.balcony) { const F1 = L.floors[1]; p += `<div class="hm-abs hm-rail3" style="left:${L.balcony[0]}%;top:${F1.front - 4.6}%;width:${L.balcony[1] - L.balcony[0]}%;height:4.6%;z-index:${Math.round((F1.front + .1) * 10)}"></div>`; }
   p += fd.p;
-  L.pots.forEach((_, i) => { p += potHtml(i); });
+  L.pots.forEach(([x, y], i) => { p += potHtml(i); addObst(x, y, 1.5, 1, floorOfY(y), 'pot'); });
   UI.props.innerHTML = p;
   G.lastPots = potsSig();
   sizeMini();
   controls();
   todo();
+}
+function clockTick() {
+  if (!UI.house) return;
+  const now = new Date(), m = now.getMinutes(), hr = now.getHours() % 12 + m / 60;
+  for (const c of UI.house.querySelectorAll('.hm-clock')) { c.children[0].style.transform = `rotate(${(hr * 30).toFixed(1)}deg)`; c.children[1].style.transform = `rotate(${m * 6}deg)`; }
 }
 // The sky fills the whole screen: sun or moon, clouds, stars, and what a festival puts in the air.
 function renderSky() {
@@ -747,6 +887,8 @@ function renderSky() {
   let h = '<div class="hm-sun"></div>';
   for (const [x, y] of [[8, 14], [22, 24], [36, 10], [55, 18], [70, 8], [14, 36], [48, 30], [88, 26], [80, 42], [30, 48]]) h += `<i class="hm-star" style="left:${x}%;top:${y}%"></i>`;
   h += '<i class="hm-cloud" style="left:6%;top:20%;width:24%"></i><i class="hm-cloud" style="left:58%;top:10%;width:18%"></i><i class="hm-cloud" style="left:72%;top:44%;width:20%"></i>';
+  // birds now and then across the day sky (never at night, never with reduced motion)
+  if (!REDUCE && !G.night) h += '<i class="hm-bird" style="top:22%;animation-delay:-3s"></i><i class="hm-bird" style="top:27%;animation-delay:-4.2s"></i><i class="hm-bird hm-bird2" style="top:16%;animation-delay:-14s"></i>';
   UI.sky.innerHTML = h;
   let f = '';
   if (on('xmas')) for (let k = 0; k < 22; k++) f += `<i class="hm-flake" style="left:${((k * 4.6 + 2) % 100).toFixed(1)}%;animation-delay:${-(k * .41).toFixed(2)}s;animation-duration:${(6 + (k % 5) * .7).toFixed(1)}s"></i>`;
@@ -805,7 +947,7 @@ function together() {
 /* ── people (and the pet) ─────────────────────────────────────────────────────────────────────── */
 function makeActor(k) {
   const el = document.createElement('div');
-  el.className = 'hm-ch';
+  el.className = 'hm-ch'; el.dataset.k = k;
   el.innerHTML = `<div class="hm-cin"><span class="hm-you" aria-hidden="true">▼</span><span class="hm-tag"></span>${charSvg(k)}</div>`;
   UI.actors.appendChild(el);
   return { k, el, x: k === 'cs' ? 54 : 70, y: G0 + (k === 'cs' ? 1 : -1), fi: 0, vx: 0, vy: 0, path: [], after: null, flip: false, hv: null, sit: -1, sitWant: -1 };
@@ -1016,6 +1158,7 @@ function nearPot(x, y) {
 const sceneXY = (e) => { const r = UI.scene.getBoundingClientRect(); return [(e.clientX - r.left) / (G.W / 100) + G.camX, (e.clientY - r.top - G.top) / G.H * 100]; };
 function onScenePointer(e) {
   if (e.button > 0 || !G.open) return;
+  if (UI.acts && !UI.acts.hidden) { closeActs(); return; }
   if (e.target.closest('.hm-hint')) return;
   const potEl = e.target.closest('.hm-pot');
   if (potEl) { e.preventDefault(); return potAction(+potEl.dataset.i); }
@@ -1044,16 +1187,84 @@ function stopHold() {
   const a = P[meK()]; a.hv = null;
   send('stop', { x: r1(a.x), y: r1(a.y), f: a.fi });
 }
-function hug() {
-  if (!near()) { say(G.partner.on ? `走到 ${nameOf(peerK())} 身边才能抱抱` : `${nameOf(peerK())} 不在家，等 TA 回来再抱抱`); return; }
-  playHug(); send('hug', {});
+/* ── the two of you together (2026-11-26: 「improve the interaction between both character with more real」) ──
+   Next to each other, 💞 互动 opens four things to do: you walk up to your partner first (a hug is close, a high-five
+   an arm's length), turn to face each other, and it plays on both phones — 抱抱 leans in with happy eyes and hearts,
+   亲亲 leans further and makes the other blush, 击掌 raises a hand each with a 啪, 牵手 keeps you side by side: whoever
+   walks leads, the other walks beside them, on both phones, until 放手 (or the stairs part you). */
+const ACTS = {
+  hug: { e: '🤗', n: '抱抱', say: '抱抱～', gap: 3.2 },
+  kiss: { e: '😘', n: '亲亲', say: 'mua～', gap: 2.8 },
+  five: { e: '✋', n: '击掌', say: '耶！', gap: 4.4 },
+  hand: { e: '🤝', n: '牵手', say: '走吧～', gap: 3.6 },
+};
+const HAND_GAP = 3.6;
+function interact(kind) {
+  if (!Object.prototype.hasOwnProperty.call(ACTS, kind)) return;
+  closeActs();
+  if (kind === 'hand' && G.hand) { letGo(true); return; }
+  if (!near()) { say(G.partner.on ? `走到 ${nameOf(peerK())} 身边才能${ACTS[kind].n}` : `${nameOf(peerK())} 不在家，等 TA 回来再${ACTS[kind].n}`); return; }
+  const a = P[meK()], b = P[peerK()], side = a.x <= b.x ? -1 : 1;
+  // walk up to them, on the side you are on, at their depth; it plays once you are there
+  walkMe(b.x + side * ACTS[kind].gap, b.y, b.fi, { act: kind });
 }
-function playHug() {
-  const left = P.cs.x <= P.yy.x;
-  for (const k of ['cs', 'yy']) { const a = P[k], toRight = (k === 'cs') === left; a.el.style.setProperty('--hm-lean', (toRight ? 10 : -10) + 'deg'); a.flip = !toRight; a.el.classList.toggle('hm-flip', a.flip); a.el.classList.add('hm-hug'); setTimeout(() => a.el.classList.remove('hm-hug'), 1300); }
-  fx((P.cs.x + P.yy.x) / 2, P.cs.y - 17, '💞');
+const hug = () => interact('hug');
+// both phones play it the same way: face each other, then the thing itself
+function playAct(kind, by) {
+  const a = P.cs, b = P.yy, left = a.x <= b.x, who = P[by] || a, other = who === a ? b : a;
+  for (const k of ['cs', 'yy']) {
+    const p = P[k], toRight = (k === 'cs') === left;
+    p.flip = !toRight; p.el.classList.toggle('hm-flip', p.flip);
+    p.el.style.setProperty('--hm-lean', (toRight ? 1 : -1) * (kind === 'kiss' ? 17 : kind === 'hug' ? 12 : 0) + 'deg');
+  }
+  const mx = (a.x + b.x) / 2, my = Math.min(a.y, b.y) - 15.5;
+  const pose = (cls, ms) => { for (const p of [a, b]) { p.el.classList.add(cls, 'hm-happy'); clearTimeout(p['t_' + cls]); p['t_' + cls] = setTimeout(() => p.el.classList.remove(cls, 'hm-happy'), ms); } };
+  bubble(who, ACTS[kind].say);
+  if (kind === 'hug') { pose('hm-hug', 1700); hearts(mx, my, 4); }
+  else if (kind === 'kiss') { pose('hm-kiss', 1500); other.el.classList.add('hm-blush'); setTimeout(() => other.el.classList.remove('hm-blush'), 2600); fx(mx, my + 2, '💋'); setTimeout(() => hearts(mx, my, 3), 450); }
+  else if (kind === 'five') { pose('hm-five', 900); setTimeout(() => { fx(mx, my + 4, '✨'); bubble(other, '啪！'); }, 260); }
+  else if (kind === 'hand') { G.hand = { order: left ? 'cs' : 'yy' }; for (const p of [a, b]) p.el.classList.add('hm-holding'); hearts(mx, my + 6, 1); actsButton(); }
 }
-function wave() { const a = P[meK()]; fx(a.x, a.y - 17, '👋'); send('wave', {}); }
+function letGo(tell) {
+  if (!G.hand) return;
+  G.hand = null;
+  for (const k of ['cs', 'yy']) if (P[k]) { P[k].el.classList.remove('hm-holding'); P[k].tow = null; }
+  if (UI.hheart) UI.hheart.hidden = true;
+  if (tell) send('hand', { on: 0 });
+  actsButton();
+}
+// a little line over someone's head
+function bubble(p, text) {
+  if (!UI.actors || !p) return;
+  const e = document.createElement('div'); e.className = 'hm-say'; e.textContent = text;
+  const s = depthS(p.y, p.fi < 0 ? 0 : p.fi);
+  e.style.left = p.x + '%'; e.style.top = (p.y - 15.5 * s) + '%';
+  UI.actors.appendChild(e); setTimeout(() => e.remove(), 2200);
+}
+function hearts(x, y, n) {
+  if (REDUCE || !UI.actors) { fx(x, y, '💞'); return; }
+  for (let k = 0; k < n; k++) {
+    const e = document.createElement('div'); e.className = 'hm-heart'; e.textContent = k % 3 === 1 ? '💕' : '💗';
+    e.style.left = (x + (k - (n - 1) / 2) * 1.6) + '%'; e.style.top = y + '%'; e.style.animationDelay = (k * 140) + 'ms';
+    UI.actors.appendChild(e); setTimeout(() => e.remove(), 1700 + k * 140);
+  }
+}
+function wave() {
+  const a = P[meK()];
+  fx(a.x, a.y - 17, '👋'); handWave(a);
+  send('wave', {});
+}
+function handWave(p) { p.el.classList.add('hm-waving'); clearTimeout(p.tw); p.tw = setTimeout(() => p.el.classList.remove('hm-waving'), 1500); }
+// the 💞 button: there when you are next to each other (and while you hold hands, to let go)
+function actsButton() {
+  if (!UI.hug) return;
+  const on = near() || !!G.hand;
+  UI.hug.disabled = UI.hug.hidden = !on;
+  if (!on) closeActs();
+  if (UI.acts) { const b = UI.acts.querySelector('[data-act="hand"]'); if (b) b.innerHTML = G.hand ? '<i>👐</i><span>放手</span>' : '<i>🤝</i><span>牵手</span>'; }
+}
+function openActs() { if (!UI.acts) return; if (!UI.acts.hidden) return closeActs(); actsButton(); UI.acts.hidden = false; UI.hug.setAttribute('aria-expanded', 'true'); const f = UI.acts.querySelector('button'); if (f) f.focus({ preventScroll: true }); }
+function closeActs() { if (UI.acts && !UI.acts.hidden) { UI.acts.hidden = true; if (UI.hug) UI.hug.setAttribute('aria-expanded', 'false'); } }
 
 /* ── the live channel: where the partner is, and what they just did ───────────────────────────── */
 function send(t, data) { if (!API || !API.online || !G.open) return false; try { return API.live.send('hm', { v: HOME_V, t, who: CHAR[meK()], ...data }); } catch (e) { return false; } }
@@ -1069,7 +1280,7 @@ function onLive(m) {
   const b = P[peerK()];
   const wasOn = G.partner.on;
   G.partner.at = Date.now(); G.partner.on = true; G.partner.away = false;
-  if (!wasOn) { b.el.classList.remove('hm-off'); if (m.t !== 'bye' && m.t !== 'away') say(`👋 ${nameOf(peerK())} 回家了`); }
+  if (!wasOn) { b.el.classList.remove('hm-off'); if (m.t !== 'bye' && m.t !== 'away') { say(`👋 ${nameOf(peerK())} 回家了`); later(() => { bubble(b, '我回来啦～'); handWave(P[meK()]); }, 400); } }
   // where a message says they are, kept on the floor they are on; how far that is from where this phone has them
   const at = (x, y, f) => { const fi = f === 1 && LVS[G.lv].stairs ? 1 : 0, [cx, cy] = clampPos(x, okY(y) ? y : (fi ? G1 : G0), fi); return { x: cx, y: cy, fi }; };
   const off = (q) => Math.hypot(b.x - q.x, (b.y - q.y) * 1.6) + (b.fi !== q.fi ? 99 : 0);
@@ -1083,8 +1294,15 @@ function onLive(m) {
     case 'stop': b.hv = null; if (okX(m.x)) toward(at(m.x, m.y, m.f)); break;
     case 'sit': if (Number.isInteger(m.s) && G.seats && G.seats[m.s]) { const q = G.seats[m.s]; b.hv = null; b.path = route(b, q.x, q.y, 0); b.sitWant = m.s; } break;
     case 'up': standUp(b); break;
-    case 'hug': if (P.cs.fi === P.yy.fi && Math.hypot(P.cs.x - P.yy.x, (P.cs.y - P.yy.y) * 1.6) < 14) playHug(); else say(`💞 ${nameOf(peerK())} 想抱抱你，走过去吧`); break;
-    case 'wave': fx(b.x, b.y - 17, '👋'); say(`👋 ${nameOf(peerK())} 在跟你招手`); break;
+    case 'act': if (typeof m.k === 'string' && Object.prototype.hasOwnProperty.call(ACTS, m.k)) {
+        // they walked up to you: put them where they say (a moment's walk at most), then play it here too
+        if (okX(m.x)) { const q = at(m.x, m.y, m.f); if (off(q) > .6) { b.x = q.x; b.y = q.y; b.fi = q.fi; b.path = []; } }
+        standUp(b);
+        if (P.cs.fi === P.yy.fi && Math.hypot(P.cs.x - P.yy.x, (P.cs.y - P.yy.y) * 1.6) < 14) { standUp(P[meK()]); playAct(m.k, peerK()); }
+        else say(`💞 ${nameOf(peerK())} 想${ACTS[m.k].n}，走过去吧`);
+      } break;
+    case 'hand': if (!m.on) letGo(false); break;
+    case 'wave': fx(b.x, b.y - 17, '👋'); handWave(b); say(`👋 ${nameOf(peerK())} 在跟你招手`); break;
     case 'op': if (m.op && typeof m.op === 'object' && ['plant', 'water', 'pick'].includes(m.op.t) && m.op.who === CHAR[peerK()] && Number.isInteger(m.op.pot) && m.op.pot >= 0 && m.op.pot < 6) {
         const op = { t: m.op.t, pot: m.op.pot, id: String(m.op.id || '').slice(0, 24), seed: m.op.seed, who: m.op.who, date: /^\d{4}-\d{2}-\d{2}$/.test(m.op.date || '') ? m.op.date : G.today };
         if (apply(G.view, op)) {
@@ -1099,7 +1317,7 @@ function onLive(m) {
     case 'saved': if (Number.isInteger(m.rev) && m.rev > G.srv.rev) loadSave(true); break;
     case 'lv': case 'own': refreshOwned(); break;
     case 'bye': case 'away':
-      G.partner.on = false; G.partner.away = true; b.hv = null; b.el.classList.add('hm-off');
+      G.partner.on = false; G.partner.away = true; b.hv = null; b.el.classList.add('hm-off'); letGo(false);
       if (okX(m.x)) { G.partner.last = { x: m.x, ...(okY(m.y) ? { y: m.y } : {}), f: m.f === 1 ? 1 : 0, at: Date.now() }; toward(at(m.x, m.y, m.f)); }
       say(m.t === 'bye' ? `${nameOf(peerK())} 出门了` : `${nameOf(peerK())} 暂时离开了`); break;
   }
@@ -1116,6 +1334,7 @@ async function refreshOwned() {
 /* ── the frame: ease in, cruise, ease out; transforms only ───────────────────────────────────── */
 function stepActor(a, dt, max) {
   if (a.hv && a.fi !== -1 && !a.path.length) return holdStep(a, dt);
+  if (a.tow && towStep(a, dt)) return true;
   const t = a.path[0];
   if (!t) { a.vx *= .7; a.vy *= .7; return false; }
   if (t.fi != null && t.fi !== a.fi) a.fi = -1;   // going up or down the stairs
@@ -1128,12 +1347,73 @@ function stepActor(a, dt, max) {
   if (d < .35) { a.x = t.x; a.y = t.y; if (t.fi != null) a.fi = t.fi; a.path.shift(); }
   return true;
 }
+// Hand in hand, the follower keeps pace: the leader's own speed plus a pull to the spot beside them, so a walk TOWARD
+// the follower moves them on ahead instead of walking through them, and nobody is left behind. A first version
+// re-planned a path every 180 ms, and since a path slows down as it ends, the leader overtook the follower every time
+// (found on a screenshot). Too far, or something in the way: it walks a path instead (together3 finds it).
+function towStep(a, dt) {
+  // only the one being led is towed: the moment they set off themselves (a tap, the stick, the partner's own walk) they
+  // lead, and a tow left over from before would wipe the walk they just started
+  const leadK = G.lead === 'peer' && G.partner.on ? peerK() : meK();
+  if (!G.hand || a.k === leadK || a.tow.lead.k !== leadK) { a.tow = null; return false; }
+  const { lead, side } = a.tow;
+  a.tow.clear = false;
+  if (lead.fi < 0 || a.fi !== lead.fi || a.sit >= 0) return false;
+  const [tx, ty] = clampPos(lead.x + side * HAND_GAP, lead.y, lead.fi), dx = tx - a.x, dy = ty - a.y;
+  if (Math.hypot(dx, dy * 1.6) > 7 || !clearLine(a.fi, a.x, a.y, tx, ty)) return false;
+  a.tow.clear = true; a.path = [];
+  if (REDUCE) { const moved = Math.abs(dx) + Math.abs(dy) > .01; a.x = tx; a.y = ty; a.vx = a.vy = 0; return moved; }
+  let vx = lead.vx + dx * 9, vy = lead.vy + dy * 9;
+  const sp = Math.hypot(vx, vy * 1.6);
+  if (sp > 46) { vx *= 46 / sp; vy *= 46 / sp; }
+  a.vx = vx; a.vy = vy;
+  [a.x, a.y] = clampPos(a.x + vx * dt, a.y + vy * dt, a.fi);
+  return Math.hypot(vx, vy) > 1.5;
+}
+// holding hands: whoever moved last leads and the other walks beside them (the same rule on both phones, so it looks the
+// same on both); standing close and still: you turn to each other, and now and then a heart floats up
+function together3(dt) {
+  const a = P.cs, b = P.yy;
+  if (!a || !b) return;
+  if (G.hand) {
+    const lead = G.lead === 'peer' && G.partner.on ? P[peerK()] : P[meK()], fol = lead === a ? b : a;
+    // the stairs part you (a hand can't be held up a staircase), and so does your partner leaving
+    if (!G.partner.on || lead.fi < 0 || (fol.fi >= 0 && lead.fi !== fol.fi)) letGo(false);
+    else if (fol.sit >= 0 && lead.path.length) standUp(fol);   // sitting, and they set off: you get up and go with them
+    if (G.hand) {
+      const side = G.hand.order === fol.k ? -1 : 1, [tx, ty] = clampPos(lead.x + side * HAND_GAP, lead.y, lead.fi);
+      lead.tow = null;
+      if (!fol.tow || fol.tow.lead !== lead || fol.tow.side !== side) fol.tow = { lead, side, clear: false };
+      // kept pace with by towStep when the way is clear; otherwise a path round whatever is between them
+      const last = fol.path.length ? fol.path[fol.path.length - 1] : fol;
+      const now = performance.now();
+      if (!fol.tow.clear && fol.sit < 0 && !fol.hv && (Math.abs(last.x - tx) > .35 || Math.abs(last.y - ty) > .3) && (now - (G.hand.at || 0) > 180 || !fol.path.length)) { G.hand.at = now; fol.path = route(fol, tx, ty, lead.fi); }
+      if (UI.hheart) {
+        UI.hheart.hidden = false;
+        const s = depthS((a.y + b.y) / 2, Math.max(0, a.fi));
+        UI.hheart.style.transform = `translate3d(${(((a.x + b.x) / 2) / 100 * G.W).toFixed(1)}px,${((((a.y + b.y) / 2) - 5.6 * s) / 100 * G.H).toFixed(1)}px,0) translate(-50%,-50%) scale(${s.toFixed(2)})`;
+        UI.hheart.style.zIndex = String(Math.round(Math.max(a.y, b.y) * 10) + 3);
+      }
+    }
+  }
+  const still = (p) => !p.path.length && !p.hv && Math.hypot(p.vx, p.vy) < 1 && p.sit < 0;
+  if (near() && still(a) && still(b)) {
+    // turned to each other
+    const left = a.x <= b.x;
+    for (const [p, toRight] of [[a, left], [b, !left]]) if (p.flip !== !toRight && !p.el.classList.contains('hm-hug')) { p.flip = !toRight; p.el.classList.toggle('hm-flip', p.flip); }
+    G.closeT = (G.closeT || 0) + dt;
+    if (G.closeT > 4.5) { G.closeT = 0; if (!REDUCE) hearts((a.x + b.x) / 2, Math.min(a.y, b.y) - 14, 1); }
+  } else G.closeT = 0;
+}
 // the stick or the arrow keys: straight on that way, along the walls, held back by the back part of a wall
 function holdStep(a, dt) {
   const n = Math.hypot(a.hv.x, a.hv.y) || 1, wx = a.hv.x / n * 26, wy = a.hv.y / n * 13, k = REDUCE ? 1 : 1 - Math.exp(-12 * dt);
   a.vx += (wx - a.vx) * k; a.vy += (wy - a.vy) * k;
   let [x, y] = clampPos(a.x + a.vx * dt, a.y + a.vy * dt, a.fi);
   [x, y] = wallStop(a.fi, a.x, x, a.y, y);
+  if (!blocked(a.x, a.y, a.fi) && blocked(x, y, a.fi)) {   // furniture: slide along it
+    if (!blocked(x, a.y, a.fi)) y = a.y; else if (!blocked(a.x, y, a.fi)) x = a.x; else { x = a.x; y = a.y; }
+  }
   if (Math.abs(x - a.x) < 1e-4) a.vx = 0;    // against a wall: no speed kept up to burst through
   if (Math.abs(y - a.y) < 1e-4) a.vy = 0;
   a.x = x; a.y = y;
@@ -1162,10 +1442,14 @@ function frame(t) {
       const af = a.after; a.after = null;
       if (af.op) act(af.op);
       if (af.sit != null && G.seats && G.seats[af.sit]) { a.sit = af.sit; poseSit(a); send('sit', { s: af.sit, x: r1(a.x) }); together(); }
+      if (af.act && near()) { playAct(af.act, meK()); send('act', { k: af.act, x: r1(a.x), y: r1(a.y), f: a.fi }); }
     }
     // the partner sits once their walk to the seat is done
     if (k === peerK() && a.sitWant >= 0 && !a.path.length) { a.sit = a.sitWant; a.sitWant = -1; poseSit(a); together(); }
   }
+  together3(dt);
+  { const a = P.cs, b = P.yy, close = a.fi === b.fi && Math.abs(a.x - b.x) < 7.5 && Math.abs(a.y - b.y) < 3, right = a.x > b.x ? a : b;
+    for (const p of [a, b]) { const up = close && p === right; if (p.tagUp !== up) { p.tagUp = up; p.el.classList.toggle('hm-tagup', up); } } }
   // the pet follows whoever moved last (the same rule on both phones, so it is in the same place on both)
   if (pet) {
     const lead = G.lead === 'peer' && G.partner.on ? P[peerK()] : P[meK()];
@@ -1224,8 +1508,8 @@ function status() {
   else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `${esc(nameOf(o))} 不在家${pos && pos.at ? ` · 上次在${where({ x: pos.x, fi: pos.f ? 1 : 0 })}` : ''} · 你在${where(a)}`; }
   else s = same ? `和 ${esc(nameOf(o))} 都在${where(a)} 💞` : `你在${where(a)} · ${esc(nameOf(o))} 在${where(b)}`;
   UI.status.innerHTML = `<i class="hm-dot${G.partner.on ? ' on' : ''}"></i><span>${s}</span>`;
-  // 抱抱 shows up when you are next to your partner — it is the thing to do then, and one less button otherwise
-  UI.hug.disabled = UI.hug.hidden = !near();
+  // 💞 互动 shows up when you are next to your partner — it is the thing to do then, and one less button otherwise
+  actsButton();
   controls();
 }
 // the stairs button: only in the two-storey house, and it says which way you'd go
@@ -1301,10 +1585,10 @@ function helpHtml() {
   const o = esc(nameOf(peerK()));
   return `<div class="hm-help">
     <section><h4>👣 走路</h4><p>点地板，就走过去：左右、往里、往外都可以。按住左下角的摇杆，往哪边推就往哪边走（往上推是往屋里走）。走到后面人会小一点，可以走到沙发和桌子后面；房间之间要从靠前的门口过。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。</p></section>
-    <section class="hm-keys"><h4>⌨️ 电脑键盘</h4><p><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 按住走路（两个一起按是斜着走）· <kbd>F</kbd> 上下楼 · <kbd>空格</kbd> 下一步 · <kbd>E</kbd> 浇水 / 收花 / 种花 · <kbd>H</kbd> 抱抱 · <kbd>J</kbd> 招手 · <kbd>K</kbd> 坐下 · <kbd>1</kbd>–<kbd>4</kbd> 玩法 / 花园 / 房子 / 小店 · <kbd>Esc</kbd> 关掉</p></section>
+    <section class="hm-keys"><h4>⌨️ 电脑键盘</h4><p><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 按住走路（两个一起按是斜着走）· <kbd>F</kbd> 上下楼 · <kbd>空格</kbd> 下一步 · <kbd>E</kbd> 浇水 / 收花 / 种花 · <kbd>H</kbd> 抱抱 · <kbd>L</kbd> 牵手 / 放手 · <kbd>J</kbd> 招手 · <kbd>K</kbd> 坐下 · <kbd>1</kbd>–<kbd>4</kbd> 玩法 / 花园 / 房子 / 小店 · <kbd>Esc</kbd> 关掉</p></section>
     <section><h4>🌱 种花</h4><p>点空花盆选种子，种子不用买。<b>每人每天给每盆花浇一次水</b>，你和 ${o} 都浇的那天长两格，长满 5 格开花：一个人要 5 天，两个人一起 3 天。<b>三天没人浇会蔫</b>，浇一下就好（那一次不长）。</p>
       <p>开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 <b>+${PICK_EXP / 2}</b>。收满 3 / 6 / 10 / 15 朵会解锁新种子；节日还有限定种子。</p></section>
-    <section><h4>💞 一起</h4><p>两个人都打开「我们的家」的时候，对方手机上马上看到你走路、浇水、收花。走到 ${o} 身边可以 🤗 抱抱；客厅有沙发就能一起 🛋️ 坐下。宠物跟着最后走动的那个人。</p></section>
+    <section><h4>💞 一起</h4><p>两个人都打开「我们的家」的时候，对方手机上马上看到你走路、浇水、收花。走到 ${o} 身边点 💞 互动：抱抱、亲亲、击掌、牵手（牵着手谁走，另一个就跟着走）；客厅有沙发就能一起 🛋️ 坐下。宠物跟着最后走动的那个人。</p></section>
     <section><h4>🏠 房子</h4><p>客厅就是你们的小窝，家具摆在哪这里就在哪。在「🏠 房子」里用小窝币升级成小平房、两层小楼（和小窝的家具同一个钱包）。</p></section>
     <section><h4>🎁 节日</h4><p>节日那几天，家里自己换上节日的样子。「🎁 小店」卖节日装饰，买了以后每年这个节日都会自己摆出来。</p></section>
   </div>`;
@@ -1457,6 +1741,26 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
 @media (prefers-reduced-motion:no-preference){.hm-smoke i{animation:hm-smoke 4.2s ease-out infinite}.hm-smoke i:nth-child(2){animation-delay:-1.4s}.hm-smoke i:nth-child(3){animation-delay:-2.8s}}
 @keyframes hm-smoke{0%{transform:translate(0,0) scale(.5);opacity:0}15%{opacity:.7}100%{transform:translate(16px,-48px) scale(1.9);opacity:0}}
 .hm-thing{transform:translate(-50%,-100%);pointer-events:none}
+.hm-clock{width:calc(var(--hm-u) * 3.4);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#FFFDF8;border:max(2px,calc(var(--hm-u) * .42)) solid #C99B74;box-shadow:0 1px 3px rgba(60,40,20,.3),inset 0 -2px 3px rgba(120,90,60,.15);pointer-events:none;box-sizing:border-box}
+.hm-night .hm-clock{background:#E5DCCD;border-color:#8E6E52}
+.hm-clock i{position:absolute;left:50%;bottom:50%;width:2px;margin-left:-1px;height:28%;background:#5A4A3A;border-radius:1px;transform-origin:50% 100%}
+.hm-clock i+i{height:40%;width:1.5px;margin-left:-.75px}
+.hm-clock::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#5A4A3A}
+.hm-bird{position:absolute;left:-6%;width:14px;height:6px;border-top:2.5px solid rgba(70,80,110,.6);border-radius:50% 50% 0 0;opacity:.9}
+.hm-bird::after{content:'';position:absolute;left:12px;top:-2.5px;width:14px;height:6px;border-top:2.5px solid rgba(70,80,110,.6);border-radius:50% 50% 0 0}
+.hm-dusk .hm-bird,.hm-dusk .hm-bird::after{border-top-color:rgba(90,50,60,.6)}
+.hm-fly{position:absolute;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#FFF6B8;box-shadow:0 0 8px 3px rgba(255,236,140,.7);pointer-events:none;opacity:0}
+.hm-bfly{position:absolute;font-size:clamp(10px,calc(var(--hm-u) * 1.9),18px);pointer-events:none}
+@media (prefers-reduced-motion:no-preference){
+  .hm-bird{animation:hm-birdfly 24s linear infinite}.hm-bird2{animation-duration:31s}
+  .hm-fly{animation:hm-glowfly 3.6s ease-in-out infinite}
+  .hm-bfly{animation:hm-flutter 7s ease-in-out infinite}
+  .hm-tree svg{transform-origin:50% 96%;animation:hm-breeze 6.5s ease-in-out infinite}
+}
+@keyframes hm-birdfly{0%{transform:translateX(0) translateY(0)}50%{transform:translateX(60vw) translateY(-14px)}100%{transform:translateX(120vw) translateY(4px)}}
+@keyframes hm-glowfly{0%,100%{opacity:0;transform:translate(0,0)}30%{opacity:1}60%{opacity:.85;transform:translate(14px,-10px)}80%{opacity:.2;transform:translate(6px,-16px)}}
+@keyframes hm-flutter{0%,100%{transform:translate(0,0) scaleX(1)}25%{transform:translate(18px,-12px) scaleX(-1)}50%{transform:translate(34px,-2px) scaleX(1)}75%{transform:translate(14px,8px) scaleX(-1)}}
+@keyframes hm-breeze{0%,100%{transform:rotate(-1.4deg)}50%{transform:rotate(1.4deg)}}
 .hm-thing svg{width:100%;height:auto;display:block;overflow:visible}
 .hm-s-spring .hm-tree .hm-leaf{fill:#9FD39A}.hm-s-spring .hm-tree .hm-fruit{fill:#FFB3CB;r:4.4px}
 .hm-s-autumn .hm-tree .hm-leaf{fill:#F0A04B;stroke:#B8692A}.hm-s-autumn .hm-tree .hm-leaf-top{fill:#F5B85A}.hm-s-autumn .hm-tree .hm-fruit{fill:#D9534F}
@@ -1496,7 +1800,34 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
   .hm-pet.hm-walk .hm-pin{animation:hm-hop .3s ease-in-out infinite}
   .hm-pet.hm-flip.hm-walk .hm-pin{animation-name:hm-hopf}
 }
-.hm-ch.hm-hug .hm-bd{animation:none!important;transform:rotate(var(--hm-lean,0deg));transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.hm-ch.hm-hug .hm-bd,.hm-ch.hm-kiss .hm-bd{animation:none!important;transform:rotate(var(--hm-lean,0deg));transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.hm-ch .hm-eyes{transform-origin:50px 50px}
+.hm-ch .hm-joyeyes{display:none}
+.hm-ch.hm-happy .hm-eyes{display:none}.hm-ch.hm-happy .hm-joyeyes{display:inline}
+.hm-ch .hm-cheek{opacity:.55;transition:opacity .4s}.hm-ch.hm-blush .hm-cheek,.hm-ch.hm-kiss .hm-cheek{opacity:1}
+.hm-ch .hm-hl{transform-origin:16px 64px}.hm-ch .hm-hr{transform-origin:84px 64px;transition:transform .22s ease-out}
+.hm-ch.hm-five .hm-hr{transform:rotate(-115deg)}
+.hm-ch.hm-holding .hm-hr{transform:rotate(-28deg)}
+@media (prefers-reduced-motion:no-preference){
+  .hm-ch .hm-eyes{animation:hm-blink 5.4s infinite}.hm-ch[data-k="yy"] .hm-eyes{animation-delay:-2.3s;animation-duration:6.1s}
+  .hm-ch.hm-waving .hm-hr{animation:hm-wavehand .32s ease-in-out 4 alternate}
+  .hm-heart{animation:hm-heartup 1.6s ease-out forwards}
+  .hm-say{animation:hm-sayin .22s ease-out}
+}
+@keyframes hm-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes hm-wavehand{from{transform:rotate(-30deg)}to{transform:rotate(-95deg)}}
+@keyframes hm-heartup{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}20%{opacity:1;transform:translate(-50%,-80%) scale(1)}100%{opacity:0;transform:translate(-50%,-260%) scale(.9)}}
+@keyframes hm-sayin{from{opacity:0;transform:translate(-50%,-80%) scale(.8)}}
+.hm-heart{position:absolute;transform:translate(-50%,-50%);font-size:clamp(12px,calc(var(--hm-u) * 2.6),24px);pointer-events:none;z-index:5000}
+.hm-hheart{position:absolute;left:0;top:0;font-size:clamp(10px,calc(var(--hm-u) * 1.9),18px);pointer-events:none;will-change:transform}
+@media (prefers-reduced-motion:no-preference){.hm-hheart{animation:hm-beat 1.1s ease-in-out infinite}}
+@keyframes hm-beat{50%{opacity:.75}}
+.hm-say{position:absolute;transform:translate(-50%,-100%);background:var(--hm-solid);color:var(--hm-ink);font-weight:800;font-size:clamp(11px,calc(var(--hm-u) * 1.7),15px);line-height:1.3;padding:4px 10px;border-radius:12px;box-shadow:0 4px 12px -4px rgba(0,0,0,.4);white-space:nowrap;pointer-events:none;z-index:5001}
+.hm-say::after{content:'';position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:inherit;transform:translateX(-50%) rotate(45deg)}
+.hm-acts{position:absolute;z-index:21;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;border-radius:20px;background:var(--hm-glass);box-shadow:var(--hm-sh);width:min(220px,calc(100% - 24px));box-sizing:border-box}
+.hm-actb{min-height:52px;border:0;border-radius:14px;background:var(--hm-pink-soft);display:flex;align-items:center;justify-content:center;gap:6px;font-weight:800;font-size:14px}
+.hm-actb i{font-style:normal;font-size:20px}
+@media (prefers-reduced-motion:no-preference){.hm-acts:not([hidden]){animation:hm-up .18s ease-out}}
 @keyframes hm-bob{50%{transform:translateY(-3.5px) rotate(-2.5deg)}}
 @keyframes hm-step{50%{transform:translateY(-6px)}}
 @keyframes hm-breathe{50%{transform:scale(1.015,.985)}}
@@ -1508,6 +1839,7 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
 .hm-ch.hm-sit .hm-bd{animation:none!important}
 .hm-tag{position:absolute;left:50%;top:-21px;transform:translateX(-50%);font-size:clamp(10px,calc(var(--hm-u) * 1.5),13px);font-weight:800;padding:1px 7px;border-radius:9px;background:var(--hm-solid);color:var(--hm-ink);white-space:nowrap;max-width:9em;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px -3px rgba(0,0,0,.4)}
 .hm-ch.hm-me .hm-tag{background:var(--hm-ink);color:var(--hm-solid)}
+.hm-ch.hm-tagup .hm-tag{top:-42px}.hm-ch.hm-tagup .hm-you{top:-59px}
 .hm-you{display:none;position:absolute;left:50%;top:-38px;transform:translateX(-50%);color:var(--hm-pink);font-size:13px;line-height:1}
 .hm-ch.hm-me .hm-you{display:block}
 @media (prefers-reduced-motion:no-preference){.hm-ch.hm-me .hm-you{animation:hm-youbob 1s ease-in-out infinite}}
@@ -1563,7 +1895,7 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
 .hm-act span{font-size:11.5px;font-weight:800;line-height:1.5;padding:0 6px;border-radius:8px;background:var(--hm-glass);color:var(--hm-ink);white-space:nowrap}
 .hm-act:disabled{cursor:default}
 .hm-act:disabled i,.hm-act:disabled span{opacity:.55}
-.hm-act[data-a="hug"]:not(:disabled) i{background:linear-gradient(180deg,#F57FB0,#E0508F)}
+.hm-act[data-a="acts"]:not(:disabled) i{background:linear-gradient(180deg,#F57FB0,#E0508F)}
 .hm-act:not(:disabled):active i{transform:scale(.94)}
 .hm-safeb{position:absolute;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none}
 .hm-mbtn i{font-style:normal;margin-right:4px}
@@ -1738,10 +2070,11 @@ function build() {
       <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" data-key="F" hidden><i>⬆</i><span>上楼</span></button>
     </div>
     <div class="hm-ctl hm-ctl-r" data-r="ctlR">
-      <button type="button" class="hm-act" data-r="hug" data-a="hug" data-key="H" disabled hidden><i>🤗</i><span>抱抱</span></button>
+      <button type="button" class="hm-act" data-r="hug" data-a="acts" data-key="H" aria-haspopup="menu" aria-expanded="false" disabled hidden><i>💞</i><span>互动</span></button>
       <button type="button" class="hm-act" data-r="sit" data-a="sit" data-key="K" hidden><i>🛋️</i><span>坐下</span></button>
       <button type="button" class="hm-act" data-a="wave" data-key="J"><i>👋</i><span>招手</span></button>
     </div>
+    <div class="hm-acts" data-r="acts" role="menu" aria-label="和 TA 一起" hidden>${Object.entries(ACTS).map(([k, v]) => `<button type="button" role="menuitem" class="hm-actb" data-act="${k}"><i>${v.e}</i><span>${v.n}</span></button>`).join('')}</div>
     <i class="hm-safeb" data-r="safeb" aria-hidden="true"></i>`;
   document.body.appendChild(root);
   UI.root = root;
@@ -1775,6 +2108,7 @@ function build() {
   joy.addEventListener('pointermove', jmove); joy.addEventListener('pointerup', jend); joy.addEventListener('pointercancel', jend); joy.addEventListener('lostpointercapture', jend);
   joy.addEventListener('contextmenu', (e) => e.preventDefault());
   P.cs = makeActor('cs'); P.yy = makeActor('yy');
+  UI.hheart = document.createElement('div'); UI.hheart.className = 'hm-hheart'; UI.hheart.textContent = '💗'; UI.hheart.hidden = true; UI.hheart.setAttribute('aria-hidden', 'true'); UI.actors.appendChild(UI.hheart);
   if (API.pet && API.pet.svg) {
     const el = document.createElement('div'); el.className = 'hm-pet'; el.innerHTML = `<div class="hm-pin">${API.pet.svg}</div>`;
     el.setAttribute('aria-hidden', 'true'); UI.actors.appendChild(el);
@@ -1835,7 +2169,7 @@ const keyName = (e) => (e.key && e.key.length === 1 ? e.key.toLowerCase() : e.ke
 const KEY_V = { ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0], ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1] };
 function keysV() { let x = 0, y = 0; for (const k of G.keys || []) { const v = KEY_V[k]; if (v) { x += v[0]; y += v[1]; } } return { x: clamp(x, -1, 1), y: clamp(y, -1, 1) }; }
 function onKey(e) {
-  if (e.key === 'Escape') { if (G.sheet) closeSheet(); else close(); return; }
+  if (e.key === 'Escape') { if (UI.acts && !UI.acts.hidden) closeActs(); else if (G.sheet) closeSheet(); else close(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey || (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
   const k = keyName(e);
   if (KEY_MENU[k]) { e.preventDefault(); if (G.sheetKind === KEY_MENU[k]) closeSheet(); else openSheet(KEY_MENU[k]); return; }
@@ -1854,6 +2188,7 @@ function onKey(e) {
   }
   if (k === 'e') { e.preventDefault(); const i = potHere(); if (i >= 0) potAction(i); else say('走到花盆旁边，再按 E'); return; }
   if (k === 'h') { e.preventDefault(); hug(); return; }
+  if (k === 'l') { e.preventDefault(); interact('hand'); return; }
   if (k === 'j') { e.preventDefault(); wave(); return; }
   if (k === 'k') { e.preventDefault(); if (a.sit >= 0 || (G.seats && G.seats.length)) sitDown(); else say('客厅里摆一张沙发，就能坐下'); return; }
 }
@@ -1884,7 +2219,8 @@ function onClick(e) {
   if (b.dataset.a === 'hint-help') { hideHint(); return openSheet('help'); }
   if (b.dataset.a === 'todo') { const i = +b.dataset.todo; if (i >= 0) { closeSheet(); return potAction(i); } return openSheet('garden'); }
   if (b.dataset.sheet) { if (G.sheetKind === b.dataset.sheet) return closeSheet(); return openSheet(b.dataset.sheet); }
-  if (b.dataset.a === 'hug') return hug();
+  if (b.dataset.a === 'acts') return openActs();
+  if (b.dataset.act) return interact(b.dataset.act);
   if (b.dataset.a === 'wave') return wave();
   if (b.dataset.a === 'sit') return sitDown();
   if (b.dataset.a === 'nest') { close(); try { API.openNest(); } catch (err) {} return; }
@@ -1939,7 +2275,7 @@ function open(api) {
   API = api;
   if (G.open) close(true);
   G.me = api.me === 'yy' ? 'yy' : 'cs';
-  G.open = true; G.last = 0; G.hold = null; G.keys = new Set(); G.joy = null; G.camX = 0; G.camT = null; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.sheet = null; G.sheetKind = '';
+  G.open = true; G.last = 0; G.hold = null; G.keys = new Set(); G.joy = null; G.hand = null; G.closeT = 0; G.camX = 0; G.camT = null; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.sheet = null; G.sheetKind = '';
   G.partner = { at: 0, on: false, x: 0, f: 0, away: false };
   G.srv = { data: blank(), rev: 0, loaded: false }; G.remote = [];
   G.pending = store.get(pendKey(), []).filter(op => op && op.t && op.who === CHAR[G.me]);
@@ -1969,7 +2305,7 @@ function open(api) {
     G.beat = setInterval(() => { if (!G.open || document.hidden) return; beat(); if (G.partner.on && Date.now() - G.partner.at > GONE_MS) { G.partner.on = false; P[peerK()].el.classList.add('hm-off'); P[peerK()].hv = null; status(); } }, BEAT_MS);
   }
   G.poll = setInterval(() => { if (G.open && !document.hidden) { tickDay(); if (!G.partner.on || !API.online) loadSave(true); } }, POLL_MS);
-  G.tick = setInterval(() => { if (G.open) { tickDay(); recompute(); } }, 60000);
+  G.tick = setInterval(() => { if (G.open) { tickDay(); recompute(); clockTick(); } }, 60000);
   loadSave(!!api.initial);
   G.raf = requestAnimationFrame(frame);
 }
@@ -2040,11 +2376,17 @@ window.HomeGame = {
       pet: pet ? { x: pet.x, y: pet.y, f: pet.fi } : null, near: !!near(),
       pots: LVS[G.lv].pots.map((_, i) => { const q = potInfo(i); return { seed: q.pl && q.pl.seed, id: q.pl && q.pl.id, stage: q.g.stage, wilted: q.g.wilted, mine: q.mine, theirs: q.theirs, thirsty: q.thirsty, bloom: q.bloom, empty: q.empty }; }),
     }),
-    act: (op) => act(op), potAction: (i) => potAction(i), walk: (x, f, y) => walkMe(x, y != null ? y : (f ? G1 : G0), f ? 1 : 0), tick: () => { tickDay(); recompute(); },
+    act: (op) => act(op), potAction: (i) => potAction(i), walk: (x, f, y) => walkMe(x, y != null ? y : (f ? G1 : G0), f ? 1 : 0), tick: () => { tickDay(); recompute(); clockTick(); },
     teleport: (x, f, y) => { const a = P[meK()]; a.fi = f ? 1 : 0; [a.x, a.y] = clampPos(x, y != null ? y : (f ? G1 : G0), a.fi); a.path = []; a.hv = null; },
     hold: (dx, dy) => startHold({ x: dx, y: dy }), stop: () => stopHold(),
     geo: () => ({ floors: clone(floorsOf()), band: floorsOf().map((_, i) => band(i)), passY: floorsOf().map((_, i) => passY(i)), walls: floorsOf().map((_, i) => walls(i)), xRange: floorsOf().map((_, i) => xRange(i)), seats: clone(G.seats || []), stairs: LVS[G.lv].stairs || null }),
     route: (x, y, f) => route(P[meK()], x, y, f), depth: (y, f) => depthS(y, f),
+    interact: (k) => interact(k), hand: () => (G.hand ? { order: G.hand.order } : null),
+    // a partner who is home, on this phone only (the two-phone tests do it for real)
+    fakePeer: (x, y, f = 0) => { G.partner.on = true; G.partner.at = Date.now() + 1e9; const b = P[peerK()]; b.el.classList.remove('hm-off'); b.fi = f; [b.x, b.y] = clampPos(x, y != null ? y : G0, f); b.path = []; b.hv = null; status(); },
+    peerWalk: (x, f = 0, y) => { const b = P[peerK()]; b.path = route(b, x, y != null ? y : (f ? G1 : G0), f); G.lead = "peer"; },
+    classes: () => ({ cs: P.cs.el.className, yy: P.yy.el.className }),
+    obst: () => clone(G.obst || []), blocked: (x, y, f = 0) => blocked(x, y, f), clearLine: (f, x0, y0, x1, y1) => clearLine(f, x0, y0, x1, y1),
     flush: () => flush(), load: () => loadSave(true),
   },
 };

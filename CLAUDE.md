@@ -1410,6 +1410,46 @@ Asked for: 「make it can move up and down also and make it more 3D and more rea
   per open (`tickDay` and `open` both called `renderHouse`); and what stands on the floors goes in a frame after
   the house, while it fades in (`renderProps`).
 
+### Together, and a house that lives (2026-11-26)
+
+Asked for: 「improve the interaction between both character with more real, make the entire design make it more
+real for the 我们的家」.
+
+- **💞 互动** replaces 🤗 抱抱 (`data-r="hug"`, `data-a="acts"`): there only when you are next to each other
+  (`near()`, or while holding hands, to let go), it opens 抱抱 亲亲 击掌 牵手. You walk up to your partner first, on
+  the side you are on and at their depth (a kiss 2.8 apart, a hug 3.2, hand in hand 3.6, a high five 4.4), the two
+  of you turn to face each other, and then it plays — `walkMe(…, { act })`, so it happens on ARRIVAL, and the
+  arrival sends `act` {k, x, y, f}: the partner's phone puts you where you stopped and plays the same thing
+  (`playAct`). Asked from across the room it says to go to them first; with nobody home, that they are out.
+- **牵手: whoever moved last leads, the other walks beside them** — `G.lead` is the same on both phones (a tap or
+  the stick sends `go` / `hold`, which makes the sender the lead on the other phone), so both phones simulate the
+  follower the same way and nothing extra is sent; the heartbeat corrects drift. The follower keeps pace
+  (`towStep`: the leader's own velocity plus a pull to the spot beside them, capped): the first version re-planned
+  a path every 180 ms, and since a path slows down as it ends, a leader walking toward the follower walked straight
+  through them every time — only a screenshot showed it. With furniture in between it walks a path instead. Only the
+  CURRENT follower is towed: a tow left over from before wiped the walk a follower had just started themselves (the
+  WebKit run caught it). The stairs part you (a hand can't be held up a staircase), and so do the partner leaving and
+  being on different floors; 放手 (or L) sends `hand {on: 0}`. A follower who is sitting gets up and goes along.
+- **Two people standing still next to each other face each other**, and every few seconds a heart rises between
+  them; their name tags step apart (`hm-tagup`) instead of sitting on each other. People blink, and arriving
+  home says 「我回来啦～」 with a wave.
+- **Everything standing on a floor has a footprint** (`addObst`, from what `renderProps` puts down: the 小窝's
+  pieces by their drawn size, the house's furniture from `THING_FOOT`, the pots): the stick and keys slide along
+  it, and a walk finds its way round it (A* on a grid of 1 × 0.7 per floor, then straightened with `clearLine`;
+  ~1 ms across the whole house). A walk that ENDS inside one — a seat on the sofa — goes to the nearest free square
+  and steps in, so sitting still works. A walk is then pulled straight (`route`): a corner you can see past is left
+  out, so a doorway's waypoint and a way round the kitchen table don't zigzag together, and a detour's last grid
+  square is not a second stop on top of the real one.
+- **More of a home:** a bookshelf, a fridge and a plant (the same drawing style: soft fill, darker edge, one
+  highlight) — sized against the people: the first shelf and fridge came out doll-sized (w 7) and only a
+  screenshot showed it. A clock on the wall (小平房's bedroom, 两层小楼's upstairs landing) whose hands follow the
+  phone's own clock: it is an HTML face moved on by the house's minute tick (`clockTick`), because a clock drawn
+  into the SVG stops at the minute the house was opened. Not on the downstairs landing: the stairs cover it.
+- **The garden:** a low hedge along the fence with round blossoms in the season's colours (none in winter; the
+  first version's diamonds read as sweets), tufts of grass in front of the house, birds across a day sky,
+  fireflies at night, butterflies on a spring or summer day, the tree swaying. All of it stays still under reduced
+  motion, and the house is still one drawing (226 elements at Lv3).
+
 ### The garden: derived, so two phones can't disagree
 - A planting is `{id, seed, at, by, w: {date: bits}}` — bit 1 CS, bit 2 YY;
   dates are each phone's own (§2). `grow()` derives the stage from the waterings
@@ -2229,8 +2269,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/nav-test.js` | 首页 · 积分 · ＋ · 一起 · 商店 (§7.36, `ONLY=…`, `LOOK=classic`): the bar in order in both looks, every page and pane and the old names landing in them, 今天's rows and each button (and YY's side), 本月 = the score card, the four tiles staying put, every 一起 tile opening its place, the shop under the bar, ＋ on top from every page, 320–1280 by day and night with nothing under the bar or off the side, keyboard, reduced motion, HTML_V = the meta |
-| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move (a tap anywhere on a floor, the stick, the keys incl. diagonals, walls with doorways, smaller further back, behind and in front of the sofa) incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
-| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, watering a pot the partner planted a moment ago before their save arrives (§8a — it waits, it is not lost), sitting together, the off-screen tag walking you to your partner, where you left |
+| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`; §12 is the two of you: 💞 互动's four actions, walking up and facing each other, hand in hand with either leading and letting go on the stairs, walking round the sofa and never through it, the clock keeping time, birds / fireflies / butterflies, reduced motion): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move (a tap anywhere on a floor, the stick, the keys incl. diagonals, walls with doorways, smaller further back, behind and in front of the sofa) incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
+| `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave, 💞 互动 on both phones (a hug in the same place on both, a kiss with the right one blushing, hand in hand following on both, 放手 from either), one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, watering a pot the partner planted a moment ago before their save arrives (§8a — it waits, it is not lost), sitting together, the off-screen tag walking you to your partner, where you left |
 | `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, one house save, each person's own progress slot (the partner reads, can't write), another couple, direct Postgres |
 | `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); the garden is the same on both; the second device isn't taken for the partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
