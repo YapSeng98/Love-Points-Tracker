@@ -1186,6 +1186,42 @@ do together:
   carrying can't jump) never started. The bot now steps off its partner's head
   before every piece.
 
+### ♾️ 一直走下去 — the endless road (2026-11-26)
+
+Asked for on 11-24: 「make it more longer and more challenge … make sure is not short game … new for play」. A
+card above the worlds (`endlessCard`), 出发 / 一起出发. A run is one 段 after another, each in a different world
+(all ten, shuffled per run — a run kept to the worlds you had reached was 春 段 after 段 on a new phone);
+the record (段 walked, then 💗) syncs per person through `Prog` (`coop.endless`, the farther run wins).
+
+- **A 段** (`endlessSpec(run)`, `run = { rs, d, hp, he, t, ws }`): made stretches (`g<seed>_<1-5><r><l>`, built
+  by `genRows`, cached in `CHUNKS` while in use) between that world's own puzzle pieces (`POOL`, from its levels;
+  never the boss or the storm level's run pieces), a flag after each puzzle. 段 1 one puzzle, 段 2–3 two, then
+  three. Every 4th 段 is a storm run (`chase`, 1.5 + 0.05·段 tiles/s, ≤ 2.4) with no puzzles; the night world is
+  dark from 段 5; difficulty 1 + (段−1)/2 (≤ 5) and walker speed (`rank`) grow with it.
+- **Hearts carry over**: +1 for each 段 walked (≤ 5), lost hearts stay lost; 这一段重来 / 回到旗子 keep the
+  hearts as they are, so a restart is not a refill. The run ends when they are gone (`endlessOver`). A 段 walked
+  shows what comes next and goes on by itself after 4 s (the host's phone on two phones); 歇一歇 ends the run.
+- **Points**: the first run to get 3 / 6 / 10 段 far pays +1 each (`E3`/`E6`/`E10` beside the level keys), inside the
+  day's +3. No server rule (§7.32's warning stands).
+- **A made stretch is fair by construction** (`tools/coop-endless-test.js` §1 checks 4000 of them): gaps 2–4, a plank
+  pit ≤ 7 with one 3-tile plank, a raft pit of 9 with the raft ≥ 6 tiles from any other gap; three tiles of runway
+  before every pit and two to land; nothing within 4 tiles after spikes; steps up ≤ 3; it starts and ends on the
+  usual ground (5 tiles at the end). What the bot found on the way, each a thing people would hit too:
+  - spikes right before a gap (the jump over them came down in the gap), a 2-tile ledge straight before a pit, two
+    2-tile planks over a wide pit (stopping dead on a plank and jumping again);
+  - **springs**: walking onto one throws you ~8 tiles up and 8 on — a coin toss before a gap, and under the sea
+    13 tiles, off the screen. Made stretches have none;
+  - **walkers left their stretch**: an alarm clock hopped after the two of you into a cannon puzzle and knocked CS
+    out of the barrel. A made stretch's walkers carry `bx0/bx1` and turn at its edges; the hand-made pieces are
+    unchanged;
+  - storm stretches with chestnuts and wide spikes cost a never-dodging bot 4 of 8 runs; they now have only
+    stompable walkers and spikes ≤ 2 (20/24 with real hits).
+- **Two phones**: the host runs the run; `go` carries `lv: -1` and `e` (the numbers and the piece list, NET_V 6);
+  the guest builds exactly that (`endlessFromWire` drops an unknown piece, a bad number, a seq not starting at
+  `start`). The next 段 / another run / this 段 again are `rq` kinds `next` / `new` / `re` / `cp`; `next` advances
+  once per 段 (`segDone`: the host's countdown and the partner's tap can both ask). Stopping on either phone is
+  the `over` event.
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -2013,7 +2049,8 @@ What made the difference, and what must not come back:
 □ Re-run the browser suites in tools/ that touch what changed
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
-  coop-live-test.js, coop-net-test.js, coop-stars-test.js, home-test.js,
+  coop-live-test.js, coop-net-test.js, coop-stars-test.js, coop-endless-test.js,
+  coop-endless-live-test.js, home-test.js,
   home-live-test.js, sync-live-test.js, nav-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
@@ -2122,6 +2159,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏 (§9 is 照片拼图: a square board of square pieces from their photo, taps and arrow keys, 看原图, +1/+2 by size and nothing more for the same size, the row, the record, the photo wall in the 客厅, the same 今日拼图 on both phones and a new one tomorrow, no photo / a dead link → the drawing, 5×5 at 360–820 both themes): the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 50 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-endless-test.js` | ♾️ 一直走下去 on one phone: 4000 made stretches checked for fairness (gaps, runways, steps, spikes, no springs), 200 段 of specs (a new world each 段, storms, the dark, 1→2→3 puzzles, each from its own world), the wire refusing junk, the bot walking 144 段 in both modes and most with real hits, the run (card, next 段 by itself, hearts that carry over, 这一段重来, stopping, running out, the record), points at 3 / 6 / 10 段, the sync merge, 360–820 both themes. `RUNS`/`DMAX`/`ONLY` |
+| `node tools/coop-endless-live-test.js` | The same on two logged-in phones, live backend: 一起出发 starts the same 段 on both, a 段 walked and the next one on both, the hearts the same on both, the guest hurrying it on, stopping from either phone, another run from the guest, running out, both records, an unknown piece on the wire ignored |
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |

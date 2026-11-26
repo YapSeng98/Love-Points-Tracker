@@ -12,6 +12,17 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-26 — ♾️ 一直走下去, an endless road in 一起回家
+
+一起回家 gets a mode that never runs out: one 段 after another, each in a new
+world, with ground made new for every run between that world's puzzles. It gets
+harder as you go — more puzzles, wider gaps, more and faster walkers, the storm
+chasing you every 4th 段, the night going dark from 段 5. Each 段 walked gives back
+one heart; the run ends when the hearts are gone. Your farthest run is kept on
+every phone you use, and the first time you get 3, 6 and 10 段 far is +1 each
+(inside the usual +3 a day). It works on two phones like the levels: one of you
+taps 一起出发 and you both walk the same road.
+
 ## 2026-11-25 (night) — 🧩 照片拼图
 
 A new mini game: slide the pieces of one of your own photos back into place.
