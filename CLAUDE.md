@@ -1222,6 +1222,31 @@ the record (段 walked, then 💗) syncs per person through `Prog` (`coop.endles
   once per 段 (`segDone`: the host's countdown and the partner's tap can both ask). Stopping on either phone is
   the `over` event.
 
+### 🛠️ 关卡编辑 — levels you make for each other (2026-11-26)
+
+Picked from the try-out on 11-24. A card on 一起回家's screen (`levelsCard`): 新关卡, your levels (改 / 送出 or 玩) and
+「…做给你的关」 (玩). The editor (`.cg-ed`, z 155 — and listed in app.js's game-cover `:not(…)`, or it opens
+invisible) edits the MIDDLE of a level on a 13-row grid, 16–80 squares (`ED_W0` 40); the start and the house stay at
+the two ends (`seq: ['start', 'u~<hash>', 'goal']`, `stars: [1]`, built as level −2 from `G.uspec`).
+
+- **Tools** (`TOOLS`): ground fills from the square down (tap its top to shave one off), blocks, planks, ice, clouds,
+  spikes, gifts, hearts, ≤ 3 stars, springs, walkers, buttons with doors and bridges (one button powers the whole
+  made part — it is one piece), flags, a 3-wide raft, a 2×2 box (tap the square it stands ON; nothing can be put
+  inside it), the eraser. ↩ undo (40), ＋/－ 8 squares, a name (12) and a look (any world). A tap paints; on a
+  laptop the mouse can drag-paint; a finger dragging scrolls the grid.
+- **Sendable only as cleared**: `v` is the hash of the version cleared in 试玩 (`levelOk`: `v === hash(r)`), so a
+  change makes it a draft until cleared again, undo brings the cleared one back, and a sent level that is changed
+  and cleared again goes out as the new one. 试玩 is always on this phone (`G.modeEd` keeps 各用自己的手机 for after).
+- **Stored as runs** (`encRows`: `12.3#`, rows joined by `|`, ≤ 1400 characters; `decRows` refuses a run longer
+  than 80 rather than cutting it) in your own progress save: `play.lv` (≤ 6), `play.lvdel` (deleted ids, so another
+  phone does not bring one back), `play.pl` (how you did on your partner's: the faster time, every star). `Prog`
+  merges them; your partner's phone reads your slot (`api.partnerPlay`) and lists only levels sent AND still
+  cleared. No points: a level you make yourself is nothing to farm.
+- **Two phones**: `go` carries `lv: -2` and `u` (the level itself, NET_V 7); the guest builds exactly that
+  (`customFromWire` drops rows that are not a level). Each phone records its own result unless the level is its own.
+- Found building it: **the progress sync sent `coop: null`** for anyone who had never cleared a 一起回家 level, the
+  server's shape check refused the whole write, and their mini-game records had never been saved either.
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -2087,7 +2112,7 @@ What made the difference, and what must not come back:
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
   coop-live-test.js, coop-net-test.js, coop-stars-test.js, coop-endless-test.js,
-  coop-endless-live-test.js, home-test.js,
+  coop-endless-live-test.js, coop-editor-test.js, coop-editor-live-test.js, home-test.js,
   home-live-test.js, sync-live-test.js, nav-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
@@ -2196,6 +2221,8 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/loader-test.js` | The app.js loader in Chrome and WebKit: a deploy reaches the next open, an unchanged app.js is not downloaded again, a failed HEAD or no fetch still boots |
 | `node tools/games-test.js` | 小游戏 (§9 is 照片拼图: a square board of square pieces from their photo, taps and arrow keys, 看原图, +1/+2 by size and nothing more for the same size, the row, the record, the photo wall in the 客厅, the same 今日拼图 on both phones and a new one tomorrow, no photo / a dead link → the drawing, 5×5 at 360–820 both themes): the payout tiers, one payout per person per game per day (derived from the entries, not the flag), tomorrow pays again, the pet catching for real, cards from photos with fallbacks, 360/390/820 both themes |
 | `node tools/coop-test.js` | 一起回家 and 默契拍拍 in the real app: the bot clears all 50 levels (one phone and alone), first-clear payouts and the +3 cap, the no-pet case, 360/390/820 both themes |
+| `node tools/coop-editor-test.js` | 🛠️ 关卡编辑 on one phone: levels stored as runs decode exactly and junk is refused (the wire too), the editor (ground fill and shave, eraser, planks, ≤ 3 stars, the box and the raft needing room, undo, longer/shorter, name and look kept, 6 at most, delete twice), 试玩 building exactly the grid, clearing → sendable, a change → draft, undo → cleared again, the bot on a made level, partner levels listed only as sent and cleared, results kept (best time, every star), the merge (incl. no `coop: null`), 360–820 both themes |
+| `node tools/coop-editor-live-test.js` | The same on two logged-in phones, live backend: A1 makes, clears and sends a level (it reaches A1's save), B2 lists it, both play it together, B2's result comes back to A1's card, a made level with bad rows on the wire is ignored |
 | `node tools/coop-endless-test.js` | ♾️ 一直走下去 on one phone: 4000 made stretches checked for fairness (gaps, runways, steps, spikes, no springs), 200 段 of specs (a new world each 段, storms, the dark, 1→2→3 puzzles, each from its own world), the wire refusing junk, the bot walking 144 段 in both modes and most with real hits, the run (card, next 段 by itself, hearts that carry over, 这一段重来, stopping, running out, the record), points at 3 / 6 / 10 段, the sync merge, 360–820 both themes. `RUNS`/`DMAX`/`ONLY` |
 | `node tools/coop-endless-live-test.js` | The same on two logged-in phones, live backend: 一起出发 starts the same 段 on both, a 段 walked and the next one on both, the hearts the same on both, the guest hurrying it on, stopping from either phone, another run from the guest, running out, both records, an unknown piece on the wire ignored |
 | `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |

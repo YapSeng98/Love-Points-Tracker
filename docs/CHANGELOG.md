@@ -12,6 +12,19 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-26 (night) — 🛠️ 关卡编辑: make a 一起回家 level for each other
+
+A new card on 一起回家's screen lets you build a level of your own on a grid —
+ground, blocks, planks, ice, clouds, spikes, gifts, hearts, up to three stars,
+springs, little walkers, buttons that open doors and bridges, flags, rafts and
+boxes — with undo, a name and any world's look. Clear it yourself once in 试玩,
+then send it: it appears on your partner's 一起回家 screen, they can play it
+alone or with you on two phones, and your card shows whether they made it home
+and how many stars they found. Levels follow you to every phone you use.
+
+Also fixed: someone who had only played the mini games (never a 一起回家 level)
+never had their records saved to their account; they are now.
+
 ## 2026-11-26 (evening) — 我们的家 in 3D, and walking anywhere in it
 
 我们的家 now looks like a real little house: every room is drawn in perspective
