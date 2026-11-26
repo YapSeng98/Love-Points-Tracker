@@ -25,8 +25,12 @@ const dnum = (d) => { const [y, m, dd] = d.split('-').map(Number); return Date.U
 const dayDiff = (a, b) => Math.round(dnum(b) - dnum(a));
 const addDays = (d, n) => { const t = new Date((dnum(d) + n) * 86400000); return t.toISOString().slice(0, 10); };
 
-const HOME_V = 1;            // the live messages' version: a phone on another one is asked to reopen the app
-const G0 = 86, G1 = 56;      // where feet stand: the ground floor and (Lv3) upstairs, in % of the scene's height
+const HOME_V = 2;            // the live messages' version: a phone on another one is asked to reopen the app (2: depth too)
+// 2026-11-26 (「make it can move up and down also and make it more 3D」): each floor is a strip with depth, drawn in
+// perspective — `back` is where the back wall meets it, `front` its front edge (in % of the scene's height) — and you
+// walk anywhere on it, a little smaller the further back. G0 / G1 are the middle of the ground floor and of upstairs:
+// where the pots stand, and where a walk to that floor arrives.
+const G0 = 86, G1 = 51.5;
 const WILT = 3;              // days without water before a growing plant droops
 const PICK_EXP = 20;         // pet EXP per flower picked (half of it is 小窝币)
 const BEAT_MS = 12000, GONE_MS = 32000, POLL_MS = 45000;
@@ -131,30 +135,34 @@ const HOUSE = {
   hm_snowman: { n: '雪人', e: '⛄', price: 80, fest: 'xmas' },
 };
 
-/* ── the three houses. x is in % of the scene's WIDTH and may run past 100: a bigger house is a wider
-   world and the view follows you; y is in % of the scene's height. ── */
+/* ── the three houses. x is in % of the scene's WIDTH and may run past 100 (a bigger house is a wider world and the
+   view follows you); y is in % of the scene's height. A room is a box seen from the front with its front wall taken
+   away: `top` is the front edge of its ceiling, and it stands on its storey's floor `f`. Furniture is [kind, x, y of its
+   feet, width]; pots are [x, y]. ── */
 const LVS = {
   1: { name: '小木屋', world: 100, garden: 40,
-       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, y0: 46, y1: G0 }],
-       roof: [36, 96, 22, 46], chim: [80, 26, 4, 10], doors: [[39.4, 66, 3, 20]],
-       things: [], wins: [], pots: [[13, G0], [26, G0]], garden_things: [['tree', 5, G0 - 4, 9]] },
+       floors: [{ back: 76, front: 92 }],
+       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, top: 46, f: 0 }],
+       roof: [36, 96, 22, 46], chim: [80, 4, 9],
+       things: [], pots: [[13, G0], [26, G0]], garden_things: [['tree', 6, 80, 9]] },
   2: { name: '小平房', world: 132, garden: 40,
-       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, y0: 46, y1: G0 }, { id: 'bed', n: '卧室', x0: 92, x1: 128, y0: 46, y1: G0 }],
-       roof: [36, 132, 20, 46], chim: [118, 24, 4, 10], doors: [[39.4, 66, 3, 20], [90.6, 64, 3, 22]],
-       things: [['bed', 113, G0, 15], ['bear', 98.5, G0, 4.5], ['lamp', 124.5, G0, 4]], wins: [[106, 53, 8, 10]],
-       pots: [[9, G0], [20, G0], [31, G0]], garden_things: [['tree', 3.5, G0 - 4, 7.5], ['pethouse', 36.4, G0, 6]] },
+       floors: [{ back: 76, front: 92 }],
+       rooms: [{ id: 'living', n: '客厅', x0: 40, x1: 92, top: 46, f: 0 }, { id: 'bed', n: '卧室', x0: 92, x1: 128, top: 46, f: 0, win: [.5, 7, 8] }],
+       roof: [36, 132, 20, 46], chim: [118, 4, 9],
+       things: [['bed', 111, 81, 15], ['bear', 98.5, 80.5, 4.5], ['lamp', 124, 80, 4]],
+       pots: [[9, G0], [20, G0], [31, G0]], garden_things: [['tree', 4, 80, 7.5], ['pethouse', 35.4, 80.5, 6]] },
   3: { name: '两层小楼', world: 142, garden: 40,
+       floors: [{ back: 78, front: 92 }, { back: 45.5, front: 56 }],
        rooms: [
-         { id: 'living', n: '客厅', x0: 40, x1: 92, y0: G1 + 2, y1: G0 }, { id: 'hall', n: '楼梯', x0: 92, x1: 104, y0: G1 + 2, y1: G0 },
-         { id: 'kitchen', n: '厨房', x0: 104, x1: 140, y0: G1 + 2, y1: G0 },
-         { id: 'bed', n: '二楼卧室', x0: 40, x1: 92, y0: 26, y1: G1 }, { id: 'hall2', n: '楼梯', x0: 92, x1: 104, y0: 26, y1: G1 },
-         { id: 'balcony', n: '阳台', x0: 104, x1: 140, y0: 26, y1: G1 }],
-       roof: [36, 144, 6, 26], chim: [128, 9, 4, 9], slab: [40, G1, 100, 2],
-       doors: [[39.4, 70, 3, 16], [90.6, 68, 3, 18], [102.4, 68, 3, 18], [90.6, 38, 3, 18]],
-       things: [['stove', 113, G0, 9], ['table', 129, G0, 11], ['bed', 68, G1, 15], ['bear', 47, G1, 4], ['lamp', 87, G1, 4], ['bench', 133, G1, 8]], wins: [[61, 31, 8, 10], [122, 62, 7, 9]],
+         { id: 'living', n: '客厅', x0: 40, x1: 92, top: 59, f: 0 }, { id: 'hall', n: '楼梯', x0: 92, x1: 104, top: 59, f: 0 },
+         { id: 'kitchen', n: '厨房', x0: 104, x1: 140, top: 59, f: 0, win: [.62, 6, 6] },
+         { id: 'bed', n: '二楼卧室', x0: 40, x1: 92, top: 24, f: 1, win: [.36, 7, 7.5] }, { id: 'hall2', n: '楼梯', x0: 92, x1: 104, top: 24, f: 1 },
+         { id: 'balcony', n: '阳台', x0: 104, x1: 140, top: 24, f: 1, open: true }],
+       roof: [36, 144, 6, 24], chim: [128, 4, 8],
+       things: [['stove', 112, 82, 9], ['table', 128.5, 85.5, 11], ['bed', 66, 49.5, 15], ['bear', 46.5, 49, 4], ['lamp', 87, 48.5, 4], ['bench', 133, 48.8, 8]],
        pots: [[8, G0], [16, G0], [24, G0], [32, G0], [111, G1], [121, G1]],
-       garden_things: [['tree', 3.5, G0 - 4, 7.5], ['pethouse', 36.4, G0, 5.6]],
-       stairs: { bx: 93.5, tx: 102.5 }, pond: [10, 89, 20, 6], balcony: [104, 140] },
+       garden_things: [['tree', 4, 80, 7.5], ['pethouse', 35.4, 80.5, 5.6]],
+       stairs: { bx: 94.2, by: 86.5, tx: 101.6, ty: 50.5 }, pond: [3, 93.6, 24, 5], balcony: [104, 140] },
 };
 
 /* ── the shared save ──────────────────────────────────────────────────────────────────────────── */
@@ -212,7 +220,7 @@ function apply(data, op) {
   }
   if (op.t === 'pos') {
     if (!BIT[op.who]) return null;
-    d.pos[op.who] = { x: Math.round(op.x * 10) / 10, f: op.f ? 1 : 0, at: op.at };
+    d.pos[op.who] = { x: Math.round(op.x * 10) / 10, ...(typeof op.y === 'number' && isFinite(op.y) ? { y: Math.round(op.y * 10) / 10 } : {}), f: op.f ? 1 : 0, at: op.at };
     return d;
   }
   return null;
@@ -332,7 +340,7 @@ function potInfo(i) {
     empty: !pl, bloom: !!pl && g.stage >= 5, thirsty: !!pl && g.stage < 5 && !(bits & myBit) };
 }
 function potHtml(i) {
-  const L = LVS[G.lv], [x, y] = L.pots[i], q = potInfo(i);
+  const L = LVS[G.lv], [x, y] = L.pots[i], q = potInfo(i), sc = depthS(y, floorOfY(y));
   const cls = ['hm-pot'];
   if (q.empty) cls.push('hm-empty');
   if (q.thirsty) cls.push('hm-thirsty');
@@ -342,7 +350,7 @@ function potHtml(i) {
   if (q.pl && q.mine) cls.push('hm-wet');
   if (q.g.wilted) cls.push('hm-wilt');
   const what = q.empty ? '空花盆，点一下种花' : q.bloom ? `${q.seed.n}开花了，点一下收进图鉴` : `${q.seed.n}，${q.g.wilted ? '蔫了，快浇水' : q.mine ? '今天浇过了' : '点一下浇水'}`;
-  return `<div class="${cls.join(' ')}" data-i="${i}" style="left:${x}%;top:${y}%${q.seed ? `;--hm-glow:${glowOf(q.seed)}` : ''}" role="button" tabindex="0" aria-label="${i + 1} 号花盆：${what}">${potSvg(q.pl, q.g)}${q.theirs && !q.bloom ? `<span class="hm-pmark" style="background:${peerK() === 'cs' ? '#7FB2EC' : '#FF9CC4'}" aria-hidden="true"></span>` : ''}</div>`;
+  return `<div class="${cls.join(' ')}" data-i="${i}" style="left:${x}%;top:${y}%;--s:${sc.toFixed(3)};z-index:${Math.round(y * 10)}${q.seed ? `;--hm-glow:${glowOf(q.seed)}` : ''}" role="button" tabindex="0" aria-label="${i + 1} 号花盆：${what}">${potSvg(q.pl, q.g)}${q.theirs && !q.bloom ? `<span class="hm-pmark" style="background:${peerK() === 'cs' ? '#7FB2EC' : '#FF9CC4'}" aria-hidden="true"></span>` : ''}</div>`;
 }
 
 /* ── the scene ───────────────────────────────────────────────────────────────────────────────── */
@@ -350,22 +358,318 @@ const box = (cls, x, y, w, h, inner = '', style = '') => `<div class="hm-abs ${c
 const thingAt = (svg, x, y, w, cls = '') => `<div class="hm-abs hm-thing ${cls}" style="left:${x}%;top:${y}%;width:${w}%">${svg}</div>`;
 const owns = (id) => { try { return !!API.owns(id); } catch (e) { return false; } };
 const showFest = (id) => !!FESTS[id] && festWin(id, G.today).on;
-function levelOf() { return owns('hm_lv3') ? 3 : owns('hm_lv2') ? 2 : 1; }
+/* ── the house in 3D (2026-11-26: 「make it can move up and down also and make it more 3D and more real」) ──
+   Every room is a box seen from the front with its front wall taken away: a back wall, a floor running back in
+   perspective, the two side walls and the ceiling closing in toward the back, shadow where they meet, light where
+   the window is. Walls between rooms are wall at the back and a doorway at the front, so you go round by the door.
+   It is all one drawing (one <svg> in the scene's own units: x is % of the width, y % of the height), redrawn only
+   when the house, the season or the time of day changes; what stands on a floor (furniture, pots, the two of you,
+   the pet) goes in front of it and is ordered by how far forward it stands. */
+const DC = 2.4;                                    // how far a ceiling reaches in
+const dxOf = (r) => Math.min(4.2, (r.x1 - r.x0) * .12);   // how far a room's side walls reach in
+const floorsOf = () => LVS[G.lv].floors;
+// where feet can be on a floor: a little off the back wall, up to its front edge
+const band = (fi) => { const F = floorsOf()[fi] || floorsOf()[0]; return [F.back + 2.2, F.front - .6]; };
+// the back part of a floor is wall between rooms; this far forward there is a doorway
+const DOOR_U = .42, DOOR_V = .7;
+const passY = (fi) => { const F = floorsOf()[fi] || floorsOf()[0]; return F.front - DOOR_U * (F.front - F.back) + .4; };
+// 0 at the back of a floor, 1 at its front: further back is drawn smaller
+const depthT = (y, fi) => { const [b, f] = band(fi < 0 ? 0 : fi); return clamp((y - b) / (f - b), 0, 1); };
+const depthS = (y, fi) => .8 + .2 * depthT(y, fi);
+const floorOfY = (y) => (floorsOf().length > 1 && y < floorsOf()[1].front + 2.5 ? 1 : 0);
+// the walls across a floor that have a doorway: between rooms, and the front door onto the garden
+function walls(fi) {
+  const L = LVS[G.lv], rs = L.rooms.filter(r => r.f === fi), xs = [];
+  rs.forEach((r, k) => { if (k > 0 || (fi === 0 && L.garden)) xs.push(r.x0); });
+  return xs.sort((a, b) => a - b);
+}
+// how far along a floor you can go
+function xRange(fi) {
+  const L = LVS[G.lv];
+  if (fi === 1) return [42, (L.balcony ? L.balcony[1] : 92) - 2];
+  return [3, L.rooms.filter(r => r.f === 0).reduce((m, r) => Math.max(m, r.x1), 0) - 2];
+}
+function clampPos(x, y, fi) { const [x0, x1] = xRange(fi < 0 ? 0 : fi), [b, f] = band(fi < 0 ? 0 : fi); return [clamp(x, x0, x1), clamp(y, b, f)]; }
+// a step from (x0, y0) to (x1, y1): a wall is solid from the back of the floor to its doorway. You stop against it
+// (not jitter at it), and in the doorway you can go out toward the front but not back into the wall beside it.
+const WALL_W = .45;
+function wallStop(fi, x0, x1, y0, y1) {
+  if (fi < 0) return [x1, y1];
+  const py = passY(fi);
+  for (const b of walls(fi)) {
+    if (y1 >= py) continue;
+    const inNow = Math.abs(x0 - b) < WALL_W, inNext = Math.abs(x1 - b) < WALL_W;
+    if (inNow && inNext) y1 = Math.max(y1, Math.min(y0, py));                       // in the doorway, stepping back
+    else if (!inNow && (inNext || (x0 - b) * (x1 - b) < 0)) x1 = x0 < b ? b - WALL_W : b + WALL_W;   // walking into it
+  }
+  return [x1, y1];
+}
+// a walk on one floor: straight there, or forward to the doorways, along, and back
+function within(fi, x0, y0, x1, y1) {
+  const py = passY(fi) + .3;
+  if (!walls(fi).some(b => (x0 - b) * (x1 - b) < 0) || (y0 >= py - .3 && y1 >= py - .3)) return [{ x: x1, y: y1, fi }];
+  const pts = [];
+  if (y0 < py) pts.push({ x: x0, y: py, fi });
+  pts.push({ x: x1, y: Math.max(y1, py), fi });
+  if (y1 < py) pts.push({ x: x1, y: y1, fi });
+  return pts;
+}
+// a walk to (x, y) on floor fi, from wherever a is: up or down the stairs when it is the other floor
+function route(a, x, y, fi) {
+  const L = LVS[G.lv], s = L.stairs;
+  if (!s) fi = 0;
+  [x, y] = clampPos(x, y, fi);
+  const af = a.fi == null ? 0 : a.fi;
+  if (!s || af === fi) return within(fi, a.x, a.y, x, y);
+  if (af === -1) return fi === 1 ? [{ x: s.tx, y: s.ty, fi: 1 }, ...within(1, s.tx, s.ty, x, y)] : [{ x: s.bx, y: s.by, fi: 0 }, ...within(0, s.bx, s.by, x, y)];
+  return af === 0
+    ? [...within(0, a.x, a.y, s.bx, s.by), { x: s.tx, y: s.ty, fi: 1 }, ...within(1, s.tx, s.ty, x, y)]
+    : [...within(1, a.x, a.y, s.tx, s.ty), { x: s.bx, y: s.by, fi: 0 }, ...within(0, s.bx, s.by, x, y)];
+}
+// a point on a room's side wall (side -1 left, 1 right): u from its front edge (0) to the back (1), v from the floor (0) to the ceiling (1)
+function wallPt(r, side, u, v) {
+  const F = LVS[G.lv].floors[r.f], dx = dxOf(r);
+  const x = side < 0 ? r.x0 + dx * u : r.x1 - dx * u;
+  const yF = F.front + (F.back - F.front) * u, yC = r.top + DC * u;
+  return [x, yF + (yC - yF) * v];
+}
+const hexRgb = (h) => { const n = parseInt(String(h).replace('#', '').slice(0, 6), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+// a colour a little darker (k < 0) or lighter (k > 0); anything that is not #rrggbb is left alone
+function tone(c, k) {
+  if (!/^#[0-9a-f]{6}$/i.test(String(c))) return c;
+  const [r, g, b] = hexRgb(c), f = (v) => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k);
+  return '#' + [f(r), f(g), f(b)].map(v => clamp(v, 0, 255).toString(16).padStart(2, '0')).join('');
+}
+// how each room looks; the 客厅 takes the 小窝's own wallpaper and floor
+const LOOK = {
+  living: { wall: ['#FBE7D3', '#F3D5B8'], floor: '#D3A67C' },
+  bed: { wall: ['#EFE8FC', '#DDD2F5'], floor: '#E2C29E', rug: '#F6C6D8' },
+  kitchen: { wall: ['#E9F5EB', '#D5EBDA'], floor: '#EFEBE3', tiles: true },
+  hall: { wall: ['#F7EADB', '#ECD8C0'], floor: '#CFA176' },
+  hall2: { wall: ['#F7EADB', '#ECD8C0'], floor: '#CFA176' },
+};
+function lookOf(r, room) {
+  const base = LOOK[r.id] || LOOK.hall;
+  if (r.id !== 'living' || !room || !room.paper) return base;
+  const w = room.paper.wall, f = room.paper.floorTone;
+  return { wall: Array.isArray(w) && w.length >= 2 ? [w[0], w[1]] : base.wall, floor: f || base.floor, mat: room.mat };
+}
+function houseSvg(L, room) {
+  const W = L.world, F0 = L.floors[0], N = G.night, D = G.dusk, defs = [], g = [];
+  const P2 = (p) => p[0].toFixed(2) + ',' + p[1].toFixed(2);
+  const poly = (pts, attr) => `<polygon points="${pts.map(P2).join(' ')}" ${attr}/>`;
+  // Lines, stripes, boards and pickets of one look go in as ONE path: the first version drew them one element each
+  // (512 in the two-storey house), and styling that many cost a slow phone ~10 ms more every time the house opened.
+  const acc = new Map();
+  const add = (look, d) => acc.set(look, (acc.get(look) || '') + d);
+  const flush = () => { for (const [look, d] of acc) g.push(`<path d="${d}" ${look}/>`); acc.clear(); };
+  const shape = (pts) => 'M' + pts.map(P2).join('L') + 'Z';
+  const seg = (a, b) => `M${P2(a)}L${P2(b)}`;
+  const box = (x, y, w, h) => shape([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
+  const stroke = (c, w = 1, op = 1) => `fill="none" stroke="${c}" stroke-width="${w}"${op < 1 ? ` stroke-opacity="${op}"` : ''} vector-effect="non-scaling-stroke"`;
+  const grad = (id, stops, v = true) => defs.push(`<linearGradient id="${id}" x1="0" y1="0" x2="${v ? 0 : 1}" y2="${v ? 1 : 0}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`);
+  const rgrad = (id, stops, cx = .5, cy = .5, r = .6) => defs.push(`<radialGradient id="${id}" cx="${cx}" cy="${cy}" r="${r}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</radialGradient>`);
+  const night = (k) => (N ? k : 0);
+  // ── the lawn, the whole way across, its mown stripes running back toward the house
+  const xmas = G.fests && G.fests.has('xmas'), S = G.season;
+  const lawn = xmas ? ['#EEF3F9', '#FFFFFF'] : S === 'winter' ? ['#CFE0CB', '#E2EEDD'] : S === 'autumn' ? ['#A9BE6F', '#BBCB7E'] : ['#84BE77', '#9CD08B'];
+  const lb = F0.back - 3;
+  grad('hm3lawn', [[0, tone(lawn[0], night(-.55) || (D ? -.08 : 0))], [1, tone(lawn[1], night(-.5) || (D ? -.04 : 0))]]);
+  g.push(`<rect x="-90" y="${lb}" width="${W + 180}" height="${106 - lb}" fill="url(#hm3lawn)"/>`);
+  const vx = W / 2, vy = -260, ta = (lb - vy) / (106 - vy);
+  for (let k = -26; k <= 26; k++) { const xa = vx + k * 9, xb = xa + 4.5; add(`fill="rgba(255,255,255,${N ? .03 : .07})"`, shape([[vx + (xa - vx) * ta, lb], [vx + (xb - vx) * ta, lb], [xb, 106], [xa, 106]])); }
+  flush();
+  grad('hm3edge', [[0, 'rgba(40,70,30,.22)'], [1, 'rgba(40,70,30,0)']]);
+  g.push(`<rect x="-90" y="${lb}" width="${W + 180}" height="2.4" fill="url(#hm3edge)"/>`);
+  // ── the garden: a picket fence along the back, stepping stones to the door, the pond
+  if (L.garden) {
+    const fy = lb + 1.4, fh = 6.4, pk = N ? '#8E8798' : '#FFF6EA', pkS = N ? '#6E687A' : '#E3D2BD';
+    add(`fill="${pkS}"`, box(1, fy - fh * .62, L.garden - 2, .9) + box(1, fy - fh * .28, L.garden - 2, .9));
+    for (let x = 1.4; x < L.garden - 1.5; x += 2.3) { add(`fill="${pk}"`, shape([[x, fy], [x, fy - fh + .9], [x + .55, fy - fh], [x + 1.1, fy - fh + .9], [x + 1.1, fy]])); add(`fill="${pkS}" opacity=".9"`, box(x + .8, fy - fh + .9, .3, fh - .9)); }
+    flush();
+    const r0 = L.rooms[0];
+    for (const [sx, sy, s] of [[r0.x0 - 3, F0.front - 3.6, 1], [r0.x0 - 7.5, F0.front - 1.9, .92], [r0.x0 - 12.2, F0.front - .4, .86]]) g.push(`<ellipse cx="${sx}" cy="${sy}" rx="${(1.9 * s).toFixed(2)}" ry="${(1.1 * s).toFixed(2)}" fill="${N ? '#7B7D8C' : '#D9D2C6'}"/><ellipse cx="${sx - .2}" cy="${sy - .25}" rx="${(1.3 * s).toFixed(2)}" ry="${(.55 * s).toFixed(2)}" fill="rgba(255,255,255,${N ? .12 : .45})"/>`);
+  }
+  if (L.pond) {
+    const [px, py, pw, ph] = L.pond, cx = px + pw / 2, cy = py + ph / 2;
+    rgrad('hm3pond', [[0, N ? '#3C5A8C' : '#B8E2FF'], [.7, N ? '#2C4672' : '#86C8F0'], [1, N ? '#24395E' : '#6AB3E2']], .45, .4, .6);
+    g.push(`<ellipse cx="${cx}" cy="${cy + .5}" rx="${pw / 2 + .9}" ry="${ph / 2 + .7}" fill="${N ? '#5E6070' : '#C9C0B2'}"/><ellipse cx="${cx}" cy="${cy}" rx="${pw / 2}" ry="${ph / 2}" fill="url(#hm3pond)"/>`
+      + `<ellipse cx="${cx - pw * .18}" cy="${cy - ph * .18}" rx="${pw * .16}" ry="${ph * .1}" fill="rgba(255,255,255,${N ? .18 : .5})"/><ellipse cx="${cx + pw * .22}" cy="${cy + ph * .12}" rx="${pw * .07}" ry="${ph * .16}" fill="#5DB565"/><ellipse cx="${cx + pw * .08}" cy="${cy + ph * .2}" rx="${pw * .05}" ry="${ph * .12}" fill="#6CC274"/>`);
+  }
+  // ── the rooms
+  grad('hm3ao', [[0, 'rgba(50,30,20,.26)'], [1, 'rgba(50,30,20,0)']]);
+  grad('hm3ceil', [[0, N ? '#BDB1A4' : '#FFFBF6'], [1, N ? '#9C9083' : '#EADFD2']]);
+  rgrad('hm3glow', [[0, 'rgba(255,214,150,.42)'], [.6, 'rgba(255,190,120,.12)'], [1, 'rgba(30,20,60,.18)']], .5, .22, .75);
+  if (N) rgrad('hm3pool', [[0, 'rgba(255,224,170,.34)'], [1, 'rgba(255,224,170,0)']]);
+  const doorTo = (r, side) => {   // a doorway in this side wall: another room, or the garden through the front door
+    const x = side < 0 ? r.x0 : r.x1;
+    return L.rooms.some(q => q !== r && q.f === r.f && (side < 0 ? q.x1 === x : q.x0 === x)) || (side < 0 && r.f === 0 && r === L.rooms[0] && L.garden);
+  };
+  for (const r of L.rooms) {
+    const F = L.floors[r.f], look = lookOf(r, room), dx = dxOf(r), id = r.id;
+    const A = [r.x0, r.top], B = [r.x1, r.top], C = [r.x1, F.front], Dd = [r.x0, F.front];
+    const a = [r.x0 + dx, r.top + DC], b = [r.x1 - dx, r.top + DC], c = [r.x1 - dx, F.back], d = [r.x0 + dx, F.back];
+    const fl0 = tone(look.floor, night(-.32)), wl = look.wall.map(w => tone(w, night(-.3)));
+    if (r.open) {   // the balcony: a deck in the open air, a low rail along its back
+      grad('hm3deck', [[0, tone('#C99B74', night(-.4) - .1)], [1, tone('#DDB48C', night(-.38))]]);
+      g.push(poly([d, c, C, Dd], 'fill="url(#hm3deck)"'));
+      for (let k = 1; k < 9; k++) add(stroke('rgba(90,55,30,.28)'), seg([d[0] + (c[0] - d[0]) * k / 9, F.back], [Dd[0] + (C[0] - Dd[0]) * k / 9, F.front]));
+      const rail = N ? '#A79E95' : '#FFF8EE';
+      add(`fill="${rail}"`, box(d[0], F.back - 3.4, c[0] - d[0], .7));
+      for (let x = d[0]; x <= c[0] + .01; x += 2.6) add(`fill="${rail}"`, box(x - .25, F.back - 3.4, .5, 3.4));
+      flush();
+      continue;
+    }
+    grad('hm3w_' + id, [[0, wl[0]], [1, wl[1]]]);
+    grad('hm3f_' + id, [[0, tone(fl0, -.16)], [1, tone(fl0, .06)]]);
+    // ceiling, back wall (with a picture rail, faint stripes and a skirting board), floor
+    g.push(poly([A, B, b, a], 'fill="url(#hm3ceil)"') + poly([a, b, c, d], `fill="url(#hm3w_${id})"`));
+    const wh = F.back - a[1];
+    add('fill="rgba(255,255,255,.55)"', box(a[0], a[1] + wh * .2, b[0] - a[0], .35));
+    for (let x = a[0] + 1.6; x < b[0]; x += 3.2) add(`fill="rgba(255,255,255,${N ? .03 : .09})"`, box(x, a[1] + wh * .2 + .35, 1.6, wh * .8 - 1.5));
+    add(`fill="${tone(wl[1], -.12)}"`, box(a[0], F.back - 1.4, b[0] - a[0], 1.4));
+    flush();
+    g.push(`<rect x="${a[0]}" y="${F.back - 1.4}" width="${b[0] - a[0]}" height=".3" fill="rgba(255,255,255,.5)"/>` + poly([d, c, C, Dd], `fill="url(#hm3f_${id})"`));
+    if (look.tiles) {   // a tiled floor: lines back to front and across, closer together further back
+      for (let k = 1; k < 8; k++) add(stroke('rgba(120,110,95,.28)'), seg([d[0] + (c[0] - d[0]) * k / 8, F.back], [Dd[0] + (C[0] - Dd[0]) * k / 8, F.front]));
+      for (let k = 1; k < 5; k++) { const t = 1 - Math.pow(1 - k / 5, 1.35), y = F.back + (F.front - F.back) * t; add(stroke('rgba(120,110,95,.28)'), seg([d[0] + (Dd[0] - d[0]) * t, y], [c[0] + (C[0] - c[0]) * t, y])); }
+    } else {           // wooden boards, running back toward the middle of the room, and where one ends and the next begins
+      const n = Math.max(4, Math.round((r.x1 - r.x0) / 4.4)), line = stroke(tone(fl0, -.3), 1, .55), joint = stroke(tone(fl0, -.3), 1, .4);
+      for (let k = 1; k < n; k++) add(line, seg([d[0] + (c[0] - d[0]) * k / n, F.back], [Dd[0] + (C[0] - Dd[0]) * k / n, F.front]));
+      for (let k = 0; k < n; k++) for (const t of [k % 2 ? .3 : .62, k % 3 ? .82 : .14]) {
+        const x0 = d[0] + (c[0] - d[0]) * k / n, x1 = d[0] + (c[0] - d[0]) * (k + 1) / n, X0 = Dd[0] + (C[0] - Dd[0]) * k / n, X1 = Dd[0] + (C[0] - Dd[0]) * (k + 1) / n, y = F.back + (F.front - F.back) * t;
+        add(joint, seg([x0 + (X0 - x0) * t, y], [x1 + (X1 - x1) * t, y]));
+      }
+    }
+    flush();
+    if (look.mat && Array.isArray(look.mat)) {   // the 小窝's rug
+      const cx = (r.x0 + r.x1) / 2, cy = F.back + (F.front - F.back) * .55, rx = (r.x1 - r.x0) * .26, ry = (F.front - F.back) * .26;
+      grad('hm3mat', [[0, look.mat[0]], [1, look.mat[1] || look.mat[0]]]);
+      g.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#hm3mat)" opacity="${N ? .75 : .92}"/>`);
+    } else if (look.rug) g.push(`<ellipse cx="${(r.x0 + r.x1) / 2}" cy="${F.back + (F.front - F.back) * .58}" rx="${(r.x1 - r.x0) * .22}" ry="${(F.front - F.back) * .22}" fill="${tone(look.rug, night(-.3))}" opacity=".9"/>`);
+    if (look.tiles) g.push(`<rect x="${a[0]}" y="${(F.back - wh * .34).toFixed(2)}" width="${b[0] - a[0]}" height="${(wh * .34 - 1.4).toFixed(2)}" fill="rgba(255,255,255,.35)"/>`);   // kitchen tiles behind the stove
+    // the window on the back wall, and its light on the floor
+    if (r.win) {
+      const [cxf, ww, whh] = r.win, cx = a[0] + (b[0] - a[0]) * cxf, wy = a[1] + wh * .22, frame = '#FFF8EE', drape = tone(look.rug || '#F6C6D8', night(-.35));
+      const glass = N ? ['#1B2450', '#33407A'] : D ? ['#FFB98A', '#FFE2C2'] : ['#9ED3F5', '#E3F4FD'];
+      grad('hm3g_' + id, [[0, glass[0]], [1, glass[1]]]);
+      g.push(`<rect x="${cx - ww / 2 - .5}" y="${wy - .6}" width="${ww + 1}" height="${whh + 1.2}" rx=".6" fill="${frame}"/><rect x="${cx - ww / 2}" y="${wy}" width="${ww}" height="${whh}" fill="url(#hm3g_${id})"/>`
+        + `<path d="${box(cx - .2, wy, .4, whh) + box(cx - ww / 2, wy + whh / 2 - .25, ww, .5)}" fill="${frame}"/><rect x="${cx - ww / 2 - 1.2}" y="${wy + whh + .5}" width="${ww + 2.4}" height=".8" rx=".3" fill="${tone(wl[1], -.18)}"/>`
+        + `<path d="${shape([[cx - ww / 2 - 1.6, wy - 1], [cx - ww / 2 + 1.2, wy - 1], [cx - ww / 2 + .5, wy + whh + 1.4], [cx - ww / 2 - 1.9, wy + whh + 1.4]]) + shape([[cx + ww / 2 - 1.2, wy - 1], [cx + ww / 2 + 1.6, wy - 1], [cx + ww / 2 + 1.9, wy + whh + 1.4], [cx + ww / 2 - .5, wy + whh + 1.4]])}" fill="${drape}" opacity=".85"/>`);
+      if (N) g.push(`<path d="${[[.25, .3], [.7, .2], [.55, .65]].map(([sx, sy]) => box(cx - ww / 2 + ww * sx - .15, wy + whh * sy - .2, .3, .4)).join('')}" fill="#FFF8DC"/>`);
+      else g.push(poly([[cx - ww / 2, F.back], [cx + ww / 2, F.back], [cx + ww / 2 + 4, F.back + (F.front - F.back) * .72], [cx - ww / 2 + 1.5, F.back + (F.front - F.back) * .72]], `fill="rgba(255,250,225,${D ? .2 : .26})"`));
+    }
+    // shade where the floor meets the back wall
+    g.push(poly([d, c, [c[0] + .6, F.back + 2.6], [d[0] - .6, F.back + 2.6]], 'fill="url(#hm3ao)"'));
+    // the side walls, darker the further from the light; a doorway at the front where there is somewhere to go
+    for (const side of [-1, 1]) {
+      const sw = side < 0 ? [A, a, d, Dd] : [B, b, c, C];
+      g.push(poly(sw, `fill="${tone(wl[1], side < 0 ? -.07 : -.15)}"`) + poly([wallPt(r, side, 0, 0), wallPt(r, side, 1, 0), wallPt(r, side, 1, .06), wallPt(r, side, 0, .06)], `fill="${tone(wl[1], -.22)}"`));
+      add(stroke('rgba(60,40,30,.25)'), seg(sw[1], sw[2]) + seg(sw[2], sw[3]));
+      if (doorTo(r, side)) {
+        const out = side < 0 && r === L.rooms[0] && r.f === 0;   // the front door: the garden outside
+        g.push(poly([wallPt(r, side, 0, 0), wallPt(r, side, DOOR_U, 0), wallPt(r, side, DOOR_U, DOOR_V), wallPt(r, side, 0, DOOR_V)], `fill="${out ? tone('#BFE3B0', night(-.55)) : tone(wl[1], -.34)}" stroke="${N ? '#7A6650' : '#B98A5E'}" stroke-width="1.6" vector-effect="non-scaling-stroke"`));
+      }
+    }
+    // the light: a lamp under the ceiling, lit at night, its pool of light on the floor
+    const lx = (r.x0 + r.x1) / 2, ly = r.top + DC * .5;
+    add(stroke('rgba(90,70,60,.6)'), seg([lx, ly], [lx, ly + 2.2]));
+    flush();
+    g.push(poly([[lx - 1.5, ly + 4.1], [lx + 1.5, ly + 4.1], [lx + .8, ly + 2.2], [lx - .8, ly + 2.2]], `fill="${N ? '#FFE6A8' : '#F3D9A8'}" stroke="rgba(150,110,60,.5)" stroke-width="1" vector-effect="non-scaling-stroke"`));
+    if (N) g.push(poly([A, B, C, Dd], 'fill="url(#hm3glow)"') + `<ellipse cx="${lx}" cy="${F.back + (F.front - F.back) * .5}" rx="${(r.x1 - r.x0) * .32}" ry="${(F.front - F.back) * .36}" fill="url(#hm3pool)"/>`);
+  }
+  // ── the stairs: from the hall's floor up through the ceiling to the floor above
+  if (L.stairs) {
+    const s = L.stairs, n = 9, F1 = L.floors[1];
+    g.push(poly([[s.tx - 3.2, F1.back + 1.4], [s.tx + 1.4, F1.back + 1.4], [s.tx + 2.6, F1.front - 1.2], [s.tx - 1.6, F1.front - 1.2]], `fill="${N ? '#2C2236' : '#5A4234'}" opacity=".85"`));   // the opening in the floor above
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n, x0 = s.bx - 2 + (s.tx - s.bx) * t0, x1 = s.bx - 2 + (s.tx - s.bx) * t1, y0 = s.by + 1.4 + (s.ty - s.by) * t0, y1 = s.by + 1.4 + (s.ty - s.by) * t1;
+      add(`fill="${tone('#B98A5E', night(-.35))}"`, shape([[x0, y0], [x0 + 4.2, y0], [x0 + 4.2, y1], [x0, y1]]));
+      add(`fill="${tone('#E3BE94', night(-.35))}" stroke="${tone('#9A6F4A', night(-.3))}" stroke-width="1" vector-effect="non-scaling-stroke"`, shape([[x0, y1], [x0 + 4.2, y1], [x1 + 4.2, y1], [x1, y1]]));
+    }
+    add(stroke(tone('#8A5E3B', night(-.3)), 2.4), seg([s.bx + 2.4, s.by - 5.2], [s.tx + 2.4, s.ty - 5.2]));
+    for (let k = 0; k <= 4; k++) { const t = k / 4, x = s.bx + 2.4 + (s.tx - s.bx) * t, y = s.by - 5.2 + (s.ty - s.by) * t; add(stroke(tone('#A77A53', night(-.3)), 1.4), seg([x, y], [x, y + 5])); }
+    flush();
+  }
+  // ── the house's front edges: the walls and floors cut through, a door where one leads on
+  const wallC = N ? '#9F8F7E' : '#F8EAD8', edgeC = N ? '#6E5E4E' : '#C99B74', edge = `fill="${wallC}" stroke="${edgeC}" stroke-width="1" vector-effect="non-scaling-stroke"`;
+  for (let fi = 0; fi < L.floors.length; fi++) {
+    const F = L.floors[fi], rs = L.rooms.filter(r => r.f === fi);
+    if (!rs.length) continue;
+    const top = Math.min(...rs.map(r => r.top)), x0 = Math.min(...rs.map(r => r.x0)), x1 = Math.max(...rs.map(r => r.x1)), slab = fi === 0 ? 3.4 : 3;
+    // the floor's front edge (the ground floor's is its foundation)
+    if (fi === 0) g.push(`<rect x="${x0 - 1.6}" y="${F.front}" width="${x1 - x0 + 3.2}" height="${slab}" fill="${N ? '#6E5848' : '#B98A5E'}" stroke="${edgeC}" stroke-width="1" vector-effect="non-scaling-stroke"/><rect x="${x0 - 1.6}" y="${F.front}" width="${x1 - x0 + 3.2}" height=".5" fill="rgba(255,255,255,.3)"/>`);
+    else add(edge, box(x0 - 1.6, F.front, x1 - x0 + 3.2, slab));
+    // each wall's cut edge: the outer walls thick, the inner ones thin, open from the floor up where a doorway is
+    const xs = [...new Set(rs.flatMap(r => [r.x0, r.x1]))].sort((p, q) => p - q), doorH = (F.front - top) * DOOR_V;
+    for (const x of xs) {
+      const left = rs.find(r => r.x1 === x), right = rs.find(r => r.x0 === x);
+      if ((left && left.open && !right) || (right && right.open && !left)) continue;   // the balcony's open end
+      const outer = !left || !right || left.open || right.open, w = outer ? 1.6 : 1;
+      const door = (left && right) || (!left && fi === 0 && L.garden), yEnd = door ? F.front - doorH : F.front;
+      add(edge, box(!left ? x - w : !right ? x : x - w / 2, top, w, yEnd - top));
+    }
+  }
+  flush();
+  // the house's shadow on the lawn under its front edge
+  grad('hm3base', [[0, 'rgba(30,45,20,.28)'], [1, 'rgba(30,45,20,0)']]);
+  { const r0 = L.rooms[0], x1 = Math.max(...L.rooms.filter(r => r.f === 0).map(r => r.x1)); g.push(`<rect x="${r0.x0 - 2.4}" y="${F0.front + 3.4}" width="${x1 - r0.x0 + 4.8}" height="2.6" fill="url(#hm3base)"/>`); }
+  // ── the roof: tiles along both slopes, the gable between them with a round window, the chimney standing on the right slope
+  {
+    const [rx0, rx1, ra, rb] = L.roof, mid = (rx0 + rx1) / 2, half = (rx1 - rx0) / 2, th = 3.6, dxi = th * half / (rb - ra);
+    const slopeY = (x) => ra + (rb - ra) * Math.abs(x - mid) / half;
+    const tileA = N ? '#8E3E4C' : D ? '#E06A6E' : '#E46F7E', tileB = N ? '#6E2C38' : '#B84B5C';
+    defs.push(`<pattern id="hm3tile" width="2.4" height="1.5" patternUnits="userSpaceOnUse"><rect width="2.4" height="1.5" fill="${tileA}"/><path d="M0 1.5Q.6 .5 1.2 1.5Q1.8 .5 2.4 1.5" fill="none" stroke="${tileB}" stroke-width=".22"/></pattern>`);
+    grad('hm3eave', [[0, 'rgba(40,20,20,.3)'], [1, 'rgba(40,20,20,0)']]);
+    g.push(`<rect x="${rx0 + 3.6}" y="${rb}" width="${rx1 - rx0 - 7.2}" height="2.6" fill="url(#hm3eave)"/>`);
+    // the chimney goes behind the slope it stands on
+    const [cxc, cw, chh] = L.chim, xl = cxc - cw / 2, xr = cxc + cw / 2, yb = slopeY(xl), yt = yb - chh, brick = N ? '#7A4A36' : '#B5653F';
+    g.push(poly([[xr, yt], [xr + 1.1, yt - .9], [xr + 1.1, slopeY(xr + 1.1) + .2], [xr, slopeY(xr) + .2]], `fill="${tone(brick, -.25)}"`) + poly([[xl, yt], [xr, yt], [xr, slopeY(xr) + .3], [xl, yb + .3]], `fill="${brick}"`));
+    for (let y = yt + 1.4; y < yb; y += 1.4) add(stroke('rgba(60,25,15,.35)'), seg([xl, y], [xr, y]));
+    flush();
+    g.push(poly([[xl - .5, yt], [xr + .5, yt], [xr + 1.5, yt - 1], [xl + .5, yt - 1]], `fill="${tone(brick, .18)}"`) + `<rect x="${xl - .5}" y="${yt - .1}" width="${cw + 1}" height=".9" fill="${tone(brick, -.1)}"/>`);
+    G.chimTop = [cxc, yt - 1];
+    // the tiles, then the gable face over them
+    g.push(poly([[rx0, rb], [mid, ra], [rx1, rb]], 'fill="url(#hm3tile)"') + `<path d="${seg([rx0, rb], [mid, ra]) + seg([mid, ra], [rx1, rb])}" ${stroke(tileB, 2)}/>`);
+    if (xmas) g.push(poly([[rx0 + 1, rb - .6], [mid, ra - .5], [rx1 - 1, rb - .6], [rx1 - 2.4, rb - .6], [mid, ra + 1.4], [rx0 + 2.4, rb - .6]], 'class="hm-snowcap" fill="#FFFFFF" opacity=".95"'));
+    const gab = N ? '#B8A898' : '#FFF4E6', gabL = N ? '#9C8C7C' : '#EED9C2';
+    g.push(poly([[rx0 + dxi + 1.4, rb], [mid, ra + th], [rx1 - dxi - 1.4, rb]], `fill="${gab}"`));
+    for (let y = ra + th + 2.2; y < rb - .4; y += 1.6) { const w = (y - ra - th) / (rb - ra - th) * (half - dxi - 1.4); add(stroke(gabL), seg([mid - w, y], [mid + w, y])); }
+    flush();
+    const wy = ra + th + (rb - ra - th) * .5, wr = Math.min(2.6, (rb - ra) * .14);
+    g.push(`<ellipse cx="${mid}" cy="${wy}" rx="${wr + .5}" ry="${(wr + .5) / .75}" fill="#FFF8EE" stroke="${edgeC}" stroke-width="1" vector-effect="non-scaling-stroke"/><ellipse cx="${mid}" cy="${wy}" rx="${wr}" ry="${wr / .75}" fill="${N ? '#FFD982' : D ? '#FFC79A' : '#A9D8F6'}"/>`
+      + `<path d="${box(mid - .18, wy - wr / .75, .36, 2 * wr / .75) + box(mid - wr, wy - .18, 2 * wr, .36)}" fill="#FFF8EE"/><rect x="${mid - 1.6}" y="${ra - .9}" width="3.2" height="1.6" rx=".7" fill="${tileB}"/>`);
+  }
+  // ── dusk and night over everything outdoors
+  if (D || N) g.push(`<rect x="-90" y="${lb}" width="${W + 180}" height="${106 - lb}" fill="${N ? 'rgba(14,18,56,.12)' : 'rgba(255,150,90,.08)'}"/>`);
+  return `<svg class="hm-svg" viewBox="0 0 ${W} 100" preserveAspectRatio="none" style="width:${W}%" aria-hidden="true"><defs>${defs.join('')}</defs>${g.join('')}</svg>`;
+}
 
-// The 客厅 is the couple's own 小窝: the same pieces where they put them, the same wallpaper and floor.
-function miniRoom(r) {
-  let room = { items: [], paper: null, mat: null };
-  try { room = API.room() || room; } catch (e) {}
-  const wall = room.paper ? room.paper.wall : null, floor = room.paper ? room.paper.floorTone : null;
-  const bg = wall ? `background:linear-gradient(180deg, ${wall[0]} 0%, ${wall[1]} 58%, ${floor} 58.2%, ${floor} 100%)` : '';
-  const mat = room.mat ? `<div class="hm-mfloor" style="background:linear-gradient(180deg, ${room.mat[0]}, ${room.mat[1]})"></div>` : '';
-  G.sofas = [];
-  const pieces = room.items.map((o, z) => {
-    const size = (o.ratio || .5) * (o.s || 1);
-    if (!o.wall && o.art === '🛋️') G.sofas.push({ x: r.x0 + clamp(+o.x || 50, 0, 100) / 100 * (r.x1 - r.x0), yb: r.y0 + clamp(+o.y || 80, 0, 100) / 100 * (r.y1 - r.y0), size });
-    return `<div class="hm-mp ${o.wall ? 'hm-mpw' : 'hm-mpf'}" style="left:${clamp(+o.x || 50, 0, 100)}%;top:${clamp(+o.y || 80, 0, 100)}%;z-index:${z + 2};font-size:calc(var(--hm-mh, 60px) * ${size.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
+function levelOf() { return owns('hm_lv3') ? 3 : owns('hm_lv2') ? 2 : 1; }
+function roomLook() { let room = { items: [], paper: null, mat: null }; try { room = API.room() || room; } catch (e) {} return room; }
+// The 客厅 is the couple's own 小窝: the same pieces where they put them, the same wallpaper and floor. Its wall pieces
+// hang on the back wall; its floor pieces stand on the floor in perspective (the 小窝's floor is the lower 42% of its
+// picture), smaller the further back, in among the two of you.
+function backWall(r, room) {
+  const F = LVS[G.lv].floors[r.f], dx = dxOf(r), x0 = r.x0 + dx, x1 = r.x1 - dx, y0 = r.top + DC, y1 = F.back;
+  const items = room.items.map((o, z) => {
+    if (!o.wall) return '';
+    const size = (o.ratio || .5) * (o.s || 1) * .82;
+    return `<div class="hm-mp hm-mpw" style="left:${clamp(+o.x || 50, 0, 100)}%;top:${clamp((+o.y || 30) / 58 * 100, 8, 100).toFixed(1)}%;z-index:${z + 2};font-size:calc(var(--hm-mh, 60px) * ${size.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
   }).join('');
-  return `<div class="hm-abs hm-mini${wall ? '' : ' hm-mini-def'}" style="left:${r.x0}%;top:${r.y0}%;width:${r.x1 - r.x0}%;height:${r.y1 - r.y0}%;${bg}">${mat}<div class="hm-mwin"><i></i></div>${photoWall()}${pieces}</div>`;
+  return `<div class="hm-abs hm-bwall" style="left:${x0.toFixed(2)}%;top:${y0.toFixed(2)}%;width:${(x1 - x0).toFixed(2)}%;height:${(y1 - y0).toFixed(2)}%"><div class="hm-mwin"><i></i></div>${photoWall()}${items}</div>`;
+}
+function livingPieces(r, room) {
+  const F = LVS[G.lv].floors[r.f], dx = dxOf(r);
+  G.sofas = [];
+  return room.items.map((o) => {
+    if (o.wall) return '';
+    const size = (o.ratio || .5) * (o.s || 1), t = clamp(((+o.y || 80) - 58) / 42, 0, 1);
+    const y = F.back + (F.front - F.back) * t, xl = r.x0 + dx * (1 - t), xr = r.x1 - dx * (1 - t), x = xl + (xr - xl) * clamp(+o.x || 50, 0, 100) / 100;
+    const sz = size * depthS(y, r.f);
+    if (o.art === '🛋️') G.sofas.push({ x, y, size: sz });
+    return `<div class="hm-mp hm-mpf" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 10)};font-size:calc(var(--hm-mh, 60px) * ${sz.toFixed(3)})">${o.svg || `<span class="hm-mpe">${esc(o.art || '')}</span>`}</div>`;
+  }).join('');
 }
 // 照片墙: the 今日拼图 the two of you have solved, pegged on a string under the ceiling (§7.34)
 function photoWall() {
@@ -375,25 +679,27 @@ function photoWall() {
   return `<div class="hm-pwall" role="img" aria-label="照片墙：拼好的 ${pics.length} 张今日拼图">${pics.map((src, i) =>
     `<span class="hm-pol" style="--i:${i};--n:${pics.length}"><i style="background-image:url('${esc(src).replace(/'/g, '%27')}')"></i></span>`).join('')}</div>`;
 }
+// what stands on a floor (the house's own furniture, the garden's things): smaller further back, ordered by where it stands
+const propSvg = (svg, x, y, w, cls = '') => `<div class="hm-abs hm-thing${cls ? ' ' + cls : ''}" style="left:${x}%;top:${y}%;width:${(w * depthS(y, floorOfY(y))).toFixed(2)}%;z-index:${Math.round(y * 10)}">${svg}</div>`;
+const propThing = (k, x, y, w, cls = '') => propSvg(art(k), x, y, w, cls);
+// the front door: the doorway at the front of the 客厅's left wall, where a festival hangs things
+function doorAt(L) { const r = L.rooms[0], F = L.floors[0]; return { x: r.x0, y0: F.front - (F.front - r.top) * DOOR_V, y1: F.front }; }
+// → what goes on the house (h) and what stands on the lawn among the two of you (p)
 function festDecor(L) {
-  const [rx0, rx1, ry0, ry1] = L.roof, d = L.doors[0], dx = d[0] + d[2] / 2, dy = d[1], on = (id) => G.fests.has(id);
-  let h = '';
-  // what the date brings, free
-  if (on('xmas')) h += box('hm-snowcap', rx0, ry0, rx1 - rx0, (ry1 - ry0) * .62) + box('hm-snowground', -5, 86, L.world + 10, 3.2);
-  if (on('cny')) h += box('hm-fu', dx, dy + 5, 3.2, 0, '<span>福</span>', 'height:auto;aspect-ratio:1');
+  const [rx0, rx1, ra, rb] = L.roof, d = doorAt(L), on = (id) => G.fests.has(id);
+  let h = '', p = '';
+  if (on('cny')) h += box('hm-fu', d.x - .8, d.y0 - 3.4, 3, 0, '<span>福</span>', 'height:auto;aspect-ratio:1');
   if (on('anniv')) {
-    const th = themesAt(G.today).find(t => t.id === 'anniv') || {};
-    // a sign on the roof, clear of the 客厅's own sign and the furniture
-    const bw = Math.min(34, (rx1 - rx0) * .5), bx = (L.rooms[0].x0 + L.rooms[0].x1) / 2 - bw / 2;
-    h += box('hm-banner', bx, ry1 - 8.5, bw, 5.4, `💞 在一起${esc(th.name || '周年')} 💞`);
-    h += thingAt(BALLOON('#FFD75E', '#E8A32E'), dx - 4, G0, 3.2, 'hm-sway') + thingAt(BALLOON('#FF8FB3', '#E0508F'), dx - 6.6, G0 - 1, 2.8, 'hm-sway');
+    const th = themesAt(G.today).find(t => t.id === 'anniv') || {}, mid = (rx0 + rx1) / 2, bw = Math.min(34, (rx1 - rx0) * .42);
+    // a sign across the tiles, clear of the gable's round window
+    h += box('hm-banner', mid - bw / 2, ra + (rb - ra) * .78 - 2.7, bw, 5.4, `💞 在一起${esc(th.name || '周年')} 💞`);
+    p += propSvg(BALLOON('#FFD75E', '#E8A32E'), d.x - 4.4, d.y1 - 3.4, 3.2, 'hm-sway') + propSvg(BALLOON('#FF8FB3', '#E0508F'), d.x - 7, d.y1 - 2.6, 2.8, 'hm-sway');
   }
-  // what they bought: out every year at its festival; the lamp always
-  if (owns('hm_lantern') && showFest('cny')) for (const x of [rx0 + 7, rx1 - 7]) h += `<div class="hm-abs hm-hang hm-glows" style="left:${x}%;top:${ry1}%;width:3.2%">${LANTERN}</div>`;
-  if (owns('hm_lights') && showFest('xmas')) { const n = Math.round((rx1 - rx0) / 4.6); for (let k = 0; k <= n; k++) { const x = rx0 + 3 + k * (rx1 - rx0 - 6) / n; h += box('hm-bulb', x, ry1 + .6, 1.3, 0, '', `height:auto;background:${['#FF6F9F', '#FFD75E', '#7FC4FF', '#7FD8A8'][k % 4]};animation-delay:${-(k * .37).toFixed(2)}s`); } }
-  if (owns('hm_couplet') && showFest('cny')) { h += box('hm-couplet', d[0] - 2.4, dy + 1, 1.9, d[3] * .78, '春满人间'); h += box('hm-couplet', d[0] + d[2] + .5, dy + 1, 1.9, d[3] * .78, '福到我家'); }
-  if (owns('hm_arch') && showFest('vday')) for (let k = 0; k <= 6; k++) { const a = Math.PI * k / 6; h += `<span class="hm-abs hm-ah" style="left:${(dx + Math.cos(a) * 3.6).toFixed(2)}%;top:${(dy - Math.sin(a) * 4.4 + 1).toFixed(2)}%">💗</span>`; }
-  // the garden's own pieces stand in a strip of lawn in front of where you walk, one after another
+  if (owns('hm_lantern') && showFest('cny')) for (const x of [rx0 + 7, rx1 - 7]) h += `<div class="hm-abs hm-hang hm-glows" style="left:${x}%;top:${rb}%;width:3.2%">${LANTERN}</div>`;
+  if (owns('hm_lights') && showFest('xmas')) { const n = Math.round((rx1 - rx0) / 4.6); for (let k = 0; k <= n; k++) { const x = rx0 + 3 + k * (rx1 - rx0 - 6) / n; h += box('hm-bulb', x, rb + .6, 1.3, 0, '', `height:auto;background:${['#FF6F9F', '#FFD75E', '#7FC4FF', '#7FD8A8'][k % 4]};animation-delay:${-(k * .37).toFixed(2)}s`); } }
+  if (owns('hm_couplet') && showFest('cny')) { h += box('hm-couplet', d.x - 4.4, d.y0 + .4, 1.9, (d.y1 - d.y0) * .72, '春满人间'); h += box('hm-couplet', d.x + 1.6, d.y0 + .4, 1.9, (d.y1 - d.y0) * .72, '福到我家'); }
+  if (owns('hm_arch') && showFest('vday')) for (let k = 0; k <= 6; k++) { const a = Math.PI * k / 6; h += `<span class="hm-abs hm-ah" style="left:${(d.x + Math.cos(a) * 3.4).toFixed(2)}%;top:${(d.y0 - Math.sin(a) * 4.2 + .8).toFixed(2)}%">💗</span>`; }
+  // the garden's own pieces stand in a row on the lawn in front of where you walk
   const front = [];
   if (owns('hm_lamp')) front.push([POSTLAMP, 2.8, 'hm-glows']);
   if (owns('hm_snowman') && showFest('xmas')) front.push([SNOWMAN, 5.6, '']);
@@ -402,37 +708,33 @@ function festDecor(L) {
   if (owns('hm_rabbit') && showFest('midautumn')) front.push([RABBIT, 5.4, 'hm-glows'], [RABBIT, 4.6, 'hm-glows']);
   if (owns('hm_pumpkin') && showFest('halloween')) front.push([PUMPKIN, 5, 'hm-glows hm-pumpkin'], [PUMPKIN, 4.2, 'hm-glows hm-pumpkin']);
   let fx0 = 4;
-  for (const [svg, w, cls] of front) { h += thingAt(svg, fx0 + w / 2, 98.5, w, cls); fx0 += w + 2.2; }
-  return h;
+  for (const [svg, w, cls] of front) { p += propSvg(svg, fx0 + w / 2, 98.6, w, cls); fx0 += w + 2.2; }
+  return { h, p };
 }
-function renderHouse() {
+function renderHouse(opening) {
   if (!UI.house) return;
-  const L = LVS[G.lv];
-  let h = '';
-  h += box('hm-grass', -5, 86, L.world + 10, 14);
-  h += box('hm-fence', 0, 74, L.garden - 1, 12);
-  if (L.pond) h += box('hm-pond', ...L.pond);
+  const L = LVS[G.lv], room = roomLook(), fd = festDecor(L);
+  let h = houseSvg(L, room) + backWall(L.rooms[0], room);
+  for (const r of L.rooms) if (!/^hall/.test(r.id)) h += `<span class="hm-abs hm-rn" style="left:${(r.x0 + r.x1) / 2}%;top:${r.top}%">${r.n}</span>`;
+  if (!REDUCE && G.chimTop) h += `<div class="hm-abs hm-smoke" style="left:${G.chimTop[0]}%;top:${G.chimTop[1]}%" aria-hidden="true"><i></i><i></i><i></i></div>`;
+  UI.house.innerHTML = h + fd.h;
+  cancelAnimationFrame(G.propsRaf); G.propsRaf = 0;
+  if (opening) { G.propsRaf = requestAnimationFrame(() => { G.propsRaf = 0; if (G.open && UI.props) renderProps(L, room, fd); }); return; }
+  renderProps(L, room, fd);
+}
+// what stands on the floors: the 客厅's furniture, the house's own, the garden's things, the balcony's rail, the pots
+function renderProps(L, room, fd) {
+  let p = livingPieces(L.rooms[0], room);
+  for (const [k, x, y, w] of L.things) p += propThing(k, x, y, w);
   for (const [k, x, y, w] of L.garden_things) {
-    if (k === 'tree' && owns('hm_xtree') && showFest('xmas')) { h += `<div class="hm-abs hm-thing hm-glows hm-xtree" style="left:${x + 1}%;top:${y + 4}%;width:${w + 1.5}%">${XTREE}</div>`; continue; }
-    h += `<div class="hm-abs hm-thing${k === 'tree' ? ' hm-tree' : ''}" style="left:${x}%;top:${y}%;width:${w}%">${art(k)}</div>`;
+    if (k === 'tree' && owns('hm_xtree') && showFest('xmas')) { p += propSvg(XTREE, x + 1, y + .6, w + 1.5, 'hm-glows hm-xtree'); continue; }
+    p += propThing(k, x, y, w, k === 'tree' ? 'hm-tree' : '');
   }
-  for (const r of L.rooms) {
-    if (r.id === 'living') { h += box('hm-room hm-r-living', r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0) + miniRoom(r); continue; }
-    h += box('hm-room hm-r-' + r.id, r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
-  }
-  if (L.balcony) h += box('hm-rail', L.balcony[0], G1 - 8, L.balcony[1] - L.balcony[0], 1.4) + box('hm-rail hm-posts', L.balcony[0], G1 - 8, L.balcony[1] - L.balcony[0], 8);
-  const hx1 = L.rooms.reduce((m, r) => Math.max(m, r.x1), 0);
-  h += box('hm-slab', L.rooms[0].x0 - 1, G0, hx1 - L.rooms[0].x0 + 2, 2.4);
-  if (L.slab) h += box('hm-slab', L.slab[0], L.slab[1], L.slab[2], L.slab[3]);
-  h += box('hm-chim', ...L.chim) + box('hm-roof', L.roof[0], L.roof[2], L.roof[1] - L.roof[0], L.roof[3] - L.roof[2]);
-  for (const w of L.wins) h += box('hm-win', ...w);
-  for (const d of L.doors) h += box('hm-door', ...d);
-  for (const r of L.rooms) if (!/^hall/.test(r.id)) h += `<span class="hm-abs hm-rn" style="left:${(r.x0 + r.x1) / 2}%;top:${r.y0}%">${r.n}</span>`;
-  if (L.stairs) h += box('hm-stairs', L.stairs.bx - 1.5, G1, L.stairs.tx - L.stairs.bx + 3, G0 - G1);
-  for (const [k, x, y, w] of L.things) h += `<div class="hm-abs hm-thing" style="left:${x}%;top:${y}%;width:${w}%">${art(k)}</div>`;
-  h += festDecor(L);
-  L.pots.forEach((_, i) => { h += potHtml(i); });
-  UI.house.innerHTML = h;
+  // the balcony's rail stands in front of whoever is out there
+  if (L.balcony) { const F1 = L.floors[1]; p += `<div class="hm-abs hm-rail3" style="left:${L.balcony[0]}%;top:${F1.front - 4.6}%;width:${L.balcony[1] - L.balcony[0]}%;height:4.6%;z-index:${Math.round((F1.front + .1) * 10)}"></div>`; }
+  p += fd.p;
+  L.pots.forEach((_, i) => { p += potHtml(i); });
+  UI.props.innerHTML = p;
   G.lastPots = potsSig();
   sizeMini();
   controls();
@@ -458,22 +760,20 @@ function renderPots() {
   todo();
   if (sig === G.lastPots) return;
   G.lastPots = sig;
-  LVS[G.lv].pots.forEach((_, i) => { const el = UI.house && UI.house.querySelector(`.hm-pot[data-i="${i}"]`); if (el) el.outerHTML = potHtml(i); });
+  LVS[G.lv].pots.forEach((_, i) => { const el = UI.props && UI.props.querySelector(`.hm-pot[data-i="${i}"]`); if (el) el.outerHTML = potHtml(i); });
   renderPanel();
 }
 // the 客厅's furniture is sized off the room it stands in, like the 小窝's is off the pet (§7)
 function sizeMini() {
-  const m = UI.house && UI.house.querySelector('.hm-mini');
-  if (!m || !G.W) return;
-  const r = LVS[G.lv].rooms[0], w = (r.x1 - r.x0) / 100 * G.W, h = (r.y1 - r.y0) / 100 * G.H;
+  if (!G.W || !UI.world) return;
+  const L = LVS[G.lv], r = L.rooms[0], F = L.floors[r.f], w = (r.x1 - r.x0) / 100 * G.W, h = (F.front - r.top) / 100 * G.H;
   const mh = Math.round(Math.min(w * .36, h * .62));
-  m.style.setProperty('--hm-mh', mh + 'px');
+  UI.world.style.setProperty('--hm-mh', mh + 'px');
   // two seats a sofa; the cushion is 42% up the drawing (sofa_blue's seat), and you sit just into it
   G.seats = [];
   for (const f of G.sofas || []) {
-    const wpx = f.size * mh, half = wpx / 4 / G.W * 100, seatY = f.yb - .4 * wpx / G.H * 100;
-    const lift = Math.max(0, (G0 - seatY) / 100 * G.H);
-    G.seats.push({ x: f.x - half, lift }, { x: f.x + half, lift });
+    const wpx = f.size * mh, half = wpx / 4 / G.W * 100;
+    G.seats.push({ x: f.x - half, y: f.y + .35, lift: .4 * wpx }, { x: f.x + half, y: f.y + .35, lift: .4 * wpx });
   }
   for (const k of ['cs', 'yy']) if (P[k]) poseSit(P[k]);
   if (UI.sit) UI.sit.hidden = !G.seats.length;
@@ -482,7 +782,8 @@ function sizeMini() {
 function poseSit(a) {
   const s = a.sit >= 0 && G.seats ? G.seats[a.sit] : null;
   a.el.classList.toggle('hm-sit', !!s);
-  if (s) a.el.style.setProperty('--hm-lift', s.lift.toFixed(1) + 'px');
+  // the lift is inside the drawing, which is drawn smaller further back
+  if (s) a.el.style.setProperty('--hm-lift', (s.lift / depthS(s.y, 0)).toFixed(1) + 'px');
   if (a.k === meK() && UI.sit) UI.sit.innerHTML = s ? '<i>🧍</i><span>站起来</span>' : '<i>🛋️</i><span>坐下</span>';
 }
 function standUp(a) { if (a.sit < 0 && a.sitWant < 0) return; a.sit = -1; a.sitWant = -1; poseSit(a); }
@@ -494,11 +795,11 @@ function sitDown() {
   let best = -1, bd = Infinity;
   G.seats.forEach((s, i) => { if (i === taken) return; const d = taken >= 0 ? Math.abs(i - taken) * 100 + Math.abs(s.x - a.x) : Math.abs(s.x - a.x); if (d < bd) { bd = d; best = i; } });
   if (best < 0) return;
-  walkMe(G.seats[best].x, G0, { sit: best });
+  walkMe(G.seats[best].x, G.seats[best].y, 0, { sit: best });
 }
 function together() {
   const a = P.cs, b = P.yy;
-  if (a.sit >= 0 && b.sit >= 0 && Math.floor(a.sit / 2) === Math.floor(b.sit / 2) && G.partner.on) { fx((G.seats[a.sit].x + G.seats[b.sit].x) / 2, G0 - 20, '💕'); say(`一起坐在沙发上 💕`); }
+  if (a.sit >= 0 && b.sit >= 0 && Math.floor(a.sit / 2) === Math.floor(b.sit / 2) && G.partner.on) { fx((G.seats[a.sit].x + G.seats[b.sit].x) / 2, G.seats[a.sit].y - 20, '💕'); say(`一起坐在沙发上 💕`); }
 }
 
 /* ── people (and the pet) ─────────────────────────────────────────────────────────────────────── */
@@ -507,28 +808,18 @@ function makeActor(k) {
   el.className = 'hm-ch';
   el.innerHTML = `<div class="hm-cin"><span class="hm-you" aria-hidden="true">▼</span><span class="hm-tag"></span>${charSvg(k)}</div>`;
   UI.actors.appendChild(el);
-  return { k, el, x: k === 'cs' ? 54 : 70, y: G0, vx: 0, vy: 0, path: [], after: null, flip: false, holdD: 0, sit: -1, sitWant: -1 };
+  return { k, el, x: k === 'cs' ? 54 : 70, y: G0 + (k === 'cs' ? 1 : -1), fi: 0, vx: 0, vy: 0, path: [], after: null, flip: false, hv: null, sit: -1, sitWant: -1 };
 }
-const floors = () => (LVS[G.lv].stairs ? [G0, G1] : [G0]);
-const fl = (a) => (Math.abs(a.y - G0) < 1.5 ? G0 : Math.abs(a.y - G1) < 1.5 ? G1 : 0);   // 0: on the stairs
-const clampX = (x, y) => { const L = LVS[G.lv]; return y === G1 ? clamp(x, 42, (L.balcony ? L.balcony[1] : 92) - 2) : clamp(x, 3, L.world - 3); };
-// a path to (x, floor): along the floor, or to the stairs, up or down them, then along
-function route(a, x, fy) {
-  const L = LVS[G.lv]; x = clampX(x, fy);
-  if (!L.stairs) return [{ x, y: G0 }];
-  const s = L.stairs, f = fl(a);
-  if (f === fy) return [{ x, y: fy }];
-  if (!f) return [{ x: fy === G1 ? s.tx : s.bx, y: fy }, { x, y: fy }];
-  return f === G0 ? [{ x: s.bx, y: G0 }, { x: s.tx, y: G1 }, { x, y: G1 }] : [{ x: s.tx, y: G1 }, { x: s.bx, y: G0 }, { x, y: G0 }];
-}
+// fi: the floor someone is on (0 the ground floor, 1 upstairs, -1 on the stairs)
 function where(a) {
-  const L = LVS[G.lv], f = fl(a);
-  if (!f) return '楼梯上';
-  if (f === G0 && a.x < L.garden) return '花园';
-  const r = L.rooms.find(r => a.x >= r.x0 && a.x <= r.x1 && r.y1 === f);
+  const L = LVS[G.lv];
+  if (a.fi === -1) return '楼梯上';
+  const fi = a.fi || 0;
+  if (fi === 0 && a.x < L.garden) return '花园';
+  const r = L.rooms.find(r => r.f === fi && a.x >= r.x0 && a.x <= r.x1);
   return r ? r.n : '家里';
 }
-const near = () => P.cs && P.yy && G.partner.on && fl(P.cs) && fl(P.cs) === fl(P.yy) && Math.abs(P.cs.x - P.yy.x) < 9;
+const near = () => P.cs && P.yy && G.partner.on && P.cs.fi >= 0 && P.cs.fi === P.yy.fi && Math.hypot(P.cs.x - P.yy.x, (P.cs.y - P.yy.y) * 1.6) < 9;
 
 /* ── what you do ───────────────────────────────────────────────────────────────────────────────── */
 function fx(x, y, t) { if (!UI.actors) return; const e = document.createElement('div'); e.className = 'hm-pop'; e.textContent = t; e.style.left = x + '%'; e.style.top = y + '%'; UI.actors.appendChild(e); setTimeout(() => e.remove(), 1300); }
@@ -549,10 +840,10 @@ function potAction(i) {
 }
 function goTo(i, op) {
   // stand beside the pot, not in front of it, so the flower stays in sight
-  const [x, y] = LVS[G.lv].pots[i], a = P[meK()];
-  let sx = x + (a.x < x ? -6.5 : 6.5);
-  if (clampX(sx, y) !== sx) sx = x + (a.x < x ? 6.5 : -6.5);
-  walkMe(sx, y, op ? { op } : null);
+  const [x, y] = LVS[G.lv].pots[i], fi = floorOfY(y), a = P[meK()];
+  let sx = x + (a.x < x ? -5.5 : 5.5);
+  if (clampPos(sx, y, fi)[0] !== sx) sx = x + (a.x < x ? 5.5 : -5.5);
+  walkMe(sx, y + .4, fi, op ? { op } : null);
 }
 // An action starts once you are standing at the pot. It goes into the save through do_() — which applies
 // it here at once, tells the partner's phone, and saves it (retrying on top of whatever they saved).
@@ -675,14 +966,16 @@ async function loadSave(quiet) {
 }
 
 /* ── moving ───────────────────────────────────────────────────────────────────────────────────── */
-function walkMe(x, fy, after = null) {
+function walkMe(x, y, fi, after = null) {
   const a = P[meK()];
   if (a.sit >= 0) { standUp(a); send('up', {}); }
-  a.path = route(a, x, fy); a.after = after; a.holdD = 0;
+  if (G.hold) { G.hold = null; if (G.keys) G.keys.clear(); }
+  a.hv = null;
+  a.path = route(a, x, y, fi); a.after = after;
   G.lead = 'me';
   hideHint();
   const t = a.path[a.path.length - 1];
-  send('go', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, tx: r1(t.x), tf: t.y === G1 ? 1 : 0 });
+  send('go', { x: r1(a.x), y: r1(a.y), f: a.fi, tx: r1(t.x), ty: r1(t.y), tf: t.fi });
 }
 const r1 = (v) => Math.round(v * 10) / 10;
 function hideHint() { if (UI.hint && !UI.hint.hidden) { UI.hint.hidden = true; store.set('hm_hinted', 1); } }
@@ -695,7 +988,7 @@ function todo() {
   let bloom = -1, empty = -1;
   const thirsty = [], wilted = [];
   L.pots.forEach((_, i) => { const q = potInfo(i); if (q.bloom) { if (bloom < 0) bloom = i; } else if (q.thirsty) { thirsty.push(i); if (q.g.wilted) wilted.push(i); } else if (q.empty && empty < 0) empty = i; });
-  const dist = (i) => { const [x, y] = L.pots[i]; return Math.abs(x - a.x) + (y === (fl(a) || G0) ? 0 : 40); };
+  const dist = (i) => { const [x, y] = L.pots[i]; return Math.abs(x - a.x) + (floorOfY(y) === Math.max(0, a.fi) ? 0 : 40); };
   const nearest = (list) => list.slice().sort((p, q) => dist(p) - dist(q))[0];
   let t, i = -1;
   if (wilted.length) { i = nearest(wilted); t = `🥀 有 ${wilted.length} 盆花蔫了 · 快去浇水`; }
@@ -730,24 +1023,26 @@ function onScenePointer(e) {
   if (hit >= 0) { e.preventDefault(); return potAction(hit); }
   const edge = e.target.closest('.hm-edge');
   // walk to the partner — to where they are going, if they are still on their way
-  if (edge) { e.preventDefault(); const b = P[peerK()], t = b.path.length ? b.path[b.path.length - 1] : b; walkMe(t.x + (t.x > P[meK()].x ? -6 : 6), fl(t) || G0); return; }
-  const [x, y] = sceneXY(e), L = LVS[G.lv];
-  const fy = L.stairs && y < G1 + 1 && x > 40 && x < (L.balcony ? L.balcony[1] : 140) ? G1 : G0;
-  walkMe(x, fy); mark(clampX(x, fy), fy);
+  if (edge) { e.preventDefault(); const b = P[peerK()], t = b.path.length ? b.path[b.path.length - 1] : b; walkMe(t.x + (t.x > P[meK()].x ? -6 : 6), t.y, t.fi >= 0 ? t.fi : 0); return; }
+  // the floor under the tap, at the depth of the tap (a tap on a wall or in the air: the back of that floor)
+  const fi = floorOfY(ty), [b0, f0] = band(fi), y = clamp(ty, b0, f0);
+  walkMe(tx, y, fi); const [mx, my] = clampPos(tx, y, fi); mark(mx, my);
 }
-function startHold(d) {
+// v: which way the stick or the arrow keys point ({ x, y }, each -1, 0 or 1; y -1 is into the room, 1 out of it)
+function startHold(v) {
+  if (!v || (!v.x && !v.y)) return stopHold();
   const a = P[meK()];
   if (a.sit >= 0) { standUp(a); send('up', {}); }
-  G.hold = d; a.holdD = d; a.after = null; G.lead = 'me';
+  const was = G.hold;
+  G.hold = v; a.hv = v; a.after = null; if (a.fi !== -1) a.path = []; G.lead = 'me';
   hideHint();
-  send('hold', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, d });
+  if (!was || was.x !== v.x || was.y !== v.y) send('hold', { x: r1(a.x), y: r1(a.y), f: a.fi, dx: v.x, dy: v.y });
 }
-function stopHold(d) {
-  if (!d || G.hold !== d) return;   // (nothing held: leaving the app must not cut a walk short)
-  G.hold = 0;
-  const a = P[meK()]; a.holdD = 0;
-  if (a.path.length <= 1 && fl(a)) a.path = [];
-  send('stop', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 });
+function stopHold() {
+  if (!G.hold) return;   // (nothing held: leaving the app must not cut a walk short)
+  G.hold = null;
+  const a = P[meK()]; a.hv = null;
+  send('stop', { x: r1(a.x), y: r1(a.y), f: a.fi });
 }
 function hug() {
   if (!near()) { say(G.partner.on ? `走到 ${nameOf(peerK())} 身边才能抱抱` : `${nameOf(peerK())} 不在家，等 TA 回来再抱抱`); return; }
@@ -762,8 +1057,10 @@ function wave() { const a = P[meK()]; fx(a.x, a.y - 17, '👋'); send('wave', {}
 
 /* ── the live channel: where the partner is, and what they just did ───────────────────────────── */
 function send(t, data) { if (!API || !API.online || !G.open) return false; try { return API.live.send('hm', { v: HOME_V, t, who: CHAR[meK()], ...data }); } catch (e) { return false; } }
-function beat() { const a = P[meK()]; if (!a) return; const t = a.path[a.path.length - 1]; send('st', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, tx: t ? r1(t.x) : undefined, tf: t ? (t.y === G1 ? 1 : 0) : undefined, d: a.holdD || 0, lv: G.lv }); }
+function beat() { const a = P[meK()]; if (!a) return; const t = a.path[a.path.length - 1]; send('st', { x: r1(a.x), y: r1(a.y), f: a.fi, tx: t ? r1(t.x) : undefined, ty: t ? r1(t.y) : undefined, tf: t ? t.fi : undefined, dx: a.hv ? a.hv.x : 0, dy: a.hv ? a.hv.y : 0, lv: G.lv }); }
 const okX = (x) => typeof x === 'number' && isFinite(x) && x >= -5 && x <= 160;
+const okY = (y) => typeof y === 'number' && isFinite(y) && y >= 0 && y <= 100;
+const dir1 = (v) => (v === 1 || v === -1 ? v : 0);
 function onLive(m) {
   if (!G.open || !m || typeof m !== 'object') return;
   // never trust the wire: our own login on another device is not the partner, and a broken message is dropped
@@ -773,17 +1070,20 @@ function onLive(m) {
   const wasOn = G.partner.on;
   G.partner.at = Date.now(); G.partner.on = true; G.partner.away = false;
   if (!wasOn) { b.el.classList.remove('hm-off'); if (m.t !== 'bye' && m.t !== 'away') say(`👋 ${nameOf(peerK())} 回家了`); }
-  const fy = (f) => (f === 1 && LVS[G.lv].stairs ? G1 : G0);
-  const snapTo = (x, f) => { if (!okX(x)) return; const y = fy(f); if (Math.abs(b.x - x) > 7 || fl(b) !== y) { b.path = route(b, x, y); } };
+  // where a message says they are, kept on the floor they are on; how far that is from where this phone has them
+  const at = (x, y, f) => { const fi = f === 1 && LVS[G.lv].stairs ? 1 : 0, [cx, cy] = clampPos(x, okY(y) ? y : (fi ? G1 : G0), fi); return { x: cx, y: cy, fi }; };
+  const off = (q) => Math.hypot(b.x - q.x, (b.y - q.y) * 1.6) + (b.fi !== q.fi ? 99 : 0);
+  const jump = (q) => { b.x = q.x; b.y = q.y; b.fi = q.fi; b.path = []; };
+  const toward = (q) => { b.path = route(b, q.x, q.y, q.fi); };
   switch (m.t) {
-    case 'hi': if (okX(m.x)) { if (!wasOn) { b.x = clampX(m.x, fy(m.f)); b.y = fy(m.f); b.path = []; } else snapTo(m.x, m.f); } beat(); if (m.lv && m.lv !== G.lv) refreshOwned(); break;
-    case 'st': if (b.holdD && !m.d) b.holdD = 0; if (!b.path.length && !b.holdD) snapTo(m.x, m.f); if (m.lv && m.lv > G.lv) refreshOwned(); break;
-    case 'go': standUp(b); if (okX(m.tx)) { if (okX(m.x) && (Math.abs(b.x - m.x) > 10 || fl(b) !== fy(m.f))) { b.x = clampX(m.x, fy(m.f)); b.y = fy(m.f); } b.path = route(b, m.tx, fy(m.tf)); b.holdD = 0; G.lead = 'peer'; } break;
-    case 'hold': standUp(b); if ((m.d === 1 || m.d === -1)) { if (okX(m.x) && Math.abs(b.x - m.x) > 4) { b.x = clampX(m.x, fy(m.f)); b.y = fl(b) ? fy(m.f) : b.y; } b.holdD = m.d; G.lead = 'peer'; } break;
-    case 'stop': b.holdD = 0; if (okX(m.x)) b.path = route(b, m.x, fy(m.f)); break;
-    case 'sit': if (Number.isInteger(m.s) && G.seats && G.seats[m.s]) { b.holdD = 0; b.path = route(b, G.seats[m.s].x, G0); b.sitWant = m.s; } break;
+    case 'hi': if (okX(m.x)) { const q = at(m.x, m.y, m.f); if (!wasOn) jump(q); else if (off(q) > 7) toward(q); } beat(); if (m.lv && m.lv !== G.lv) refreshOwned(); break;
+    case 'st': if (b.hv && !m.dx && !m.dy) b.hv = null; if (!b.path.length && !b.hv && okX(m.x)) { const q = at(m.x, m.y, m.f); if (off(q) > 7) toward(q); } if (m.lv && m.lv > G.lv) refreshOwned(); break;
+    case 'go': standUp(b); if (okX(m.tx)) { if (okX(m.x)) { const q = at(m.x, m.y, m.f); if (off(q) > 10) jump(q); } b.hv = null; toward(at(m.tx, m.ty, m.tf)); G.lead = 'peer'; } break;
+    case 'hold': { standUp(b); const v = { x: dir1(m.dx), y: dir1(m.dy) }; if (okX(m.x)) { const q = at(m.x, m.y, m.f); if (off(q) > 4) jump(q); } b.path = []; b.hv = v.x || v.y ? v : null; G.lead = 'peer'; break; }
+    case 'stop': b.hv = null; if (okX(m.x)) toward(at(m.x, m.y, m.f)); break;
+    case 'sit': if (Number.isInteger(m.s) && G.seats && G.seats[m.s]) { const q = G.seats[m.s]; b.hv = null; b.path = route(b, q.x, q.y, 0); b.sitWant = m.s; } break;
     case 'up': standUp(b); break;
-    case 'hug': if (Math.abs(P.cs.x - P.yy.x) < 14 && fl(P.cs) === fl(P.yy)) playHug(); else say(`💞 ${nameOf(peerK())} 想抱抱你，走过去吧`); break;
+    case 'hug': if (P.cs.fi === P.yy.fi && Math.hypot(P.cs.x - P.yy.x, (P.cs.y - P.yy.y) * 1.6) < 14) playHug(); else say(`💞 ${nameOf(peerK())} 想抱抱你，走过去吧`); break;
     case 'wave': fx(b.x, b.y - 17, '👋'); say(`👋 ${nameOf(peerK())} 在跟你招手`); break;
     case 'op': if (m.op && typeof m.op === 'object' && ['plant', 'water', 'pick'].includes(m.op.t) && m.op.who === CHAR[peerK()] && Number.isInteger(m.op.pot) && m.op.pot >= 0 && m.op.pot < 6) {
         const op = { t: m.op.t, pot: m.op.pot, id: String(m.op.id || '').slice(0, 24), seed: m.op.seed, who: m.op.who, date: /^\d{4}-\d{2}-\d{2}$/.test(m.op.date || '') ? m.op.date : G.today };
@@ -799,8 +1099,8 @@ function onLive(m) {
     case 'saved': if (Number.isInteger(m.rev) && m.rev > G.srv.rev) loadSave(true); break;
     case 'lv': case 'own': refreshOwned(); break;
     case 'bye': case 'away':
-      G.partner.on = false; G.partner.away = true; b.holdD = 0; b.el.classList.add('hm-off');
-      if (okX(m.x)) { G.partner.last = { x: m.x, f: m.f ? 1 : 0, at: Date.now() }; b.path = route(b, m.x, fy(m.f)); }
+      G.partner.on = false; G.partner.away = true; b.hv = null; b.el.classList.add('hm-off');
+      if (okX(m.x)) { G.partner.last = { x: m.x, ...(okY(m.y) ? { y: m.y } : {}), f: m.f === 1 ? 1 : 0, at: Date.now() }; toward(at(m.x, m.y, m.f)); }
       say(m.t === 'bye' ? `${nameOf(peerK())} 出门了` : `${nameOf(peerK())} 暂时离开了`); break;
   }
   status();
@@ -815,21 +1115,37 @@ async function refreshOwned() {
 
 /* ── the frame: ease in, cruise, ease out; transforms only ───────────────────────────────────── */
 function stepActor(a, dt, max) {
-  if (a.holdD) { const f = fl(a); if (f && a.path.length <= 1) a.path = [{ x: clampX(a.x + a.holdD * 5, f), y: f }]; }
+  if (a.hv && a.fi !== -1 && !a.path.length) return holdStep(a, dt);
   const t = a.path[0];
   if (!t) { a.vx *= .7; a.vy *= .7; return false; }
-  if (Math.abs(t.y - a.y) < .05) { a.y = t.y; a.vy = 0; }
-  const dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy * .8);
-  if (REDUCE) { a.x = t.x; a.y = t.y; a.path.shift(); return true; }
-  const want = Math.min(max, d * 6), k = 1 - Math.exp(-10 * dt);
-  a.vx += ((d > .01 ? dx / d : 0) * want - a.vx) * k; a.vy += ((d > .01 ? dy / d : 0) * want - a.vy) * k;
+  if (t.fi != null && t.fi !== a.fi) a.fi = -1;   // going up or down the stairs
+  // a step into the room counts for more than one along it: it is foreshortened
+  const dx = t.x - a.x, dy = t.y - a.y, d = Math.hypot(dx, dy * 1.6);
+  if (REDUCE) { a.x = t.x; a.y = t.y; if (t.fi != null) a.fi = t.fi; a.path.shift(); return true; }
+  const want = Math.min(max, d * 6), k = 1 - Math.exp(-10 * dt), ux = d > .01 ? dx / d : 0, uy = d > .01 ? dy / d : 0;
+  a.vx += (ux * want - a.vx) * k; a.vy += (uy * want - a.vy) * k;
   a.x += a.vx * dt; a.y += a.vy * dt;
-  if (d < .35) { a.x = t.x; a.y = t.y; a.path.shift(); }
+  if (d < .35) { a.x = t.x; a.y = t.y; if (t.fi != null) a.fi = t.fi; a.path.shift(); }
   return true;
 }
-function place(el, a) {
-  el.style.transform = `translate3d(${(a.x / 100 * G.W).toFixed(1)}px,${(a.y / 100 * G.H).toFixed(1)}px,0) translate(-50%,-100%)`;
-  el.style.zIndex = String(Math.round(a.y * 10) + 1);
+// the stick or the arrow keys: straight on that way, along the walls, held back by the back part of a wall
+function holdStep(a, dt) {
+  const n = Math.hypot(a.hv.x, a.hv.y) || 1, wx = a.hv.x / n * 26, wy = a.hv.y / n * 13, k = REDUCE ? 1 : 1 - Math.exp(-12 * dt);
+  a.vx += (wx - a.vx) * k; a.vy += (wy - a.vy) * k;
+  let [x, y] = clampPos(a.x + a.vx * dt, a.y + a.vy * dt, a.fi);
+  [x, y] = wallStop(a.fi, a.x, x, a.y, y);
+  if (Math.abs(x - a.x) < 1e-4) a.vx = 0;    // against a wall: no speed kept up to burst through
+  if (Math.abs(y - a.y) < 1e-4) a.vy = 0;
+  a.x = x; a.y = y;
+  return true;
+}
+// transforms only, and only when something changed
+function place(a) {
+  const s = a.fi === -1 ? .88 : depthS(a.y, a.fi);
+  const t = `translate3d(${(a.x / 100 * G.W).toFixed(1)}px,${(a.y / 100 * G.H).toFixed(1)}px,0) translate(-50%,-100%) scale(${s.toFixed(3)})`;
+  if (t !== a.tf) { a.tf = t; a.el.style.transform = t; }
+  const z = Math.round(a.y * 10) + 2;
+  if (z !== a.z) { a.z = z; a.el.style.zIndex = String(z); }
 }
 function frame(t) {
   G.raf = 0;
@@ -841,7 +1157,7 @@ function frame(t) {
     const moving = stepActor(a, dt, 34);
     a.el.classList.toggle('hm-walk', moving && Math.hypot(a.vx, a.vy) > 3);
     if (Math.abs(a.vx) > 2) { const f = a.vx < 0; if (f !== a.flip) { a.flip = f; a.el.classList.toggle('hm-flip', f); } }
-    place(a.el, a);
+    place(a);
     if (k === meK() && !a.path.length && a.after) {
       const af = a.after; a.after = null;
       if (af.op) act(af.op);
@@ -853,13 +1169,14 @@ function frame(t) {
   // the pet follows whoever moved last (the same rule on both phones, so it is in the same place on both)
   if (pet) {
     const lead = G.lead === 'peer' && G.partner.on ? P[peerK()] : P[meK()];
-    const behind = lead.x + (lead.flip ? 5.5 : -5.5);
-    const mf = fl(lead) || (pet.path.length ? pet.path[pet.path.length - 1].y : G0);
-    if (fl(pet) && (!pet.path.length || Math.abs(pet.path[pet.path.length - 1].x - behind) > 3 || pet.path[pet.path.length - 1].y !== mf)) pet.path = route(pet, behind, mf);
+    const end = lead.path.length ? lead.path[lead.path.length - 1] : lead, lf = end.fi >= 0 ? end.fi : Math.max(0, lead.fi);
+    const [b0, f0] = band(lf), bx = lead.x + (lead.flip ? 5.5 : -5.5), by = clamp(lead.y - 1.4, b0, f0);   // a little behind you
+    const tgt = pet.path.length ? pet.path[pet.path.length - 1] : pet;
+    if (pet.fi !== -1 && (Math.abs(tgt.x - bx) > 3 || Math.abs(tgt.y - by) > 2.5 || (tgt.fi != null ? tgt.fi : pet.fi) !== lf)) pet.path = route(pet, bx, by, lf);
     const pm = stepActor(pet, dt, 40);
     pet.el.classList.toggle('hm-walk', pm && Math.hypot(pet.vx, pet.vy) > 3);
     if (Math.abs(pet.vx) > 2) { const f = pet.vx < 0; if (f !== pet.flip) { pet.flip = f; pet.el.classList.toggle('hm-flip', f); } }
-    place(pet.el, pet);
+    place(pet);
   }
   camera(dt);
   edges();
@@ -904,7 +1221,7 @@ function status() {
   const same = where(a) === where(b);
   let s;
   if (!API.online) s = `你在${where(a)} · 登录后 ${esc(nameOf(o))} 才会一起来`;
-  else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `${esc(nameOf(o))} 不在家${pos && pos.at ? ` · 上次在${where({ x: pos.x, y: pos.f ? G1 : G0 })}` : ''} · 你在${where(a)}`; }
+  else if (!G.partner.on) { const saved = (G.view.pos || {})[CHAR[o]], heard = G.partner.last, pos = heard && (!saved || heard.at >= saved.at) ? heard : saved; s = `${esc(nameOf(o))} 不在家${pos && pos.at ? ` · 上次在${where({ x: pos.x, fi: pos.f ? 1 : 0 })}` : ''} · 你在${where(a)}`; }
   else s = same ? `和 ${esc(nameOf(o))} 都在${where(a)} 💞` : `你在${where(a)} · ${esc(nameOf(o))} 在${where(b)}`;
   UI.status.innerHTML = `<i class="hm-dot${G.partner.on ? ' on' : ''}"></i><span>${s}</span>`;
   // 抱抱 shows up when you are next to your partner — it is the thing to do then, and one less button otherwise
@@ -914,10 +1231,9 @@ function status() {
 // the stairs button: only in the two-storey house, and it says which way you'd go
 function controls() {
   if (!UI.stairs || !P.cs) return;
-  const L = LVS[G.lv], a = P[meK()], up = fl(a) !== G1;
+  const L = LVS[G.lv], a = P[meK()], up = a.fi !== 1;
   UI.stairs.hidden = !L.stairs;
   UI.stairs.dataset.go = up ? 'up' : 'down';
-  UI.stairs.dataset.key = up ? 'W' : 'S';
   UI.stairs.innerHTML = up ? '<i>⬆</i><span>上楼</span>' : '<i>⬇</i><span>下楼</span>';
   UI.stairs.setAttribute('aria-label', up ? '上楼' : '下楼');
 }
@@ -926,7 +1242,8 @@ function controls() {
 function setLevel(lv, celebrate) {
   G.lv = lv;
   for (const k of ['cs', 'yy']) if (P[k]) { P[k].sit = -1; P[k].sitWant = -1; }
-  for (const a of [P.cs, P.yy, pet].filter(Boolean)) { if (!floors().includes(fl(a))) a.y = G0; a.y = fl(a) || G0; a.x = clampX(a.x, a.y); a.path = []; a.after = null; }
+  for (const a of [P.cs, P.yy, pet].filter(Boolean)) { if (!(a.fi >= 0 && a.fi < LVS[lv].floors.length)) { a.fi = 0; a.y = G0; } [a.x, a.y] = clampPos(a.x, a.y, a.fi); a.path = []; a.after = null; a.hv = null; }
+  G.hold = null;
   renderHouse(); onResize(); G.camT = null; renderPanel(); status();
   if (celebrate) { say(`🏠 ${LVS[lv].name}盖好了：${lv === 2 ? '多了卧室和宠物小屋，花园 3 个花盆' : '多了厨房、楼梯、二楼卧室和阳台，池塘也有了'}`); fx(P[meK()].x, P[meK()].y - 18, '🎉'); }
 }
@@ -983,8 +1300,8 @@ function sheetShell(kind, title, html) {
 function helpHtml() {
   const o = esc(nameOf(peerK()));
   return `<div class="hm-help">
-    <section><h4>👣 走路</h4><p>点地板，就走过去；按住 ◀ ▶ 一直走。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。</p></section>
-    <section class="hm-keys"><h4>⌨️ 电脑键盘</h4><p><kbd>←</kbd><kbd>→</kbd> 或 <kbd>A</kbd><kbd>D</kbd> 按住走路 · <kbd>↑</kbd><kbd>↓</kbd> 或 <kbd>W</kbd><kbd>S</kbd> 上下楼 · <kbd>空格</kbd> 下一步 · <kbd>E</kbd> 浇水 / 收花 / 种花 · <kbd>H</kbd> 抱抱 · <kbd>J</kbd> 招手 · <kbd>K</kbd> 坐下 · <kbd>1</kbd>–<kbd>4</kbd> 玩法 / 花园 / 房子 / 小店 · <kbd>Esc</kbd> 关掉</p></section>
+    <section><h4>👣 走路</h4><p>点地板，就走过去：左右、往里、往外都可以。按住左下角的摇杆，往哪边推就往哪边走（往上推是往屋里走）。走到后面人会小一点，可以走到沙发和桌子后面；房间之间要从靠前的门口过。房子比屏幕大的时候，画面会跟着你走。两层小楼按 ⬆ 上楼 / ⬇ 下楼，或者直接点楼上。</p></section>
+    <section class="hm-keys"><h4>⌨️ 电脑键盘</h4><p><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 按住走路（两个一起按是斜着走）· <kbd>F</kbd> 上下楼 · <kbd>空格</kbd> 下一步 · <kbd>E</kbd> 浇水 / 收花 / 种花 · <kbd>H</kbd> 抱抱 · <kbd>J</kbd> 招手 · <kbd>K</kbd> 坐下 · <kbd>1</kbd>–<kbd>4</kbd> 玩法 / 花园 / 房子 / 小店 · <kbd>Esc</kbd> 关掉</p></section>
     <section><h4>🌱 种花</h4><p>点空花盆选种子，种子不用买。<b>每人每天给每盆花浇一次水</b>，你和 ${o} 都浇的那天长两格，长满 5 格开花：一个人要 5 天，两个人一起 3 天。<b>三天没人浇会蔫</b>，浇一下就好（那一次不长）。</p>
       <p>开了花点一下收进图鉴：宠物 <b>+${PICK_EXP} EXP</b>，小窝币 <b>+${PICK_EXP / 2}</b>。收满 3 / 6 / 10 / 15 朵会解锁新种子；节日还有限定种子。</p></section>
     <section><h4>💞 一起</h4><p>两个人都打开「我们的家」的时候，对方手机上马上看到你走路、浇水、收花。走到 ${o} 身边可以 🤗 抱抱；客厅有沙发就能一起 🛋️ 坐下。宠物跟着最后走动的那个人。</p></section>
@@ -1111,26 +1428,8 @@ html[data-theme="dark"] .hm-root{--hm-ink:#F0EAF8;--hm-sub:#CFC5E6;--hm-line:rgb
 .hm-night .hm-star{display:block}
 .hm-hill{border-radius:50% 50% 0 0;background:rgba(150,205,140,.75)}
 .hm-night .hm-hill{background:rgba(70,110,90,.7)}
-.hm-grass{background:linear-gradient(180deg,var(--hm-grass1),var(--hm-grass2))}
-.hm-night .hm-grass{background:linear-gradient(180deg,#3E6E52,#2F5A44)}
-.hm-s-winter .hm-grass{background:linear-gradient(180deg,#DDEBD8,#BFD8BC)}
-.hm-night.hm-s-winter .hm-grass{background:linear-gradient(180deg,#5B7A70,#4A665E)}
-.hm-fence{background:repeating-linear-gradient(90deg,#FFF6EA 0 2.4%,transparent 2.4% 4.6%),linear-gradient(180deg,transparent 0 28%,#FFF6EA 28% 40%,transparent 40% 68%,#FFF6EA 68% 80%,transparent 80%);opacity:.95}
-.hm-night .hm-fence{filter:brightness(.55)}
-.hm-room{overflow:hidden;border:3px solid #C99B74;border-bottom:0;box-sizing:border-box}
 .hm-rn{transform:translate(-50%,-50%);font-size:clamp(9px,calc(var(--hm-u) * 1.6),14px);font-weight:800;line-height:1.5;color:#6B4A30;background:#FFF6EA;border:1.5px solid #C99B74;padding:0 6px;border-radius:8px;white-space:nowrap;z-index:8;pointer-events:none}
 .hm-night .hm-rn{background:#E9D8C4;color:#4A3322}
-.hm-r-bed{background:linear-gradient(180deg,#E9E2FB,#D9CEF4)}
-.hm-r-kitchen{background:linear-gradient(180deg,#E6F3E8,#D3EAD8)}
-.hm-r-hall,.hm-r-hall2{background:linear-gradient(180deg,#F6E7D6,#EBD5BD)}
-.hm-r-balcony{background:transparent;border-color:transparent}
-.hm-r-living{background:transparent;border-color:#C99B74;z-index:3;pointer-events:none}
-.hm-night .hm-room:not(.hm-r-balcony):not(.hm-r-living){filter:brightness(.8) saturate(.9)}
-.hm-night .hm-room:not(.hm-r-balcony)::after{content:'';position:absolute;inset:0;background:radial-gradient(60% 70% at 50% 70%,rgba(255,214,150,.26),rgba(20,16,50,.34));pointer-events:none;z-index:70}
-.hm-mini{overflow:hidden;box-sizing:border-box;background:linear-gradient(180deg,#FBE7D3 0%,#F6D9BE 58%,#E2BE98 58.2%,#D4AC83 100%)}
-html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#F2DCC6 0%,#E8C9AA 58%,#CDA57E 58.2%,#BE9570 100%)}
-.hm-night .hm-mini{filter:brightness(.84) saturate(.92)}
-.hm-mfloor{position:absolute;left:0;right:0;top:58.2%;bottom:0;pointer-events:none}
 .hm-mwin{position:absolute;right:10%;top:12%;width:calc(var(--hm-mh,60px) * .48);height:calc(var(--hm-mh,60px) * .40);border-radius:6px;border:2px solid rgba(255,255,255,.8);background:linear-gradient(180deg,#BFE4FF,#EAF6FF);box-shadow:0 2px 6px rgba(0,0,0,.1);z-index:1}
 .hm-pwall{position:absolute;left:5%;top:2.5%;width:56%;height:24%;z-index:1;pointer-events:none;display:flex;justify-content:space-evenly;align-items:flex-start;border-top:1.5px solid rgba(130,90,60,.5);border-radius:50% 50% 0 0/18% 18% 0 0}
 .hm-pol{position:relative;width:calc(var(--hm-mh,60px) * .19);background:#FFFDF8;padding:calc(var(--hm-mh,60px) * .012) calc(var(--hm-mh,60px) * .012) calc(var(--hm-mh,60px) * .036);margin-top:calc(var(--hm-mh,60px) * .03);box-shadow:0 2px 4px rgba(0,0,0,.2);transform:rotate(calc((var(--i) - (var(--n) - 1) / 2) * 5deg));transform-origin:50% 0}
@@ -1143,22 +1442,26 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-mp .decor-svg,.hm-mp svg{width:1em;height:1em;display:block;overflow:visible}
 .hm-mpf{filter:drop-shadow(0 2px 1.5px rgba(60,30,20,.28))}
 .hm-mpe{font-size:1em;line-height:1}
-.hm-slab{background:#B98A5E}
-.hm-roof{clip-path:polygon(0 100%,50% 0,100% 100%);background:linear-gradient(180deg,#E9707F,#C9505F)}
-.hm-chim{background:#B5653F}
-.hm-door{background:rgba(110,70,40,.3);border-radius:6px 6px 0 0;z-index:4}
-.hm-win{border:3px solid #FFF8EE;border-radius:6px;background:linear-gradient(180deg,#8FC6F0,#DDF0FB);box-shadow:0 0 0 1.5px rgba(150,110,80,.35);box-sizing:border-box}
-.hm-night .hm-win{background:linear-gradient(180deg,#1A1F4A,#3A3F7A)}
-.hm-stairs{background:repeating-linear-gradient(180deg,#D7A97C 0 6px,#B98A5E 6px 8px);clip-path:polygon(0 100%,100% 0,100% 12%,14% 100%)}
-.hm-rail{height:2.2%;background:#FFF8EE;border-radius:3px;box-shadow:0 0 0 1.5px rgba(150,110,80,.3)}
-.hm-rail.hm-posts{height:8%;background:repeating-linear-gradient(90deg,#FFF8EE 0 4%,transparent 4% 12%);box-shadow:none}
-.hm-pond{border-radius:50%;background:radial-gradient(closest-side,#A9DBFF,#7FC4F0);box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
+/* the house in 3D: one drawing, then what stands on the floors (ordered by how far forward it stands, among the two of you) */
+.hm-svg{position:absolute;left:0;top:0;height:100%;overflow:visible;pointer-events:none}
+.hm-props{position:absolute;inset:0}
+.hm-bwall{overflow:hidden;pointer-events:none}
+.hm-night .hm-bwall{filter:brightness(.8) saturate(.92)}
+.hm-night .hm-props .hm-mpf{filter:brightness(.84) drop-shadow(0 2px 1.5px rgba(0,0,0,.3))}
+.hm-night .hm-props .hm-thing:not(.hm-glows){filter:brightness(.8)}
+.hm-rail3{pointer-events:none;background:linear-gradient(#FFF8EE,#FFF8EE) 0 0/100% 15% no-repeat,repeating-linear-gradient(90deg,#FFF8EE 0 1.1%,transparent 1.1% 4.4%);filter:drop-shadow(0 1px 1px rgba(80,50,30,.3))}
+.hm-night .hm-rail3{filter:brightness(.6)}
+.hm-smoke{width:0;height:0;pointer-events:none}
+.hm-smoke i{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.75);opacity:0}
+.hm-night .hm-smoke i{background:rgba(200,200,230,.35)}
+@media (prefers-reduced-motion:no-preference){.hm-smoke i{animation:hm-smoke 4.2s ease-out infinite}.hm-smoke i:nth-child(2){animation-delay:-1.4s}.hm-smoke i:nth-child(3){animation-delay:-2.8s}}
+@keyframes hm-smoke{0%{transform:translate(0,0) scale(.5);opacity:0}15%{opacity:.7}100%{transform:translate(16px,-48px) scale(1.9);opacity:0}}
 .hm-thing{transform:translate(-50%,-100%);pointer-events:none}
 .hm-thing svg{width:100%;height:auto;display:block;overflow:visible}
 .hm-s-spring .hm-tree .hm-leaf{fill:#9FD39A}.hm-s-spring .hm-tree .hm-fruit{fill:#FFB3CB;r:4.4px}
 .hm-s-autumn .hm-tree .hm-leaf{fill:#F0A04B;stroke:#B8692A}.hm-s-autumn .hm-tree .hm-leaf-top{fill:#F5B85A}.hm-s-autumn .hm-tree .hm-fruit{fill:#D9534F}
 .hm-s-winter .hm-tree .hm-leaf{fill:#E9F1F7;stroke:#A9BCCB}.hm-s-winter .hm-tree .hm-fruit{fill:#FFFFFF}
-.hm-pot{position:absolute;transform:translate(-50%,-100%);width:7%;cursor:pointer;z-index:0}
+.hm-pot{position:absolute;transform:translate(-50%,-100%) scale(var(--s,1));transform-origin:50% 100%;width:7%;cursor:pointer;pointer-events:auto}
 .hm-pot svg{width:100%;height:auto;display:block;overflow:visible;pointer-events:none}
 .hm-pot.hm-thirsty::after,.hm-pot.hm-bloom::after,.hm-pot.hm-empty::after{content:'💧';position:absolute;left:50%;top:-28%;transform:translateX(-50%);font-size:clamp(10px,calc(var(--hm-u) * 2.4),22px);pointer-events:none}
 .hm-pot.hm-bloom::after{content:'🧺';top:-46%}
@@ -1174,11 +1477,11 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-pot.hm-wet .hm-soil{fill:#4A2E22}
 .hm-pot.hm-wilt .hm-plant{transform:rotate(16deg);transform-origin:50% 62%;filter:saturate(.35) brightness(.92)}
 .hm-pmark{position:absolute;right:-8%;bottom:30%;width:24%;aspect-ratio:1;border-radius:50%;box-shadow:0 0 0 2px #fff;pointer-events:none}
-.hm-drop{width:1.2%;aspect-ratio:.7;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#7FB2EC;pointer-events:none}
+.hm-drop{z-index:4000;width:1.2%;aspect-ratio:.7;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#7FB2EC;pointer-events:none}
 @media (prefers-reduced-motion:no-preference){.hm-drop{animation:hm-fall .7s ease-in forwards}}
 @keyframes hm-fall{to{transform:translateY(160%);opacity:0}}
 .hm-actors{pointer-events:none}
-.hm-ch,.hm-pet{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.hm-ch,.hm-pet{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;transform-origin:50% 100%}
 .hm-ch{width:9%;transition:opacity .4s}
 .hm-ch.hm-off{opacity:.45}
 .hm-pet{width:6.6%}
@@ -1249,8 +1552,12 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-ctl{position:absolute;z-index:20;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:flex-end;gap:8px}
 .hm-ctl-l{left:max(12px,env(safe-area-inset-left,0px))}
 .hm-ctl-r{right:max(12px,env(safe-area-inset-right,0px))}
-.hm-pad.hm-arrow{width:58px;height:58px;border-radius:50%;border:0;background:var(--hm-glass);box-shadow:var(--hm-sh);font-size:22px;color:var(--hm-blue-ink);touch-action:none;margin-bottom:4px}
-.hm-pad.hm-arrow:active{transform:scale(.94)}
+/* the stick: push it the way to walk — up is into the room, down out toward you */
+.hm-joy{position:relative;flex:none;width:112px;height:112px;border-radius:50%;background:var(--hm-glass);box-shadow:var(--hm-sh),inset 0 2px 8px rgba(255,255,255,.35);touch-action:none;cursor:grab}
+.hm-joy-k{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#FFFFFF,#DCE8F8 58%,#AFC6E6);box-shadow:0 5px 12px -4px rgba(40,60,110,.6);pointer-events:none;transition:transform .14s ease-out}
+.hm-joy.hm-on .hm-joy-k{transition:none}
+.hm-ja{position:absolute;font-size:11px;line-height:1;color:var(--hm-blue-ink);opacity:.62;pointer-events:none}
+.hm-ja-u{left:50%;top:7px;transform:translateX(-50%)}.hm-ja-d{left:50%;bottom:7px;transform:translateX(-50%)}.hm-ja-l{left:8px;top:50%;transform:translateY(-50%)}.hm-ja-r{right:8px;top:50%;transform:translateY(-50%)}
 .hm-act{width:54px;min-height:66px;border:0;background:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px}
 .hm-act i{font-style:normal;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--hm-glass);box-shadow:var(--hm-sh)}
 .hm-act span{font-size:11.5px;font-weight:800;line-height:1.5;padding:0 6px;border-radius:8px;background:var(--hm-glass);color:var(--hm-ink);white-space:nowrap}
@@ -1268,19 +1575,20 @@ html[data-theme="dark"] .hm-mini.hm-mini-def{background:linear-gradient(180deg,#
 .hm-icons .hm-mbtn i{margin:0}
 .hm-icons .hm-mbtn{padding:0 13px}
 /* a narrow phone: smaller bottom buttons; the narrowest puts ⬆/⬇ above ◀ ▶ */
-@media (max-width:389px){.hm-pad.hm-arrow{width:50px;height:50px;font-size:20px}.hm-act{width:48px;min-height:62px}.hm-act i{width:42px;height:42px;font-size:20px}.hm-ctl{gap:6px}}
-@media (max-width:339px){.hm-pad.hm-arrow{width:46px;height:46px}.hm-act{width:44px}.hm-act i{width:40px;height:40px;font-size:19px}.hm-act span{font-size:10.5px;padding:0 3px}.hm-ctl{gap:4px}.hm-ctl-l{left:8px}.hm-ctl-r{right:8px}.hm-mbtn{font-size:13px}.hm-mbtn i{margin-right:2px}}
+@media (max-width:389px){.hm-joy{width:100px;height:100px}.hm-act{width:48px;min-height:62px}.hm-act i{width:42px;height:42px;font-size:20px}.hm-ctl{gap:6px}}
+@media (max-width:339px){.hm-joy{width:92px;height:92px}.hm-joy-k{width:40px;height:40px;margin:-20px 0 0 -20px}.hm-act{width:44px}.hm-act i{width:40px;height:40px;font-size:19px}.hm-act span{font-size:10.5px;padding:0 3px}.hm-ctl{gap:4px}.hm-ctl-l{left:8px}.hm-ctl-r{right:8px}.hm-mbtn{font-size:13px}.hm-mbtn i{margin-right:2px}}
 @media (max-width:299px){.hm-ctl-l{flex-wrap:wrap-reverse;width:100px}}
 /* a laptop shows which key does what; a touch screen never does */
 .hm-keys{display:none}
 .hm-help kbd{display:inline-block;min-width:20px;padding:1px 5px;margin:0 1px;border-radius:5px;font:700 11.5px/1.5 inherit;font-family:inherit;text-align:center;background:rgba(120,110,170,.14);box-shadow:inset 0 -1px 0 rgba(0,0,0,.18)}
 @media (hover:hover) and (pointer:fine){
   .hm-keys{display:block}
-  .hm-act,.hm-pad,.hm-mbtn{position:relative}
+  .hm-act,.hm-pad,.hm-mbtn,.hm-joy{position:relative}
   .hm-root [data-key]::after{content:attr(data-key);position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:5px;display:grid;place-items:center;font:800 10px/1 system-ui,sans-serif;color:#3A3550;background:rgba(255,255,255,.95);box-shadow:0 1px 3px rgba(0,0,0,.28);pointer-events:none}
   .hm-root .hm-mbtn[data-key]::after{top:-4px;right:-4px}
   .hm-todo::before{content:'空格';display:inline-block;margin-right:7px;padding:1px 6px;border-radius:5px;font-size:10.5px;font-weight:800;background:rgba(255,255,255,.28)}
 }
+.hm-short .hm-joy{width:80px;height:80px}.hm-short .hm-joy-k{width:36px;height:36px;margin:-18px 0 0 -18px}.hm-short .hm-ja{font-size:9px}
 .hm-short .hm-todo{top:auto;bottom:calc(14px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 440px);animation:none}
 /* the sheets behind the buttons */
 .hm-sheet{position:absolute;inset:0;z-index:40;background:rgba(30,20,50,.38);display:flex;align-items:flex-end;justify-content:center;padding:0 max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px))}
@@ -1402,13 +1710,13 @@ function build() {
       <div class="hm-ground" data-r="ground"></div>
       <div class="hm-band" data-r="band">
         <div class="hm-lay" data-r="hills"></div>
-        <div class="hm-lay" data-r="world"><div class="hm-lay" data-r="house"></div><div class="hm-lay hm-actors" data-r="actors"></div></div>
+        <div class="hm-lay" data-r="world"><div class="hm-lay" data-r="house"></div><div class="hm-lay hm-actors" data-r="actors"><div class="hm-props" data-r="props"></div></div></div>
       </div>
       <div class="hm-skyfx" data-r="skyfx" aria-hidden="true"></div>
       <button type="button" class="hm-edge" data-r="edge" hidden></button>
       <div class="hm-hint" data-r="hint"${store.get('hm_hinted', 0) ? ' hidden' : ''} role="dialog" aria-label="欢迎回家">
         <b>欢迎回家 🏡</b>
-        <ol><li><i>👆</i><span>点地板就走过去，按住 ◀ ▶ 也能走</span></li><li><i>🌱</i><span>去花园种花，每人每天浇一次水</span></li><li><i>💞</i><span>两个人一起浇，花长得更快</span></li></ol>
+        <ol><li><i>👆</i><span>点地板就走过去，往里往外都行；按住左下角的摇杆也能走</span></li><li><i>🌱</i><span>去花园种花，每人每天浇一次水</span></li><li><i>💞</i><span>两个人一起浇，花长得更快</span></li></ol>
         <div class="hm-hint-b"><button type="button" class="hm-hb1" data-a="hint-ok">开始吧</button><button type="button" class="hm-hb2" data-a="hint-help">看玩法</button></div>
       </div>
       <div class="hm-toast" data-r="toast" hidden></div>
@@ -1426,9 +1734,8 @@ function build() {
     </nav>
     <button type="button" class="hm-todo" data-r="todo" data-a="todo" hidden></button>
     <div class="hm-ctl hm-ctl-l" data-r="ctlL">
-      <button type="button" class="hm-pad hm-arrow" data-dir="-1" data-key="A" aria-label="按住往左走">◀</button>
-      <button type="button" class="hm-pad hm-arrow" data-dir="1" data-key="D" aria-label="按住往右走">▶</button>
-      <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" data-key="W" hidden><i>⬆</i><span>上楼</span></button>
+      <div class="hm-joy" data-r="joy" data-key="WASD" role="group" aria-label="摇杆：按住往哪边推就往哪边走，往上是往屋里走（电脑上用方向键）"><i class="hm-ja hm-ja-u">▲</i><i class="hm-ja hm-ja-d">▼</i><i class="hm-ja hm-ja-l">◀</i><i class="hm-ja hm-ja-r">▶</i><i class="hm-joy-k" data-r="joyk"></i></div>
+      <button type="button" class="hm-pad hm-act" data-r="stairs" data-go="up" data-key="F" hidden><i>⬆</i><span>上楼</span></button>
     </div>
     <div class="hm-ctl hm-ctl-r" data-r="ctlR">
       <button type="button" class="hm-act" data-r="hug" data-a="hug" data-key="H" disabled hidden><i>🤗</i><span>抱抱</span></button>
@@ -1445,20 +1752,33 @@ function build() {
   UI.hills.innerHTML = hills;
   root.addEventListener('click', onClick);
   UI.scene.addEventListener('click', onScenePointer);
-  UI.house.addEventListener('keydown', (e) => { const p = e.target.closest && e.target.closest('.hm-pot'); if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); potAction(+p.dataset.i); } });
-  for (const b of $$('.hm-pad[data-dir]', root)) {
-    const d = +b.dataset.dir;
-    const start = (e) => { e.preventDefault(); startHold(d); try { b.setPointerCapture(e.pointerId); } catch (err) {} };
-    const stop = () => stopHold(d);
-    b.addEventListener('pointerdown', start); b.addEventListener('pointerup', stop); b.addEventListener('pointercancel', stop); b.addEventListener('lostpointercapture', stop);
-    b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const a = P[meK()]; walkMe(a.x + d * 10, fl(a) || G0); } });
-    b.addEventListener('contextmenu', (e) => e.preventDefault());
-  }
+  UI.world.addEventListener('keydown', (e) => { const p = e.target.closest && e.target.closest('.hm-pot'); if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); potAction(+p.dataset.i); } });
+  // the stick: eight ways, like the keys (the same on both phones: the partner's phone walks them the same way)
+  const joy = UI.joy;
+  const jmove = (e) => {
+    const J = G.joy; if (!J || e.pointerId !== J.id) return;
+    let dx = e.clientX - J.cx, dy = e.clientY - J.cy;
+    const len = Math.hypot(dx, dy), max = J.r * .6;
+    if (len > max) { dx *= max / len; dy *= max / len; }
+    UI.joyk.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
+    if (len < J.r * .18) return stopHold();
+    const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)), v = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]][(a + 8) % 8];
+    startHold({ x: v[0], y: v[1] });
+  };
+  const jend = (e) => { const J = G.joy; if (!J || (e && e.pointerId !== J.id)) return; G.joy = null; joy.classList.remove('hm-on'); UI.joyk.style.transform = ''; stopHold(); };
+  joy.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); try { joy.setPointerCapture(e.pointerId); } catch (err) {}
+    const r = joy.getBoundingClientRect();
+    G.joy = { id: e.pointerId, cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2 };
+    joy.classList.add('hm-on'); jmove(e);
+  });
+  joy.addEventListener('pointermove', jmove); joy.addEventListener('pointerup', jend); joy.addEventListener('pointercancel', jend); joy.addEventListener('lostpointercapture', jend);
+  joy.addEventListener('contextmenu', (e) => e.preventDefault());
   P.cs = makeActor('cs'); P.yy = makeActor('yy');
   if (API.pet && API.pet.svg) {
     const el = document.createElement('div'); el.className = 'hm-pet'; el.innerHTML = `<div class="hm-pin">${API.pet.svg}</div>`;
     el.setAttribute('aria-hidden', 'true'); UI.actors.appendChild(el);
-    pet = { el, x: 47, y: G0, vx: 0, vy: 0, path: [], flip: false };
+    pet = { el, x: 47, y: G0 - 1.5, fi: 0, vx: 0, vy: 0, path: [], flip: false };
   } else pet = null;
   // The size arrives from the ResizeObserver after the first layout. Reading it here would force that
   // layout in the middle of building, which was most of what opening the house cost on a slow phone.
@@ -1491,13 +1811,13 @@ function onResize() {
   // the buttons at the bottom stand on the lawn; if the lawn is too thin under them, the house moves up
   // the bottom buttons' real height (they get smaller on a narrow phone, and on the narrowest ⬆/⬇ sits
   // above ◀ ▶), with their margin and a little air
-  const lawn = (k) => .14 * 75 * k, ctl = Math.max(UI.ctlL.offsetHeight, UI.ctlR.offsetHeight, 46) + 16;
+  const lawn = (k) => (100 - floorsOf()[0].front - 3.4) / 100 * 75 * k, ctl = Math.max(UI.ctlL.offsetHeight, UI.ctlR.offsetHeight, 46) + 16;
   const sideRoom = (vw - world * s) / 2 >= 200;   // a wide screen: the buttons stand beside the house
   let reserve = sideRoom ? 0 : Math.max(0, ctl - lawn(s));
   if (reserve) { s = fit(reserve); reserve = Math.max(0, ctl - lawn(s)); }
   G.VW = vw; G.VH = vh; G.W = 100 * s; G.H = 75 * s; G.top = vh - sb - reserve - G.H; G.hudB = top; G.camPx = null;
   UI.band.style.cssText = `top:${G.top.toFixed(1)}px;width:${G.W.toFixed(1)}px;height:${G.H.toFixed(1)}px;--hm-u:${s.toFixed(3)}px`;
-  UI.ground.style.top = (G.top + .86 * G.H).toFixed(1) + 'px';
+  UI.ground.style.top = (G.top + (floorsOf()[0].back - 3) / 100 * G.H).toFixed(1) + 'px';
   UI.sky.style.cssText = `top:${top.toFixed(1)}px;height:${Math.max(60, G.top + .55 * G.H - top).toFixed(1)}px`;
   UI.root.style.setProperty('--hm-u', s.toFixed(3) + 'px');
   UI.todo.style.top = short ? '' : (menuB + 4).toFixed(0) + 'px';
@@ -1506,26 +1826,28 @@ function onResize() {
   G.edge = null;
 }
 /* ── the keyboard (asked 2026-11-25: 「for laptop can use keyboard 我们的家」) ──
-   ← → or A D walk for as long as they are held, ↑ ↓ or W S take the stairs, Space does the 「下一步」 chip,
-   E waters / picks / plants the pot you stand by, H 抱抱, J 招手, K 坐下 (again: stand up), 1–4 the menus,
-   Esc closes a sheet or the house. Never while typing, never with ⌘/Ctrl/Alt (those are the browser's). */
+   ← → ↑ ↓ or W A S D walk for as long as they are held — two at once go diagonally, ↑ is into the room and ↓ out of
+   it — F takes the stairs, Space does the 「下一步」 chip, E waters / picks / plants the pot you stand by, H 抱抱,
+   J 招手, K 坐下 (again: stand up), 1–4 the menus, Esc closes a sheet or the house. Never while typing, never with
+   ⌘/Ctrl/Alt (those are the browser's). */
 const KEY_MENU = { 1: 'help', 2: 'garden', 3: 'house', 4: 'shop' };
 const keyName = (e) => (e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key);
-const keyDir = (k) => (k === 'ArrowLeft' || k === 'a' ? -1 : k === 'ArrowRight' || k === 'd' ? 1 : 0);
+const KEY_V = { ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0], ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1] };
+function keysV() { let x = 0, y = 0; for (const k of G.keys || []) { const v = KEY_V[k]; if (v) { x += v[0]; y += v[1]; } } return { x: clamp(x, -1, 1), y: clamp(y, -1, 1) }; }
 function onKey(e) {
   if (e.key === 'Escape') { if (G.sheet) closeSheet(); else close(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey || (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
   const k = keyName(e);
   if (KEY_MENU[k]) { e.preventDefault(); if (G.sheetKind === KEY_MENU[k]) closeSheet(); else openSheet(KEY_MENU[k]); return; }
   if (G.sheet || (UI.hint && !UI.hint.hidden && (k === ' ' || k === 'Enter'))) return;   // a sheet or the welcome card: their own buttons
-  const d = keyDir(k);
-  if (d) { e.preventDefault(); if (G.hold !== d) { if (G.hold) stopHold(G.hold); startHold(d); G.keyAt = performance.now(); } return; }
-  const a = P[meK()], L = LVS[G.lv];
-  if (k === 'ArrowUp' || k === 'w' || k === 'ArrowDown' || k === 's') {
-    if (!L.stairs) return;
-    e.preventDefault(); if (!e.repeat) walkMe(a.x, k === 'ArrowUp' || k === 'w' ? G1 : G0); return;
+  if (KEY_V[k]) {
+    e.preventDefault();
+    if (!G.keys.has(k)) { G.keys.add(k); G.keyAt = performance.now(); G.keyTap = k; startHold(keysV()); }
+    return;
   }
+  const a = P[meK()], L = LVS[G.lv];
   if (e.repeat) return;
+  if (k === 'f') { e.preventDefault(); if (!L.stairs) return say('两层小楼才有楼梯'); const up = a.fi !== 1; walkMe(a.x, up ? G1 : G0, up ? 1 : 0); return; }
   if (k === ' ' || k === 'Enter') {
     if (e.target && e.target.closest && e.target.closest('button')) return;   // a focused button presses itself
     e.preventDefault(); if (UI.todo && !UI.todo.hidden) UI.todo.click(); return;
@@ -1536,19 +1858,22 @@ function onKey(e) {
   if (k === 'k') { e.preventDefault(); if (a.sit >= 0 || (G.seats && G.seats.length)) sitDown(); else say('客厅里摆一张沙发，就能坐下'); return; }
 }
 function onKeyUp(e) {
-  const d = keyDir(keyName(e));
-  if (!d || G.hold !== d) return;
-  stopHold(d);
-  // a quick tap is a step, like the old arrow keys; holding is a walk
-  if (performance.now() - (G.keyAt || 0) < 180) { const a = P[meK()]; walkMe(a.x + d * 8, fl(a) || G0); }
+  const k = keyName(e);
+  if (!KEY_V[k] || !G.keys || !G.keys.has(k)) return;
+  G.keys.delete(k);
+  const v = keysV();
+  if (v.x || v.y) return startHold(v);
+  stopHold();
+  // a quick tap is a step; holding is a walk
+  if (G.keyTap === k && performance.now() - (G.keyAt || 0) < 180) { const a = P[meK()], [dx, dy] = KEY_V[k]; walkMe(a.x + dx * 8, a.y + dy * 3.5, Math.max(0, a.fi)); }
 }
 // a held key whose release went to another window would walk forever
-function onBlur() { stopHold(G.hold); }
-// the pot you stand by (the garden is on the ground floor), or -1
+function onBlur() { if (G.keys) G.keys.clear(); stopHold(); }
+// the pot you stand by, on your floor, or -1
 function potHere() {
   const a = P[meK()], L = LVS[G.lv];
   let best = -1, bd = 8;
-  (L.pots || []).forEach((pp, i) => { const d = Math.abs(a.x - pp[0]); if (Math.abs(fl(a) - (pp[1] || G0)) < 1 && d < bd) { bd = d; best = i; } });
+  (L.pots || []).forEach((pp, i) => { if (floorOfY(pp[1]) !== a.fi) return; const d = Math.hypot(a.x - pp[0], (a.y - pp[1]) * 1.6); if (d < bd) { bd = d; best = i; } });
   return best;
 }
 function onClick(e) {
@@ -1569,14 +1894,14 @@ function onClick(e) {
   const go = b.dataset.go, a = P[meK()], L = LVS[G.lv];
   if (!go) return;
   if (G.sheet) closeSheet();
-  if (go === 'up') return walkMe(a.x, G1);
-  if (go === 'down') return walkMe(a.x, G0);
-  if (go === 'garden') { walkMe(20, G0); mark(20, G0); return; }
-  if (go === 'living') { const r = L.rooms[0], x = (r.x0 + r.x1) / 2 - 3; walkMe(x, G0); mark(x, G0); return; }
+  if (go === 'up') return walkMe(a.x, G1, 1);
+  if (go === 'down') return walkMe(a.x, G0, 0);
+  if (go === 'garden') { walkMe(20, G0 + 2, 0); mark(20, G0 + 2); return; }
+  if (go === 'living') { const r = L.rooms[0], x = (r.x0 + r.x1) / 2 - 3; walkMe(x, G0, 0); mark(x, G0); return; }
 }
 function onVis() {
   if (!G.open) return;
-  if (document.hidden) { stopHold(G.hold); const a = P[meK()]; send('away', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 }); return; }
+  if (document.hidden) { if (G.keys) G.keys.clear(); stopHold(); const a = P[meK()]; send('away', { x: r1(a.x), y: r1(a.y), f: a.fi }); return; }
   tickDay(); loadSave(true);
   hello();   // the channel reopens on its own a moment after the phone wakes
 }
@@ -1588,9 +1913,9 @@ function hello() {
   const go = () => { G.helloT = 0; if (!G.open || document.hidden) return; if (send('hi', helloData())) return; if (++tries < 30) G.helloT = setTimeout(go, 600); };
   G.helloT = setTimeout(go, 300);
 }
-const helloData = () => { const a = P[meK()]; return { x: r1(a.x), f: fl(a) === G1 ? 1 : 0, lv: G.lv }; };
+const helloData = () => { const a = P[meK()]; return { x: r1(a.x), y: r1(a.y), f: a.fi, lv: G.lv }; };
 // the date this phone is on: thirst resets at midnight, festivals come and go
-function tickDay() {
+function tickDay(force, opening) {
   let t = G.today; try { t = API.today(); } catch (e) {}
   const per = (document.documentElement.getAttribute('data-period') || 'day');
   const night = per === 'night', dusk = per === 'dusk';
@@ -1599,7 +1924,7 @@ function tickDay() {
   G.today = t; G.night = night; G.dusk = dusk;
   const all = themesAt(t), fest = all.length ? topFest(t, all) : null, fests = all.map(x => x.id).join();
   const season = seasonOf(t);
-  if (changed || fest !== G.fest || season !== G.season || fests !== G.festKey) {
+  if (force || changed || fest !== G.fest || season !== G.season || fests !== G.festKey) {
     G.fest = fest; G.season = season; G.festKey = fests; G.fests = new Set(all.map(x => x.id));
     const sc = UI.scene;
     if (sc) {
@@ -1607,14 +1932,14 @@ function tickDay() {
       for (const f of Object.keys(FESTS)) sc.classList.toggle('hm-f-' + f, f === fest);
       for (const s of ['spring', 'summer', 'autumn', 'winter']) sc.classList.toggle('hm-s-' + s, s === season);
     }
-    renderHouse(); renderSky(); renderPanel();
+    renderHouse(opening); renderSky(); renderPanel();
   }
 }
 function open(api) {
   API = api;
   if (G.open) close(true);
   G.me = api.me === 'yy' ? 'yy' : 'cs';
-  G.open = true; G.last = 0; G.hold = 0; G.camX = 0; G.camT = null; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.sheet = null; G.sheetKind = '';
+  G.open = true; G.last = 0; G.hold = null; G.keys = new Set(); G.joy = null; G.camX = 0; G.camT = null; G.camPx = null; G.lead = 'me'; G.edge = null; G.verSaid = 0; G.sheet = null; G.sheetKind = '';
   G.partner = { at: 0, on: false, x: 0, f: 0, away: false };
   G.srv = { data: blank(), rev: 0, loaded: false }; G.remote = [];
   G.pending = store.get(pendKey(), []).filter(op => op && op.t && op.who === CHAR[G.me]);
@@ -1627,12 +1952,12 @@ function open(api) {
   build();
   // where each of you was when you last left
   const pos = G.view.pos || {};
-  for (const k of ['cs', 'yy']) { const p = pos[CHAR[k]]; if (p && typeof p.x === 'number') { const y = p.f && LVS[G.lv].stairs ? G1 : G0; P[k].y = y; P[k].x = clampX(p.x, y); } }
-  if (pet) { pet.x = clamp(P[meK()].x - 6, 3, LVS[G.lv].world - 3); }
+  for (const k of ['cs', 'yy']) { const p = pos[CHAR[k]]; if (p && typeof p.x === 'number') { const fi = p.f && LVS[G.lv].stairs ? 1 : 0; P[k].fi = fi; [P[k].x, P[k].y] = clampPos(p.x, typeof p.y === 'number' ? p.y : (fi ? G1 : G0), fi); } }
+  if (pet) { const m = P[meK()]; pet.fi = m.fi; [pet.x, pet.y] = clampPos(m.x - 6, m.y - 1.5, m.fi); }
   P[meK()].el.classList.add('hm-me');
   P[peerK()].el.classList.add('hm-off');
   for (const k of ['cs', 'yy']) P[k].el.querySelector('.hm-tag').textContent = (k === meK() ? '我 · ' : '') + nameOf(k);
-  tickDay(); renderHouse(); renderSky(); renderCoins(); status();
+  tickDay(true, true); renderCoins(); status();
   document.addEventListener('keydown', onKey);
   document.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -1641,7 +1966,7 @@ function open(api) {
     API.live.on('hm', onLive);
     API.live.want(true);
     hello();
-    G.beat = setInterval(() => { if (!G.open || document.hidden) return; beat(); if (G.partner.on && Date.now() - G.partner.at > GONE_MS) { G.partner.on = false; P[peerK()].el.classList.add('hm-off'); P[peerK()].holdD = 0; status(); } }, BEAT_MS);
+    G.beat = setInterval(() => { if (!G.open || document.hidden) return; beat(); if (G.partner.on && Date.now() - G.partner.at > GONE_MS) { G.partner.on = false; P[peerK()].el.classList.add('hm-off'); P[peerK()].hv = null; status(); } }, BEAT_MS);
   }
   G.poll = setInterval(() => { if (G.open && !document.hidden) { tickDay(); if (!G.partner.on || !API.online) loadSave(true); } }, POLL_MS);
   G.tick = setInterval(() => { if (G.open) { tickDay(); recompute(); } }, 60000);
@@ -1653,13 +1978,14 @@ function close(quiet) {
   // where I was, so the partner's phone can say so while I'm away
   const a = P[meK()];
   if (a && API) {
-    const op = { t: 'pos', who: CHAR[meK()], x: a.x, f: fl(a) === G1 ? 1 : 0, at: Date.now() };
+    const op = { t: 'pos', who: CHAR[meK()], x: a.x, y: a.y, f: a.fi === 1 ? 1 : 0, at: Date.now() };
     if (apply(G.view, op)) { G.pending.push(op); store.set(pendKey(), G.pending); flushOnClose(); }
   }
-  if (a) send('bye', { x: r1(a.x), f: fl(a) === G1 ? 1 : 0 }); else send('bye', {});
+  if (a) send('bye', { x: r1(a.x), y: r1(a.y), f: a.fi }); else send('bye', {});
   G.open = false;
   closeSheet();
   if (G.raf) cancelAnimationFrame(G.raf); G.raf = 0;
+  cancelAnimationFrame(G.propsRaf); G.propsRaf = 0;
   clearInterval(G.beat); clearInterval(G.poll); clearInterval(G.tick); clearTimeout(G.helloT);
   for (const t of G.timers) clearTimeout(t); G.timers = [];
   try { G.ro && G.ro.disconnect(); } catch (e) {}
@@ -1700,6 +2026,7 @@ function flushOnClose() {
 }
 const pendKeyFor = (api) => `hm_pending_${api && api.matchId || 'demo'}_${CHAR[G.me]}`;
 
+const actorTest = (a) => ({ x: a.x, y: a.y, f: a.fi, where: where(a), path: a.path.length, hold: a.hv ? [a.hv.x, a.hv.y] : 0, s: a.fi === -1 ? .88 : depthS(a.y, a.fi), z: +a.el.style.zIndex || 0, sit: a.sit });
 css();   // when the file loads (its own task), so opening doesn't also pay for restyling the page
 window.HomeGame = {
   open, close: () => close(),
@@ -1709,12 +2036,15 @@ window.HomeGame = {
     state: () => !G.open ? null : ({
       me: G.me, lv: G.lv, today: G.today, fest: G.fest, season: G.season, night: G.night, camX: G.camX, W: G.W, H: G.H,
       rev: G.srv.rev, pending: G.pending.length, remote: G.remote.length, view: clone(G.view), partner: { ...G.partner }, lead: G.lead,
-      cs: { x: P.cs.x, y: P.cs.y, f: fl(P.cs), where: where(P.cs), path: P.cs.path.length, hold: P.cs.holdD }, yy: { x: P.yy.x, y: P.yy.y, f: fl(P.yy), where: where(P.yy), path: P.yy.path.length, hold: P.yy.holdD },
-      pet: pet ? { x: pet.x, y: pet.y, f: fl(pet) } : null, near: !!near(),
+      cs: actorTest(P.cs), yy: actorTest(P.yy),
+      pet: pet ? { x: pet.x, y: pet.y, f: pet.fi } : null, near: !!near(),
       pots: LVS[G.lv].pots.map((_, i) => { const q = potInfo(i); return { seed: q.pl && q.pl.seed, id: q.pl && q.pl.id, stage: q.g.stage, wilted: q.g.wilted, mine: q.mine, theirs: q.theirs, thirsty: q.thirsty, bloom: q.bloom, empty: q.empty }; }),
     }),
-    act: (op) => act(op), potAction: (i) => potAction(i), walk: (x, f) => walkMe(x, f ? G1 : G0), tick: () => { tickDay(); recompute(); },
-    teleport: (x, f) => { const a = P[meK()]; a.y = f ? G1 : G0; a.x = clampX(x, a.y); a.path = []; },
+    act: (op) => act(op), potAction: (i) => potAction(i), walk: (x, f, y) => walkMe(x, y != null ? y : (f ? G1 : G0), f ? 1 : 0), tick: () => { tickDay(); recompute(); },
+    teleport: (x, f, y) => { const a = P[meK()]; a.fi = f ? 1 : 0; [a.x, a.y] = clampPos(x, y != null ? y : (f ? G1 : G0), a.fi); a.path = []; a.hv = null; },
+    hold: (dx, dy) => startHold({ x: dx, y: dy }), stop: () => stopHold(),
+    geo: () => ({ floors: clone(floorsOf()), band: floorsOf().map((_, i) => band(i)), passY: floorsOf().map((_, i) => passY(i)), walls: floorsOf().map((_, i) => walls(i)), xRange: floorsOf().map((_, i) => xRange(i)), seats: clone(G.seats || []), stairs: LVS[G.lv].stairs || null }),
+    route: (x, y, f) => route(P[meK()], x, y, f), depth: (y, f) => depthS(y, f),
     flush: () => flush(), load: () => loadSave(true),
   },
 };

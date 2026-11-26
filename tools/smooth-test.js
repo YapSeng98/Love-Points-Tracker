@@ -148,7 +148,7 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     await ctx.close();
   }
   // 我们的家: the two-storey house on a 圣诞 night — snow falling, lights on the eaves, the tree, the view
-  // following CS through the house and up the stairs
+  // following CS through the house (the stick, into the room and along) and up the stairs
   {
     const { p, ctx, errs } = await open('2026-12-20T21:00:00');
     await p.evaluate(() => {
@@ -160,8 +160,10 @@ function report(name, m, { fps = 50, worst = 120 } = {}) {
     report('我们的家 opens (Lv3, 圣诞 night)', await watch(p, 3000, async () => { await p.evaluate(() => App.openHome()); await p.waitForFunction(() => document.querySelector('.hm-root .hm-pot')); }));
     report('我们的家, idle', await watch(p, 3000));
     report('我们的家, walking + upstairs', await watch(p, 6000, async () => {
-      const pad = await p.locator('.hm-pad[data-dir="1"]').boundingBox();
-      await p.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await p.mouse.down(); await sleep(1800); await p.mouse.up();
+      // the stick: right, then up into the room and round, the way a thumb does it
+      const joy = await p.locator('.hm-joy').boundingBox(), jx = joy.x + joy.width / 2, jy = joy.y + joy.height / 2;
+      await p.mouse.move(jx, jy); await p.mouse.down(); await p.mouse.move(jx + joy.width * .45, jy, { steps: 3 }); await sleep(900);
+      await p.mouse.move(jx + joy.width * .3, jy - joy.height * .35, { steps: 3 }); await sleep(900); await p.mouse.up();
       await p.click('[data-go="up"]'); await sleep(1800);
       await p.click('[data-sheet="garden"]'); await sleep(300); await p.click('.hm-sheet [data-go="garden"]');
     }));

@@ -1299,8 +1299,8 @@ seed sheet 155, `game-cover` like the games (§7.32).
   the bottom between the buttons, or the house shrank to 22px people.
 - **Buttons, all labelled.** Top: ✕, where the two of you are, 🪙. Then four
   menus — ❓ 玩法 🌱 花园 🏠 房子 🎁 小店 — each a sheet (closed by ✕, its own
-  button again, a tap outside, or Esc; the pressed menu shows it). Bottom: ◀ ▶,
-  ⬆/⬇ only in the two-storey house (it says which way), 🤗 抱抱 👋 招手 🛋️ 坐下.
+  button again, a tap outside, or Esc; the pressed menu shows it). Bottom: the
+  stick, ⬆/⬇ only in the two-storey house (it says which way), 🤗 抱抱 👋 招手 🛋️ 坐下.
   Walking to the garden or back is in 🌱 花园. After an upgrade the 房子 sheet
   closes so you see the new house; the shop stays open for buying several things.
 - **The 「下一步」 chip** under the menus says the most useful thing to do now, and
@@ -1316,7 +1316,8 @@ seed sheet 155, `game-cover` like the games (§7.32).
   shows when you stand next to your partner — the moment it can be used, and one
   button fewer the rest of the time. Under 390px the bottom buttons shrink, under
   340px they shrink again and the menus' words get smaller, under 300px (a folded
-  Galaxy Fold) ⬆/⬇ sits above ◀ ▶; the house's room for them (`reserve`) comes
+  Galaxy Fold) ⬆/⬇ sits above the stick; a phone on its side gets an 80px stick (the
+  112px one made the house so small the two of you were 22px wide); the house's room for them (`reserve`) comes
   from their measured height, not a constant. A short screen measures its one top
   row: the menus stand left of the 🪙, the title takes what is left, and when that
   is too little the menus keep only their icons (iPhone 8 sideways put the title
@@ -1326,9 +1327,9 @@ seed sheet 155, `game-cover` like the games (§7.32).
 - **Off screen:** the partner gets a 「‹ 名字」 tag at that edge, which walks you to
   where they are GOING — walking to where they were left you halfway when they
   were still on their way.
-- **Moving:** tap the floor or a pot, hold ◀ ▶, the stairs button, or tap upstairs.
-- **A laptop plays it from the keyboard** (asked 2026-11-25): ← → / A D walk while
-  held (a blur stops it — the key-up may never come), ↑ ↓ / W S the stairs, Space
+- **Moving:** tap anywhere on a floor or a pot, push the stick, the stairs button, or tap upstairs.
+- **A laptop plays it from the keyboard** (asked 2026-11-25): ← → ↑ ↓ / W A S D walk while
+  held — two at once diagonally, ↑ into the room — (a blur stops it — the key-up may never come), F the stairs, Space
   the 「下一步」 chip, E the pot you stand by, H 抱抱, J 招手, K 坐下 / 站起来, 1–4 the
   menus, Esc a sheet or the house. Document-wide while the house is open; never
   while typing or with ⌘/Ctrl/Alt; a sheet open blocks the world keys. Each
@@ -1347,6 +1348,42 @@ seed sheet 155, `game-cover` like the games (§7.32).
   only a pose where you stand — the drawing is lifted onto the cushion (42% up
   sofa_blue's drawing) — so walking, stairs and saving never see it; `sit` and
   `up` travel live, and any move stands you up. Two on one sofa: 💕.
+
+### 3D, and walking anywhere on a floor (2026-11-26)
+
+Asked for: 「make it can move up and down also and make it more 3D and more real for the our house」, and
+「improve the game performance」.
+
+- **Each floor is a strip with depth** (`LVS[lv].floors`: `back`, where the back wall meets it, and `front`, in
+  % of the scene's height). You walk anywhere on it (`band(fi)`: 2.2 off the back wall to 0.6 short of the
+  front) and are drawn smaller further back (`depthS`, 0.8 at the back → 1.0 at the front, transform-origin at
+  the feet). People are `{ x, y, fi }`: `fi` 0 the ground floor, 1 upstairs, −1 on the stairs. `G0` / `G1` are
+  each floor's middle line now: where pots stand and where a walk to that floor arrives.
+- **Rooms are boxes in perspective**, drawn as ONE `<svg class="hm-svg">` in the scene's units
+  (`preserveAspectRatio="none"`, so x is % of the width and y % of the height): back wall with a picture rail,
+  stripes and a skirting board, a floor whose boards (or the kitchen's tiles) run back toward the middle, side
+  walls darker away from the light, a ceiling, shade where floor meets wall, a lamp that is lit at night with a
+  pool of light under it, windows with curtains and sunlight on the floor. A tiled roof with a gable and a round
+  window, the chimney ON its slope with smoke (the flat house's chimney floated above the roof at Lv3), a picket
+  fence, stepping stones to the door, the pond in front. Night, dusk, the seasons and 圣诞's snow are colours
+  chosen when it is drawn (`tickDay` redraws on a change), not CSS filters.
+- **What stands on a floor goes in with the two of you** (`.hm-props` inside the actors layer, no stacking
+  context of its own): the 小窝's floor pieces (its floor is the lower 42% of its picture, mapped onto the 客厅's
+  floor in perspective), the house's furniture, the garden's things, the pots, the balcony's front rail — each
+  `z-index` by where its feet are, so you walk behind the sofa or in front of it. The 小窝's wall pieces, window
+  and the photo wall hang on the 客厅's back wall (`.hm-bwall`).
+- **Walls are wall at the back and a doorway at the front** (`walls(fi)`, `passY(fi)`: the front 42% of a floor).
+  Walking with the stick or keys, a wall is solid there (`wallStop` stops you against it and keeps you from
+  stepping back into it from the doorway); a tap that needs to get past one goes forward to the doorways, along,
+  and back (`within`). The first version let you through when you were within 0.01 of the wall line.
+- **The stick** (`.hm-joy`): eight ways, the same eight the keys give, so the partner's phone walks it the same
+  way: `hold` carries `dx dy` (−1/0/1) and is sent only when the way changes. Live messages carry `y` too
+  (`HOME_V` 2: a phone on 1 is asked to reopen), and so does the saved place you left (`pos.y`).
+- **Opening costs less than the flat house did** (smooth-test, 4× CPU, Lv3 on a 圣诞 night: worst frame 140 →
+  119 ms). The first drawing put every board, stripe and picket in its own element (512 in the two-storey house)
+  and opened at 175 ms; the same look as one `<path>` per look is 218 elements. The house was also drawn twice
+  per open (`tickDay` and `open` both called `renderHouse`); and what stands on the floors goes in a frame after
+  the house, while it fades in (`renderProps`).
 
 ### The garden: derived, so two phones can't disagree
 - A planting is `{id, seed, at, by, w: {date: bits}}` — bit 1 CS, bit 2 YY;
@@ -2165,7 +2202,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/nav-test.js` | 首页 · 积分 · ＋ · 一起 · 商店 (§7.36, `ONLY=…`, `LOOK=classic`): the bar in order in both looks, every page and pane and the old names landing in them, 今天's rows and each button (and YY's side), 本月 = the score card, the four tiles staying put, every 一起 tile opening its place, the shop under the bar, ＋ on top from every page, 320–1280 by day and night with nothing under the bar or off the side, keyboard, reduced motion, HTML_V = the meta |
-| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
+| `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move (a tap anywhere on a floor, the stick, the keys incl. diagonals, walls with doorways, smaller further back, behind and in front of the sofa) incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
 | `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave and hug, one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, watering a pot the partner planted a moment ago before their save arrives (§8a — it waits, it is not lost), sitting together, the off-screen tag walking you to your partner, where you left |
 | `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, one house save, each person's own progress slot (the partner reads, can't write), another couple, direct Postgres |
 | `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); the garden is the same on both; the second device isn't taken for the partner |

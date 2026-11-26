@@ -82,20 +82,30 @@ const openHouse = async (P) => { await P.p.evaluate(() => App.openHome()); await
   const sa2 = await st(A.p), sb2 = await st(B.p);
   ok(walked && Math.abs(sa2.cs.x - sb2.cs.x) < 1.2, `A1 walks to the garden; B2's phone has A1 there too (${sa2.cs.x.toFixed(1)} / ${sb2.cs.x.toFixed(1)})`);
   ok(sb2.cs.where === '花园', `B2's phone says where: ${sb2.cs.where}`);
-  // hold ▶ for a second, then let go: the other phone keeps up and stops in the same place
-  const pad = await A.p.locator('.hm-pad[data-dir="1"]').boundingBox();
-  await A.p.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await A.p.mouse.down(); await sleep(1100); await A.p.mouse.up();
+  // push the stick right for a second, then let go: the other phone keeps up and stops in the same place
+  const joy = await A.p.locator('.hm-joy').boundingBox();
+  await A.p.mouse.move(joy.x + joy.width / 2, joy.y + joy.height / 2); await A.p.mouse.down(); await A.p.mouse.move(joy.x + joy.width * .95, joy.y + joy.height / 2, { steps: 3 }); await sleep(1100); await A.p.mouse.up();
   await idle(A.p); await sleep(1500);
   const sa3 = await st(A.p), sb3 = await st(B.p);
-  ok(sa3.cs.x > sa2.cs.x + 10, `holding ▶ walked A1 to the right (${sa2.cs.x.toFixed(1)} → ${sa3.cs.x.toFixed(1)})`);
-  ok(Math.abs(sa3.cs.x - sb3.cs.x) < 2 && !sb3.cs.hold, `B2's copy stopped where A1 stopped (${sa3.cs.x.toFixed(1)} / ${sb3.cs.x.toFixed(1)})`);
+  ok(sa3.cs.x > sa2.cs.x + 10, `pushing the stick walked A1 to the right (${sa2.cs.x.toFixed(1)} → ${sa3.cs.x.toFixed(1)})`);
+  ok(Math.abs(sa3.cs.x - sb3.cs.x) < 2 && Math.abs(sa3.cs.y - sb3.cs.y) < 1 && !sb3.cs.hold, `B2's copy stopped where A1 stopped (${sa3.cs.x.toFixed(1)},${sa3.cs.y.toFixed(1)} / ${sb3.cs.x.toFixed(1)},${sb3.cs.y.toFixed(1)})`);
+  // into the room: a walk to the back of the 客厅 (round by the front door) — the other phone has A1 there, drawn as small
+  await A.p.evaluate(() => { const g = HomeGame.test.geo(); HomeGame.test.walk(66, 0, g.band[0][0] + .5); }); await idle(A.p);
+  const deep = await until(B.p, () => { const s = HomeGame.test.state(), g = HomeGame.test.geo(); return Math.abs(s.cs.y - (g.band[0][0] + .5)) < .6 && Math.abs(s.cs.x - 66) < 1.2 && !s.cs.path; }, null, 9000);
+  const sa4 = await st(A.p), sb4 = await st(B.p);
+  ok(deep && Math.abs(sa4.cs.s - sb4.cs.s) < .02 && sb4.cs.where === '客厅', `A1 walks to the back of the 客厅; B2's phone has A1 there, as small (y ${sa4.cs.y.toFixed(1)} / ${sb4.cs.y.toFixed(1)}, ${sb4.cs.s.toFixed(2)})`);
+  // the stick diagonally, out of the room and left: the same path on B2's phone
+  await A.p.evaluate(() => HomeGame.test.hold(-1, 1)); await sleep(700); await A.p.evaluate(() => HomeGame.test.stop());
+  await sleep(1800);
+  const sa5 = await st(A.p), sb5 = await st(B.p);
+  ok(sa5.cs.y > sa4.cs.y + 3 && sa5.cs.x < sa4.cs.x - 4 && Math.abs(sa5.cs.x - sb5.cs.x) < 2 && Math.abs(sa5.cs.y - sb5.cs.y) < 1, `out and left at once: B2's phone walked it too (${sa5.cs.x.toFixed(1)},${sa5.cs.y.toFixed(1)} / ${sb5.cs.x.toFixed(1)},${sb5.cs.y.toFixed(1)})`);
   ok(sb3.lead === 'peer', 'the pet follows whoever moved last — on B2\'s phone that is A1');
 
   console.log('\n3. Waving and hugging');
   await A.p.click('[data-a="wave"]'); await sleep(900);
   ok(/A1 在跟你招手/.test(await toastOf(B.p)), `B2 sees the wave: 「${await toastOf(B.p)}」`);
   // B2 walks to A1; both phones then have them side by side
-  await B.p.evaluate(() => { const s = HomeGame.test.state(); HomeGame.test.walk(s.cs.x + 5, 0); });
+  await B.p.evaluate(() => { const s = HomeGame.test.state(); HomeGame.test.walk(s.cs.x + 5, 0, s.cs.y); });
   await idle(B.p); await sleep(1500);
   ok(await until(A.p, () => HomeGame.test.state().near, null, 6000), 'A1\'s phone sees B2 come and stand next to A1');
   ok(await A.p.evaluate(() => !document.querySelector('[data-a="hug"]').disabled), '…so 抱抱 is on');

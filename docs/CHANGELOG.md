@@ -12,6 +12,19 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-26 (evening) — 我们的家 in 3D, and walking anywhere in it
+
+我们的家 now looks like a real little house: every room is drawn in perspective
+— a back wall, a wooden floor running back, side walls, a ceiling with a lamp
+that lights up at night, windows with curtains and sunlight on the floor — under
+a tiled roof with a round attic window and a chimney that smokes. You can walk
+anywhere on a floor now, not just left and right: into the room and back out,
+behind the sofa or in front of it, a little smaller the further back you are.
+Rooms connect through doorways at the front. Phones get a stick in the corner
+(push it any of eight ways); laptops use the arrow keys or WASD, two at once for
+diagonals, and F for the stairs. Your partner's phone sees exactly where you
+stand, depth included. It also opens a little faster than before.
+
 ## 2026-11-26 — ♾️ 一直走下去, an endless road in 一起回家
 
 一起回家 gets a mode that never runs out: one 段 after another, each in a new

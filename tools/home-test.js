@@ -5,8 +5,9 @@
 // The garden is a set of rules about days, so most of this is the calendar: a flower takes five
 // waterings (three days when both of you water), one watering per person per pot per day, three dry
 // days droop a growing plant and the watering that saves it doesn't count, a flower is picked once and
-// is pet EXP +20 (小窝币 +10). Then every way to move (tap, hold, keys, the buttons, stairs, a view that
-// follows you through a bigger house), the upgrades and festival pieces paid from the one wallet, the
+// is pet EXP +20 (小窝币 +10). Then every way to move (a tap anywhere on a floor, into the room and out of it, the
+// stick, the keys, walls that are wall at the back and a doorway at the front, the stairs, further back drawn smaller
+// and behind the furniture, a view that follows you through a bigger house), the upgrades and festival pieces paid from the one wallet, the
 // festivals arriving by date, a save whose answer is lost on the way back, actions kept when the
 // network is down, and the screen at 360–1280 in both themes and with reduced motion.
 // Two phones are tools/home-live-test.js. BROWSER=webkit runs it all in WebKit (the iPhone's engine).
@@ -223,52 +224,95 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
   }
 
   if (want(4)) {
-  console.log('\n4. Every way to move');
+  console.log('\n4. Every way to move: anywhere on a floor, smaller further back, round by the doorways, up the stairs');
   {
     const { p, ctx, errs } = await open(browser, { data: seed({ owned: ['hm_lv2', 'hm_lv3'] }) });
     await enter(p);
     let s = await st(p);
-    ok(s.lv === 3 && s.pots.length === 6, 'Lv3: two floors, six pots');
-    // in the Lv3 garden the pots stand close; the air above them and the lawn in front still walk you
+    const geo = await p.evaluate(() => HomeGame.test.geo());
+    const [B0, F0] = geo.band[0], PY = geo.passY[0];
+    ok(s.lv === 3 && s.pots.length === 6 && geo.floors.length === 2, 'Lv3: two floors, six pots');
+    // a tap in the air over the garden walks to the back of the lawn under it (the pots and the lawn still work)
     await p.evaluate(() => HomeGame.test.teleport(30, 0)); await sleep(300);
     const [tx, ty] = await screenAt(p, 21, 60);
     await p.mouse.click(tx, ty); await idle(p);
     s = await st(p);
-    ok(Math.abs(s.cs.x - 21) < 2 && s.cs.where === '花园' && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), `a tap on the air above the pots walks there (${s.cs.x.toFixed(1)}, ${s.cs.where})`);
-    // (on an upright phone the strip of lawn in front of the pots is where the ◀ ▶ buttons stand)
-    // the arrow keys
-    await p.focus('.hm-scene'); await p.keyboard.press('ArrowRight'); await idle(p);
-    const s2 = await st(p);
-    ok(s2.cs.x > s.cs.x + 6, 'the → key steps right');
-    // hold ▶: walks while held, stops when let go
-    const pad = await p.locator('.hm-pad[data-dir="1"]').boundingBox();
-    await p.mouse.move(pad.x + pad.width / 2, pad.y + pad.height / 2); await p.mouse.down(); await sleep(1500);
-    const mid = await st(p);
-    await p.mouse.up(); await sleep(700);
-    const end = await st(p); await sleep(400);
-    const end2 = await st(p);
-    ok(mid.cs.x > s2.cs.x + 15 && mid.cs.hold === 1, `holding ▶ keeps walking (${s2.cs.x.toFixed(1)} → ${mid.cs.x.toFixed(1)})`);
-    ok(!end.cs.hold && Math.abs(end2.cs.x - end.cs.x) < .5, 'letting go stops');
-    ok(end2.camX > 0, `a house wider than the screen: the view followed (camX ${end2.camX.toFixed(1)})`);
+    ok(Math.abs(s.cs.x - 21) < 2 && s.cs.where === '花园' && Math.abs(s.cs.y - B0) < .4 && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), `a tap in the air over the garden walks to the back of the lawn under it (${s.cs.x.toFixed(1)}, ${s.cs.y.toFixed(1)})`);
+    // into the room and out of it
+    await p.evaluate(() => HomeGame.test.teleport(60, 0)); await sleep(200); await settle(p);
+    let [cx, cy] = await screenAt(p, 70, B0 + .6);
+    await p.mouse.click(cx, cy); await idle(p);
+    const back = await st(p);
+    [cx, cy] = await screenAt(p, 70, F0 - .3);
+    await p.mouse.click(cx, cy); await idle(p);
+    const front = await st(p);
+    ok(back.cs.where === '客厅' && Math.abs(back.cs.y - (B0 + .6)) < .5 && Math.abs(front.cs.y - (F0 - .3)) < .5, `a tap walks to that spot, how far back included (y ${back.cs.y.toFixed(1)} → ${front.cs.y.toFixed(1)})`);
+    ok(back.cs.s < front.cs.s - .15 && back.cs.z < front.cs.z, `further back is drawn smaller and further behind (${back.cs.s.toFixed(2)} at the back, ${front.cs.s.toFixed(2)} at the front)`);
+    // the furniture: behind it when you stand further back, in front of it when you stand nearer
+    const sofa = await p.evaluate(() => { const e = [...document.querySelectorAll('.hm-props .hm-mpf')].find(e => /7FB3DC/i.test(e.innerHTML)); return e ? { x: parseFloat(e.style.left), y: parseFloat(e.style.top), z: +e.style.zIndex } : null; });
+    await p.evaluate(([x, y]) => HomeGame.test.teleport(x, 0, y), [sofa.x, sofa.y - 1.6]); await sleep(150);
+    const behind = (await st(p)).cs.z;
+    await p.evaluate(([x, y]) => HomeGame.test.teleport(x, 0, y), [sofa.x, sofa.y + 1.6]); await sleep(150);
+    const before = (await st(p)).cs.z;
+    ok(sofa && behind < sofa.z && before > sofa.z, `behind the sofa and in front of it (z ${behind} < sofa ${sofa.z} < ${before})`);
+    // walls: the back part stops you; the doorway at the front lets you through
+    await p.evaluate(([y]) => HomeGame.test.teleport(88, 0, y), [B0 + .4]); await sleep(150);
+    await p.evaluate(() => HomeGame.test.hold(1, 0)); await sleep(900); await p.evaluate(() => HomeGame.test.stop()); await sleep(200);
+    const stopped = await st(p);
+    await p.evaluate(([y]) => HomeGame.test.teleport(88, 0, y), [F0 - .5]); await sleep(150);
+    await p.evaluate(() => HomeGame.test.hold(1, 0)); await sleep(900); await p.evaluate(() => HomeGame.test.stop()); await sleep(200);
+    const through = await st(p);
+    ok(stopped.cs.x < 92 && stopped.cs.where === '客厅' && through.cs.x > 93, `at the back the wall stops you (x ${stopped.cs.x.toFixed(1)}); at the front you go through the doorway (x ${through.cs.x.toFixed(1)}, ${through.cs.where})`);
+    // a tap from the back of one room to the back of another goes round by the doorways
+    await p.evaluate(([y]) => HomeGame.test.teleport(60, 0, y), [B0 + .4]); await sleep(150);
+    const r = await p.evaluate(([y]) => HomeGame.test.route(120, y, 0), [B0 + .4]);
+    ok(r.length === 3 && r[0].y >= PY && r[1].y >= PY && Math.abs(r[2].y - (B0 + .4)) < .01 && r[2].x === 120, `the back of the 客厅 → the back of the kitchen: forward to the doorways, along, and back (${r.map(q => q.x.toFixed(0) + ',' + q.y.toFixed(0)).join(' → ')})`);
+    await p.evaluate(([y]) => HomeGame.test.walk(120, 0, y), [B0 + .4]); await idle(p);
+    s = await st(p);
+    ok(s.cs.where === '厨房' && Math.abs(s.cs.x - 120) < .5 && Math.abs(s.cs.y - (B0 + .4)) < .5, `…and gets there (${s.cs.where})`);
+    // the stick: eight ways
+    await p.evaluate(() => HomeGame.test.teleport(66, 0)); await sleep(150); await settle(p);
+    const joy = await p.locator('.hm-joy').boundingBox();
+    const jx = joy.x + joy.width / 2, jy = joy.y + joy.height / 2;
+    let s0 = (await st(p)).cs;
+    await p.mouse.move(jx, jy); await p.mouse.down(); await p.mouse.move(jx + joy.width * .45, jy, { steps: 4 }); await sleep(800);
+    const right = (await st(p)).cs;
+    await p.mouse.move(jx, jy - joy.height * .45, { steps: 4 }); await sleep(600);
+    const up = (await st(p)).cs;
+    await p.mouse.move(jx - joy.width * .4, jy + joy.height * .4, { steps: 4 }); await sleep(500);
+    const diag = (await st(p)).cs;
+    await p.mouse.up(); await sleep(500);
+    const let1 = (await st(p)).cs; await sleep(400);
+    const let2 = (await st(p)).cs;
+    ok(right.hold && right.hold[0] === 1 && right.hold[1] === 0 && right.x > s0.x + 8, `pushing the stick right walks right (${s0.x.toFixed(1)} → ${right.x.toFixed(1)})`);
+    ok(up.hold && up.hold[1] === -1 && up.y < right.y - 2, `pushing it up walks into the room (y ${right.y.toFixed(1)} → ${up.y.toFixed(1)})`);
+    ok(diag.hold && diag.hold[0] === -1 && diag.hold[1] === 1 && diag.y > up.y && diag.x < up.x, 'down-left walks out and left at once');
+    ok(!let1.hold && Math.abs(let2.x - let1.x) < .5 && Math.abs(let2.y - let1.y) < .3 && await p.evaluate(() => document.querySelector('.hm-joy-k').style.transform === ''), 'letting go stops, and the knob goes back to the middle');
+    // the view follows you through a house wider than the screen
+    await p.evaluate(() => HomeGame.test.hold(1, 0)); await sleep(2200); await p.evaluate(() => HomeGame.test.stop()); await settle(p);
+    s = await st(p);
+    ok(s.camX > 0, `a house wider than the screen: the view followed (camX ${s.camX.toFixed(1)})`);
     const onScreen = await p.evaluate(() => { const r = document.querySelector('.hm-ch.hm-me').getBoundingClientRect(), sc = document.querySelector('.hm-scene').getBoundingClientRect(); return r.left >= sc.left - 2 && r.right <= sc.right + 2; });
     ok(onScreen, 'CS stays on screen');
     // upstairs and down
     await p.click('.hm-pad[data-go="up"]'); await idle(p);
     s = await st(p);
-    ok(s.cs.f === 56 && /卧室|阳台|楼梯/.test(s.cs.where), `⬆ 上楼 climbs the stairs (${s.cs.where})`);
+    ok(s.cs.f === 1 && /卧室|阳台|楼梯/.test(s.cs.where), `⬆ 上楼 climbs the stairs (${s.cs.where})`);
     ok(await p.evaluate(() => document.querySelector('[data-r="stairs"]').dataset.go === 'down' && /下楼/.test(document.querySelector('[data-r="stairs"]').textContent)), 'upstairs, the stairs button turns into ⬇ 下楼');
+    const up2 = await p.evaluate(() => HomeGame.test.geo().band[1]);
+    ok(s.cs.y >= up2[0] - .01 && s.cs.y <= up2[1] + .01, `…and stands on the upstairs floor (y ${s.cs.y.toFixed(1)} in ${up2.map(v => v.toFixed(1)).join('–')})`);
     await p.click('[data-go="down"]'); await idle(p);
     s = await st(p);
-    ok(s.cs.f === 86 && s.cs.where === '客厅', '⬇ 下楼 comes back down by the stairs');
+    ok(s.cs.f === 0 && s.cs.where !== '楼梯上', `⬇ 下楼 comes back down by the stairs, to under where you were (${s.cs.where})`);
     // a pot upstairs, on the balcony: going to it takes the stairs
     await p.evaluate(() => HomeGame.test.potAction(4)); await sleep(250);
     await p.click('.hm-seed[data-seed="daisy"]'); await idle(p);
     s = await st(p);
-    ok(s.cs.f === 56 && s.cs.where === '阳台' && s.pots[4].seed === 'daisy', 'the balcony pot: up the stairs, and planted');
+    ok(s.cs.f === 1 && s.cs.where === '阳台' && s.pots[4].seed === 'daisy', 'the balcony pot: up the stairs, and planted');
     await go(p, 'garden'); await idle(p); await settle(p);
     s = await st(p);
-    ok(s.cs.f === 86 && s.cs.where === '花园' && s.camX < 1 && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), '🌱 花园 › 走去花园 walks all the way back (down the stairs), and the view with it');
-    const caught = await p.waitForFunction(() => { const s = HomeGame.test.state(); return s.pet && Math.abs(s.pet.x - s.cs.x) < 9 && s.pet.f === 86; }, null, { timeout: 6000 }).then(() => true, () => false);
+    ok(s.cs.f === 0 && s.cs.where === '花园' && s.camX < 1 && !(await p.evaluate(() => !!document.querySelector('.hm-sheet'))), '🌱 花园 › 走去花园 walks all the way back (down the stairs), and the view with it');
+    const caught = await p.waitForFunction(() => { const s = HomeGame.test.state(); return s.pet && Math.abs(s.pet.x - s.cs.x) < 9 && s.pet.f === 0; }, null, { timeout: 6000 }).then(() => true, () => false);
     ok(caught, `the pet followed, down the stairs and across (${JSON.stringify((await st(p)).pet)})`);
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
     await ctx.close();
@@ -395,16 +439,16 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
   {
     const { p, ctx, errs } = await open(browser, { data: seed({ entries: POINTS() }) });
     await enter(p);
-    const pieces = await p.evaluate(() => [...document.querySelectorAll('.hm-mini .hm-mp')].map(e => e.querySelector('svg') ? 'svg' : 'emoji'));
-    ok(pieces.length === 4 && pieces.every(x => x === 'svg'), `the 客厅 holds the 4 pieces the 小窝 has, drawn the same way (${pieces.join(' ')})`);
-    const inside = await p.evaluate(() => { const m = document.querySelector('.hm-mini').getBoundingClientRect(); return [...document.querySelectorAll('.hm-mini .hm-mp')].every(e => { const r = e.getBoundingClientRect(); return r.width > 8 && r.left >= m.left - 1 && r.right <= m.right + 1 && r.bottom <= m.bottom + 1; }); });
+    const pieces = await p.evaluate(() => [...document.querySelectorAll('.hm-bwall .hm-mp, .hm-props .hm-mpf')].map(e => (e.classList.contains('hm-mpw') ? 'wall:' : 'floor:') + (e.querySelector('svg') ? 'svg' : 'emoji')));
+    ok(pieces.length === 4 && pieces.every(x => /svg$/.test(x)) && pieces.some(x => /^wall/.test(x)) && pieces.some(x => /^floor/.test(x)), `the 客厅 holds the 4 pieces the 小窝 has, drawn the same way, on its back wall and its floor (${pieces.join(' ')})`);
+    const inside = await p.evaluate(() => { const st = HomeGame.test.state(), L = HomeGame.test.LVS[st.lv], r0 = L.rooms[0], F = L.floors[0], b = document.querySelector('.hm-band').getBoundingClientRect(), X = (x) => b.left + (x - st.camX) * st.W / 100, Y = (y) => b.top + y / 100 * st.H, m = { left: X(r0.x0), right: X(r0.x1), top: Y(r0.top), bottom: Y(F.front) }; return [...document.querySelectorAll('.hm-bwall .hm-mp, .hm-props .hm-mpf')].every(e => { const r = e.getBoundingClientRect(); return r.width > 8 && r.left >= m.left - 1 && r.right <= m.right + 1 && r.bottom <= m.bottom + 1; }); });
     ok(inside, 'every piece sits inside the room, at a size you can see');
     // 一起坐沙发: the 小窝's own sofa is a seat
     ok(await p.evaluate(() => !document.querySelector('[data-a="sit"]').hidden), 'their sofa is in the 客厅, so there is 🛋️ 坐下');
     await p.click('[data-a="sit"]'); await idle(p); await sleep(250);
     const sat = await p.evaluate(() => {
       const el = document.querySelector('.hm-ch.hm-me'), ch = el.querySelector('svg').getBoundingClientRect();
-      const sofa = [...document.querySelectorAll('.hm-mini .hm-mp')].find(e => /7FB3DC/i.test(e.innerHTML)).getBoundingClientRect();
+      const sofa = [...document.querySelectorAll('.hm-props .hm-mpf')].find(e => /7FB3DC/i.test(e.innerHTML)).getBoundingClientRect();
       const feet = ch.top + ch.height * (100 / 112);   // where the feet are in the drawing
       return { sit: el.classList.contains('hm-sit'), label: document.querySelector('[data-a="sit"]').textContent, feet, top: sofa.top, bottom: sofa.bottom, cx: ch.x + ch.width / 2, l: sofa.left, r: sofa.right, where: HomeGame.test.state().cs.where };
     });
@@ -437,7 +481,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
       const st = HomeGame.test.state(), vis = (e) => e && e.offsetParent && getComputedStyle(e).visibility !== 'hidden';
       const small = [...root.querySelectorAll('button')].filter(b => vis(b) && !b.closest('.hm-sheet') && b.getBoundingClientRect().height < 39.5 && !b.classList.contains('hm-edge')).map(b => b.textContent.trim().slice(0, 8) + ':' + b.getBoundingClientRect().height.toFixed(1));
       const clipped = [...root.querySelectorAll('.hm-mbtn, .hm-act span, .hm-coins, .hm-title b, .hm-hint li span')].filter(e => vis(e) && e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim().slice(0, 8));
-      const todo = document.querySelector('.hm-todo').getBoundingClientRect(), floor = band.top + .86 * band.height;
+      const todo = document.querySelector('.hm-todo').getBoundingClientRect(), floor = band.top + (HomeGame.test.geo().floors[0].front + 3.4) / 100 * band.height;
       const ctl = [...document.querySelectorAll('.hm-ctl')].map(c => c.getBoundingClientRect());
       // a wide screen puts the house in the middle and the buttons beside it; otherwise they stand on the lawn under it
       const houseL = band.left + (0 - st.camX) * st.W / 100, houseR = houseL + HomeGame.test.LVS[st.lv].world * st.W / 100;
@@ -464,7 +508,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     ok(moving === 0, `reduced motion: nothing animates (${moving} running), snow and lights included`);
     await p.click('[data-go="up"]'); await sleep(250);
     const s = await st(p);
-    ok(s.cs.f === 56 && !s.cs.path, 'walking is a step, not a glide');
+    ok(s.cs.f === 1 && !s.cs.path, 'walking is a step, not a glide');
     ok(!errs.length, `no page errors ${errs.slice(0, 2)}`);
     await ctx.close();
   }
@@ -553,7 +597,7 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     const mid = (await S()).cs;
     await p.keyboard.up('ArrowRight'); await sleep(350);
     let x1 = (await S()).cs.x;
-    ok(mid.hold === 1 && x1 > x0 + 6, `holding → walks right while held (${x0.toFixed(1)} → ${x1.toFixed(1)})`);
+    ok(mid.hold && mid.hold[0] === 1 && x1 > x0 + 6, `holding → walks right while held (${x0.toFixed(1)} → ${x1.toFixed(1)})`);
     const after = (await S()).cs.x; await sleep(400);
     ok(Math.abs((await S()).cs.x - after) < .6, '…and stops when it is let go');
     await p.keyboard.down('a'); await sleep(600); await p.keyboard.up('a'); await sleep(350);
@@ -564,11 +608,23 @@ const go = async (p, where) => { await sheet(p, 'garden'); await p.click(`.hm-sh
     const b0 = (await S()).cs.x; await sleep(500);
     ok((await S()).cs.hold === 0 && Math.abs((await S()).cs.x - b0) < 1.2, 'leaving the window stops the walk (no key-up ever comes)');
     await p.keyboard.up('d');
-    // ↑ / W go upstairs, ↓ / S come down
-    await p.keyboard.press('w'); await idle(p);
-    ok((await S()).cs.f === 56, 'W takes the stairs up');
-    await p.keyboard.press('ArrowDown'); await idle(p);
-    ok((await S()).cs.f === 86, '↓ comes back down');
+    // ↑ / W walk into the room, ↓ / S out of it; two at once go diagonally
+    await p.evaluate(() => HomeGame.test.teleport(66, 0, 90)); await sleep(150);
+    let k0 = (await S()).cs;
+    await p.keyboard.down('ArrowUp'); await sleep(500);
+    const kup = (await S()).cs;
+    await p.keyboard.down('ArrowRight'); await sleep(400);
+    const kdiag = (await S()).cs;
+    await p.keyboard.up('ArrowRight'); await p.keyboard.up('ArrowUp'); await sleep(300);
+    ok(kup.hold && kup.hold[1] === -1 && kup.y < k0.y - 2 && kup.s < k0.s, `↑ walks into the room, getting smaller (y ${k0.y.toFixed(1)} → ${kup.y.toFixed(1)})`);
+    ok(kdiag.hold && kdiag.hold[0] === 1 && kdiag.hold[1] === -1 && kdiag.x > kup.x + 2, '↑ and → together walk diagonally');
+    await p.keyboard.down('s'); await sleep(400); await p.keyboard.up('s'); await sleep(300);
+    ok((await S()).cs.y > kdiag.y + 1.5, 'S walks back out');
+    // F takes the stairs, both ways
+    await p.keyboard.press('f'); await idle(p);
+    ok((await S()).cs.f === 1, 'F takes the stairs up');
+    await p.keyboard.press('f'); await idle(p);
+    ok((await S()).cs.f === 0, '…and F again comes back down');
     // Space does the 「下一步」 chip; E uses the pot you stand by
     const chip = await p.evaluate(() => { const t = document.querySelector('.hm-todo'); return t && !t.hidden ? t.textContent : ''; });
     await p.keyboard.press(' '); await sleep(300);
