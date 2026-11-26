@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.26-83';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.26-84';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -606,7 +606,7 @@ const App = (() => {
     if (document.getElementById('game-cover-css')) return;
     const on = 'html.game-cover body';
     // (anything that can open OVER a game stays out of it: the toast, and the anniversary / birthday films at 00:00)
-    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;
+    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .cg-ed, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;   // .cg-ed: 一起回家's level editor (2026-11-26)
     const st = document.createElement('style');
     st.id = 'game-cover-css';
     st.textContent = `${on}::before, ${on}::after, ${behind}, ${behind} *, ${behind} *::before, ${behind} *::after { animation-play-state: paused !important; }
@@ -2573,10 +2573,13 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
     const who = () => _me(), ck = () => (_me() === 'char2' ? 'yy' : 'cs');
     const J = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
     const W = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-    const K = { coop: () => `cg_save3_${ck()}`, paid: (g) => `cg_paid_${g}_${who()}`, best: (g) => `mg_best_${g}_${who()}` };
+    const K = { coop: () => `cg_save3_${ck()}`, paid: (g) => `cg_paid_${g}_${who()}`, best: (g) => `mg_best_${g}_${who()}`,
+      // 🛠️ 关卡编辑: the levels you made, the ones you deleted (so another phone doesn't bring them back), how you did on your partner's
+      lv: () => `cg_lv_${ck()}`, lvdel: () => `cg_lvdel_${ck()}`, pl: () => `cg_pl_${ck()}` };
     const local = () => ({ v: 1, coop: J(K.coop(), null),
       paid: Object.fromEntries(Object.keys(TOGETHER).map(g => [g, J(K.paid(g), [])])),
-      mg: Object.fromEntries(Object.keys(GAMES).map(g => [g, J(K.best(g), null)])) });
+      mg: Object.fromEntries(Object.keys(GAMES).map(g => [g, J(K.best(g), null)])),
+      lv: J(K.lv(), []), lvdel: J(K.lvdel(), []), pl: J(K.pl(), {}) });
     const okMg = (b) => b && typeof b === 'object' && b.lv >= 0;
     const betterMg = (g, a, b) => !okMg(a) ? (okMg(b) ? b : null) : !okMg(b) ? a : a.lv !== b.lv ? (a.lv > b.lv ? a : b) : ((g === 'catch' ? a.n >= b.n : a.n <= b.n) ? a : b);
     function merge(a, b) {
@@ -2600,12 +2603,32 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       const paid = {}, mg = {};
       for (const g of new Set([...Object.keys(a.paid || {}), ...Object.keys(b.paid || {})])) paid[g] = [...new Set([...((a.paid || {})[g] || []), ...((b.paid || {})[g] || [])])].filter(x => typeof x === 'string').sort();
       for (const g of new Set([...Object.keys(a.mg || {}), ...Object.keys(b.mg || {})])) mg[g] = betterMg(g, (a.mg || {})[g], (b.mg || {})[g]);
-      return { v: 1, coop, paid, mg };
+      // made levels: every one either phone has, the newer edit of each, never one deleted on either; results: the best of both
+      const lvdel = [...new Set([...(Array.isArray(a.lvdel) ? a.lvdel : []), ...(Array.isArray(b.lvdel) ? b.lvdel : [])].filter(x => typeof x === 'string'))].slice(-40);
+      const byId = new Map();
+      for (const l of [...(Array.isArray(a.lv) ? a.lv : []), ...(Array.isArray(b.lv) ? b.lv : [])]) {
+        if (!l || typeof l !== 'object' || typeof l.id !== 'string' || typeof l.r !== 'string' || lvdel.includes(l.id)) continue;
+        const q = byId.get(l.id); if (!q || (l.at || 0) > (q.at || 0)) byId.set(l.id, l);
+      }
+      const lv = [...byId.values()].sort((p, q) => (q.at || 0) - (p.at || 0) || (p.id < q.id ? -1 : 1)).slice(0, 6);
+      const pl = {};
+      for (const src of [a.pl, b.pl]) if (src && typeof src === 'object') for (const [id, r] of Object.entries(src)) {
+        if (!r || typeof r !== 'object') continue;
+        const q = pl[id];
+        pl[id] = !q ? { t: r.t, sm: [0, 1, 2].map(k => !!(r.sm || [])[k]), at: r.at || 0 }
+          : { t: Math.min(q.t || 1e9, r.t || 1e9), sm: [0, 1, 2].map(k => !!(q.sm[k] || (r.sm || [])[k])), at: Math.max(q.at || 0, r.at || 0) };
+      }
+      // (no 一起回家 save yet: leave it out — \`coop: null\` made the server refuse the whole write, so someone who had only
+      // played the mini games or made a level never had any of it saved; found by coop-editor-live-test)
+      const out = { v: 1 };
+      if (coop) out.coop = coop;
+      return Object.assign(out, { paid, mg, lv, lvdel, pl });
     }
     function writeLocal(m) {
       if (m.coop) W(K.coop(), m.coop);
       for (const [g, list] of Object.entries(m.paid)) W(K.paid(g), list);
       for (const [g, b] of Object.entries(m.mg)) if (b) W(K.best(g), b);
+      W(K.lv(), m.lv); W(K.lvdel(), m.lvdel); W(K.pl(), m.pl);
     }
     // → true when this phone learned something from another one
     async function run() {
@@ -2669,6 +2692,9 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       payInfo: (g) => ({ paid: gamePaidToday(g), max: TOGETHER[g].max, done: _cgPaidKeys(g) }),
       toast: showToast,
       onClose: () => { try { Live.want('coop', false); _mgHomeCard(); } catch (e) {} _gameCover(); Prog.sync(); },
+      // 🛠️ 关卡编辑: your partner's progress save (they write it, you read it) — the levels they sent, and how they did on yours
+      partnerPlay: async () => { const r = await Data.getGameSave('play', _me() === 'char2' ? 'char1' : 'char2'); const d = (r && r.data) || {}; return { lv: Array.isArray(d.lv) ? d.lv : [], pl: d.pl && typeof d.pl === 'object' ? d.pl : {} }; },
+      saveProg: () => Prog.sync(),
     };
   }
   async function openCoop(kind = 'home') {

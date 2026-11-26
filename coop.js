@@ -1726,8 +1726,9 @@ function makePlayer(idx, sp) {
     an: { t: 0, run: 0, squash: 0, blinkT: 1 + idx, blink: 0, flap: 0 } };
 }
 
+const specOf = (i) => (i >= 0 ? LEVELS[i] : i === -1 ? G.espec : G.uspec);
 function buildLevel(i) {
-  const spec = i >= 0 ? LEVELS[i] : G.espec, world = WORLDS[spec.world];
+  const spec = specOf(i), world = WORLDS[spec.world];
   const chunks = []; let w = 0;
   spec.seq.forEach((id, n) => { const ch = chunkFor(id); chunks.push({ ch, x0: w, n }); w += ch.w; });
   // rank: how fast the walkers are (by the level's place in the list; the endless road by how far you have got)
@@ -3775,6 +3776,41 @@ html[data-theme="dark"] .cg-endless{background:linear-gradient(135deg,rgba(255,1
 .cg-erec{margin:0;font-size:13px;font-weight:800;color:#A8336A;line-height:1.5}
 html[data-theme="dark"] .cg-erec{color:#FF9CC4}
 .cg-esub{font-size:12.5px;margin-top:-4px}
+.cg-maker{background:linear-gradient(135deg,rgba(214,236,255,.9),rgba(232,224,255,.9));border-color:rgba(90,130,200,.3)}
+html[data-theme="dark"] .cg-maker{background:linear-gradient(135deg,rgba(110,160,255,.14),rgba(150,120,255,.14));border-color:rgba(150,180,255,.25)}
+.cg-ego:disabled{opacity:.5;cursor:default}
+.cg-mlist{display:flex;flex-direction:column;gap:6px}
+.cg-mrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.62)}
+html[data-theme="dark"] .cg-mrow{background:rgba(255,255,255,.06)}
+.cg-mtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cg-mtx b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cg-mtx span{font-size:12.5px;opacity:.8}
+.cg-mb{flex:none;min-width:48px;min-height:44px;padding:0 12px;border:0;border-radius:13px;background:rgba(120,100,170,.16);color:inherit;font:800 14px/1 sans-serif;font-family:inherit;cursor:pointer}
+.cg-mb.hot{background:linear-gradient(180deg,#F57FB0,#D9467F);color:#fff}
+.cg-ed{position:fixed;inset:0;z-index:155;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;background:linear-gradient(180deg,#FFF3F8,#F1EBFF);color:#3A2F4F;padding:calc(8px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+html[data-theme="dark"] .cg-ed{background:linear-gradient(180deg,#1E1A33,#2A1C36);color:#EEE8F6}
+.cg-ed[hidden]{display:none!important}
+.cg-ed-top,.cg-ed-row,.cg-ed-foot{display:flex;align-items:center;gap:8px}
+.cg-ed-foot{flex-wrap:wrap}
+.cg-ed-name{flex:1;min-width:0;min-height:44px;box-sizing:border-box;border-radius:14px;border:1.5px solid rgba(150,120,190,.35);background:rgba(255,255,255,.88);padding:0 12px;font-weight:800;font-size:15px;font-family:inherit;color:inherit}
+html[data-theme="dark"] .cg-ed-name,html[data-theme="dark"] .cg-ed-sel{background:rgba(255,255,255,.08)}
+.cg-ed-b{flex:none;min-height:44px;padding:0 13px;border:0;border-radius:14px;background:rgba(120,100,170,.16);color:inherit;font:800 14px/1 sans-serif;font-family:inherit;cursor:pointer;white-space:nowrap}
+.cg-ed-b.hot{background:linear-gradient(180deg,#F57FB0,#D9467F);color:#fff}
+.cg-ed-b:disabled{opacity:.45;cursor:default}
+.cg-ed-sel{min-height:44px;max-width:60%;border-radius:12px;border:1.5px solid rgba(150,120,190,.35);background:rgba(255,255,255,.88);padding:0 8px;font-weight:700;font-size:14px;font-family:inherit;color:inherit}
+.cg-ed-st{flex:1;min-width:0;font-size:12.5px;font-weight:700;opacity:.82}
+.cg-ed-wrap{flex:1;min-height:0;display:flex;align-items:center;gap:6px;overflow:auto;border-radius:16px;background:rgba(80,60,120,.08);padding:4px;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.cg-ed-cv{display:block;flex:none;border-radius:8px;cursor:crosshair}
+.cg-ed-end{flex:none;writing-mode:vertical-rl;font-size:12px;font-weight:800;opacity:.7;padding:6px 2px}
+.cg-ed-tools{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.cg-ed-t{flex:none;min-width:54px;min-height:56px;border-radius:14px;border:1.5px solid rgba(150,120,190,.3);background:rgba(255,255,255,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 11.5px/1.1 sans-serif;font-family:inherit;color:inherit;cursor:pointer}
+html[data-theme="dark"] .cg-ed-t{background:rgba(255,255,255,.07)}
+.cg-ed-t i{font-style:normal;font-size:20px;line-height:1}
+.cg-ed-t[aria-pressed="true"]{border-color:#D9467F;background:rgba(255,143,179,.28)}
+.cg-ed-tip{margin:0;font-size:12.5px;opacity:.85;line-height:1.4;min-height:1.4em}
+.cg-ed-wd{font-size:12.5px;font-weight:800;opacity:.75;min-width:4.5em;text-align:center}
+.cg-ed-b:focus-visible,.cg-ed-t:focus-visible,.cg-mb:focus-visible,.cg-ed-name:focus-visible,.cg-ed-sel:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
+@media (max-height:560px){.cg-ed-tip{display:none}.cg-ed-t{min-height:48px}.cg-ed{gap:6px}}
 .cg-ego:focus-visible,.cg-lv:focus-visible,.cg-seg button:focus-visible,.cg-worlds button:focus-visible,.cg-x:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
 .cg-stage{position:fixed;inset:0;z-index:160;background:#16132B;color:#fff;display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
 .cg-top2{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 6px) max(10px,env(safe-area-inset-right,0px)) 6px max(10px,env(safe-area-inset-left,0px));font-variant-numeric:tabular-nums;z-index:3}
@@ -3905,7 +3941,7 @@ function buildStage() {
 }
 
 function startLevel(i) {
-  if (i < 0) for (const id in CHUNKS) if (CHUNKS[id].gen && !G.espec.seq.includes(id)) delete CHUNKS[id];   // made stretches of 段 gone by
+  if (i < 0) { const seq = specOf(i).seq; for (const id in CHUNKS) if (CHUNKS[id].gen && !seq.includes(id)) delete CHUNKS[id]; }   // made stretches (and made levels) no longer in play
   G.L = buildLevel(i);
   G.chanOn = new Uint8Array(G.L.chunks.length); G.chanA = new Float32Array(G.L.chunks.length);
   G.crumbs = new Map(); G.bumps = []; G.proj = []; G.parts = []; G.fx = []; G.shells = []; G.sparks = []; G.amb = [];
@@ -3913,14 +3949,14 @@ function startLevel(i) {
   G.players = [makePlayer(0, G.L.spawn[0]), makePlayer(1, G.L.spawn[1])];
   G.cp = { x: G.L.spawn[0].x + PW / 2 + 0.6, y: G.L.spawn[0].y + PH };
   G.cpSnap = null;
-  G.hp = i < 0 && G.run ? clamp(G.run.hp, 1, HP_MAX) : HP_MAX; G.hearts = 0; G.stars = [false, false, false]; G.time = 0; G.clock = 0; G.wt = 0; G.active = 0; G.hold = false;
+  G.hp = i === -1 && G.run ? clamp(G.run.hp, 1, HP_MAX) : HP_MAX; G.hearts = 0; G.stars = [false, false, false]; G.time = 0; G.clock = 0; G.wt = 0; G.active = 0; G.hold = false;
   G.segDone = false;
   G.failT = 0; G.wonT = 0; G.resultShown = false; G.petPos = null; G.shake = 0; G.paidLine = ''; G.progX = 0; G.stuckT = 0; G.hint = null; G.flash = 0;
   if (ONLINE()) { G.active = G.meIdx; netLevelReset(); }
   V.spr.clear();
   syncHold();
   updateCamera(0, true);
-  if (i < 0) G.fx.push({ kind: 'text', text: `${G.L.world.icon} 第 ${G.L.spec.endless} 段`, x: G.L.spawn[0].x + 2.6, y: G.L.spawn[0].y - 1.1, t: 2.6, max: 2.6, col: '#E0508F' });
+  if (i === -1) G.fx.push({ kind: 'text', text: `${G.L.world.icon} 第 ${G.L.spec.endless} 段`, x: G.L.spawn[0].x + 2.6, y: G.L.spawn[0].y - 1.1, t: 2.6, max: 2.6, col: '#E0508F' });
 }
 function snapAtCp() { G.cpSnap = { cp: { ...G.cp }, hearts: G.hearts, stars: G.stars.slice(), time: G.time, got: G.L.items.map(it => (it.got ? 1 : 0)).join('') }; }
 function applySnap(snap) {
@@ -3935,7 +3971,7 @@ function applySnap(snap) {
 function restartFrom(useCp) {
   if (ONLINE()) return netRequest(useCp ? 'cp' : 're');
   const snap = useCp ? G.cpSnap : null, i = G.L.i;
-  if (i < 0) endlessAdvance(useCp ? 'cp' : 're');   // the same 段 again, with the hearts you have now
+  if (i === -1) endlessAdvance(useCp ? 'cp' : 're');   // the same 段 again, with the hearts you have now
   startLevel(i); applySnap(snap); begin();
 }
 function updateCamera(dt, snap) {
@@ -3972,6 +4008,7 @@ function closeStage(fromNet) {
   if (ONLINE() && !fromNet) netBye();
   UI.stage.hidden = true; G.state = 'off'; document.documentElement.style.overflow = '';
   KEYS.clear(); resetTouch(); UI.veil.hidden = true;
+  if (G.fromEditor) { G.fromEditor = false; if (G.modeEd) { G.mode = G.modeEd; G.modeEd = null; } if (ED.root && ED.lv) { ED.root.hidden = false; edLayout(); edButtons(); return; } }
   if (UI.home) { UI.home.hidden = false; renderHome(); } else openHome();
 }
 function begin() {
@@ -3988,8 +4025,8 @@ function showPanel(html, onClick) {
   UI.panel.onclick = (e) => { const b = e.target.closest('[data-a]'); if (b) onClick(b.dataset.a); };
   const first = UI.panel.querySelector('button'); if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
 }
-const lvNum = (i) => (i < 0 ? `♾️ ${G.espec ? G.espec.endless : 1}` : `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`);
-const lvName = (i) => (i < 0 ? `♾️ 第 ${G.espec ? G.espec.endless : 1} 段` : `${lvNum(i)} ${LEVELS[i].name}`);
+const lvNum = (i) => (i === -2 ? '🛠️' : i < 0 ? `♾️ ${G.espec ? G.espec.endless : 1}` : `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`);
+const lvName = (i) => (i === -2 ? `🛠️ ${G.uspec ? G.uspec.name : ''}` : i < 0 ? `♾️ 第 ${G.espec ? G.espec.endless : 1} 段` : `${lvNum(i)} ${LEVELS[i].name}`);
 function tipArt(kind) {
   const c = (k, st = '') => `<span style="display:inline-block;width:58px;${st}">${fullSvg(k, 'happy')}</span>`;
   if (kind === 'stack') return `<div class="tip-art" style="height:118px;position:relative;width:70px;margin:0 auto">${c('cs', 'position:absolute;left:6px;bottom:0')}${c('yy', 'position:absolute;left:6px;bottom:52px')}</div>`;
@@ -4003,6 +4040,11 @@ function controlsLine() {
 }
 function tipHtml() {
   const L = G.L, t = L.spec.tip, E = L.spec.endless;
+  if (L.spec.custom) {
+    const c = L.spec.custom;
+    return c.test ? tipArt('stack') + `<h3>试玩你做的关</h3><p>两个人都走进小屋才算通关。自己通关一次，就能送给 ${esc(nameOf(other(API.me)))}。</p>`
+      : tipArt('stack') + `<h3>${c.by === API.me ? '你做的关' : `${esc(nameOf(c.by || other(API.me)))} 做给你的关`}</h3><p>两个人都走进小屋才算通关${c.stars ? `，路上藏着 ${c.stars} 颗星星` : ''}。</p>`;
+  }
   if (E === 1) return tipArt('endless') + `<h3>一直走下去</h3><p>一段接一段：每段换一个世界，越走越难。每走完一段回 1 颗心（最多 ${HP_MAX} 颗），心用完就结束。看你们能走多远！</p>`;
   if (E) return `<p>${L.spec.chase ? '⛈️ 暴风雨追来了，一起快跑！' : L.spec.dark ? '🌙 天黑了，靠在一起走' : '一起接着走'} · ❤ ${G.hp} 颗心</p>`;
   return t ? tipArt(t.art) + `<h3>${esc(named(t.title))}</h3><p>${esc(named(t.text))}</p>` : '<p>两个人都进小屋才算过关。路上有 3 颗藏起来的星星。</p>';
@@ -4012,7 +4054,7 @@ function showIntro() {
   const L = G.L;
   showPanel(`<p style="font-size:13px">${L.world.icon} ${L.world.name}</p><h2>${lvName(L.i)}</h2>${tipHtml()}
     <p style="font-size:13px">${controlsLine()}</p>
-    <div class="pb"><button type="button" data-a="go">开始</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    <div class="pb"><button type="button" data-a="go">开始</button><button type="button" class="alt" data-a="menu">${G.fromEditor ? '回去编辑' : '回到选关'}</button></div>`,
     (a) => { if (a === 'go') begin(); else closeStage(); });
 }
 // online: both phones count down together and start at once
@@ -4032,21 +4074,21 @@ function showCountdown() {
 function showPause(fromNet) {
   const who = fromNet ? `${esc(nameOf(other(API.me)))} 按了暂停` : '暂停';
   showPanel(`<h2>${who}</h2><p>${lvName(G.L.i)} · 用时 ${fmtT(G.time)}</p><p style="font-size:13px">${controlsLine()}</p>
-    <div class="pb"><button type="button" data-a="go">继续</button>${G.cpSnap ? '<button type="button" class="alt" data-a="cp">回到旗子</button>' : ''}<button type="button" class="alt" data-a="re">${G.L.i < 0 ? '这一段重来' : '这一关重来'}</button>${G.L.i < 0 ? '<button type="button" class="alt" data-a="end">结束这一趟</button>' : ''}<button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    <div class="pb"><button type="button" data-a="go">继续</button>${G.cpSnap ? '<button type="button" class="alt" data-a="cp">回到旗子</button>' : ''}<button type="button" class="alt" data-a="re">${G.L.i === -1 ? '这一段重来' : '这一关重来'}</button>${G.L.i === -1 ? '<button type="button" class="alt" data-a="end">结束这一趟</button>' : ''}<button type="button" class="alt" data-a="menu">${G.fromEditor ? '回去编辑' : '回到选关'}</button></div>`,
     (a) => { if (a === 'go') togglePause(); else if (a === 'cp') restartFrom(true); else if (a === 're') restartFrom(false); else if (a === 'end') endlessOver('quit'); else closeStage(); });
 }
 function showFail() {
-  if (G.L.i < 0) return endlessOver('fail');
+  if (G.L.i === -1) return endlessOver('fail');
   G.state = 'fail'; sfx('fall');
   showPanel(`<div class="big">💔</div><h2>爱心用完了</h2><p>没关系，再来一次。${G.cpSnap ? '可以从刚才的旗子那里接着走。' : ''}</p>
-    <div class="pb">${G.cpSnap ? '<button type="button" data-a="cp">从旗子那里再来</button>' : ''}<button type="button" ${G.cpSnap ? 'class="alt"' : ''} data-a="re">从头再来</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    <div class="pb">${G.cpSnap ? '<button type="button" data-a="cp">从旗子那里再来</button>' : ''}<button type="button" ${G.cpSnap ? 'class="alt"' : ''} data-a="re">从头再来</button><button type="button" class="alt" data-a="menu">${G.fromEditor ? '回去编辑' : '回到选关'}</button></div>`,
     (a) => { if (a === 'cp') restartFrom(true); else if (a === 're') restartFrom(false); else closeStage(); });
 }
 function win() {
   if (G.state === 'won' || G.state === 'result') return;
   G.state = 'won'; G.wonT = 0; sfx('win');
   for (const p of G.players) { p.happy = 9; p.vx = 0; }
-  if (G.L.i < 0) { confetti(G.L.door.x, G.L.door.y - 2.5, 40); G.paidLine = ''; return endlessWin(); }
+  if (G.L.i < 0) { confetti(G.L.door.x, G.L.door.y - 2.5, 40); G.paidLine = ''; return G.L.i === -1 ? endlessWin() : customWin(); }
   const i = G.L.i, id = LEVELS[i].id, rec = G.save.best[id] || {}, sm = (rec.sm || [false, false, false]).map((v, k) => v || G.stars[k]);
   G.lastBest = !rec.t || G.time < rec.t;
   G.save.best[id] = { t: G.lastBest ? G.time : rec.t, sm, h: Math.max(rec.h || 0, G.hearts) };
@@ -4064,6 +4106,7 @@ function win() {
   }).catch(() => {});
 }
 function showResult() {
+  if (G.L.i === -2) return showCustomResult();
   if (G.L.i < 0) return showSegment();
   G.state = 'result';
   const i = G.L.i, n = G.stars.filter(Boolean).length, lastLv = i === LEVELS.length - 1;
@@ -4130,7 +4173,7 @@ function showSegment() {
     (a) => { if (a === 'go') segGo(); else endlessOver('quit'); });
   clearInterval(G.segTimer);
   G.segTimer = setInterval(() => {
-    if (G.state !== 'result' || !G.L || G.L.i >= 0) { clearInterval(G.segTimer); return; }
+    if (G.state !== 'result' || !G.L || G.L.i !== -1) { clearInterval(G.segTimer); return; }
     n--; const b = UI.panel.querySelector('[data-r="go"]'); if (b) b.textContent = label();
     if (n <= 0) { clearInterval(G.segTimer); if (host) segGo(); }
   }, 1000);
@@ -4143,7 +4186,7 @@ function segGo() {
 }
 // the run is over: the hearts ran out, or you stopped. Online, stopping on one phone stops both
 function endlessOver(why, fromNet) {
-  if (!G.L || G.L.i >= 0 || G.state === 'fail' || G.state === 'left') return;
+  if (!G.L || G.L.i !== -1 || G.state === 'fail' || G.state === 'left') return;
   clearInterval(G.segTimer);
   if (why === 'quit' && !fromNet) netEv('over', {});
   const rested = G.state === 'result' || G.state === 'won';   // between 段: the one just walked counts
@@ -4208,7 +4251,9 @@ function hud() {
   R('hp').innerHTML = Array.from({ length: HP_MAX }, (_, k) => (k < G.hp ? '♥' : '<span class="off">♥</span>')).join('');
   R('hp').setAttribute('aria-label', `我们的爱心 ${G.hp}/${HP_MAX}`);
   R('hearts').textContent = `💗 ${G.hearts}`;
-  R('stars').textContent = `⭐ ${G.stars.filter(Boolean).length}/3`;
+  const SN = G.L.spec.custom ? G.L.spec.custom.stars : 3;
+  R('stars').textContent = `⭐ ${G.stars.filter(Boolean).length}/${SN}`;
+  if (G.L.spec.custom) vis(R('stars'), SN > 0);
 }
 function place(el, wx, wy) { el.style.left = (sx(wx) / V.dpr) + 'px'; el.style.top = (sy(wy) / V.dpr) + 'px'; }
 const vis = (el, on) => { if (el.hidden === on) el.hidden = !on; };
@@ -4500,6 +4545,7 @@ function renderHome() {
       <p class="cg-pay">每一关第一次通关 +1 分 · 每天最多 +${pi.max}${pi.paid ? ` · 今天已拿 +${pi.paid}` : ''}</p>
     </div>
     ${endlessCard()}
+    ${levelsCard()}
     <div class="cg-worlds" role="tablist" aria-label="${WORLDS.length} 个世界">${WORLDS.map((w, k) => {
       let got = 0; for (const i of IN_WORLD[k]) got += ((G.save.best[LEVELS[i].id] || {}).sm || []).filter(Boolean).length;
       return `<button type="button" role="tab" data-w="${k}" aria-selected="${k === menuWorld}">${w.icon} ${w.name.split(' · ')[1]} ⭐${got}</button>`;
@@ -4515,6 +4561,324 @@ function renderHome() {
     <p class="cg-line" style="font-size:12.5px">${G.mode === 'online' ? `各用自己的手机时，${LEVELS.length} 关都能直接选。` : '过了一关才能玩下一关。'}最高纪录和星星记在这部手机上。</p>
   </div>`;
 }
+
+/* ══════════════ 🛠️ 关卡编辑: levels you make for each other (2026-11-26) ══════════════
+   Picked from the try-out on 11-24. You build the middle of a 一起回家 level on a grid — the start and the house
+   stay at its two ends — clear it yourself in 试玩 (nothing goes out that cannot be done), and send it. Your
+   partner finds it on their 一起回家 screen and plays it, alone or with you on two phones, and your phone shows
+   how they did. Levels live in your own progress save (game-save 'play': you write it, your partner reads it,
+   §7.34), so they follow you to every phone. They pay no points: a level you make yourself is nothing to farm. */
+const ED_TILES = '#B=IC^GhSpnoDbKMX*';
+const ED_CHARS = new Set(('.' + ED_TILES).split(''));
+const ED_MAX = 6, ED_W0 = 40, ED_WMIN = 16, ED_WMAX = 80, ED_ENC_MAX = 1400;
+// rows as runs ("12.3#"): a level is small enough to sit in the save beside everything else (16 KB in all)
+const encRows = (rows) => rows.map(r => r.replace(/(.)\1*/g, (m, c) => (m.length > 1 ? m.length : '') + c)).join('|');
+function decRows(s) {
+  if (typeof s !== 'string' || !s || s.length > ED_ENC_MAX * 2) return null;
+  let bad = false;   // a run longer than a level can be is not a level (it is not quietly cut to fit)
+  const rows = s.split('|').map(r => r.replace(/(\d+)(\D)/g, (m, n, c) => { if (+n > ED_WMAX) { bad = true; return ''; } return c.repeat(+n); }));
+  if (bad || rows.length !== R || !rows.every(r => r.length === rows[0].length) || rows[0].length < ED_WMIN || rows[0].length > ED_WMAX) return null;
+  if (!rows.every(r => [...r].every(ch => ED_CHARS.has(ch)))) return null;
+  return rows;
+}
+const hashStr = (s) => { let h = 2166136261; for (let k = 0; k < s.length; k++) { h ^= s.charCodeAt(k); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+const levelOk = (l) => !!(l && l.v && decRows(l.r) && l.v === hashStr(l.r));
+// a level made in the editor, as the game builds it: the start, the made part, the house
+function customSpec(lv, test) {
+  const rows = decRows(lv && lv.r); if (!rows) return null;
+  const key = `u~${hashStr(lv.r)}`;
+  if (!CHUNKS[key]) CHUNKS[key] = { rows, w: rows[0].length, id: key, gen: true, custom: true };
+  const stars = Math.min(3, rows.join('').split('*').length - 1);
+  return { id: 'U', name: String(lv.n || '我做的关').slice(0, 12), world: clamp(lv.w | 0, 0, WORLDS.length - 1), seq: ['start', key, 'goal'], stars: [1], rank: 20,
+    seed: parseInt(hashStr(lv.r), 36) >>> 0, custom: { id: lv.id, by: lv.by || API.me, test: !!test, hash: hashStr(lv.r), stars } };
+}
+const customWire = () => { const sp = G.uspec, ch = CHUNKS[sp.seq[1]]; return { id: sp.custom.id, n: sp.name, w: sp.world, r: ch ? encRows(ch.rows) : '', by: sp.custom.by }; };
+function customFromWire(u) {
+  if (!u || typeof u !== 'object' || typeof u.id !== 'string' || !u.id || u.id.length > 24 || typeof u.r !== 'string' || !decRows(u.r)) return null;
+  return customSpec({ id: u.id, n: String(u.n || '').slice(0, 12), w: fin(u.w) ? u.w : 0, r: u.r, by: u.by === 'cs' || u.by === 'yy' ? u.by : '' }, false);
+}
+// what this phone keeps (and the app syncs to every phone of yours, Prog): your levels, the ones you deleted, how you did on your partner's
+const LVK = () => `cg_lv_${API.me}`, LVD = () => `cg_lvdel_${API.me}`, PLK = () => `cg_pl_${API.me}`;
+const myLevels = () => (store.get(LVK(), []) || []).filter(l => l && typeof l.id === 'string' && typeof l.r === 'string');
+function syncSoon() { clearTimeout(syncSoon.t); syncSoon.t = setTimeout(() => { try { API.saveProg && API.saveProg(); } catch (e) {} }, 500); }
+function putLevel(lv) { const all = myLevels().filter(l => l.id !== lv.id); all.unshift(Object.assign({}, lv)); store.set(LVK(), all.slice(0, ED_MAX)); syncSoon(); }
+function dropLevel(id) {
+  store.set(LVK(), myLevels().filter(l => l.id !== id));
+  const del = (store.get(LVD(), []) || []).filter(x => x !== id); del.push(id); store.set(LVD(), del.slice(-40));
+  syncSoon();
+}
+const myResults = () => store.get(PLK(), {}) || {};
+function putResult(id, t, sm) {
+  const all = myResults(), o = all[id];
+  all[id] = { t: o && o.t && o.t <= t ? o.t : Math.round(t * 10) / 10, sm: [0, 1, 2].map(k => !!((o && o.sm && o.sm[k]) || sm[k])), at: Date.now() };
+  store.set(PLK(), all); syncSoon();
+}
+// your partner's levels (only the ones they sent, and only as they were when they cleared them) and how they did on yours
+const PART = { lv: [], pl: {}, at: 0, busy: false };
+function loadPartner(force) {
+  if (!API.partnerPlay || PART.busy || (!force && Date.now() - PART.at < 15000)) return;
+  PART.busy = true;
+  Promise.resolve().then(() => API.partnerPlay()).then((d) => {
+    PART.lv = (d && Array.isArray(d.lv) ? d.lv : []).filter(l => l && l.s && levelOk(l) && typeof l.id === 'string').slice(0, ED_MAX);
+    PART.pl = d && d.pl && typeof d.pl === 'object' ? d.pl : {};
+  }).catch(() => {}).finally(() => { PART.busy = false; PART.at = Date.now(); if (UI.home && !UI.home.hidden) renderHome(); });
+}
+const starStr = (sm, n = 3) => [0, 1, 2].slice(0, n).map(k => (sm && sm[k] ? '★' : '☆')).join('');
+function levelsCard() {
+  loadPartner();
+  const mine = myLevels(), them = nameOf(other(API.me)), pl = PART.pl || {}, mr = myResults();
+  const rowsMine = mine.map(l => {
+    const ok = levelOk(l), res = pl[l.id], n = Math.min(3, (decRows(l.r) || ['']).join('').split('*').length - 1);
+    const st = ok && l.s ? (res ? `${esc(them)} 通关了${n ? ' · ' + starStr(res.sm, n) : ''} · ${fmtT(res.t)}` : `送给 ${esc(them)} 了 · TA 还没玩`) : ok ? '自己通关了 · 可以送出' : '草稿 · 先自己通关一次才能送';
+    return `<div class="cg-mrow"><div class="cg-mtx"><b>${esc(l.n || '我做的关')}</b><span>${st}</span></div><button type="button" class="cg-mb" data-ed="${esc(l.id)}">改</button>${ok && !l.s ? `<button type="button" class="cg-mb hot" data-send="${esc(l.id)}">送出</button>` : `<button type="button" class="cg-mb" data-try="${esc(l.id)}">玩</button>`}</div>`;
+  }).join('');
+  const rowsThem = (PART.lv || []).map(l => {
+    const r = mr[l.id], n = Math.min(3, (decRows(l.r) || ['']).join('').split('*').length - 1);
+    return `<div class="cg-mrow"><div class="cg-mtx"><b>${esc(l.n || '一关')}</b><span>${r ? `通关了${n ? ' · ' + starStr(r.sm, n) : ''} · ${fmtT(r.t)}` : '还没玩 · 等你们去走'}</span></div><button type="button" class="cg-mb hot" data-pplay="${esc(l.id)}">玩</button></div>`;
+  }).join('');
+  return `<div class="cg-card cg-maker">
+      <div class="cg-erow"><div class="cg-etxt"><span class="cg-lab">🛠️ 关卡编辑</span><h4>做一关给 ${esc(them)} <span class="cg-new">新</span></h4></div>
+        <button type="button" class="cg-ego" data-a="newlv"${mine.length >= ED_MAX ? ' disabled' : ''}>✏️ 新关卡</button></div>
+      <p class="cg-line">在格子上摆地面、木板、尖刺、星星、小怪和按钮门，自己先通关一次，就能送给 ${esc(them)}。${mine.length >= ED_MAX ? `（最多 ${ED_MAX} 个，删掉一个再做）` : ''}</p>
+      ${mine.length ? `<div class="cg-mlist"><span class="cg-lab">我做的关</span>${rowsMine}</div>` : ''}
+      <div class="cg-mlist"><span class="cg-lab">${esc(them)} 做给你的关</span>${rowsThem || `<p class="cg-line cg-esub">${API.online ? `${esc(them)} 还没送关给你` : '登录以后，TA 做的关会出现在这里'}</p>`}</div>
+    </div>`;
+}
+function sendLevel(id) {
+  const lv = myLevels().find(l => l.id === id);
+  if (!levelOk(lv)) { if (API.toast) API.toast('先自己通关一次，才能送出'); return false; }
+  lv.s = Date.now(); putLevel(lv);
+  if (ED.lv && ED.lv.id === id) ED.lv.s = lv.s;
+  if (API.toast) API.toast(API.online ? `💌 送出去了：${nameOf(other(API.me))} 打开「一起回家」就能玩` : '💌 存好了（登录以后 TA 才收得到）');
+  if (UI.home && !UI.home.hidden) renderHome();
+  edButtons();
+  return true;
+}
+// play one: the author's 试玩 (on this phone, then back to the editor), or a level to play — together, on two phones
+function playCustom(lv, test) {
+  const sp = customSpec(lv, test);
+  if (!sp) { if (API.toast) API.toast('这一关打不开'); return false; }
+  G.uspec = sp; G.fromEditor = !!test;
+  if (test) { G.modeEd = G.mode; if (G.mode === 'online') G.mode = 'solo'; if (ED.root) ED.root.hidden = true; artReady.then(() => openStage(-2)); return true; }
+  if (G.mode === 'online') return netPick(-2);
+  artReady.then(() => openStage(-2));
+  return true;
+}
+function customWin() {
+  const c = G.uspec.custom;
+  if (c.test) {   // the author cleared it: it can be sent, as it is now
+    const lv = myLevels().find(l => l.id === c.id);
+    if (lv && hashStr(lv.r) === c.hash) { lv.v = c.hash; putLevel(lv); if (ED.lv && ED.lv.id === lv.id) ED.lv.v = c.hash; }
+    return;
+  }
+  if (c.by && c.by !== API.me) putResult(c.id, G.time, G.stars);   // your partner's level: how you did goes back to them
+}
+function showCustomResult() {
+  G.state = 'result';
+  const sp = G.uspec, c = sp.custom, n = G.stars.filter(Boolean).length, them = nameOf(other(API.me));
+  const stars = c.stars ? `<div class="stars" aria-label="${n} 颗星">${starStr(G.stars, c.stars)}</div>` : '';
+  const stats = `<div class="stats"><div>${fmtT(G.time)}<small>用时</small></div><div>💗 ${G.hearts}<small>爱心</small></div><div>${n}/${c.stars}<small>星星</small></div></div>`;
+  if (c.test) {
+    return showPanel(`<div class="big">🎉</div><h2>自己通关了！</h2>${stars}${stats}<p>「${esc(sp.name)}」走得通，可以送给 ${esc(them)} 了。</p>
+      <div class="pb"><button type="button" data-a="send">💌 送给 ${esc(them)}</button><button type="button" class="alt" data-a="edit">回去改一改</button></div>`,
+      (a) => { if (a === 'send') sendLevel(c.id); closeStage(); });
+  }
+  const mine = c.by === API.me, by = nameOf(c.by || other(API.me));
+  showPanel(`<div class="big">🏡</div><h2>回到家啦！</h2><p>${mine ? `你做的「${esc(sp.name)}」` : `${esc(by)} 做的「${esc(sp.name)}」`}</p>${stars}${stats}${mine ? '' : `<p>${esc(by)} 会看到你们的成绩</p>`}
+    <div class="pb"><button type="button" data-a="re">再玩一次</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    (a) => { if (a === 're') restartFrom(false); else closeStage(); });
+}
+
+/* ── the editor: a grid of the made part, the things to put on it, try it, send it ── */
+const ED = { root: null, lv: null, grid: null, tool: '#', undo: [], cell: 32, cv: null, ctx: null, dpr: 1, pd: null, last: '', delAt: 0, saveT: 0 };
+const TOOLS = [
+  ['#', '🧱', '地面', '点一下会一直铺到最下面；点地面最上面那格，就削掉一格'], ['B', '🟫', '砖块', '一块实心的砖'], ['=', '➖', '木板', '从下面可以跳上去，站得住'],
+  ['I', '🧊', '冰面', '很滑，停不下来'], ['C', '☁️', '云朵', '站一下就会散，过一会儿长回来'], ['^', '🔺', '尖刺', '碰到会掉一颗心，放在地面上'],
+  ['G', '🎁', '礼物', '从下面顶一下，会掉出爱心'], ['h', '💗', '爱心', '收集用的，30 颗回一颗心'], ['*', '⭐', '星星', '最多 3 颗，藏起来吧'],
+  ['S', '🌀', '弹簧', '放在地面上面一格，踩上去弹得很高'], ['p', '🐡', '泡泡怪', '会走来走去，踩一下就扁'], ['n', '🌰', '刺栗子', '会走来走去，不能踩'],
+  ['o', '🟡', '按钮', '有人一直踩着：这一关的门会开、桥会出来'], ['D', '🚪', '门', '平时关着，有人踩按钮才开'], ['b', '🌉', '桥', '平时没有，有人踩按钮才出现'],
+  ['K', '🚩', '旗子', '掉下去的时候从这里回来'], ['M', '🛶', '木筏', '左右漂，3 格宽'], ['X', '📦', '箱子', '2×2，要两个人一起推（点它底下那格）'],
+  ['.', '🧽', '橡皮', '擦掉一格'],
+];
+const TOOL_OF = Object.fromEntries(TOOLS.map(t => [t[0], t]));
+function blankLevel() {
+  const rows = Array.from({ length: R }, (_, r) => (r >= 11 ? '#' : '.').repeat(ED_W0));
+  return { id: 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36), n: '我们的小路', w: menuWorld || 0, r: encRows(rows), v: '', s: 0, at: Date.now(), by: API.me };
+}
+function openEditor(id) {
+  if (!id && myLevels().length >= ED_MAX) { if (API.toast) API.toast(`最多 ${ED_MAX} 个关卡，删掉一个再做`); return false; }
+  const lv = id ? myLevels().find(l => l.id === id) : blankLevel(), rows = lv && decRows(lv.r);
+  if (!rows) return false;
+  ED.lv = Object.assign({}, lv); ED.grid = rows.map(r => r.split('')); ED.undo = []; ED.tool = '#'; ED.delAt = 0;
+  if (!id) putLevel(ED.lv);   // a new level is a draft at once
+  buildEditor();
+  if (UI.home) UI.home.hidden = true;
+  ED.root.hidden = false;
+  ED.root.querySelector('.cg-ed-name').value = ED.lv.n || '';
+  ED.root.querySelector('.cg-ed-sel').value = String(ED.lv.w || 0);
+  edTool('#'); edLayout(); edButtons();
+  return true;
+}
+function closeEditor() {
+  edSaveNow();
+  if (ED.root) ED.root.hidden = true;
+  if (UI.home) { UI.home.hidden = false; renderHome(); }
+}
+function buildEditor() {
+  if (ED.root) return;
+  const r = document.createElement('div');
+  r.className = 'cg-ed'; r.setAttribute('role', 'dialog'); r.setAttribute('aria-modal', 'true'); r.setAttribute('aria-label', '关卡编辑');
+  r.innerHTML = `<div class="cg-ed-top"><button type="button" class="cg-x" data-e="back" aria-label="回到选关">✕</button>
+      <input class="cg-ed-name" maxlength="12" aria-label="关卡的名字" placeholder="给这一关起个名字">
+      <button type="button" class="cg-ed-b" data-e="play">▶ 试玩</button><button type="button" class="cg-ed-b hot" data-e="send">💌 送出</button></div>
+    <div class="cg-ed-row"><select class="cg-ed-sel" aria-label="这一关的样子">${WORLDS.map((w, k) => `<option value="${k}">${w.icon} ${esc(w.name)}</option>`).join('')}</select>
+      <span class="cg-ed-st" data-e="st"></span></div>
+    <div class="cg-ed-wrap"><span class="cg-ed-end">🏁 起点</span><canvas class="cg-ed-cv" aria-label="关卡的格子：点一下放上选好的东西"></canvas><span class="cg-ed-end">🏠 小屋</span></div>
+    <div class="cg-ed-tools" role="toolbar" aria-label="可以放的东西">${TOOLS.map(t => `<button type="button" class="cg-ed-t" data-tool="${t[0] === '"' ? '&quot;' : t[0]}" aria-pressed="false" title="${esc(t[3])}"><i>${t[1]}</i><span>${t[2]}</span></button>`).join('')}</div>
+    <p class="cg-ed-tip" data-e="tip" aria-live="polite"></p>
+    <div class="cg-ed-foot"><button type="button" class="cg-ed-b" data-e="undo">↩ 撤销</button><button type="button" class="cg-ed-b" data-e="shorter">－ 变短</button><span class="cg-ed-wd" data-e="wd"></span><button type="button" class="cg-ed-b" data-e="longer">＋ 加长</button><button type="button" class="cg-ed-b" data-e="del" aria-label="删除这一关">🗑️</button></div>`;
+  r.hidden = true;
+  document.body.appendChild(r);
+  ED.root = r; ED.cv = r.querySelector('.cg-ed-cv'); ED.ctx = ED.cv.getContext('2d');
+  r.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tool]'); if (t) return edTool(t.dataset.tool);
+    const b = e.target.closest('[data-e]'); if (!b || b.disabled) return;
+    const k = b.dataset.e;
+    if (k === 'back') return closeEditor();
+    if (k === 'play') { edSaveNow(); return playCustom(ED.lv, true); }
+    if (k === 'send') { edSaveNow(); return sendLevel(ED.lv.id); }
+    if (k === 'undo') { const prev = ED.undo.pop(); if (prev) { ED.grid = prev.split('|').map(x => x.split('')); if (prev.split('|')[0].length !== ED.cv.width / ED.dpr / ED.cell) edLayout(); edChanged(); } return; }
+    if (k === 'shorter' || k === 'longer') return edWidth(k === 'longer' ? 8 : -8);
+    if (k === 'del') {
+      if (performance.now() - ED.delAt > 3000) { ED.delAt = performance.now(); if (API.toast) API.toast(`再点一下 🗑️ 就删掉「${ED.lv.n || '这一关'}」`); return; }
+      dropLevel(ED.lv.id); ED.lv = null; if (ED.root) ED.root.hidden = true; if (UI.home) { UI.home.hidden = false; renderHome(); } if (API.toast) API.toast('删掉了');
+    }
+  });
+  r.querySelector('.cg-ed-name').addEventListener('input', (e) => { ED.lv.n = e.target.value.slice(0, 12); edSaveSoon(); });
+  r.querySelector('.cg-ed-sel').addEventListener('change', (e) => { ED.lv.w = clamp(+e.target.value | 0, 0, WORLDS.length - 1); edDraw(); edSaveSoon(); });
+  // a tap puts the chosen thing in that square; on a laptop the mouse can also paint along. A finger dragging scrolls the grid
+  ED.cv.addEventListener('pointerdown', (e) => { ED.pd = { x: e.clientX, y: e.clientY, t: performance.now(), mouse: e.pointerType === 'mouse' }; ED.last = ''; if (ED.pd.mouse) edTap(e, false); });
+  ED.cv.addEventListener('pointermove', (e) => { if (ED.pd && ED.pd.mouse && e.buttons & 1) edTap(e, true); });
+  ED.cv.addEventListener('pointerup', (e) => { const d = ED.pd; ED.pd = null; if (!d || d.mouse) return; if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10 && performance.now() - d.t < 700) edTap(e, false); });
+  ED.cv.addEventListener('pointercancel', () => { ED.pd = null; });
+  addEventListener('resize', () => { if (ED.root && !ED.root.hidden) edLayout(); });
+}
+function edTool(t) {
+  ED.tool = TOOL_OF[t] ? t : '#';
+  if (!ED.root) return;
+  for (const b of ED.root.querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === ED.tool));
+  const tt = TOOL_OF[ED.tool];
+  ED.root.querySelector('[data-e="tip"]').textContent = `${tt[1]} ${tt[2]}：${tt[3]}`;
+}
+function edLayout() {
+  if (!ED.root || !ED.grid) return;
+  const wrap = ED.root.querySelector('.cg-ed-wrap'), W = ED.grid[0].length;
+  const h = wrap.clientHeight || 360;
+  ED.cell = clamp(Math.floor((h - 8) / R), 20, 40);
+  ED.dpr = Math.min(2, window.devicePixelRatio || 1);
+  ED.cv.style.width = W * ED.cell + 'px'; ED.cv.style.height = R * ED.cell + 'px';
+  ED.cv.width = Math.round(W * ED.cell * ED.dpr); ED.cv.height = Math.round(R * ED.cell * ED.dpr);
+  edDraw();
+}
+function edTap(e, dragging) {
+  const rc = ED.cv.getBoundingClientRect(), c = Math.floor((e.clientX - rc.left) / ED.cell), r = Math.floor((e.clientY - rc.top) / ED.cell);
+  const key = c + ',' + r;
+  if (dragging && key === ED.last) return;
+  ED.last = key;
+  edPaint(c, r, dragging);
+}
+// squares a box or a raft covers besides the one it is marked in
+function edBodies(g) {
+  const s = new Map();
+  g.forEach((row, r) => row.forEach((ch, c) => {
+    if (ch === 'X') for (const [x, y] of [[c + 1, r], [c, r + 1], [c + 1, r + 1]]) s.set(x + ',' + y, [c, r]);
+    if (ch === 'M') for (const x of [c + 1, c + 2]) s.set(x + ',' + r, [c, r]);
+  }));
+  return s;
+}
+function edPaint(c, r, dragging) {
+  const g = ED.grid, t = ED.tool, W = g[0].length;
+  if (!g || c < 0 || c >= W || r < 0 || r >= R) return false;
+  const before = g.map(row => row.join('')).join('|'), bodies = edBodies(g), say = (m) => { if (API.toast) API.toast(m); };
+  const owner = bodies.get(c + ',' + r);
+  if (t === '.') { if (owner) g[owner[1]][owner[0]] = '.'; else g[r][c] = '.'; }
+  else if (owner) { say('这里被箱子或木筏占着'); return false; }
+  else if (t === '#') {
+    if (!dragging && g[r][c] === '#' && (r === 0 || g[r - 1][c] !== '#')) g[r][c] = '.';   // the top of the ground: shave one off
+    else for (let k = r; k < R; k++) if (!bodies.has(c + ',' + k)) g[k][c] = '#';
+  } else if (t === 'X') {
+    const y = r - 1;   // the square tapped is the box's bottom-left: it stands on what is under it
+    if (y < 0 || c + 1 >= W || [[c, y], [c + 1, y], [c, y + 1], [c + 1, y + 1]].some(([x, yy]) => g[yy][x] !== '.' || bodies.has(x + ',' + yy))) { if (!dragging) say('箱子要 2×2 的空地方'); return false; }
+    g[y][c] = 'X';
+  } else if (g[r][c] === t) { if (!dragging) g[r][c] = '.'; }   // the same thing again: take it away
+  else {
+    if (t === '*' && g.flat().filter(x => x === '*').length >= 3) { if (!dragging) say('最多 3 颗星星'); return false; }
+    if (t === 'M' && (c + 2 >= W || [1, 2].some(k => g[r][c + k] !== '.' || bodies.has((c + k) + ',' + r)))) { if (!dragging) say('木筏要 3 格宽的空地方'); return false; }
+    g[r][c] = t;
+  }
+  const after = g.map(row => row.join('')).join('|');
+  if (after === before) return false;
+  if (encRows(after.split('|')).length > ED_ENC_MAX) { ED.grid = before.split('|').map(x => x.split('')); say('这一关已经太满了，存不下更多东西'); return false; }
+  ED.undo.push(before); if (ED.undo.length > 40) ED.undo.shift();
+  edChanged();
+  return true;
+}
+function edWidth(d) {
+  const g = ED.grid, W = g[0].length, n = clamp(W + d, ED_WMIN, ED_WMAX);
+  if (n === W) return;
+  ED.undo.push(g.map(row => row.join('')).join('|'));
+  if (n > W) g.forEach((row, r) => { for (let k = W; k < n; k++) row.push(r >= 11 ? '#' : '.'); });   // longer: more ground at the end
+  else g.forEach(row => row.splice(n));
+  edChanged(); edLayout();
+}
+// every change: \`v\` stays the hash of the version you cleared, so the level as it is now is sendable only while it IS
+// that version — a change makes it a draft (and takes it back from your partner) until you clear it again, and undoing
+// the change brings the cleared one back. A sent level you change and clear again goes to your partner as the new one.
+function edChanged() {
+  const rows = ED.grid.map(row => row.join(''));
+  ED.lv.r = encRows(rows); ED.lv.at = Date.now();
+  edDraw(); edButtons(); edSaveSoon();
+}
+function edSaveSoon() { clearTimeout(ED.saveT); ED.saveT = setTimeout(edSaveNow, 350); }
+function edSaveNow() { clearTimeout(ED.saveT); if (ED.lv) putLevel(ED.lv); }
+function edButtons() {
+  if (!ED.root || !ED.lv) return;
+  const ok = levelOk(ED.lv), send = ED.root.querySelector('[data-e="send"]');
+  send.disabled = !ok || !!ED.lv.s;   // sent and unchanged: nothing more to send
+  send.textContent = ED.lv.s && ok ? '已送出' : '💌 送出';
+  ED.root.querySelector('[data-e="undo"]').disabled = !ED.undo.length;
+  ED.root.querySelector('[data-e="wd"]').textContent = `${ED.grid[0].length} 格长`;
+  ED.root.querySelector('[data-e="st"]').textContent = ok ? (ED.lv.s ? `已经送给 ${nameOf(other(API.me))} 了` : '自己通关了，可以送出') : '先 ▶ 试玩，自己通关一次才能送出';
+}
+function edDraw() {
+  if (!ED.ctx || !ED.grid) return;
+  const x = ED.ctx, g = ED.grid, W = g[0].length, s = ED.cell, w = WORLDS[ED.lv.w | 0] || WORLDS[0];
+  x.setTransform(ED.dpr, 0, 0, ED.dpr, 0, 0);
+  const sky = x.createLinearGradient(0, 0, 0, R * s); sky.addColorStop(0, w.sky[0]); sky.addColorStop(1, w.sky[1]);
+  x.fillStyle = sky; x.fillRect(0, 0, W * s, R * s);
+  x.strokeStyle = 'rgba(255,255,255,.4)'; x.lineWidth = 1; x.beginPath();
+  for (let c = 0; c <= W; c++) { x.moveTo(c * s + .5, 0); x.lineTo(c * s + .5, R * s); }
+  for (let r = 0; r <= R; r++) { x.moveTo(0, r * s + .5); x.lineTo(W * s, r * s + .5); }
+  x.stroke();
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `${Math.round(s * .66)}px ${FONT}`;
+  for (let r = 0; r < R; r++) for (let c = 0; c < W; c++) {
+    const ch = g[r][c]; if (ch === '.') continue;
+    const X = c * s, Y = r * s;
+    if (ch === '#') { x.fillStyle = w.dirt; x.fillRect(X, Y, s, s); if (r === 0 || g[r - 1][c] !== '#') { x.fillStyle = w.cap; x.fillRect(X, Y, s, s * .3); } }
+    else if (ch === 'B') { x.fillStyle = w.block; x.fillRect(X + 1, Y + 1, s - 2, s - 2); x.strokeStyle = w.blockEdge; x.lineWidth = 2; x.strokeRect(X + 2, Y + 2, s - 4, s - 4); }
+    else if (ch === '=') { x.fillStyle = w.plat; x.fillRect(X, Y + 1, s, s * .3); x.fillStyle = w.platEdge; x.fillRect(X, Y + s * .3, s, 2); }
+    else if (ch === 'I') { x.fillStyle = '#CFEFFF'; x.fillRect(X, Y, s, s); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillRect(X + s * .15, Y + s * .15, s * .3, s * .1); }
+    else if (ch === 'C') { x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.ellipse(X + s / 2, Y + s * .55, s * .48, s * .32, 0, 0, Math.PI * 2); x.fill(); }
+    else if (ch === '^') { x.fillStyle = '#9AA3B5'; x.beginPath(); for (let k = 0; k < 3; k++) { x.moveTo(X + k * s / 3, Y + s); x.lineTo(X + (k + .5) * s / 3, Y + s * .35); x.lineTo(X + (k + 1) * s / 3, Y + s); } x.fill(); }
+    else if (ch === 'D') { x.fillStyle = '#B9875A'; x.fillRect(X + s * .2, Y, s * .6, s); x.fillStyle = '#7E5530'; for (let k = 1; k < 3; k++) x.fillRect(X + s * .2, Y + k * s / 3, s * .6, 2); }
+    else if (ch === 'b') { x.fillStyle = 'rgba(201,155,116,.55)'; x.fillRect(X, Y + s * .1, s, s * .28); x.strokeStyle = '#9A6F4A'; x.setLineDash([4, 3]); x.strokeRect(X + 1, Y + s * .1, s - 2, s * .28); x.setLineDash([]); }
+    else if (ch === 'o') { x.fillStyle = '#F6C343'; x.fillRect(X + s * .12, Y + s * .72, s * .76, s * .28); x.fillStyle = '#C9922B'; x.fillRect(X + s * .12, Y + s * .94, s * .76, s * .06); }
+    else if (ch === 'X') { x.fillStyle = '#D9A066'; x.fillRect(X + 1, Y + 1, s * 2 - 2, s * 2 - 2); x.strokeStyle = '#9A6A3A'; x.lineWidth = 2; x.strokeRect(X + 2, Y + 2, s * 2 - 4, s * 2 - 4); x.fillText('📦', X + s, Y + s); }
+    else if (ch === 'M') { x.fillStyle = '#B07F56'; x.fillRect(X, Y + s * .15, s * 3, s * .32); x.fillStyle = '#84593A'; for (let k = 1; k < 3; k++) x.fillRect(X + k * s, Y + s * .15, 2, s * .32); }
+    else x.fillText(TOOL_OF[ch] ? TOOL_OF[ch][1] : '?', X + s / 2, Y + s / 2 + 1);
+  }
+}
+
 function endlessCard() {
   const rec = G.save.endless;
   return `<div class="cg-card cg-endless">
@@ -4529,6 +4893,11 @@ function onHomeClick(e) {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.a === 'x') return closeHome();
   if (b.dataset.a === 'endless') { if (G.mode === 'online') return netPick(-1); artReady.then(() => startEndless()); return; }
+  if (b.dataset.a === 'newlv') { if (!b.disabled) openEditor(null); return; }
+  if (b.dataset.ed) return openEditor(b.dataset.ed);
+  if (b.dataset.send) return sendLevel(b.dataset.send);
+  if (b.dataset.try) return playCustom(myLevels().find(l => l.id === b.dataset.try), false);
+  if (b.dataset.pplay) return playCustom(PART.lv.find(l => l.id === b.dataset.pplay), false);
   if (b.dataset.mode) { if (b.disabled) return; G.mode = b.dataset.mode; store.set('cg_mode', G.mode); netHome(G.mode === 'online'); renderHome(); return; }
   if (b.dataset.w) { menuWorld = +b.dataset.w; renderHome(); return; }
   if (b.dataset.i && !b.disabled) {
@@ -4548,7 +4917,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 6, DELAY = 110;   // 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
+const NET_V = 7, DELAY = 110;   // 7: 🛠️ a made level in \`go\` (2026-11-26); 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -4595,20 +4964,21 @@ function netLevelReset() { NET.piAt = 0; NET.off = Infinity; NET.wsnap = null; N
 function netPick(i) {
   const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500;
   if (!peerOn) { if (API.toast) API.toast(`等 ${nameOf(other(API.me))} 也打开「一起回家」`); return; }
-  if (i < 0) { G.run = newRun(); G.espec = endlessSpec(G.run); }   // ♾️ a new run, this phone in charge of it
+  if (i === -1) { G.run = newRun(); G.espec = endlessSpec(G.run); }   // ♾️ a new run, this phone in charge of it (a made level is in G.uspec already)
   netStart(i, null);
 }
 function netStart(i, snap) {
   netFresh();
   NET.n = 1 + Math.floor(Math.random() * 2e9); NET.role = 'host'; NET.goAt = performance.now();
   NET.go = { n: NET.n, lv: i, who: G.meIdx, cp: snap || null }; NET.goSent = NET.goAt;   // resent until the partner's phone answers
-  if (i < 0) NET.go.e = endlessWire();
+  if (i === -1) NET.go.e = endlessWire();
+  if (i === -2) NET.go.u = customWire();
   netSend('go', NET.go);
   artReady.then(() => openStage(i, { countdown: true, snap }));
 }
 function netGo(m) {
-  const endless = m.lv === -1;
-  if (!fin(m.lv) || !(endless || (m.lv >= 0 && m.lv < LEVELS.length)) || !fin(m.n) || m.who === G.meIdx) return;
+  const endless = m.lv === -1, made = m.lv === -2;
+  if (!fin(m.lv) || !(endless || made || (m.lv >= 0 && m.lv < LEVELS.length)) || !fin(m.n) || m.who === G.meIdx) return;
   // both picked in the same moment: CS's pick wins, on both phones. (This once also asked for the countdown to be
   // showing — but the stage opens a moment after the pick, so who won depended on timing.)
   if (NET.role === 'host' && performance.now() - NET.goAt < 2000 && G.meIdx === 0) return;
@@ -4616,16 +4986,20 @@ function netGo(m) {
   if (G.mode !== 'online') return;
   const ew = endless ? endlessFromWire(m.e) : null;
   if (endless && !ew) return;   // never trust the wire: an unknown piece or a number out of range is dropped
+  const us = made ? customFromWire(m.u) : null;
+  if (made && !us) return;      // a made level with rows that are not a level
   netFresh();
   NET.n = m.n; NET.role = 'guest'; NET.peerAt = performance.now(); NET.heard = true;
   if (ew) { if (!G.run || G.run.rs !== ew.run.rs) G.endBest0 = (G.save.endless && G.save.endless.d) || 0; G.run = ew.run; G.espec = ew.spec; }
+  if (us) { G.uspec = us; G.fromEditor = false; }
   artReady.then(() => openStage(m.lv, { countdown: true, snap: m.cp && m.cp.cp ? m.cp : null }));
 }
 // 重来 / 下一关 from either phone; the host's phone actually starts it
 function netRequest(k) {
   if (isHost()) {
     const i = G.L.i;
-    if (i < 0) return endlessAdvance(k) ? netStart(-1, k === 'cp' ? G.cpSnap : null) : undefined;
+    if (i === -1) return endlessAdvance(k) ? netStart(-1, k === 'cp' ? G.cpSnap : null) : undefined;
+    if (i === -2) return k === 'next' ? undefined : netStart(-2, k === 'cp' ? G.cpSnap : null);
     return netStart(k === 'next' ? i + 1 : i, k === 'cp' ? G.cpSnap : null);
   }
   netSend('rq', { n: NET.n, k }); NET.rq = { k, at: performance.now(), t0: performance.now() };   // resent until the new level starts
@@ -4906,7 +5280,7 @@ function netEvent(m) {
     case 'rain': if (!isHost() && fin(m.x) && fin(m.y) && fin(m.vy)) { const lat = Math.min(0.3, NET.rtt / 2000); G.proj.push({ x: m.x, y: m.y + m.vy * lat + 10 * lat * lat, vy: m.vy + 20 * lat }); } break;
     case 'win': if (!isHost() && (G.state === 'play' || G.state === 'paused')) win(); break;
     case 'fail': if (!isHost() && G.state === 'play') { G.hp = 0; G.state = 'dying'; G.failT = 0.9; } break;
-    case 'over': if (G.L && G.L.i < 0) endlessOver('quit', true); break;
+    case 'over': if (G.L && G.L.i === -1) endlessOver('quit', true); break;
     case 'latch': if (fin(m.ch) && m.ch >= 0 && m.ch < G.L.chunks.length) latchOn(m.ch | 0, true); break;
     case 'pause': if (G.state === 'play') togglePause(true); break;
     case 'resume': if (G.state === 'paused') togglePause(true); break;
@@ -5186,6 +5560,11 @@ window.CoopGames = {
     // ♾️ the endless road: a given run and 段 (ws: which worlds; all of them by default)
     startE(rs, d = 1, mode = 'duo', ws) { G.mode = mode; if (mode !== 'online') NET.n = 0; G.run = { rs: rs >>> 0, d, hp: HP_MAX, he: 0, t: 0, ws: ws || WORLDS.map((w, k) => k) }; G.espec = endlessSpec(G.run); openStage(-1); G.test = true; begin(); },
     endless: { spec: endlessSpec, genRows, POOL, chunkFor, GEN_RE, wire: endlessWire, fromWire: endlessFromWire, E_PAY },
+    // 🛠️ a made level: start one directly, or drive the editor
+    startU(lv, mode = 'duo', test = false) { G.mode = mode; if (mode !== 'online') NET.n = 0; G.uspec = customSpec(lv, test); G.fromEditor = false; openStage(-2); G.test = true; begin(); },
+    ed: { open: openEditor, close: closeEditor, tool: edTool, paint: (c, r) => edPaint(c, r, false), width: edWidth, state: () => (ED.lv ? { lv: Object.assign({}, ED.lv), rows: ED.grid.map(r => r.join('')), tool: ED.tool, undo: ED.undo.length, cell: ED.cell } : null),
+      mine: () => myLevels(), results: () => myResults(), partner: () => PART, loadPartner: () => loadPartner(true), play: playCustom, send: sendLevel, drop: dropLevel,
+      enc: encRows, dec: decRows, hash: hashStr, ok: levelOk, spec: customSpec, wire: customWire, fromWire: customFromWire, MAX: ED_MAX },
     stepFn: (dt) => step(dt), STEP,
     inp(i, o) { TEST_IN[i] = Object.assign({ l: false, r: false, j: false }, o || {}); },
     tp(i, x, y) { const p = G.players[i]; p.x = p.px = x; p.y = p.py = y; p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; },
