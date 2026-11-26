@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.25-81';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.26-82';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2302,7 +2302,7 @@ const App = (() => {
   // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
   // the FIRST clear of each level pays once, so replaying never farms points.
   const TOGETHER = {
-    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 50 关、10 个世界：叠罗汉、按按钮、一起推箱子、大炮、喷火口……都进小屋才算过关', max: 3 },
+    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 50 关、10 个世界，还有越走越难的「♾️ 一直走下去」：叠罗汉、按按钮、一起推箱子、大炮、喷火口……都进小屋才算过关', max: 3 },
     beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3 },
   };
   const _gameDef = (g) => GAMES[g] || TOGETHER[g];
@@ -2592,6 +2592,10 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
           best[id] = { t: ts.length ? Math.min(...ts) : (q.t || r.t), sm: [0, 1, 2].map(k => !!((q.sm || [])[k] || (r.sm || [])[k])), h: Math.max(q.h || 0, r.h || 0) };
         }
         coop = { ...ca, ...cb, unlocked: Math.max(ca.unlocked || 1, cb.unlocked || 1), best };
+        // ♾️ 一直走下去: the farther run (more 段, then more 💗) — whichever phone walked it
+        const ea = ca.endless && ca.endless.d > 0 ? ca.endless : null, eb = cb.endless && cb.endless.d > 0 ? cb.endless : null;
+        const ee = !ea ? eb : !eb ? ea : (eb.d > ea.d || (eb.d === ea.d && (eb.h || 0) > (ea.h || 0))) ? eb : ea;
+        if (ee) coop.endless = ee; else delete coop.endless;
       }
       const paid = {}, mg = {};
       for (const g of new Set([...Object.keys(a.paid || {}), ...Object.keys(b.paid || {})])) paid[g] = [...new Set([...((a.paid || {})[g] || []), ...((b.paid || {})[g] || [])])].filter(x => typeof x === 'string').sort();

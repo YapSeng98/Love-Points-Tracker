@@ -1590,6 +1590,108 @@ const LEVELS = [
     tip: { art: 'boss', title: '最后一关', text: '大乌云只有沉下来的时候才踩得到，可它还是太高：一个人站到另一个人头上再跳。踩三下，就能一起回家看烟花。' } },
 ];
 
+
+/* ══════════════ ♾️ 一直走下去: the endless road (2026-11-26) ══════════════
+   Asked for: 「make it more longer and more challenge … make sure is not short game … new for play」.
+   A run is one 段 after another, each in a different world: stretches of new ground made for this run
+   (genRows), with that world's own puzzle pieces between them and a flag after each puzzle. It gets harder
+   as it goes — more puzzles, wider gaps, more and faster walkers, the storm behind you every 4th 段, the
+   night dark from 段 5 — and the hearts carry over: +1 for each 段 walked, and the run is over when they
+   are gone. A 段 follows from the run's seed and its number, so both phones could build it alone; the host
+   still sends the piece list, and the guest builds exactly that. */
+const GEN_RE = /^g(\d{1,10})_([1-5])(r?)(l?)$/;   // a made stretch: seed, how hard, r = no waiting (the storm 段), l = lanterns
+const E_PAY = [3, 6, 10];   // the first run that gets this far pays +1, like a level's first clear (the day's +3 still applies)
+// A stretch of plain platforming, the same from the same numbers on every phone. Every distance in it is one
+// the game's own numbers allow: gaps of 2–4 (a jump carries ~6), steps up of 1–3 (a jump climbs 4.2), planks
+// two rows up, a raft that comes within half a tile of either edge. It starts and ends on the usual ground.
+// Every pit has three tiles of runway before it and room to land after it, and nothing is waiting where a
+// jump over spikes comes down: a 2-tile ledge straight before a pit, or a gap just past the spikes, killed
+// the play-test bot over and over, and would kill people too. No springs: walking onto one throws you ~8 tiles
+// up and 8 on, so one before a gap was a coin toss (and under the sea it threw you 13, off the screen).
+function genRows(seed, df, run, lamps) {
+  const rng = mulberry(seed), ri = (a, b) => a + Math.floor(rng() * (b - a + 1));
+  const cols = []; let h = 11, hearts = 6;
+  const col = (top) => { const c = { top, at: {} }; cols.push(c); return c; };
+  const flat = (n) => { for (let k = 0; k < n; k++) col(h); };
+  const heart = (c, r) => { if (hearts > 0 && r >= 1 && !c.at[r]) { c.at[r] = 'h'; hearts--; } };
+  const F = {
+    flat() { const n = ri(3, 5), a = cols.length; flat(n); if (rng() < 0.45) for (let k = 1; k < n - 1; k++) heart(cols[a + k], h - 3); },
+    gap() {
+      flat(3);
+      const gw = ri(2, df >= 3 ? 4 : 3), r = rng(); let h2 = h;
+      if (df >= 2 && gw <= 3 && r < 0.25 && h > 8) h2 = h - 1;          // the far side a step higher
+      else if (r > 0.7 && h < 11) h2 = Math.min(11, h + ri(1, 2));       // or lower
+      for (let k = 0; k < gw; k++) { const c = col(null); if (k === Math.floor(gw / 2)) heart(c, Math.min(h, h2) - 3); }
+      h = h2; flat(3);
+    },
+    up() { h = Math.max(7, h - ri(1, df >= 3 ? 3 : 2)); flat(3); },
+    down() { if (h >= 11) return F.flat(); h = Math.min(11, h + ri(1, 3)); flat(3); },
+    plats() {
+      flat(3);
+      // one 3-tile plank in the middle: two 2-tile ones meant stopping dead on a plank and jumping again, too fine for a thumb
+      const pw = ri(6, 7), a = cols.length, row = h - (df >= 3 && rng() < 0.5 ? 3 : 2);
+      for (let k = 0; k < pw; k++) col(null);
+      for (let k = 2; k < 5; k++) cols[a + k].at[row] = '=';
+      heart(cols[a + 3], row - 2);
+      flat(3);
+    },
+    spikes() { flat(2); const sw = ri(1, df >= 2 && !run ? 3 : 2); for (let k = 0; k < sw; k++) { const c = col(h); c.at[h - 1] = '^'; if (k === Math.floor(sw / 2)) heart(c, h - 4); } flat(4); },
+    foe() {
+      const n = ri(6, 8), a = cols.length; flat(n);
+      // with the storm behind you the storm is the danger: only walkers you can stomp, never the spiky chestnut
+      const kinds = run ? 'p' : df >= 3 ? 'pna' : df >= 2 ? 'ppn' : 'p';
+      cols[a + Math.floor(n / 2)].at[h - 1] = kinds[ri(0, kinds.length - 1)];
+      if (df >= 4 && n === 8 && !run) cols[a + n - 2].at[h - 1] = 'p';
+    },
+    gift() { const a = cols.length; flat(5); cols[a + 1].at[h - 4] = 'B'; cols[a + 2].at[h - 4] = df >= 2 && rng() < 0.3 ? 'Q' : 'G'; cols[a + 3].at[h - 4] = 'B'; },
+    raft() { flat(6); const a = cols.length; for (let k = 0; k < 9; k++) col(null); cols[a + 3].at[h - 2] = 'M'; heart(cols[a + 5], h - 5); flat(6); },
+  };
+  const W = { flat: 3, gap: 3, up: 2, down: 2, plats: df >= 2 ? 2 : 1, spikes: df >= 2 && !run ? 2.5 : 1, foe: run ? 1.5 : df >= 2 ? 3 : 2, gift: 1.2, raft: run || df < 2 ? 0 : 1.2 };
+  const want = 24 + df * 2 + ri(0, 4);
+  flat(2);
+  let last = '';
+  while (cols.length < want) {
+    const ks = Object.keys(W).filter(k => W[k] > 0 && (k !== last || k === 'flat'));
+    let r = rng() * ks.reduce((t, k) => t + W[k], 0), k = ks[0];
+    for (const kk of ks) { r -= W[kk]; if (r <= 0) { k = kk; break; } }
+    F[k](); last = k;
+  }
+  while (h < 11) F.down();   // back down to where the next piece starts, with room before it (a raft in the next piece is ITS way across)
+  flat(5);
+  if (lamps) cols.forEach((c, x) => { if (x % 7 === 3 && c.top != null && !c.at[c.top - 1]) c.at[c.top - 1] = 'l'; });
+  return Array.from({ length: 13 }, (_, r) => cols.map(c => c.at[r] || (c.top != null && r >= c.top ? '#' : '.')).join(''));
+}
+// each world's own puzzle pieces (from its levels) for the 段 that world gets; the boss and the storm's run pieces stay out
+const NOT_ENDLESS = new Set(['start', 'goal', 'cp', 'boss', 'R_run1', 'R_run2', 'R_run3']);
+const POOL = WORLDS.map((w, k) => [...new Set(LEVELS.filter(L => L.world === k).flatMap(L => L.seq))].filter(id => !NOT_ENDLESS.has(id)));
+function shuffled(a, seed) { const r = mulberry(seed), b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
+function chunkFor(id) {
+  if (Object.prototype.hasOwnProperty.call(CHUNKS, id)) return CHUNKS[id];
+  const m = GEN_RE.exec(id); if (!m) return null;
+  const rows = genRows(+m[1], +m[2], !!m[3], !!m[4]);
+  return (CHUNKS[id] = { rows, w: rows[0].length, id, gen: true });
+}
+// a 段 from the run: which world, which pieces, how hard
+function endlessSpec(run) {
+  const d = run.d, ws = run.ws && run.ws.length ? run.ws : WORLDS.map((w, k) => k);
+  const order = shuffled(ws, run.rs), wk = order[(d - 1) % order.length], visit = Math.floor((d - 1) / order.length);
+  const rng = mulberry((run.rs ^ Math.imul(d, 2654435761)) >>> 0);
+  const storm = d % 4 === 0, df = Math.min(5, 1 + Math.floor((d - 1) / 2)), dark = WORLDS[wk].key === 'night' && d >= 5;
+  const gid = () => `g${Math.floor(rng() * 1e9)}_${df}${storm ? 'r' : ''}${dark ? 'l' : ''}`;
+  const seq = ['start'];
+  if (storm) { const n = 3 + Math.min(2, Math.floor(d / 8)); for (let k = 0; k < n; k++) { seq.push(gid()); if (k === 1) seq.push('cp'); } }
+  else {
+    const np = d <= 1 ? 1 : d <= 3 ? 2 : 3, pool = shuffled(POOL[wk], (run.rs + wk * 7919) >>> 0);
+    for (let k = 0; k < np; k++) seq.push(gid(), pool[(visit * 3 + k) % pool.length], 'cp');
+    seq.push(gid());
+  }
+  seq.push('goal');
+  return makeESpec(run, wk, seq, storm ? { x0: 2, start: 4, speed: Math.min(2.4, 1.5 + d * 0.05) } : null, dark);
+}
+function makeESpec(run, wk, seq, chase, dark) {
+  return { id: 'E', name: `第 ${run.d} 段`, world: wk, seq, stars: [], endless: run.d, rank: Math.min(49, 15 + run.d * 2), seed: (run.rs + run.d * 7919) >>> 0, chase, dark };
+}
+
 /* ══════════════ the engine ══════════════ */
 const R = 13;
 const PW = 0.78, PH = 1.18;
@@ -1610,6 +1712,7 @@ const G = {
   hp: HP_MAX, hearts: 0, stars: [false, false, false], time: 0, clock: 0, cp: null, bossDown: false, rainbow: 0,
   proj: [], parts: [], fx: [], amb: [], shells: [], sparks: [], cam: { x: 0, z: 1 }, hint: null, wonT: 0, shake: 0,
   save: { unlocked: 1, best: {} },
+  run: null, espec: null, endBest0: 0, segDone: false, segTimer: 0,   // ♾️ the endless run, its current 段, the record it started from
 };
 // one phone, both people (duo/solo), or each on their own phone (online)
 const ONLINE = () => G.mode === 'online';
@@ -1624,13 +1727,14 @@ function makePlayer(idx, sp) {
 }
 
 function buildLevel(i) {
-  const spec = LEVELS[i], world = WORLDS[spec.world];
+  const spec = i >= 0 ? LEVELS[i] : G.espec, world = WORLDS[spec.world];
   const chunks = []; let w = 0;
-  spec.seq.forEach((id, n) => { const ch = CHUNKS[id]; chunks.push({ ch, x0: w, n }); w += ch.w; });
-  const L = { i, spec, world, w, grid: new Uint8Array(w * R), chunkOf: new Int16Array(w), chunks, plates: [], signs: [], decor: [], spawn: [], door: null, cps: [],
+  spec.seq.forEach((id, n) => { const ch = chunkFor(id); chunks.push({ ch, x0: w, n }); w += ch.w; });
+  // rank: how fast the walkers are (by the level's place in the list; the endless road by how far you have got)
+  const L = { i, rank: spec.rank != null ? spec.rank : i, spec, world, w, grid: new Uint8Array(w * R), chunkOf: new Int16Array(w), chunks, plates: [], signs: [], decor: [], spawn: [], door: null, cps: [],
     items: [], enemies: [], movers: [], elevs: [], springs: [], boxes: [], seesaws: [], boss: null, heartsTotal: 0, qCount: 0,
     pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [] };
-  const rng = mulberry(1000 + i * 7919);
+  const rng = mulberry(spec.seed != null ? spec.seed : 1000 + i * 7919);
   for (const c of chunks) {
     for (let x = 0; x < c.ch.w; x++) L.chunkOf[c.x0 + x] = c.n;
     const starOn = spec.stars.includes(c.n);
@@ -1691,8 +1795,10 @@ function marker(L, ch, x, r, c, starOn, rng) {
     case 'H': L.signs.push({ x: cx, y: foot, text: c.ch.sign || '' }); break;
     case 'p': case 'n': case 'a': {
       const ew = ch === 'a' ? 0.84 : 0.9, eh = ch === 'p' ? 0.8 : 0.86;
-      const sp = ch === 'n' ? 1.15 : ch === 'p' ? 1.4 + L.i * 0.03 : 0;
-      L.enemies.push({ type: ch, x: cx - ew / 2, y: foot - eh, w: ew, h: eh, vx: -sp, vy: 0, dead: 0, t: 0.5 + rng() * 0.8, onGround: false, px: 0, py: 0 });
+      const sp = ch === 'n' ? 1.15 : ch === 'p' ? 1.4 + L.rank * 0.03 : 0;
+      L.enemies.push({ type: ch, x: cx - ew / 2, y: foot - eh, w: ew, h: eh, vx: -sp, vy: 0, dead: 0, t: 0.5 + rng() * 0.8, onGround: false, px: 0, py: 0,
+        // walkers from a made stretch stay in it: an alarm clock that hopped after you into a puzzle knocked CS out of a cannon
+        bx0: c.ch.gen ? c.x0 + 0.3 : null, bx1: c.ch.gen ? c.x0 + c.ch.w - 0.3 : null });
       break;
     }
     case 'c': L.enemies.push({ type: 'c', x0: cx, y0: r + 0.4, x: cx - 0.7, y: r, w: 1.4, h: 0.8, dead: 0, t: rng() * 6, drop: 1 + rng(), px: 0, py: 0 }); break;
@@ -2236,6 +2342,7 @@ function updateEnemy(e, dt) {
   if (e.type === 'p' || e.type === 'n') {
     e.vy = Math.min(MAXFALL, e.vy + GRAV * 1.3 * dt);
     if (moveX(e, e.vx * dt, 'enemy')) e.vx = -e.vx;
+    if (e.bx1 != null && ((e.x < e.bx0 && e.vx < 0) || (e.x + e.w > e.bx1 && e.vx > 0))) e.vx = -e.vx;
     const r = moveY(e, e.vy * dt, 'enemy', null);
     e.onGround = !!r.land; if (r.land) e.vy = 0;
     if (e.onGround) {
@@ -2252,10 +2359,12 @@ function updateEnemy(e, dt) {
         let dir = t && Math.abs(t.x - e.x) < 9 ? Math.sign(t.x - e.x) || 1 : (e.vx >= 0 ? -1 : 1);
         const ahead = Math.floor(e.x + e.w / 2 + dir * 1.6), row = Math.floor(e.y + e.h + 0.1);
         if (!solidCell(ahead, row, 'enemy') && !oneWayCell(ahead, row)) dir = -dir;   // no hopping into a pit
-        e.vx = dir * 3; e.vy = -11; e.onGround = false; e.t = 1.05 + (G.L.i % 3) * 0.12;
+        if (e.bx1 != null && (ahead < e.bx0 || ahead > e.bx1)) dir = -dir;              // nor out of its own stretch
+        e.vx = dir * 3; e.vy = -11; e.onGround = false; e.t = 1.05 + (G.L.rank % 3) * 0.12;
       }
     }
     if (moveX(e, e.vx * dt, 'enemy')) e.vx = -e.vx * 0.5;
+    if (e.bx1 != null && ((e.x < e.bx0 && e.vx < 0) || (e.x + e.w > e.bx1 && e.vx > 0))) e.vx = 0;
     const r = moveY(e, e.vy * dt, 'enemy', null);
     e.onGround = !!r.land; if (r.land) e.vy = 0;
   } else if (e.type === 'c') {
@@ -3656,7 +3765,17 @@ html[data-theme="dark"] .cg-lv .st{color:#F2C46B}
 html[data-theme="dark"] .cg-lv .co{color:#FF9CC4}
 .cg-lv[disabled]{opacity:.45;cursor:default}
 .cg-lv.done{background:rgba(255,226,160,.35)}
-.cg-lv:focus-visible,.cg-seg button:focus-visible,.cg-worlds button:focus-visible,.cg-x:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
+.cg-endless{background:linear-gradient(135deg,rgba(255,218,234,.92),rgba(226,216,255,.92));border-color:rgba(224,80,143,.32)}
+html[data-theme="dark"] .cg-endless{background:linear-gradient(135deg,rgba(255,120,170,.16),rgba(150,120,255,.16));border-color:rgba(255,150,200,.25)}
+.cg-erow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cg-etxt{min-width:0}
+.cg-endless h4{margin:2px 0 0;font-size:19px;font-weight:900}
+.cg-new{display:inline-block;margin-left:4px;padding:2px 7px;border-radius:99px;background:#D9467F;color:#fff;font-size:11px;font-weight:800;vertical-align:2px}
+.cg-ego{flex:none;min-height:48px;padding:0 20px;border:0;border-radius:16px;background:linear-gradient(180deg,#F57FB0,#D9467F);color:#fff;font:800 16px/1 sans-serif;font-family:inherit;cursor:pointer;box-shadow:0 8px 16px -8px rgba(220,70,140,.8)}
+.cg-erec{margin:0;font-size:13px;font-weight:800;color:#A8336A;line-height:1.5}
+html[data-theme="dark"] .cg-erec{color:#FF9CC4}
+.cg-esub{font-size:12.5px;margin-top:-4px}
+.cg-ego:focus-visible,.cg-lv:focus-visible,.cg-seg button:focus-visible,.cg-worlds button:focus-visible,.cg-x:focus-visible{outline:3px solid #3F7FC4;outline-offset:2px}
 .cg-stage{position:fixed;inset:0;z-index:160;background:#16132B;color:#fff;display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
 .cg-top2{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 6px) max(10px,env(safe-area-inset-right,0px)) 6px max(10px,env(safe-area-inset-left,0px));font-variant-numeric:tabular-nums;z-index:3}
 .cg-name{font-weight:800;font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3786,6 +3905,7 @@ function buildStage() {
 }
 
 function startLevel(i) {
+  if (i < 0) for (const id in CHUNKS) if (CHUNKS[id].gen && !G.espec.seq.includes(id)) delete CHUNKS[id];   // made stretches of 段 gone by
   G.L = buildLevel(i);
   G.chanOn = new Uint8Array(G.L.chunks.length); G.chanA = new Float32Array(G.L.chunks.length);
   G.crumbs = new Map(); G.bumps = []; G.proj = []; G.parts = []; G.fx = []; G.shells = []; G.sparks = []; G.amb = [];
@@ -3793,12 +3913,14 @@ function startLevel(i) {
   G.players = [makePlayer(0, G.L.spawn[0]), makePlayer(1, G.L.spawn[1])];
   G.cp = { x: G.L.spawn[0].x + PW / 2 + 0.6, y: G.L.spawn[0].y + PH };
   G.cpSnap = null;
-  G.hp = HP_MAX; G.hearts = 0; G.stars = [false, false, false]; G.time = 0; G.clock = 0; G.wt = 0; G.active = 0; G.hold = false;
+  G.hp = i < 0 && G.run ? clamp(G.run.hp, 1, HP_MAX) : HP_MAX; G.hearts = 0; G.stars = [false, false, false]; G.time = 0; G.clock = 0; G.wt = 0; G.active = 0; G.hold = false;
+  G.segDone = false;
   G.failT = 0; G.wonT = 0; G.resultShown = false; G.petPos = null; G.shake = 0; G.paidLine = ''; G.progX = 0; G.stuckT = 0; G.hint = null; G.flash = 0;
   if (ONLINE()) { G.active = G.meIdx; netLevelReset(); }
   V.spr.clear();
   syncHold();
   updateCamera(0, true);
+  if (i < 0) G.fx.push({ kind: 'text', text: `${G.L.world.icon} 第 ${G.L.spec.endless} 段`, x: G.L.spawn[0].x + 2.6, y: G.L.spawn[0].y - 1.1, t: 2.6, max: 2.6, col: '#E0508F' });
 }
 function snapAtCp() { G.cpSnap = { cp: { ...G.cp }, hearts: G.hearts, stars: G.stars.slice(), time: G.time, got: G.L.items.map(it => (it.got ? 1 : 0)).join('') }; }
 function applySnap(snap) {
@@ -3813,6 +3935,7 @@ function applySnap(snap) {
 function restartFrom(useCp) {
   if (ONLINE()) return netRequest(useCp ? 'cp' : 're');
   const snap = useCp ? G.cpSnap : null, i = G.L.i;
+  if (i < 0) endlessAdvance(useCp ? 'cp' : 're');   // the same 段 again, with the hearts you have now
   startLevel(i); applySnap(snap); begin();
 }
 function updateCamera(dt, snap) {
@@ -3865,12 +3988,12 @@ function showPanel(html, onClick) {
   UI.panel.onclick = (e) => { const b = e.target.closest('[data-a]'); if (b) onClick(b.dataset.a); };
   const first = UI.panel.querySelector('button'); if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
 }
-const lvNum = (i) => `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`;
-const lvName = (i) => `${lvNum(i)} ${LEVELS[i].name}`;
+const lvNum = (i) => (i < 0 ? `♾️ ${G.espec ? G.espec.endless : 1}` : `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`);
+const lvName = (i) => (i < 0 ? `♾️ 第 ${G.espec ? G.espec.endless : 1} 段` : `${lvNum(i)} ${LEVELS[i].name}`);
 function tipArt(kind) {
   const c = (k, st = '') => `<span style="display:inline-block;width:58px;${st}">${fullSvg(k, 'happy')}</span>`;
   if (kind === 'stack') return `<div class="tip-art" style="height:118px;position:relative;width:70px;margin:0 auto">${c('cs', 'position:absolute;left:6px;bottom:0')}${c('yy', 'position:absolute;left:6px;bottom:52px')}</div>`;
-  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧' }[kind] || '💞';
+  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧', endless: '♾️' }[kind] || '💞';
   return `<div class="tip-art">${c('cs')}<span style="font-size:34px;align-self:center">${icon}</span>${c('yy')}</div>`;
 }
 function controlsLine() {
@@ -3879,7 +4002,9 @@ function controlsLine() {
   return COARSE ? '左边走，右边跳；「换人」切换角色，「牵手」让两个人一起走。' : '← → 走，空格跳，Q 换人，E 牵手';
 }
 function tipHtml() {
-  const L = G.L, t = L.spec.tip;
+  const L = G.L, t = L.spec.tip, E = L.spec.endless;
+  if (E === 1) return tipArt('endless') + `<h3>一直走下去</h3><p>一段接一段：每段换一个世界，越走越难。每走完一段回 1 颗心（最多 ${HP_MAX} 颗），心用完就结束。看你们能走多远！</p>`;
+  if (E) return `<p>${L.spec.chase ? '⛈️ 暴风雨追来了，一起快跑！' : L.spec.dark ? '🌙 天黑了，靠在一起走' : '一起接着走'} · ❤ ${G.hp} 颗心</p>`;
   return t ? tipArt(t.art) + `<h3>${esc(named(t.title))}</h3><p>${esc(named(t.text))}</p>` : '<p>两个人都进小屋才算过关。路上有 3 颗藏起来的星星。</p>';
 }
 function showIntro() {
@@ -3907,10 +4032,11 @@ function showCountdown() {
 function showPause(fromNet) {
   const who = fromNet ? `${esc(nameOf(other(API.me)))} 按了暂停` : '暂停';
   showPanel(`<h2>${who}</h2><p>${lvName(G.L.i)} · 用时 ${fmtT(G.time)}</p><p style="font-size:13px">${controlsLine()}</p>
-    <div class="pb"><button type="button" data-a="go">继续</button>${G.cpSnap ? '<button type="button" class="alt" data-a="cp">回到旗子</button>' : ''}<button type="button" class="alt" data-a="re">这一关重来</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
-    (a) => { if (a === 'go') togglePause(); else if (a === 'cp') restartFrom(true); else if (a === 're') restartFrom(false); else closeStage(); });
+    <div class="pb"><button type="button" data-a="go">继续</button>${G.cpSnap ? '<button type="button" class="alt" data-a="cp">回到旗子</button>' : ''}<button type="button" class="alt" data-a="re">${G.L.i < 0 ? '这一段重来' : '这一关重来'}</button>${G.L.i < 0 ? '<button type="button" class="alt" data-a="end">结束这一趟</button>' : ''}<button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    (a) => { if (a === 'go') togglePause(); else if (a === 'cp') restartFrom(true); else if (a === 're') restartFrom(false); else if (a === 'end') endlessOver('quit'); else closeStage(); });
 }
 function showFail() {
+  if (G.L.i < 0) return endlessOver('fail');
   G.state = 'fail'; sfx('fall');
   showPanel(`<div class="big">💔</div><h2>爱心用完了</h2><p>没关系，再来一次。${G.cpSnap ? '可以从刚才的旗子那里接着走。' : ''}</p>
     <div class="pb">${G.cpSnap ? '<button type="button" data-a="cp">从旗子那里再来</button>' : ''}<button type="button" ${G.cpSnap ? 'class="alt"' : ''} data-a="re">从头再来</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
@@ -3920,6 +4046,7 @@ function win() {
   if (G.state === 'won' || G.state === 'result') return;
   G.state = 'won'; G.wonT = 0; sfx('win');
   for (const p of G.players) { p.happy = 9; p.vx = 0; }
+  if (G.L.i < 0) { confetti(G.L.door.x, G.L.door.y - 2.5, 40); G.paidLine = ''; return endlessWin(); }
   const i = G.L.i, id = LEVELS[i].id, rec = G.save.best[id] || {}, sm = (rec.sm || [false, false, false]).map((v, k) => v || G.stars[k]);
   G.lastBest = !rec.t || G.time < rec.t;
   G.save.best[id] = { t: G.lastBest ? G.time : rec.t, sm, h: Math.max(rec.h || 0, G.hearts) };
@@ -3937,6 +4064,7 @@ function win() {
   }).catch(() => {});
 }
 function showResult() {
+  if (G.L.i < 0) return showSegment();
   G.state = 'result';
   const i = G.L.i, n = G.stars.filter(Boolean).length, lastLv = i === LEVELS.length - 1;
   const stars = [0, 1, 2].map(k => (G.stars[k] ? '★' : '☆')).join('');
@@ -3951,6 +4079,99 @@ function showResult() {
     });
 }
 const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+
+/* ── ♾️ the endless run: starting, the next 段, the end ── */
+function newRun() {
+  // every world, from the first run: a run kept to the worlds you had reached was 春 段 after 段 on a new phone, the same
+  // dozen puzzles over and over; each puzzle piece has its sign, and your pet repeats it when you are stuck
+  G.endBest0 = (G.save.endless && G.save.endless.d) || 0;
+  return { rs: (1 + Math.floor(Math.random() * 2147483000)) >>> 0, d: 1, hp: HP_MAX, he: 0, t: 0, ws: WORLDS.map((w, k) => k) };
+}
+const nextRun = () => Object.assign({}, G.run, { d: G.run.d + 1, hp: Math.min(HP_MAX, G.hp + 1), he: G.run.he + G.hearts, t: G.run.t + G.time });
+function startEndless() { G.run = newRun(); G.espec = endlessSpec(G.run); openStage(-1); }
+function endlessAgain() {
+  if (ONLINE()) return netRequest('new');
+  G.run = newRun(); G.espec = endlessSpec(G.run); startLevel(-1); showIntro();
+}
+// one phone, or the host: what starts next — the 'next' 段, a 'new' run, or this 段 again ('re' / 'cp') with the hearts as they are now.
+// 'next' goes once per 段: the host's own countdown and the partner's tap can both ask for it
+function endlessAdvance(k) {
+  if (k === 'next') { if (G.segDone || G.state !== 'result') return false; G.segDone = true; G.run = nextRun(); }
+  else if (k === 'new') G.run = newRun();
+  else G.run = Object.assign({}, G.run, { hp: G.hp });
+  G.espec = endlessSpec(G.run);
+  return true;
+}
+function endlessRecord(done, he, t) {
+  const b = G.save.endless;
+  if (done > 0 && (!b || done > b.d || (done === b.d && he > (b.h || 0)))) { G.save.endless = { d: done, h: he, t: Math.round(t * 10) / 10 }; keepSave(); }
+}
+function endlessWin() {
+  const d = G.run.d;
+  endlessRecord(d, G.run.he + G.hearts, G.run.t + G.time);   // kept 段 by 段: a run left halfway still counts
+  if (!E_PAY.includes(d) || !API.pay || G.test) return;
+  API.pay('coop', 'E' + d, `♾️ 一直走下去 · 走完第 ${d} 段`).then((r) => {
+    G.paidLine = r.pts ? `<p class="win">💙 第一次走完 ${d} 段 +${r.pts} 分，记给 ${esc(nameOf(API.me))}</p>` : r.why === 'cap' ? `<p>今天的 +3 分已经拿满，改天再走完第 ${d} 段就有分</p>` : '';
+    if (G.state === 'result') { const el = UI.panel.querySelector('[data-r="pay"]'); if (el) el.innerHTML = G.paidLine; }
+  }).catch(() => {});
+}
+// a 段 walked: say how far, what comes next, and go on by itself in a moment (one phone, or the host's)
+function showSegment() {
+  G.state = 'result';
+  const d = G.run.d, nx = nextRun(), ns = endlessSpec(nx), w = WORLDS[ns.world], host = !ONLINE() || isHost();
+  let n = 4;
+  const label = () => (n > 0 || host ? `继续走 · ${Math.max(0, n)}` : `等 ${nameOf(other(API.me))} 的手机…`);
+  showPanel(`<div class="big">🏡</div><h2>走完第 ${d} 段！</h2>
+    <div class="stats"><div>${d}<small>走完的段</small></div><div>💗 ${nx.he}<small>爱心</small></div><div>${fmtT(nx.t)}<small>用时</small></div></div>
+    <p>${nx.hp > G.hp ? `❤ +1，现在有 ${nx.hp} 颗心` : `❤ ${nx.hp} 颗心，满了`}</p>
+    <p><b>下一段：${w.icon} ${esc(w.name)}</b>${ns.chase ? '<br>⛈️ 暴风雨会追上来，一起快跑！' : ns.dark ? '<br>🌙 天黑了，靠在一起走' : ''}</p>
+    <div data-r="pay">${G.paidLine}</div>
+    <div class="pb"><button type="button" data-a="go" data-r="go">${esc(label())}</button><button type="button" class="alt" data-a="rest">歇一歇</button></div>`,
+    (a) => { if (a === 'go') segGo(); else endlessOver('quit'); });
+  clearInterval(G.segTimer);
+  G.segTimer = setInterval(() => {
+    if (G.state !== 'result' || !G.L || G.L.i >= 0) { clearInterval(G.segTimer); return; }
+    n--; const b = UI.panel.querySelector('[data-r="go"]'); if (b) b.textContent = label();
+    if (n <= 0) { clearInterval(G.segTimer); if (host) segGo(); }
+  }, 1000);
+}
+function segGo() {
+  if (G.state !== 'result') return;
+  clearInterval(G.segTimer);
+  if (ONLINE()) return netRequest('next');
+  if (endlessAdvance('next')) { startLevel(-1); begin(); }
+}
+// the run is over: the hearts ran out, or you stopped. Online, stopping on one phone stops both
+function endlessOver(why, fromNet) {
+  if (!G.L || G.L.i >= 0 || G.state === 'fail' || G.state === 'left') return;
+  clearInterval(G.segTimer);
+  if (why === 'quit' && !fromNet) netEv('over', {});
+  const rested = G.state === 'result' || G.state === 'won';   // between 段: the one just walked counts
+  G.state = 'fail'; sfx(why === 'fail' ? 'fall' : 'click');
+  const done = rested ? G.run.d : G.run.d - 1, he = G.run.he + G.hearts, t = G.run.t + G.time;
+  endlessRecord(done, he, t);
+  const best = (G.save.endless && G.save.endless.d) || 0, nb = done > (G.endBest0 || 0);
+  showPanel(`<div class="big">${why === 'fail' ? '💔' : '🏕️'}</div><h2>${why === 'fail' ? '心用完了' : '歇一歇'}</h2>
+    <p>${done ? `你们一起走完了 <b>${done}</b> 段${nb ? ' · 新纪录！' : ''}` : '第 1 段还没走完，再来一次吧'}</p>
+    <div class="stats"><div>${done}<small>走完的段</small></div><div>💗 ${he}<small>爱心</small></div><div>${fmtT(t)}<small>用时</small></div></div>
+    ${best ? `<p>🏆 最远走完 ${best} 段</p>` : ''}
+    <div class="pb"><button type="button" data-a="again">再走一次</button><button type="button" class="alt" data-a="menu">回到选关</button></div>`,
+    (a) => { if (a === 'again') endlessAgain(); else closeStage(); });
+}
+// two phones: the 段 travels as its numbers and its piece list; a guest builds exactly what it is sent
+function endlessWire() {
+  const r = G.run, sp = G.espec;
+  return { rs: r.rs, d: r.d, hp: r.hp, he: r.he, t: Math.round(r.t * 10) / 10, ws: r.ws, w: sp.world, seq: sp.seq, ch: sp.chase ? [sp.chase.x0, sp.chase.start, sp.chase.speed] : 0, dk: sp.dark ? 1 : 0 };
+}
+function endlessFromWire(e) {
+  if (!e || typeof e !== 'object' || !fin(e.d) || e.d < 1 || e.d > 9999 || !fin(e.w) || e.w < 0 || e.w >= WORLDS.length || !fin(e.rs)) return null;
+  if (!Array.isArray(e.seq) || e.seq.length < 3 || e.seq.length > 24 || e.seq[0] !== 'start' || e.seq[e.seq.length - 1] !== 'goal') return null;
+  if (!e.seq.every(id => typeof id === 'string' && (Object.prototype.hasOwnProperty.call(CHUNKS, id) || GEN_RE.test(id)))) return null;
+  const ws = Array.isArray(e.ws) ? e.ws.filter(k => fin(k) && k >= 0 && k < WORLDS.length).map(k => k | 0).slice(0, WORLDS.length) : [];
+  const run = { rs: e.rs >>> 0, d: e.d | 0, hp: clamp(e.hp | 0, 1, HP_MAX), he: Math.max(0, e.he | 0), t: Math.max(0, +e.t || 0), ws };
+  const ch = Array.isArray(e.ch) && e.ch.length === 3 && e.ch.every(fin) ? { x0: clamp(e.ch[0], 0, 20), start: clamp(e.ch[1], 0, 30), speed: clamp(e.ch[2], 0.5, 4) } : null;
+  return { run, spec: makeESpec(run, e.w | 0, e.seq.slice(), ch, !!e.dk) };
+}
 
 /* ── the loop ── */
 let rafOn = false, last = 0, acc = 0;
@@ -3979,10 +4200,11 @@ function frame(t) {
 }
 let _hudKey = '';
 function hud() {
-  const key = `${G.L.i}|${G.hp}|${G.hearts}|${G.stars.join()}`;
+  const E = G.L.spec.endless || 0, key = `${G.L.i}|${E}|${G.hp}|${G.hearts}|${G.stars.join()}`;
   if (key === _hudKey) return; _hudKey = key;
   const R = UI.R;
-  R('name').textContent = lvName(G.L.i);
+  R('name').textContent = E ? `♾️ 第 ${E} 段 ${G.L.world.icon}` : lvName(G.L.i);
+  vis(R('stars'), !E);   // the endless road has no stars: how far you get is the score
   R('hp').innerHTML = Array.from({ length: HP_MAX }, (_, k) => (k < G.hp ? '♥' : '<span class="off">♥</span>')).join('');
   R('hp').setAttribute('aria-label', `我们的爱心 ${G.hp}/${HP_MAX}`);
   R('hearts').textContent = `💗 ${G.hearts}`;
@@ -4277,6 +4499,7 @@ function renderHome() {
       <p class="cg-line">${petLine}</p>
       <p class="cg-pay">每一关第一次通关 +1 分 · 每天最多 +${pi.max}${pi.paid ? ` · 今天已拿 +${pi.paid}` : ''}</p>
     </div>
+    ${endlessCard()}
     <div class="cg-worlds" role="tablist" aria-label="${WORLDS.length} 个世界">${WORLDS.map((w, k) => {
       let got = 0; for (const i of IN_WORLD[k]) got += ((G.save.best[LEVELS[i].id] || {}).sm || []).filter(Boolean).length;
       return `<button type="button" role="tab" data-w="${k}" aria-selected="${k === menuWorld}">${w.icon} ${w.name.split(' · ')[1]} ⭐${got}</button>`;
@@ -4292,9 +4515,20 @@ function renderHome() {
     <p class="cg-line" style="font-size:12.5px">${G.mode === 'online' ? `各用自己的手机时，${LEVELS.length} 关都能直接选。` : '过了一关才能玩下一关。'}最高纪录和星星记在这部手机上。</p>
   </div>`;
 }
+function endlessCard() {
+  const rec = G.save.endless;
+  return `<div class="cg-card cg-endless">
+      <div class="cg-erow"><div class="cg-etxt"><span class="cg-lab">♾️ 无尽模式</span><h4>一直走下去 <span class="cg-new">新</span></h4></div>
+        <button type="button" class="cg-ego" data-a="endless">${G.mode === 'online' ? '一起出发' : '出发'}</button></div>
+      <p class="cg-line">一段接一段，每段换一个世界，越走越难：坑更宽、怪更多，每 4 段暴风雨追一次。每走完一段回 1 颗心，心用完就结束。</p>
+      <p class="cg-erec">${rec && rec.d ? `🏆 最远走完 <b>${rec.d}</b> 段 · 💗 ${rec.h || 0}` : '🏁 还没走过：看你们能走多远'}</p>
+      <p class="cg-line cg-esub">第一次走完 3 段、6 段、10 段，各 +1 分</p>
+    </div>`;
+}
 function onHomeClick(e) {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.a === 'x') return closeHome();
+  if (b.dataset.a === 'endless') { if (G.mode === 'online') return netPick(-1); artReady.then(() => startEndless()); return; }
   if (b.dataset.mode) { if (b.disabled) return; G.mode = b.dataset.mode; store.set('cg_mode', G.mode); netHome(G.mode === 'online'); renderHome(); return; }
   if (b.dataset.w) { menuWorld = +b.dataset.w; renderHome(); return; }
   if (b.dataset.i && !b.disabled) {
@@ -4314,7 +4548,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 5, DELAY = 110;   // 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
+const NET_V = 6, DELAY = 110;   // 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -4361,29 +4595,39 @@ function netLevelReset() { NET.piAt = 0; NET.off = Infinity; NET.wsnap = null; N
 function netPick(i) {
   const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500;
   if (!peerOn) { if (API.toast) API.toast(`等 ${nameOf(other(API.me))} 也打开「一起回家」`); return; }
+  if (i < 0) { G.run = newRun(); G.espec = endlessSpec(G.run); }   // ♾️ a new run, this phone in charge of it
   netStart(i, null);
 }
 function netStart(i, snap) {
   netFresh();
   NET.n = 1 + Math.floor(Math.random() * 2e9); NET.role = 'host'; NET.goAt = performance.now();
   NET.go = { n: NET.n, lv: i, who: G.meIdx, cp: snap || null }; NET.goSent = NET.goAt;   // resent until the partner's phone answers
+  if (i < 0) NET.go.e = endlessWire();
   netSend('go', NET.go);
   artReady.then(() => openStage(i, { countdown: true, snap }));
 }
 function netGo(m) {
-  if (!fin(m.lv) || m.lv < 0 || m.lv >= LEVELS.length || !fin(m.n) || m.who === G.meIdx) return;
+  const endless = m.lv === -1;
+  if (!fin(m.lv) || !(endless || (m.lv >= 0 && m.lv < LEVELS.length)) || !fin(m.n) || m.who === G.meIdx) return;
   // both picked in the same moment: CS's pick wins, on both phones. (This once also asked for the countdown to be
   // showing — but the stage opens a moment after the pick, so who won depended on timing.)
   if (NET.role === 'host' && performance.now() - NET.goAt < 2000 && G.meIdx === 0) return;
   if (m.n === NET.n) return;
   if (G.mode !== 'online') return;
+  const ew = endless ? endlessFromWire(m.e) : null;
+  if (endless && !ew) return;   // never trust the wire: an unknown piece or a number out of range is dropped
   netFresh();
   NET.n = m.n; NET.role = 'guest'; NET.peerAt = performance.now(); NET.heard = true;
+  if (ew) { if (!G.run || G.run.rs !== ew.run.rs) G.endBest0 = (G.save.endless && G.save.endless.d) || 0; G.run = ew.run; G.espec = ew.spec; }
   artReady.then(() => openStage(m.lv, { countdown: true, snap: m.cp && m.cp.cp ? m.cp : null }));
 }
 // 重来 / 下一关 from either phone; the host's phone actually starts it
 function netRequest(k) {
-  if (isHost()) { const i = G.L.i; return netStart(k === 'next' ? i + 1 : i, k === 'cp' ? G.cpSnap : null); }
+  if (isHost()) {
+    const i = G.L.i;
+    if (i < 0) return endlessAdvance(k) ? netStart(-1, k === 'cp' ? G.cpSnap : null) : undefined;
+    return netStart(k === 'next' ? i + 1 : i, k === 'cp' ? G.cpSnap : null);
+  }
   netSend('rq', { n: NET.n, k }); NET.rq = { k, at: performance.now(), t0: performance.now() };   // resent until the new level starts
   if (UI.panel) { const p = UI.panel.querySelector('.pb'); if (p) p.insertAdjacentHTML('beforebegin', `<p>等 ${esc(nameOf(other(API.me)))} 的手机开始…</p>`); }
 }
@@ -4429,7 +4673,7 @@ function onNet(m) {
     if (!NET.hold.size) NET.holdAt = 0;
     return;
   }
-  if (m.t === 'rq' && isHost() && (m.k === 're' || m.k === 'cp' || m.k === 'next')) return netRequest(m.k);
+  if (m.t === 'rq' && isHost() && (m.k === 're' || m.k === 'cp' || m.k === 'next' || m.k === 'new')) return netRequest(m.k);
 }
 function netAck(ak) { if (fin(ak) && NET.pend.length) NET.pend = NET.pend.filter(e => e.m.q > ak); }
 const GKIND = [null, 'tile', 'player', 'box', 'mover', 'elev', 'seesaw', 'spring'];
@@ -4662,6 +4906,7 @@ function netEvent(m) {
     case 'rain': if (!isHost() && fin(m.x) && fin(m.y) && fin(m.vy)) { const lat = Math.min(0.3, NET.rtt / 2000); G.proj.push({ x: m.x, y: m.y + m.vy * lat + 10 * lat * lat, vy: m.vy + 20 * lat }); } break;
     case 'win': if (!isHost() && (G.state === 'play' || G.state === 'paused')) win(); break;
     case 'fail': if (!isHost() && G.state === 'play') { G.hp = 0; G.state = 'dying'; G.failT = 0.9; } break;
+    case 'over': if (G.L && G.L.i < 0) endlessOver('quit', true); break;
     case 'latch': if (fin(m.ch) && m.ch >= 0 && m.ch < G.L.chunks.length) latchOn(m.ch | 0, true); break;
     case 'pause': if (G.state === 'play') togglePause(true); break;
     case 'resume': if (G.state === 'paused') togglePause(true); break;
@@ -4938,6 +5183,9 @@ window.CoopGames = {
   test: {
     LEVELS, CHUNKS, G, NET, BT,
     start(i, mode = 'duo') { G.mode = mode; if (mode !== 'online') { NET.n = 0; } openStage(i); G.test = true; begin(); },
+    // ♾️ the endless road: a given run and 段 (ws: which worlds; all of them by default)
+    startE(rs, d = 1, mode = 'duo', ws) { G.mode = mode; if (mode !== 'online') NET.n = 0; G.run = { rs: rs >>> 0, d, hp: HP_MAX, he: 0, t: 0, ws: ws || WORLDS.map((w, k) => k) }; G.espec = endlessSpec(G.run); openStage(-1); G.test = true; begin(); },
+    endless: { spec: endlessSpec, genRows, POOL, chunkFor, GEN_RE, wire: endlessWire, fromWire: endlessFromWire, E_PAY },
     stepFn: (dt) => step(dt), STEP,
     inp(i, o) { TEST_IN[i] = Object.assign({ l: false, r: false, j: false }, o || {}); },
     tp(i, x, y) { const p = G.players[i]; p.x = p.px = x; p.y = p.py = y; p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; },

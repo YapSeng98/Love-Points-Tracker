@@ -652,16 +652,20 @@ function stepChunk(n) {
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 window.__botRun = (i, tx) => { go(i, tx); return IN[i]; };
 window.__bot = {
-  play(i, god, mode = 'duo') {
-    C.start(i, mode); C.set('god', !!god); steps = 0; ring.length = 0;
+  // ♾️ one 段 of the endless road (run seed rs, 段 d): the made stretches go to the plain-platforming runner below
+  playE(rs, d, god, mode = 'duo', ws) { C.startE(rs, d, mode, ws); return this.run(god, `E${d}`); },
+  play(i, god, mode = 'duo') { C.start(i, mode); return this.run(god, i + 1); },
+  run(god, label) {
+    const i = label;
+    C.set('god', !!god); steps = 0; ring.length = 0;
     for (let n = 1; n < G.L.chunks.length; n++) {
       const r = stepChunk(n);
       if (G.state === 'won' || G.state === 'result') break;
-      if (r !== true) return { ok: false, level: i + 1, chunk: G.L.chunks[n].ch.id, why: r === false ? 'timeout' : r, state: G.state, hp: G.hp, steps,
+      if (r !== true) return { ok: false, level: i, chunk: G.L.chunks[n].ch.id, why: r === false ? 'timeout' : r, state: G.state, hp: G.hp, steps,
         p: G.players.map(p => [+p.x.toFixed(2), +p.y.toFixed(2), p.grounded, p.dead > 0, p.ground && p.ground.kind]), x0: G.L.chunks[n].x0, trace: ring.slice() };
     }
     until(() => G.state === 'won', () => { IN[0] = {}; IN[1] = {}; }, 300);
-    return { ok: G.state === 'won', level: i + 1, hp: G.hp, hearts: G.hearts, stars: G.stars.filter(Boolean).length, time: +G.time.toFixed(1), steps };
+    return { ok: G.state === 'won', level: i, hp: G.hp, hearts: G.hearts, stars: G.stars.filter(Boolean).length, time: +G.time.toFixed(1), steps };
   },
 };
 })();
