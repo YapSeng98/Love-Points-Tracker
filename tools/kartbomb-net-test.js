@@ -106,6 +106,15 @@ async function drawGap(A, B, ms) {
     await click(B, '[data-m="no"]');
     ok(await until(async () => /这次不比/.test(await panelH(A)), 5000), 'YY says 不比了: CS\'s phone hears it');
     await click(A, '[data-m="ok"]');
+    // the ✕ in the corner of the question is a 不比了 too
+    await A.f.click('[data-play="kart:net"]'); await click(A, '[data-m="go"]');
+    await until(async () => /想和你比/.test(await panelH(B)), 6000);
+    await click(B, '.pclose');
+    ok(await until(async () => /这次不比/.test(await panelH(A)), 5000) && !(await E(B, () => !!__kb.game)), 'the ✕ in the corner of YY\'s question says 不比了 too, and closes it');
+    await click(A, '[data-m="ok"]');
+    // and CS can leave the card before asking: nothing reaches YY
+    await A.f.click('[data-play="kart:net"]'); await A.f.waitForSelector('#msg:not([hidden]) .pclose'); await A.f.click('#msg .pclose'); await sleep(1200);
+    ok(!(await E(A, () => !!__kb.game)) && !(await panelH(B)), 'CS taps ✕ on the start card before asking: back to the menu, and YY\'s phone is never asked');
     // and then yes
     ok(await startKart(A, B), 'asked again, YY says 出发: the race starts on both phones');
     const same = await Promise.all([A, B].map((X) => E(X, () => { const G = __kb.game; return { place: G.def.id, cls: G.title, trip: G.trip && G.trip.opts.map((t) => t.id).join(), net: G.net && G.net.role, karts: G.karts.map((k) => `${k.k}:${k.human ? 'me' : k.remote ? 'remote' : 'ai'}`).join() }; })));
@@ -115,6 +124,9 @@ async function drawGap(A, B, ms) {
     ok((await E(A, () => document.getElementById('msg').hidden)) && (await E(B, () => document.getElementById('msg').hidden)), 'nothing is left over the race on either phone (the waiting card, the question)');
 
     console.log('\nK2. Seeing each other drive');
+    // apart, so this measures the drawing and not a bump (each phone pushes only its own kart, off a copy a moment old)
+    const ci = await E(A, () => __kb.game.karts.find((k) => k.human).idx);
+    await E(B, (ci) => { const G = __kb.game, me = G.karts.find((k) => k.human), i = (ci + 30) % G.T.N, s = G.T.S[i]; Object.assign(me, { x: s.x, y: s.y, h: s.ang, idx: i, v: 12, vx: 0, vy: 0 }); }, ci);
     await autopilot(A, true); await autopilot(B, true); await sleep(1000);
     const g = await drawGap(A, B, 5000);
     await autopilot(A, false); await autopilot(B, false);
@@ -124,12 +136,14 @@ async function drawGap(A, B, ms) {
 
     console.log('\nK3. A 布丁 and a 小雨云 cross over');
     await E(A, () => {   // CS well ahead of the pack (a 布丁 dropped in a pack is driven over at once), then the 布丁
-      const G = __kb.game, me = G.karts.find((k) => k.human), i = (me.idx + 70) % G.T.N, s = G.T.S[i];
+      const G = __kb.game, me = G.karts.find((k) => k.human), mm = G.karts.find((k) => k.k === 'mm'), i0 = me.idx, i = (i0 + 70) % G.T.N, s = G.T.S[i], j = (i0 + G.T.N - 10) % G.T.N, b = G.T.S[j];
+      Object.assign(mm, { x: b.x, y: b.y, h: b.ang, idx: j, v: 0, vx: 0, vy: 0 });   // 闷闷 (driven on CS's phone) well behind, so it can't get there first
       Object.assign(me, { x: s.x, y: s.y, h: s.ang, idx: i, v: 6, vx: 0, vy: 0, item: 'pudding', roll: 0, rescue: 0, spin: 0, air: false }); __kb.IN.cs.itemHit = 1;
     });
     // the moment it shows on YY's phone, YY drives onto it (闷闷, close behind on CS's phone, would otherwise get there first)
     let pb = null;
-    const pud = await until(async () => { pb = await E(B, () => { const p = __kb.game.puddles.find((q) => /^cs/.test(q.id)); if (!p) return null; const me = __kb.game.karts.find((k) => k.human); Object.assign(me, { x: p.x, y: p.y, spin: 0, air: false, rescue: 0, shield: 0, rainbow: 0 }); return [[p.id, p.x, p.y]]; }); return !!pb; }, 3000, 20);
+    // (moved with its place along the track too: a kart put down far from where the track thinks it is gets pushed back by the wall)
+    const pud = await until(async () => { pb = await E(B, () => { const G = __kb.game, p = G.puddles.find((q) => /^cs/.test(q.id)); if (!p) return null; const me = G.karts.find((k) => k.human); let bi = 0, bd = 1e9; G.T.S.forEach((q, i) => { const d = (q.x - p.x) ** 2 + (q.y - p.y) ** 2; if (d < bd) { bd = d; bi = i; } }); Object.assign(me, { x: p.x, y: p.y, idx: bi, spin: 0, air: false, rescue: 0, shield: 0, rainbow: 0 }); return [[p.id, p.x, p.y]]; }); return !!pb; }, 3000, 20);
     const pa = await E(A, () => __kb.game.puddles.filter((p) => /^cs/.test(p.id)).map((p) => [p.id, p.x, p.y]).concat(__kb.game.pudSeen || []));
     ok(pud && pb && (pa.length === 0 || JSON.stringify(pa[0]) === JSON.stringify(pb[0])), `CS drops a 布丁: it lands in the same place on YY's phone (${JSON.stringify(pb)})`);
     const spun = await until(async () => (await E(B, () => __kb.game.karts.find((k) => k.human).spin)) > 0, 2000);
@@ -142,14 +156,16 @@ async function drawGap(A, B, ms) {
     ok(rained, 'YY sends a 小雨云 at CS ahead: it rains on CS, on CS\'s phone');
 
     console.log('\nK4. Over the line: the same order on both, each paid on their own phone');
-    const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[G.T.N - 2]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, rescue: 0, spin: 0 }); });
+    const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[3]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, h: s.ang, rescue: 0, spin: 0, air: false }); });   // just past the line, its place on the track still just before it: the next frame counts the crossing (whichever way it was pointing)
     await finish(A);
     ok(await until(async () => (await E(B, () => __kb.game.karts.find((k) => k.k === 'cs').done)), 4000), 'CS crosses the line: YY\'s phone knows, with CS\'s time');
     ok(await until(async () => /等 YY 到终点/.test(await E(A, () => __kb.game.karts.find((k) => k.human).msg || '')), 3000), '…and CS\'s phone waits for YY: 「等 YY 到终点…」');
     await finish(B);
     const endA = await until(async () => !!(await E(A, () => __kb.game.shown)), 8000), endB = await until(async () => !!(await E(B, () => __kb.game.shown)), 8000);
     const res = await Promise.all([A, B].map((X) => E(X, () => ({ h: document.querySelector('#msg .panel h2').textContent, rows: [...document.querySelectorAll('#msg .rows div span:first-child')].map((x) => x.textContent).join(' ') }))));
-    ok(endA && endB && res[0].h === res[1].h && res[0].rows === res[1].rows, `both phones show the same end card: 「${res[0].h}」 ${res[0].rows}`);
+    const sameCard = endA && endB && res[0].h === res[1].h && res[0].rows === res[1].rows;
+    if (!sameCard) console.log('    net A', JSON.stringify(await E(A, () => { const N = __kb.NET; return { rx: N.rx, tx: N.tx, hold: [...N.hold.keys()], pend: N.pend.map((x) => x.m.q + x.m.e), yy: __kb.game.karts.find((k) => k.k === 'yy').done }; })), 'net B', JSON.stringify(await E(B, () => { const N = __kb.NET; return { rx: N.rx, tx: N.tx, hold: [...N.hold.keys()], pend: N.pend.map((x) => x.m.q + x.m.e) }; })));
+    ok(sameCard, `both phones show the same end card: 「${res[0].h}」 ${res[0].rows}${sameCard ? '' : ` ✗ ended ${endA}/${endB}; YY's card 「${res[1].h}」 ${res[1].rows}`}`);
     const pays = await Promise.all([A, B].map((X) => harness(X, () => __harness.log.filter((l) => l[0] === 'pay').map((l) => l.slice(1).join(':')))));
     const winner = /CS/.test(res[0].h) ? 'A' : /YY/.test(res[0].h) ? 'B' : 'mm';
     ok(winner === 'A' ? pays[0].length === 1 && !pays[1].length : winner === 'B' ? pays[1].length === 1 && !pays[0].length : !pays[0].length && !pays[1].length, `only the winner's own phone pays, once (CS ${JSON.stringify(pays[0])} · YY ${JSON.stringify(pays[1])})`);
@@ -310,7 +326,7 @@ async function drawGap(A, B, ms) {
     ok(rate.every((r) => r <= 10), `messages a second while racing: CS ${rate[0].toFixed(1)}, YY ${rate[1].toFixed(1)} (≤ 10; each is billed twice)`);
     // a lost line for 3 seconds: the finish still arrives
     await harness(B, () => __harness.goDown(3000));
-    const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[G.T.N - 2]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, rescue: 0, spin: 0 }); });
+    const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[3]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, h: s.ang, rescue: 0, spin: 0, air: false }); });   // just past the line, its place on the track still just before it: the next frame counts the crossing (whichever way it was pointing)
     await finish(B);
     ok(await until(async () => (await E(A, () => __kb.game.karts.find((k) => k.k === 'yy').done)), 9000), 'YY crosses the line while their line is down: CS\'s phone hears it when it comes back');
     await ctx.close();

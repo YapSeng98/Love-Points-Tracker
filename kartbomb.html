@@ -57,6 +57,8 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .peer.on { color: var(--pink-ink); }
 .peer.on::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3DBE7A; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 3px rgba(61, 190, 122, .2); }
 .panel .netnote { font-size: 13px; color: #5A5170; }
+.panel .pclose { position: sticky; top: -8px; align-self: flex-end; flex: none; width: 44px; height: 44px; margin: -10px -10px -44px 0; border: 0; border-radius: 50%; background: rgba(44, 37, 64, .09); color: #2C2540; font: inherit; font-size: 18px; font-weight: 900; cursor: pointer; z-index: 2; box-shadow: 0 2px 8px rgba(44, 37, 64, .08); }
+.panel .pclose:hover { background: rgba(44, 37, 64, .15); }
 .note { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px 18px; font-size: 14.5px; line-height: 1.7; color: var(--sub); }
 .note h3 { margin: 0 0 6px; font-size: 16px; color: var(--ink); }
 .note ul { margin: 0; padding-left: 1.2em; }
@@ -2461,7 +2463,8 @@ function makeKart(opts) {
       const inv = net && net.invite, cupTxt = cup ? `${CUPS[cup.set || 'sakura'].name} · 第 ${cup.i + 1} 站 · ` : '';
       const head = inv ? `<div class="big">🤝</div><h2>${esc(NAME[inv.by])} 想和你比一场</h2><p><b>${def.icon} ${cupTxt}${def.name}</b> · ${CLASSES[opts.cls || KSET.cls].name}。各用自己的手机，每人一整个屏幕。</p><p>${def.what}</p>`
         : `<div class="big">${tt ? '👻' : def.icon}</div><h2>${net ? '🤝 ' : ''}${tt ? '影子赛 · ' : cupTxt}${def.name}</h2><p>${tt ? ttText : def.what}</p>${net ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机比：你选好赛道，TA 的手机上会问要不要一起。</p>` : ''}`;
-      panel(`${head}
+      const xb = `<button type="button" class="pclose" data-m="${inv ? 'no' : 'back'}" aria-label="${inv ? '不比了' : '返回'}">✕</button>`;   // a way out, always in sight
+      panel(`${xb}${head}
         <div class="opts">
           ${inv ? '' : tt ? (gm && gp ? `<div class="opt"><b>影子</b><div class="seg3"><button type="button" data-o="ghost:partner" aria-pressed="${G.ghost && G.ghost.who === other}">${pn} 的</button><button type="button" data-o="ghost:me" aria-pressed="${G.ghost && G.ghost.who === ME.k}">自己的</button></div></div>` : '') : `<div class="opt"><b>难度</b><div class="seg3">${seg('easy', '轻松')}${seg('normal', '普通')}${seg('hard', '挑战')}</div></div>`}
           <div class="opt"><b>辅助转向</b><button type="button" class="tog" data-o="assist" aria-pressed="${KSET.assist}">${KSET.assist ? '开' : '关'}</button><small>快冲出路边时帮你拉回来</small></div>
@@ -2472,10 +2475,11 @@ function makeKart(opts) {
         </div>
         ${humans.length === 2 && COARSE ? `<p style="font-size:13px">${H > W ? '竖着拿：手机平放在桌上，<b>面对面</b>玩——CS 坐上边，YY 坐下边。横过来就是左右分屏。' : '横着拿：左边是 CS，右边是 YY。竖起来平放在桌上，就能面对面玩。'}</p>` : ''}
         <ul class="tips">${tt ? '' : '<li>第一圈快到终点时有两道<b>季节门</b>：跑在最前面的人开过哪一道，第二圈就去哪里跑</li>'}<li>数到 <b>1</b> 时按住<b>漂移</b> → 起步冲刺</li><li>转弯按住漂移（或开着<b>自动漂移</b>），火花变<b>粉色</b>再松开</li><li>紧跟在别人后面一会儿 → <b>跟风加速</b></li><li>路上的 💗 越吃越快（最多 10 个）</li></ul>
-        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不比了</button><button type="button" data-m="go">出发！</button>' : `${cup || tt ? '' : `<button type="button" class="alt" data-m="cup">${CUPS[cupOf(def.id)].icon} ${CUPS[cupOf(def.id)].name}<br><small>${CUPS[cupOf(def.id)].ids.length} 条连着比</small></button>`}<button type="button" class="${cup || tt ? 'wide' : ''}" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
+        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不比了</button><button type="button" data-m="go">出发！</button>' : `${cup || tt ? '' : `<button type="button" class="alt" data-m="cup">${CUPS[cupOf(def.id)].icon} ${CUPS[cupOf(def.id)].name}<br><small>${CUPS[cupOf(def.id)].ids.length} 条连着比</small></button>`}<button type="button" class="${cup || tt ? 'wide' : ''}" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button><button type="button" class="alt wide" data-m="back">返回</button>`}</div>`,
         (m) => {
           if (m === 'cup') { const set = cupOf(def.id); openGame('kart', Object.assign({}, opts, { place: CUPS[set].ids[0], cup: { i: 0, pts: {}, set }, skipCard: false })); return; }
           if (m === 'no') { netDecline(); closeGame(); return; }
+          if (m === 'back') { closeGame(); return; }   // a way out before anything starts
           const askTilt = () => { if (G.ctl() === 'tilt' && Tilt.state !== 'on') Tilt.start().then((ok) => {   // asked inside this tap; if the phone won't say, buttons it is
             if (ok || game !== G) return; KSET.ctl = 'btn'; store.set('kb_kset', KSET); G.buildPad(); bindPad();
             const me = G.karts.find((q) => q.human); me.msg = '读不到手机的倾斜，先用按钮'; me.msgT = 3;
@@ -3716,14 +3720,15 @@ function makeBomb(opts) {
     const picker = () => humans.map((h) => `<div class="pp"><b>${humans.length === 2 ? `${NAME[h]} 带谁去？` : '带一只宠物去'}</b><div class="pps" role="group" aria-label="${NAME[h]} 的宠物">${PET_IDS.map((id) => `<button type="button" data-pet="${h}:${id}" aria-pressed="${sel[h] === id}"><img src="${IMG['pet_' + id].src}" alt=""><span>${PETS[id].kind}</span></button>`).join('')}</div><p class="ppd">${PETS[sel[h]].icon} <b>${PETS[sel[h]].name} · ${PETS[sel[h]].skill}</b>：${PETS[sel[h]].does}</p></div>`).join('');
     const draw = () => {
       const inv = net && net.invite;
-      panel(`<div class="big">${inv ? '🤝' : PL.icon}</div><h2>${inv ? `${esc(NAME[inv.by])} 想和你${coop ? '一起闯' : '对战'} · ${PL.icon} ${PL.name}` : `${net ? '🤝 ' : ''}${coop ? `第 ${PLACES.indexOf(PL) + 1} 关 · ${PL.name}` : `对战 · ${PL.name}`}`}</h2>${net && !inv ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机：你选好地方，TA 的手机上会问要不要一起。</p>` : ''}<p>${coop ? PL.tip : '三颗心，自己的烟花也会炸到自己。先赢两局的人获胜。'}</p>
+      panel(`<button type="button" class="pclose" data-m="${inv ? 'no' : 'back'}" aria-label="${inv ? '不玩了' : '返回'}">✕</button><div class="big">${inv ? '🤝' : PL.icon}</div><h2>${inv ? `${esc(NAME[inv.by])} 想和你${coop ? '一起闯' : '对战'} · ${PL.icon} ${PL.name}` : `${net ? '🤝 ' : ''}${coop ? `第 ${PLACES.indexOf(PL) + 1} 关 · ${PL.name}` : `对战 · ${PL.name}`}`}</h2>${net && !inv ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机：你选好地方，TA 的手机上会问要不要一起。</p>` : ''}<p>${coop ? PL.tip : '三颗心，自己的烟花也会炸到自己。先赢两局的人获胜。'}</p>
         ${coop ? `<p style="font-size:13px">每关还藏着 <b>3 张照片 📷</b>；两个人的烟花同时炸开是一次 <b>💞 默契</b>，会放出爱心烟花，宠物技能也马上准备好。${ai ? `<br>这次 <b>${NAME[ai.k]}</b> 由电脑陪你一起，带着${PETS[ai.pet].kind}。` : ''}</p>` : ''}
         ${picker()}
         ${COARSE ? `<div class="opts"><div class="opt"><b>走路</b><div class="seg3"><button type="button" data-w="dpad" aria-pressed="${BSET.walk !== 'stick'}">方向键</button><button type="button" data-w="stick" aria-pressed="${BSET.walk === 'stick'}">摇杆</button></div></div></div>` : ''}
         <p style="font-size:12.5px">${COARSE ? (BSET.walk === 'stick' ? '按住左边随便哪里拖动就能走' : '按住方向键走，手指可以直接滑到别的方向') + '；💥 放烟花，宠物按钮放技能。' : 'CS：W A S D 走、空格放烟花、E 宠物技能；YY：方向键走、Enter 放烟花、句号 . 宠物技能。P 暂停。'}</p>
-        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不玩了</button><button type="button" data-m="go">出发！</button>' : `<button type="button" class="wide" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
+        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不玩了</button><button type="button" data-m="go">出发！</button>' : `<button type="button" class="alt" data-m="back">返回</button><button type="button" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
         (m) => {
           if (m === 'no') { netDecline(); closeGame(); return; }
+          if (m === 'back') { closeGame(); return; }   // a way out before anything starts
           for (const p of G.players) if (p.human) p.pet = sel[p.k];
           if (ai && humans.length === 1 && ai.pet === sel[humans[0]]) ai.pet = PET_IDS.find((x) => x !== sel[humans[0]]);
           store.set('kb_pets', Object.assign(store.get('kb_pets', {}), sel));

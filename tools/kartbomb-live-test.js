@@ -95,7 +95,7 @@ async function drawGap(A, B, ms) {   // each phone's copy of the other's kart ag
   ok(rate.every((r) => r <= 10), `messages a second while racing: A1 ${rate[0].toFixed(1)}, B2 ${rate[1].toFixed(1)} (≤ 10; Supabase bills each twice)`);
 
   console.log('\n3. Over the line: one end card, and only the winner is paid');
-  const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[G.T.N - 2]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, rescue: 0, spin: 0 }); });
+  const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[3]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, h: s.ang, rescue: 0, spin: 0, air: false }); });   // just past the line, its place on the track still just before it: the next frame counts the crossing (whichever way it was pointing)
   await finish(A); await sleep(1500); await finish(B);
   const ended = await until(async () => !!(await E(A, () => __kb.game.shown)) && !!(await E(B, () => __kb.game.shown)), 15000);
   const cards = await Promise.all([A, B].map((X) => E(X, () => document.querySelector('#msg .panel h2').textContent + ' | ' + [...document.querySelectorAll('#msg .rows div span:first-child')].map((x) => x.textContent).join(' '))));

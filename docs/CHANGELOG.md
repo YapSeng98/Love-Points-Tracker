@@ -12,6 +12,13 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-28 (later) — 卡丁车 / 烟花炸弹: a way out of every start card
+
+Every card you see before a race or a maze starts now has a ✕ in its top corner — it
+stays in sight even when the card is long enough to scroll — and a 返回 button at the
+bottom. On your partner's 「…想和你比一场」 question the ✕ means 不比了, and their phone
+is told.
+
 ## 2026-11-28 — 🤝 卡丁车 and 烟花炸弹 on two phones
 
 Both games can now be played each on your own phone. When your partner has the same

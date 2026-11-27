@@ -1,6 +1,6 @@
 // 🏎️ 卡丁车 and 💣 烟花炸弹 (kartbomb.html, CLAUDE.md §7.37): the game page on its own, the full suite.
 // The app around it (opening from 小游戏, the points, the records): tools/kartbomb-app-test.js.
-//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb ui layout perf motion webkit)
+//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb exit ui layout perf motion webkit)
 const { chromium, webkit } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const fs = require('fs'), path = require('path');
 const URL = process.env.KB_URL || 'file://' + path.join(__dirname, '..', 'kartbomb.html');
@@ -954,6 +954,53 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     await m.screenshot({ path: SHOTS + '/t_e2eb_phone.png' });
     ok(!m.errs.length, 'no page errors ' + m.errs.join(' | '));
     await m.context().close();
+  }
+
+  if (want('exit')) {
+    console.log('\nX. A way out before anything starts: every card before a race or a maze has a button that goes back (tapped, not Esc), and the ✕ works during the countdown');
+    const p = await page(browser);
+    const shown = () => p.evaluate(() => ({ game: !!__kb.game, play: !document.getElementById('play').hidden, msg: !document.getElementById('msg').hidden }));
+    // a card's way out: a ✕ in its corner, in sight and tappable even after scrolling a long card to its end, and 返回 at the bottom
+    const backOut = async (label) => {
+      const st0 = await p.evaluate(() => {
+        const x = document.querySelector('#msg .pclose'), pn = document.querySelector('#msg .panel');
+        const vis = (el) => { const r = el.getBoundingClientRect(); return r.width >= 40 && r.height >= 40 && r.top >= 0 && r.bottom <= innerHeight + 1 && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === el; };
+        const top = !!x && vis(x); pn.scrollTop = pn.scrollHeight; const end = !!x && vis(x);
+        const bottom = [...document.querySelectorAll('#msg [data-m="back"]')].some((b) => b !== x && /返回/.test(b.textContent));
+        return { top, end, bottom, tall: pn.scrollHeight > pn.clientHeight + 4 };
+      });
+      await p.tap('#msg .pclose'); await sleep(250);
+      const st = await shown();
+      ok(st0.top && st0.end && st0.bottom && !st.game && !st.play, `${label}: a ✕ in the corner${st0.tall ? ' (still in sight with the card scrolled to its end)' : ''} and 返回 at the bottom; the ✕ goes back to the menu`);
+    };
+    const kartCard = async (play) => { await p.evaluate(() => { __kb.close(); }); await p.tap(`[data-play="${play}"]`); await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); };
+    for (const [play, label] of [['kart:1p', '卡丁车 · 一个人'], ['kart:2p', '卡丁车 · 两个人'], ['kart:tt', '卡丁车 · 影子赛']]) { await kartCard(play); await backOut(label); }
+    await kartCard('kart:1p'); await p.tap('#msg [data-m="cup"]'); await p.waitForSelector('#msg:not([hidden]) [data-m="go"]');
+    ok(/杯/.test(await p.evaluate(() => document.querySelector('#msg .panel h2').textContent)), 'the cup\'s start card'); await backOut('卡丁车 · 樱花杯');
+    for (const [mode, n, label] of [['coop', '1', '烟花炸弹 · 一起闯关 · 一个人'], ['coop', '2', '…两个人'], ['vs', '1', '烟花炸弹 · 对战 · 和电脑'], ['vs', '2', '…两个人']]) {
+      await p.evaluate(() => { __kb.close(); }); await p.tap(`[data-play="bomb:${mode}"]`); await p.waitForSelector('#msg:not([hidden]) [data-m="0"]');
+      if (n === '1' && mode === 'coop') { const vis = await p.evaluate(() => { const b = document.querySelector('#msg [data-m="0"]'), r = b.getBoundingClientRect(); return r.bottom <= innerHeight && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b; }); await p.tap('#msg [data-m="0"]'); await sleep(250); ok(vis && !(await shown()).game, '烟花炸弹 · the one-or-two card: 返回 is in sight and goes back'); }
+      await p.evaluate(() => { __kb.close(); }); await p.tap(`[data-play="bomb:${mode}"]`); await p.waitForSelector(`#msg:not([hidden]) [data-m="${n}"]`); await p.tap(`#msg [data-m="${n}"]`);
+      await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await backOut(label);
+    }
+    // the countdown: the ✕ at the top is there and closes it
+    await kartCard('kart:1p'); await p.tap('#msg [data-m="go"]'); await sleep(300);
+    const counting = await p.evaluate(() => __kb.game && __kb.game.state === 'count');
+    const x = await p.evaluate(() => { const b = document.getElementById('xbtn'), r = b.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b && r.width >= 40; });
+    await p.tap('#xbtn'); await sleep(250);
+    ok(counting && x && !(await shown()).game, 'counting down 3-2-1: the ✕ at the top can be tapped, and it goes back');
+    await p.evaluate(() => { __kb.close(); }); await p.tap('[data-play="bomb:coop"]'); await p.waitForSelector('#msg:not([hidden]) [data-m="1"]'); await p.tap('#msg [data-m="1"]'); await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.tap('#msg [data-m="go"]'); await sleep(300);
+    await p.tap('#xbtn'); await sleep(250);
+    ok(!(await shown()).game, 'a maze just starting: the ✕ goes back too');
+    ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
+    await p.context().close();
+    // the same on a phone held sideways (the cards are shorter there)
+    const q = await page(browser, { viewport: { width: 844, height: 390 } });
+    await q.tap('[data-play="kart:1p"]'); await q.waitForSelector('#msg:not([hidden]) [data-m="back"]');
+    const side = await q.evaluate(() => { const b = document.querySelector('#msg .pclose'), r = b.getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0 && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b; });
+    await q.tap('#msg .pclose'); await sleep(250);
+    ok(side && !(await q.evaluate(() => !!__kb.game)), 'on a phone held sideways (a short card that scrolls), the ✕ is in sight and works');
+    await q.context().close();
   }
 
   if (want('ui')) {
