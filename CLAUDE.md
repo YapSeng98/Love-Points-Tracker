@@ -1987,6 +1987,19 @@ are not built (the try-out's 「放进 app 以后」 promised it; still owed).
   out and says to play it in the app. Anywhere else a tilt start that gets nothing
   (a laptop, a refused iPhone prompt) falls back to 按钮 and says this device gave
   none (`TILT_WHY`) — the first version told an in-app laptop to "play it in the app".
+- **Which way is right comes from the phone, not the screen.** Reported from an iPhone the
+  day it shipped: 「can turn right only, can't turn left」. Tilt read the sideways lean
+  along the axis the *screen* said was across — and held sideways with the screen
+  still upright (rotation lock, which most iPhones have on; or a screen reporting the
+  wrong way round) that axis is the one a wheel turn changes as a cosine: both
+  directions read as "right" (top on the left) or both as "left". `Tilt.center()` now
+  takes down across the phone's own face as it is held (during the countdown, or a tap
+  on the wheel) and right as a quarter turn from it; the screen's angle is used only
+  when the phone lies nearly flat. kartbomb-test U3 puts it through real holds — gravity
+  from how the phone is held, turned into the beta / gamma it would report — sideways
+  both ways with the screen turned or not, the screen saying the wrong way, upright,
+  almost flat. The old test set the screen angle to match the hold, so it could never
+  see this (§7.15's lesson again: a test that shares the code's assumption proves nothing).
 - **`window.__kbHost`** — `{ me, names, pay(game, key, detail), sync(), close() }`,
   set by `openKB()` and cleared by `closeKB()`. `me` is `_me()` (§6): the game never
   asks 「我是 CS/YY」 (`.who` hidden) and drives the holder's kart. `names` are the

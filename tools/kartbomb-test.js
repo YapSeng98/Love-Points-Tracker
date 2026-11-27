@@ -394,6 +394,25 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     const side = await p.evaluate(() => { const T = __kb.Tilt, a0 = T.angle; T.angle = () => 90; const fire = (b, gm) => { for (let i = 0; i < 14; i++) window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 0, beta: b, gamma: gm })); };
       fire(0, -60); T.center(); fire(25, -60); const r = T.steer(); fire(-25, -60); const l = T.steer(); T.angle = a0; return [r, l]; });
     ok(side[0] > 0.6 && side[1] < -0.6, `on its side, turning it like a wheel still steers the right way (${side.map((x) => x.toFixed(2)).join(', ')})`);
+    // reported 2026-11-27 from an iPhone: 「can turn right only, can't turn left」. Held sideways while the screen stays upright
+    // (rotation lock — or a screen that reports the wrong way), turning either way read as a turn to the right. The phone is
+    // put through real holds here: gravity worked out from how it is held, then turned into the beta / gamma it would report
+    const wheel = await p.evaluate(() => {
+      const T = __kb.Tilt, a0 = T.angle, out = {}, D = Math.PI / 180;
+      const toBG = (gx, gy, gz) => { const s = -gz >= 0 ? 1 : -1, c = s * Math.hypot(gx, gz); return [Math.atan2(-gy, c) / D, Math.abs(c) < 1e-6 ? (gx >= 0 ? 90 : -90) : Math.atan2(gx / c, -gz / c) / D]; };
+      // psi: 0 upright, 90 turned so its top is on the left, -90 top on the right; theta: how far it is turned like a wheel (+ = right)
+      const hold = (psi, theta, lean = 15) => { const r = (theta - psi) * D, [b, g] = toBG(Math.cos(lean * D) * Math.sin(r), -Math.cos(lean * D) * Math.cos(r), -Math.sin(lean * D)); for (let i = 0; i < 14; i++) window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 0, beta: b, gamma: g })); };
+      for (const [name, psi, ang] of [['sideways, top left, screen not turned', 90, 0], ['sideways, top right, screen not turned', -90, 0], ['sideways, top left, screen turned', 90, 90], ['sideways, top right, screen turned', -90, 270], ['sideways, screen says the other way', 90, 270], ['upright', 0, 0]]) {
+        T.angle = () => ang; hold(psi, 0); T.center(); hold(psi, 25); const r = T.steer(); hold(psi, -25); const l = T.steer(); hold(psi, 0); const st = T.steer();
+        out[name] = [r, l, st].map((x) => +x.toFixed(2));
+      }
+      // lying almost flat, tipped like a tray (the screen's own left and right)
+      T.angle = () => 0; const tip = (b, g) => { for (let i = 0; i < 14; i++) window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 0, beta: b, gamma: g })); };
+      tip(5, 0); T.center(); tip(5, 20); const fr = T.steer(); tip(5, -20); const fl = T.steer(); out['almost flat'] = [fr, fl, 0].map((x) => +x.toFixed(2));
+      T.angle = a0; return out;
+    });
+    const wheelOk = Object.entries(wheel).filter(([, [r, l, st]]) => !(r > 0.6 && l < -0.6 && Math.abs(st) < 0.05)).map(([n]) => n);
+    ok(!wheelOk.length, `held any way round — sideways with the screen turned or not (rotation lock), the screen saying the wrong way, upright, almost flat — right is right and left is left${wheelOk.length ? ' ✗ ' + wheelOk.join(' / ') : ''} ${JSON.stringify(wheel)}`);
     ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
     await p.context().close();
     // a device that gives no tilt (a laptop, or a refused permission): it says so and keeps the buttons

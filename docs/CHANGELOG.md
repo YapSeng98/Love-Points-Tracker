@@ -12,6 +12,13 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-27 (night) — 卡丁车: tilting left works again
+
+Steering by tilting the phone only ever turned right when the phone was held
+sideways with rotation lock on (the screen stays upright while the phone is on its
+side). Left and right now come from how you hold the phone when the countdown runs
+(or when you tap the wheel), whichever way round it is and whatever the screen does.
+
 ## 2026-11-27 (evening) — 🏎️ 卡丁车 and 💣 烟花炸弹 join 小游戏
 
 Two new games, both played on one phone: two of you face to face, or one of you

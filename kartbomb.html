@@ -615,20 +615,30 @@ function resize() {
 }
 // 倾斜手机转弯: which way is down, seen from the screen, gives how far the phone is turned like a steering wheel
 const Tilt = {
-  state: 'off', raw: 0, zero: 0, got: 0, bound: false,
+  state: 'off', raw: 0, zero: 0, got: 0, bound: false, gx: 0, gy: -1, rx: 1, ry: 0,
   angle() { try { if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle; } catch (e) {} return typeof window.orientation === 'number' ? window.orientation : 0; },
   read(e) {
     if (e.beta == null || e.gamma == null) return;
-    const b = e.beta * Math.PI / 180, gm = e.gamma * Math.PI / 180, a = Tilt.angle() * Math.PI / 180;
-    const gx = Math.cos(b) * Math.sin(gm), gy = -Math.sin(b);   // gravity in the phone's own x / y
-    const sx = gx * Math.cos(a) - gy * Math.sin(a), sy = gx * Math.sin(a) + gy * Math.cos(a);   // …and in the screen's, whichever way up it is
-    const v = sx / Math.max(0.55, Math.hypot(sx, sy));
-    Tilt.raw = Tilt.got ? Tilt.raw + (v - Tilt.raw) * 0.35 : v;
-    if (!Tilt.got) Tilt.zero = Tilt.raw;
+    const b = e.beta * Math.PI / 180, gm = e.gamma * Math.PI / 180;
+    const gx = Math.cos(b) * Math.sin(gm), gy = -Math.sin(b);   // gravity across the phone's own face: x towards its right edge, y towards its top
+    if (Tilt.got) { Tilt.gx += (gx - Tilt.gx) * 0.35; Tilt.gy += (gy - Tilt.gy) * 0.35; } else { Tilt.gx = gx; Tilt.gy = gy; Tilt.center(); }
+    Tilt.raw = Tilt.val();
     Tilt.got++;
   },
+  // how far "down" has swung towards the player's right, right being a quarter turn from the way down pointed when it was
+  // made straight. That comes from the phone itself, never from which way the screen has turned: held sideways with the
+  // screen still upright (rotation lock, or a screen that reports the wrong way round) every turn read as a turn to the
+  // right — reported from an iPhone on 2026-11-27, 「can turn right only, can't turn left」
+  val() { return (Tilt.gx * Tilt.rx + Tilt.gy * Tilt.ry) / Math.max(0.55, Math.hypot(Tilt.gx, Tilt.gy)); },
   steer() { const d = Tilt.raw - Tilt.zero; return Math.abs(d) < 0.05 ? 0 : clamp((d - Math.sign(d) * 0.05) / 0.37, -1, 1); },
-  center() { Tilt.zero = Tilt.raw; },
+  center() {   // however it is held now is straight
+    const m = Math.hypot(Tilt.gx, Tilt.gy);
+    let dx, dy;
+    if (m > 0.3) { dx = Tilt.gx / m; dy = Tilt.gy / m; }   // held up: which way is down across its face is plain
+    else { const a = Tilt.angle() * Math.PI / 180; dx = -Math.sin(a); dy = -Math.cos(a); }   // lying almost flat it is noise: the screen's own down
+    Tilt.rx = -dy; Tilt.ry = dx;   // a quarter turn from down, seen from the front
+    Tilt.zero = Tilt.val(); Tilt.raw = Tilt.zero;
+  },
   // call it inside a tap (iPhones ask then); true once the phone is really sending its tilt, false if this page can't have it
   start() {
     if (Tilt.state === 'on' && Tilt.got) return Promise.resolve(true);
