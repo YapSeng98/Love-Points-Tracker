@@ -68,6 +68,14 @@ const same = (a, b) => a.n === b.n && a.seq === b.seq && a.d === b.d && a.rs ===
   ok(await until(async () => /走完第 1 段/.test(await panel(A.p)) && /走完第 1 段/.test(await panel(B.p)), 8000), 'both reach the house: 「走完第 1 段！」 on both phones');
   const pa = await panel(A.p), pb = await panel(B.p);
   ok(pa.match(/下一段：[^继]*/)[0] === pb.match(/下一段：[^继]*/)[0], `both say what comes next: 「${pa.match(/下一段：[^继]*/)[0].trim()}」`);
+  // a blessing: the same three on both; after 段 1 it is A1's turn (CS chooses the odd 段, YY the even ones)
+  const offA = await T(A.p, () => [...document.querySelectorAll('.cg-panel [data-a="bl"]')].map(b => b.dataset.bl + (b.disabled ? '!' : '')));
+  const offB = await T(B.p, () => [...document.querySelectorAll('.cg-panel [data-a="bl"]')].map(b => b.dataset.bl + (b.disabled ? '!' : '')));
+  ok(offA.length === 3 && offA.every(k => !k.endsWith('!')) && offB.every(k => k.endsWith('!')) && offA.join() === offB.map(k => k.slice(0, -1)).join() && /A1 在选小祝福/.test(pb),
+    `the same three blessings on both (${offA.join(' ')}); after 段 1 A1 chooses, B2's phone says 「A1 在选小祝福…」`);
+  const pick1 = offA.find(k => k !== 'heart');
+  await A.p.click(`.cg-panel [data-bl="${pick1}"]`);
+  ok(await until(async () => (await T(B.p, () => ((CoopGames.test.G.run || {}).bl || []).join())) === pick1, 4000), `A1 chose 「${pick1}」: B2's phone has it too`);
   ok(await both(A, B, (a, b) => a.state === 'play' && b.state === 'play' && a.d === 2 && same(a, b), 9000), 'the host\'s countdown starts 段 2 on both, the same pieces on both');
 
   console.log('\n3. The hearts carry over, the same on both');
@@ -76,7 +84,10 @@ const same = (a, b) => a.n === b.n && a.seq === b.seq && a.d === b.d && a.rs ===
   ok((await st(B.p)).hp === 2, 'a heart lost shows on the guest too (2 left)');
   await atDoor(B, 0.3); await sleep(400); await atDoor(A, -0.6);
   ok(await until(async () => /❤ \+1，现在有 3 颗心/.test(await panel(A.p)) && /❤ \+1，现在有 3 颗心/.test(await panel(B.p)), 8000), '段 2 walked with 2 hearts: 「❤ +1，现在有 3 颗心」 on both');
-  // the guest doesn't have to wait for the countdown
+  // after 段 2 it is B2's turn to choose; the guest then doesn't have to wait for the countdown
+  const offB2 = await T(B.p, () => [...document.querySelectorAll('.cg-panel [data-a="bl"]:not([disabled])')].map(b => b.dataset.bl));
+  ok(offB2.length === 3 && await T(A.p, () => [...document.querySelectorAll('.cg-panel [data-a="bl"]')].every(b => b.disabled)), 'after 段 2 it is B2\'s turn: B2 chooses, A1 waits');
+  await B.p.click(`.cg-panel [data-bl="${offB2.find(k => k !== 'heart')}"]`); await sleep(400);
   await B.p.click('.cg-panel [data-a="go"]');
   ok(await both(A, B, (a, b) => a.state !== 'result' && a.d === 3 && b.d === 3 && same(a, b), 3500), '继续走 on the guest\'s phone starts 段 3 at once, on both');
   ok(await both(A, B, (a, b) => a.state === 'play' && b.state === 'play' && a.hp === 3 && b.hp === 3), '…with those 3 hearts on both');

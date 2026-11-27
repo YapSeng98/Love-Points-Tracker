@@ -12,6 +12,30 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-27 — 一起回家: a story mode, free select, and a better endless road
+
+一起回家's start screen now offers three ways to play.
+
+**📖 故事模式「找回我们的相册」**: a grumpy cloud called 闷闷 blows your photo
+album apart, and the photos land in the ten worlds. Each chapter opens with a
+short comic, has four new levels, and ends by bringing back one of your own
+photos from 我们的时光. Chapters 1–3 are here (樱花草地, 海边, 枫叶林), with new
+things to do together: keys only one of you can carry, locks, balloons, a tide
+that floods the beach, clock buttons that hold a door open for five seconds,
+and a big picture frame you carry on both heads. Chapters 4–10 come in the next
+two updates.
+
+**🗺️ 自由选关**: pick a world, then a level; a random level; the levels still
+short of stars; the story's levels to replay; and making a level for each other.
+
+**♾️ 一直走下去**: after each stretch you choose one of three blessings (on two
+phones you take turns); every fifth stretch is a camp that remembers the run so
+you can carry on next time; stretches sometimes bring a rain of hearts,
+moonlight or fog; and there is one 「今日之路」 a day, the same for both of you.
+
+Points are unchanged: +1 for each level's first clear (story levels too), at
+most +3 a day.
+
 ## 2026-11-26 (late) — 我们的家: doing things together, and a house that feels lived in
 
 Next to each other, a new 💞 互动 button offers 抱抱, 亲亲, 击掌 and 牵手:

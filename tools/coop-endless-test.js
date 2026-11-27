@@ -114,7 +114,8 @@ const state = (p) => p.evaluate(() => { const G = CoopGames.test.G; return { st:
           if (prev && prev.world === s.world) out.bad.push(`${rs}/${d} the same world twice in a row`);
           if (d % 4 === 0) { if (!s.chase || pz.length) out.bad.push(`${rs}/${d} the storm 段 should be a run`); }
           else { if (s.chase) out.bad.push(`${rs}/${d} a storm off the 4th`); if (pz.length !== (d <= 1 ? 1 : d <= 3 ? 2 : 3)) out.bad.push(`${rs}/${d} ${pz.length} puzzles`); }
-          if (s.dark !== (s.world === 9 && d >= 5)) out.bad.push(`${rs}/${d} dark=${s.dark} in world ${s.world}`);
+          if (s.dark !== ((s.world === 9 && d >= 5) || s.ev === 'fog')) out.bad.push(`${rs}/${d} dark=${s.dark} in world ${s.world}`);   // 🌫️ fog darkens a 段 by day too
+          if (s.ev && (d < 3 || s.chase)) out.bad.push(`${rs}/${d} an event on 段 ${d}${s.chase ? ' (a storm run)' : ''}`);
           for (const id of pz) if (!E.POOL[s.world].includes(id)) out.bad.push(`${rs}/${d} ${id} is not from world ${s.world}`);
           if (s.seq.some(id => /^(boss|R_run\d)$/.test(id))) out.bad.push(`${rs}/${d} has the boss or a storm-level piece`);
           const df = +((s.seq.find(isGen) || 'g0_0').split('_')[1][0]);
@@ -181,8 +182,8 @@ const state = (p) => p.evaluate(() => { const G = CoopGames.test.G; return { st:
     console.log('\n4. The run in the app: the card, a 段 walked, the next by itself, hearts that carry over, stopping, running out');
     const { p, ctx, errs } = await demoPage(browser);
     await openCoop(p);
-    const card = await p.evaluate(() => { const c = document.querySelector('.cg-endless'); return c ? { text: c.textContent.replace(/\s+/g, ' '), btn: c.querySelector('.cg-ego').textContent, before: !!document.querySelector('.cg-endless ~ .cg-worlds') } : null; });
-    ok(card && /一直走下去/.test(card.text) && /新/.test(card.text) && /还没走过/.test(card.text) && card.btn === '出发' && card.before, `the home screen has the endless card above the worlds: 「${card && card.text.slice(0, 40)}…」`);
+    const card = await p.evaluate(() => { const c = document.querySelector('.cg-endless'); return c ? { text: c.textContent.replace(/\s+/g, ' '), btn: c.querySelector('.cg-ego').textContent, before: !!document.querySelector('.cg-m-free ~ .cg-endless') } : null; });
+    ok(card && /一直走下去/.test(card.text) && /新/.test(card.text) && /还没走过/.test(card.text) && card.btn === '出发' && card.before, `the start screen has the endless card, after 故事模式 and 自由选关: 「${card && card.text.slice(0, 40)}…」`);
     await p.click('.cg-ego');
     await p.waitForFunction(() => document.querySelector('.cg-stage:not([hidden]) .cg-panel h2'), null, { timeout: 10000 });
     let t = await panel(p);
@@ -195,7 +196,11 @@ const state = (p) => p.evaluate(() => { const G = CoopGames.test.G; return { st:
     await toDoor(p);
     await p.waitForFunction(() => /走完第 1 段/.test(document.querySelector('.cg-panel').textContent), null, { timeout: 6000 });
     t = await panel(p);
-    ok(/下一段：/.test(t) && /继续走 · \d/.test(t) && /歇一歇/.test(t), `段 1 walked → what comes next, and a countdown: 「${t.slice(0, 80)}…」`);
+    const offer = await p.evaluate(() => [...document.querySelectorAll('.cg-panel [data-a="bl"]')].map(b => b.dataset.bl + (b.disabled ? '!' : '')));
+    ok(/下一段：/.test(t) && /选一个小祝福/.test(t) && /歇一歇/.test(t) && offer.length === 3 && await p.evaluate(() => document.querySelector('.cg-panel [data-r="go"]').disabled), `段 1 walked → what comes next, and three blessings to choose from first (${offer.join(' ')})`);
+    await p.click(`.cg-panel [data-bl="${offer.find(k => k !== 'heart') || offer[0]}"]`); await sleep(200);
+    t = await panel(p);
+    ok(/继续走 · \d/.test(t), `…one chosen, and a countdown: 「${(t.match(/继续走 · \d/) || [''])[0]}」`);
     await p.waitForFunction(() => CoopGames.test.G.state === 'play' && CoopGames.test.G.espec.endless === 2, null, { timeout: 7000 });
     const s2 = await state(p);
     ok(s2.d === 2 && s2.rs === s1.rs && s2.w !== s1.w && s2.hp === 5, `…and goes on by itself: 段 2, another world (${s1.w} → ${s2.w}), hearts still full`);
@@ -205,6 +210,8 @@ const state = (p) => p.evaluate(() => { const G = CoopGames.test.G; return { st:
     await p.waitForFunction(() => /走完第 2 段/.test(document.querySelector('.cg-panel').textContent), null, { timeout: 6000 });
     t = await panel(p);
     ok(/❤ \+1，现在有 3 颗心/.test(t), `2 hearts left at the end of 段 2 → 「❤ +1，现在有 3 颗心」`);
+    const offer2 = await p.evaluate(() => [...document.querySelectorAll('.cg-panel [data-a="bl"]')].map(b => b.dataset.bl));
+    await p.click(`.cg-panel [data-bl="${offer2.find(k => k !== 'heart')}"]`); await sleep(150);
     await p.click('.cg-panel [data-a="go"]');
     await p.waitForFunction(() => CoopGames.test.G.state === 'play' && CoopGames.test.G.espec.endless === 3, null, { timeout: 4000 });
     ok((await state(p)).hp === 3, '继续走 straight away: 段 3 starts with those 3 hearts');
@@ -235,6 +242,7 @@ const state = (p) => p.evaluate(() => { const G = CoopGames.test.G; return { st:
     const card2 = await p.evaluate(() => document.querySelector('.cg-endless').textContent.replace(/\s+/g, ' '));
     ok(/最远走完 2 段/.test(card2), `back on the home screen the card shows the record: 「${card2.match(/🏆[^第]*/) ? card2.match(/🏆[^第]*/)[0] : card2.slice(0, 40)}」`);
     // a level of the 50 is untouched by all this
+    await p.evaluate(() => CoopGames.test.ui('free', 0));
     await p.click('.cg-lv[data-i="0"]'); await sleep(300);
     t = await panel(p);
     ok(/1-1 樱花小路/.test(t) && await p.evaluate(() => CoopGames.test.G.hp === 5 && !document.querySelector('[data-r="stars"]').hidden), 'the 50 levels are as they were: 1-1, five hearts, stars');

@@ -46,13 +46,18 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
     await p.click('.mg-pick[data-g="coop"]');
     await p.waitForFunction(() => document.querySelector('.cg-home'), null, { timeout: 10000 });
     ok(await p.evaluate(() => !document.querySelector('.mg-root')), 'the games list closes behind it');
-    const home = await p.evaluate(() => ({ online: document.querySelector('.cg-home [data-mode="online"]').disabled, text: document.querySelector('.cg-home').textContent, locked: [...document.querySelectorAll('.cg-lv')].map(b => b.disabled) }));
+    const home = await p.evaluate(() => ({ online: document.querySelector('.cg-home [data-mode="online"]').disabled, text: document.querySelector('.cg-home').textContent }));
+    // the three ways to play, and the 50 levels one tap in, under 自由选关 › the first world
+    home.modes = await p.evaluate(() => [...document.querySelectorAll('.cg-home .cg-mode b, .cg-home .cg-endless h4')].map(b => b.textContent.replace(/\s+/g, '').replace('新', '')).join(' '));
+    await p.click('[data-go="free"]'); await p.click('.cg-wcard[data-w="0"]');
+    home.locked = await p.evaluate(() => [...document.querySelectorAll('.cg-lv')].map(b => b.disabled));
+    ok(home.modes === '故事模式 自由选关 一直走下去', `the start screen is the three ways to play: ${home.modes}`);
     ok(home.online, 'not signed in (demo): 各用自己的手机 is off');
     ok(/豆豆 会跟着你们/.test(home.text), 'your own pet is named as the one who comes along');
     ok(JSON.stringify(home.locked) === '[false,true,true,true,true]', 'one phone: only 1-1 is open at first (5 levels in a world)');
     ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no sideways scroll at 390');
     ok(await p.evaluate(() => !!CoopGames.test.G.petImg), 'the pet is drawn from the app\'s own pet picture');
-    await p.click('.cg-x'); await sleep(200);
+    await p.click('.cg-home [data-a="x"]'); await sleep(200);   // ✕ (on a world's screen the first round button is ‹ back)
     ok(await p.evaluate(() => !document.querySelector('.cg-home, .cg-stage') && document.documentElement.style.overflow === ''), 'closing leaves nothing behind');
     ok(!errs.length, `no page errors ${errs.slice(0, 2).join(' | ')}`);
     await ctx.close();
@@ -135,6 +140,7 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
     const { p: q, ctx: c } = await demoPage(browser, { w, h, scheme });
     await openCoop(q);
     const over = await q.evaluate(() => document.querySelector('.cg-home').scrollWidth > innerWidth + 1);
+    await q.evaluate(() => CoopGames.test.ui('free', 0));
     await q.click('.cg-lv[data-i="0"]'); await sleep(400);
     const stage = await q.evaluate(() => { const v = document.querySelector('.cg-view'); return { vw: v.clientWidth, vh: v.clientHeight, panel: !!document.querySelector('.cg-panel h2') }; });
     ok(!over && stage.vw === w && stage.vh > 200 && stage.panel, `${w} ${scheme}: home fits, the stage fills the width, the level card shows`);
@@ -143,7 +149,9 @@ const openCoop = async (p, kind = 'home') => { await p.evaluate(k => App.openCoo
     const spill = [];
     for (const mode of ['solo', 'duo']) {
       await q.evaluate(() => CoopGames.test.closeStage()); await sleep(200);
+      await q.evaluate(() => CoopGames.test.ui('home'));
       await q.click(`.cg-home [data-mode="${mode}"]`); await sleep(200);
+      await q.evaluate(() => CoopGames.test.ui('free', 0));
       await q.click('.cg-lv[data-i="0"]'); await sleep(300);
       await q.click('.cg-panel [data-a="go"]'); await sleep(300);
       spill.push(...await q.evaluate((mode) => [...document.querySelectorAll('.cg-stage button, .cg-zone .lab')].filter(b => b.offsetParent).filter(b => {

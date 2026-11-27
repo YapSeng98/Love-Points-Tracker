@@ -46,7 +46,8 @@ const until = async (fn, ms = 8000, every = 120) => { const t = Date.now(); whil
 const levelWith = (p, id) => p.evaluate((id) => CoopGames.test.LEVELS.findIndex(L => L.seq.includes(id)), id);
 async function startLevel(A, B, i) {
   const w = await A.p.evaluate((i) => CoopGames.test.LEVELS[i].world, i);
-  await A.p.click(`.cg-worlds [data-w="${w}"]`);
+  await A.p.evaluate(() => CoopGames.test.ui('home'));
+  await A.p.click('[data-go="free"]'); await A.p.click(`.cg-wcard[data-w="${w}"]`);
   await A.p.click(`.cg-lv[data-i="${i}"]`);
   const both = await until(async () => { const a = await st(A.p), b = await st(B.p); return a.state === 'play' && b.state === 'play' && a.lv === i && b.lv === i && a.n === b.n; }, 9000);
   return both;
@@ -70,7 +71,8 @@ async function backToHome(X) { await T(X.p, () => { const T2 = CoopGames.test; i
   const found = await until(async () => (await T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent))) && (await T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent))), 12000);
   ok(found, 'each screen says the other is here');
   ok(await T(A.p, () => App._liveTest().joined), 'the couple\'s private live channel is open while the game is');
-  ok(await T(A.p, () => [...document.querySelectorAll('.cg-lv')].every(b => !b.disabled)), 'two phones: every level can be picked');
+  // (in 自由选关 now: on the start screen there are no level buttons, and an empty list passes `every`)
+  ok(await T(A.p, () => { CoopGames.test.ui('free', 0); const b = [...document.querySelectorAll('.cg-lv')]; return b.length === 5 && b.every(x => !x.disabled) && [...document.querySelectorAll('.cg-wcard')].every(x => !x.disabled) || (CoopGames.test.ui('free'), false); }) || await T(A.p, () => { CoopGames.test.ui('free'); return [...document.querySelectorAll('.cg-wcard')].length === 10 && [...document.querySelectorAll('.cg-wcard')].every(x => !x.disabled); }), 'two phones: every world and level can be picked');
 
   console.log('\n2. A1 picks 1-1: it starts on both phones');
   ok(await startLevel(A, B, 0), 'both phones count down and start the same level together');

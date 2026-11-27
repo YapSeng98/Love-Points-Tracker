@@ -1247,6 +1247,83 @@ the two ends (`seq: ['start', 'u~<hash>', 'goal']`, `stars: [1]`, built as level
 - Found building it: **the progress sync sent `coop: null`** for anyone who had never cleared a 一起回家 level, the
   server's shape check refused the whole write, and their mini-game records had never been saved either.
 
+### 📖 故事模式 · 🗺️ 自由选关 · ♾️ 一直走下去 2.0 — update 1 of 3 (2026-11-27)
+
+Asked for: 「make more level and more creative level … more longer with story mode … one module is story mode with long
+story and level, one is current 一直走下去 and see what can improve, one is normal can select different theme or
+level」. A plan page with the story options was approved (story **A 找回我们的相册**, in **three updates**: chapters
+1–3 now, 4–6 next, 7–10 and the ending last). The start screen is now those three ways to play (`screen`: `home` ·
+`story` · `free`); a level closed from one goes back to it. The 怎么玩 card stays on top.
+
+- **The story:** the grumpy cloud 闷闷 blows the couple's photo album apart into the ten worlds. Ten chapters, one per
+  world, each a comic (`SCENES.o<c>`), four new levels and an ending (`SCENES.c<c>`) whose last panel is **one of the
+  couple's own photos from 我们的时光** (`API.photos()`, in date order, chapter k → the k-th) with its date — read at
+  runtime only, never written into this public repo. No photos, or a link that has died → a drawing of the two of
+  them in that world, never a broken image. The prologue (`pro`) plays once before chapter 1. Comics use the game's
+  own CS/YY drawings (`fullSvg`), the couple's own pet (`api.pet.svg`, sized by its own viewBox: squeezing its tall
+  120×176 box into a square made it doll-sized) and their names (`named()`, `{PET}`); 继续 / a tap goes on, 跳过 and
+  Esc skip. A comic's overlay is `.cg-sc`, z 170 — **listed in app.js's game-cover `:not(…)`**, or it opens invisible
+  (the first one did).
+- **Story levels have their own indices, `SI + k` (SI = 1000)**, so the 50, their unlocking (`save.unlocked`), their
+  order and `NEW_IN` are untouched; `specOf`/`isStory`/`storyNext` handle them, records and payouts key on their ids
+  (`S1…S12`). **`rank` (walker speed) comes from the chapter** (c·5 + n): it is a level's index for the 50, and 1000+
+  sent the puffballs across at 31 tiles a second. The story's pieces are added to `CHUNKS` after the loop that pads and
+  ids the 50's — so they run the same preparing themselves (without it every story level had no width and both of you
+  fell through the floor at the start).
+- **Unlocking:** a chapter's levels one after another; a chapter when the one before is done (`chDone`: every level
+  has a record); on two phones everything released is open. The story screen opens on **the first open chapter not yet
+  finished** — the furthest open one put a new couple on two phones straight into chapter 3. `save.seen` keeps the
+  comics seen; Prog's merge **unions** it (the coop merge spreads one phone's save over the other's, which would have
+  dropped the other phone's flags).
+- **New things to do together** (tiles/markers in the pieces):
+
+| | chars | what it is |
+|---|---|---|
+| 钥匙和锁 | `e` `g` keys, `F` `J` locks | `e` only CS can carry, `g` only YY; a lock is every touching lock tile of its colour and opens at a touch of the right key (the key is used up). A key carried into a fall goes home (`dropKey`). A checkpoint keeps opened locks (`snap.opened`; a carried, unused key goes back) |
+| 气球 | `m` | touch it to take hold; it lifts you (4.4 tiles/s, 3.0 with your partner on your head) for 5.5 s, stops under the sky; jump lets go; it floats back 1.6 s later; spikes overhead pop it |
+| 涨潮 | `spec.tide: { lo, hi, period }` | the sea rises and falls on the shared world clock **over the whole level** (a tide in one piece ended in a wall of water in mid-air); in it, sea physics, and **holding jump swims you up — from the seabed too** (it first needed you already afloat) |
+| 计时门 | `r` | a clock button: its piece's gates, bridges and fans stay on 5 s after it is let go; a little clock over the gate shows what is left. The presser's phone sends the time (`tmr`) |
+| 一起抬 | `t` frame, `U` stand | it goes up onto both heads when you **both stand still under it a moment** (0.35 s — walking past it together picked it up, and then nobody could jump: found next to a stacking puzzle), rides between you (no jumping while carrying), falls if you part, and on its stand opens the piece's gates (`latch`). On two phones the host decides those moments (`fr`) |
+
+- **What building it turned up, besides the above:** a ledge 2 tiles past an updraft's edge is out of reach (the wind
+  holds you just under its top, so wind ledges sit one row lower and right beside it); a clock button must stand on
+  solid ground (on a fan you fall through it); keys at first were a few pixels of gold — now twice the size with a glow
+  in their owner's colour. The bot stops a hair short of a lock: it walks *into* it (`toLock`), as a person does.
+- **Points unchanged:** a story level's first clear pays +1 like any level (inside the day's +3); no server rule, so
+  §7.32's warning stands.
+
+**一直走下去 2.0** (`blessOffer`, `applyBless`, `roadEvent`, `campRun`, `dailyRun`):
+- **A blessing after each 段**, one of three — 💗 a heart now, 🪽 wings / 🫧 a bubble for the next 段, ⏱️ the storm
+  slower for the run (×0.85 each), 🧲 hearts near you drift over. The three come from the run's numbers (the same on
+  both phones); **on two phones CS chooses after the odd 段, YY after the even ones** (the other phone shows who is
+  choosing; nobody in 14 s → the host takes the first). The choice is an event (`bless`); 继续走 waits for it.
+- **A camp every 5 段:** a heart more, and the run is kept (`cg_camp_<me>`, the state to go on from); the card offers
+  「⛺ 从第 N 段接着走」.
+- **Events from 段 3** (never on a storm run), from their own numbers so the road itself is unchanged: 💗 a rain of
+  hearts over the made stretches, 🌙 moonlight (`MOON`: ~4.9-tile jumps, a gentle fall), 🌫️ fog (the night's dark by
+  day). The bot holds floaty jumps longer and aims every jump at a landing under the sea and by moonlight — holding
+  forward through a moonlit hop up a step carried it 7 tiles into a gap.
+- **📅 今日之路:** one road a day (its seed from the date), the same for both of you and every try; `save.day` keeps
+  the day's farthest walk (Prog: the same day → the farther, a newer day replaces).
+- On the wire the run carries its blessings, the next 段's gift, the day and the event (`bl`, `nx`, `dy`, `ev`);
+  `NET_V` is 8.
+
+**自由选关:** ten world cards (stars, cleared, a bar), a world's levels, 🎲 a random level you have opened, ⭐ the
+levels short of stars, the story's levels you have played (straight in, no comic) and 🛠️ 关卡编辑.
+
+**Found by the full run, after everything else passed:**
+- **「…也在这里」 was only on the start screen**, so on 自由选关 or the chapter map a two-phone player picked a level
+  without knowing whether the partner was there (two live suites failed on it). It is under the title row of all three
+  screens now (`peerHtml`), and hearing the partner repaints that line in place (`paintPeer`) instead of redrawing the
+  screen under a finger that is choosing a level.
+- **The end-of-段 card scrolled on a 360 phone** once the blessings were in it. The short-screen rules sat in a media
+  query *before* the panel's own rules at the same specificity, so they lost without a sound; the card is tagged
+  (`showPanel(html, onClick, 'cg-seg-card')`) and its rules carry `.cg-veil`. Upright it fits at 360×740, on its side
+  at 844×390 (the three numbers go, the hearts line stays).
+
+**In the tests:** `CoopGames.test.ui(screen, world)` moves between the screens; the two-phone and
+frame-rate suites pick the 50 through 自由选关 now (their old `.cg-worlds` tabs are gone).
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -2162,7 +2239,8 @@ What made the difference, and what must not come back:
   (settle-test.js, season-test.js, anniversary-test.js, room-test.js, birthday-test.js, identity-test.js, ui3d-test.js, games-test.js,
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
   coop-live-test.js, coop-net-test.js, coop-stars-test.js, coop-endless-test.js,
-  coop-endless-live-test.js, coop-editor-test.js, coop-editor-live-test.js, home-test.js,
+  coop-endless-live-test.js, coop-editor-test.js, coop-editor-live-test.js, coop-story-test.js,
+  coop-story-live-test.js, home-test.js,
   home-live-test.js, sync-live-test.js, nav-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
@@ -2275,7 +2353,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-editor-live-test.js` | The same on two logged-in phones, live backend: A1 makes, clears and sends a level (it reaches A1's save), B2 lists it, both play it together, B2's result comes back to A1's card, a made level with bad rows on the wire is ignored |
 | `node tools/coop-endless-test.js` | ♾️ 一直走下去 on one phone: 4000 made stretches checked for fairness (gaps, runways, steps, spikes, no springs), 200 段 of specs (a new world each 段, storms, the dark, 1→2→3 puzzles, each from its own world), the wire refusing junk, the bot walking 144 段 in both modes and most with real hits, the run (card, next 段 by itself, hearts that carry over, 这一段重来, stopping, running out, the record), points at 3 / 6 / 10 段, the sync merge, 360–820 both themes. `RUNS`/`DMAX`/`ONLY` |
 | `node tools/coop-endless-live-test.js` | The same on two logged-in phones, live backend: 一起出发 starts the same 段 on both, a 段 walked and the next one on both, the hearts the same on both, the guest hurrying it on, stopping from either phone, another run from the guest, running out, both records, an unknown piece on the wire ignored |
-| `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, with and without the partner holding the buttons — and no star only by a perfect jump (a 10% weaker jump must still do it) |
+| `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 — the 50 and the story's 12 — can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, balloons (rise, then drift to meet it), at high tide where there is one, with and without the partner holding the buttons (and using the keys) — and no star only by a perfect jump (a 10% weaker jump must still do it) |
+| `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it), all 12 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
+| `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/nav-test.js` | 首页 · 积分 · ＋ · 一起 · 商店 (§7.36, `ONLY=…`, `LOOK=classic`): the bar in order in both looks, every page and pane and the old names landing in them, 今天's rows and each button (and YY's side), 本月 = the score card, the four tiles staying put, every 一起 tile opening its place, the shop under the bar, ＋ on top from every page, 320–1280 by day and night with nothing under the bar or off the side, keyboard, reduced motion, HTML_V = the meta |

@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.26-85';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.27-86';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -606,7 +606,7 @@ const App = (() => {
     if (document.getElementById('game-cover-css')) return;
     const on = 'html.game-cover body';
     // (anything that can open OVER a game stays out of it: the toast, and the anniversary / birthday films at 00:00)
-    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .cg-ed, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;   // .cg-ed: 一起回家's level editor (2026-11-26)
+    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .cg-ed, .cg-sc, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;   // .cg-ed: 一起回家's level editor (2026-11-26); .cg-sc: the story's comics (2026-11-27)
     const st = document.createElement('style');
     st.id = 'game-cover-css';
     st.textContent = `${on}::before, ${on}::after, ${behind}, ${behind} *, ${behind} *::before, ${behind} *::after { animation-play-state: paused !important; }
@@ -2302,7 +2302,7 @@ const App = (() => {
   // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
   // the FIRST clear of each level pays once, so replaying never farms points.
   const TOGETHER = {
-    coop: { name: '一起回家', icon: '🏠', how: '两个人一起闯 50 关、10 个世界，还有越走越难的「♾️ 一直走下去」：叠罗汉、按按钮、一起推箱子、大炮、喷火口……都进小屋才算过关', max: 3 },
+    coop: { name: '一起回家', icon: '🏠', how: '📖 故事模式「找回我们的相册」、🗺️ 自由选关（50 关、10 个世界）、♾️ 一直走下去：钥匙和锁、气球、涨潮、抬相框、叠罗汉、大炮……两个人都进小屋才算过关', max: 3 },
     beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3 },
   };
   const _gameDef = (g) => GAMES[g] || TOGETHER[g];
@@ -2595,6 +2595,13 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
           best[id] = { t: ts.length ? Math.min(...ts) : (q.t || r.t), sm: [0, 1, 2].map(k => !!((q.sm || [])[k] || (r.sm || [])[k])), h: Math.max(q.h || 0, r.h || 0) };
         }
         coop = { ...ca, ...cb, unlocked: Math.max(ca.unlocked || 1, cb.unlocked || 1), best };
+        // 📖 the story's comics seen on either phone (a phone that saw the opening shouldn't make the other one see it as new)
+        const seen = Object.assign({}, ca.seen && typeof ca.seen === 'object' ? ca.seen : {}, cb.seen && typeof cb.seen === 'object' ? cb.seen : {});
+        if (Object.keys(seen).length) coop.seen = seen; else delete coop.seen;
+        // 📅 今日之路: the farther walk of the same day (a newer day replaces an older one)
+        const da = ca.day && ca.day.date ? ca.day : null, db = cb.day && cb.day.date ? cb.day : null;
+        const dd = !da ? db : !db ? da : da.date !== db.date ? (da.date > db.date ? da : db) : (db.d > da.d ? db : da);
+        if (dd) coop.day = dd; else delete coop.day;
         // ♾️ 一直走下去: the farther run (more 段, then more 💗) — whichever phone walked it
         const ea = ca.endless && ca.endless.d > 0 ? ca.endless : null, eb = cb.endless && cb.endless.d > 0 ? cb.endless : null;
         const ee = !ea ? eb : !eb ? ea : (eb.d > ea.d || (eb.d === ea.d && (eb.h || 0) > (ea.h || 0))) ? eb : ea;
@@ -2695,6 +2702,9 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       // 🛠️ 关卡编辑: your partner's progress save (they write it, you read it) — the levels they sent, and how they did on yours
       partnerPlay: async () => { const r = await Data.getGameSave('play', _me() === 'char2' ? 'char1' : 'char2'); const d = (r && r.data) || {}; return { lv: Array.isArray(d.lv) ? d.lv : [], pl: d.pl && typeof d.pl === 'object' ? d.pl : {} }; },
       saveProg: () => Prog.sync(),
+      // 📖 故事模式: each chapter's ending finds one of your own photos (as loaded — never a refetch, §5)
+      photos: () => (S.photos || []).filter(p => p && p.image && p.id).map(p => ({ id: p.id, src: p.image, date: p.date || '' })),
+      startDate: () => S.startDate || '',
     };
   }
   async function openCoop(kind = 'home') {

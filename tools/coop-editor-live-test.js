@@ -48,7 +48,7 @@ const atDoor = (X, dx) => T(X.p, (dx) => { const T2 = CoopGames.test, G = T2.G, 
   const A = await phone(browser, u1), B = await phone(browser, u2, { w: 760, h: 520 });
 
   console.log('\n1. A1 makes a level, clears it and sends it');
-  await A.p.evaluate(() => App.openCoop('home')); await A.p.waitForFunction(() => document.querySelector('.cg-home .cg-maker'), null, { timeout: 15000 });
+  await A.p.evaluate(() => App.openCoop('home')); await A.p.waitForFunction(() => document.querySelector('.cg-home .cg-mode'), null, { timeout: 15000 }); await A.p.evaluate(() => CoopGames.test.ui('free'));
   await A.p.click('.cg-maker [data-a="newlv"]'); await sleep(300);
   await T(A.p, () => { const X = CoopGames.test.ed; X.tool('.'); for (const c of [12, 13, 14]) for (const r of [11, 12]) X.paint(c, r); X.tool('*'); X.paint(13, 8); X.paint(24, 9); X.tool('p'); X.paint(30, 10); });
   await A.p.fill('.cg-ed-name', '跳过小河'); await sleep(400);
@@ -64,7 +64,7 @@ const atDoor = (X, dx) => T(X.p, (dx) => { const T2 = CoopGames.test, G = T2.G, 
   ok(up, 'it went up in A1\'s own progress save (game-save play, char1), sent');
 
   console.log('\n2. B2 sees it, and they play it together');
-  await B.p.evaluate(() => App.openCoop('home')); await B.p.waitForFunction(() => document.querySelector('.cg-home .cg-maker'), null, { timeout: 15000 });
+  await B.p.evaluate(() => App.openCoop('home')); await B.p.waitForFunction(() => document.querySelector('.cg-home .cg-mode'), null, { timeout: 15000 }); await B.p.evaluate(() => CoopGames.test.ui('free'));
   const listed = await until(async () => T(B.p, () => [...document.querySelectorAll('[data-pplay]')].some(b => b.closest('.cg-mrow').textContent.includes('跳过小河'))), 12000);
   ok(listed, 'B2\'s 一起回家 lists 「跳过小河」 under A1 做给你的关');
   const found = await until(async () => (await T(A.p, () => /B2 也在这里/.test(document.querySelector('.cg-home').textContent))) && (await T(B.p, () => /A1 也在这里/.test(document.querySelector('.cg-home').textContent))), 15000);

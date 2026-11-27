@@ -54,7 +54,7 @@ async function demoPage(browser, { w = 390, h = 844, theme = 'light', mobile = t
   await sleep(300);
   return { p, ctx, errs };
 }
-const openCoop = async (p) => { await p.evaluate(() => App.openCoop('home')); await p.waitForFunction(() => document.querySelector('.cg-home .cg-maker'), null, { timeout: 15000 }); await sleep(400); };
+const openCoop = async (p) => { await p.evaluate(() => App.openCoop('home')); await p.waitForFunction(() => document.querySelector('.cg-home .cg-mode'), null, { timeout: 15000 }); await p.click('[data-go="free"]'); await p.waitForFunction(() => document.querySelector('.cg-home .cg-maker'), null, { timeout: 15000 }); await sleep(400); };
 const toDoor = (p) => p.evaluate(() => { const T = CoopGames.test, G = T.G, d = G.L.door; T.tp(0, d.x - .9, d.y - 1.18); T.tp(1, d.x - .2, d.y - 1.18); });
 const panel = (p) => p.evaluate(() => { const el = document.querySelector('.cg-veil:not([hidden]) .cg-panel'); return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; });
 const E = (p, fn, arg) => p.evaluate(fn, arg);

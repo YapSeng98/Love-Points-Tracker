@@ -92,7 +92,8 @@ async function openGame(X, kind = 'home') { await X.p.evaluate((k) => App.openCo
 const levelWith = (p, id) => p.evaluate((id) => CoopGames.test.LEVELS.findIndex(L => L.seq.includes(id)), id);
 async function startLevel(A, B, i) {
   const w = await A.p.evaluate((i) => CoopGames.test.LEVELS[i].world, i);
-  await A.p.click(`.cg-worlds [data-w="${w}"]`);
+  await A.p.evaluate(() => CoopGames.test.ui('home'));
+  await A.p.click('[data-go="free"]'); await A.p.click(`.cg-wcard[data-w="${w}"]`);
   await A.p.click(`.cg-lv[data-i="${i}"]`);
   return until(async () => { const a = await st(A.p), b = await st(B.p); return a.state === 'play' && b.state === 'play' && a.lv === i && b.lv === i && a.n === b.n; }, 12000);
 }
@@ -311,7 +312,7 @@ function evenness(smp) {
     for (const [label, aFirst, gap] of [['at the same instant', true, 0], ['B2 40 ms first', false, 40], ['A1 40 ms first', true, 40]]) {
       for (const X of [A, B]) await home(X);
       await sleep(2500);
-      await Promise.all([A.p.click('.cg-worlds [data-w="0"]'), B.p.click('.cg-worlds [data-w="0"]')]);
+      await Promise.all([A, B].map(X => X.p.evaluate(() => CoopGames.test.ui('free', 0))));
       const [first, second, fi, si] = aFirst ? [A, B, 2, 3] : [B, A, 3, 2];
       // the second tap may never happen: the first pick can arrive and open the level before it (that phone just joins)
       if (gap) { await first.p.click(`.cg-lv[data-i="${fi}"]`); await sleep(gap); await second.p.click(`.cg-lv[data-i="${si}"]`, { timeout: 800 }).catch(() => {}); }

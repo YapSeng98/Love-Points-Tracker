@@ -86,7 +86,11 @@ function runInput(i, tx, tol = 0.18) {
   }
   const sc = Math.floor(ax), sr = Math.floor(feet - 0.5);
   if (sr >= 0 && sr < 13 && sc >= 0 && sc < G.L.w && G.L.grid[sr * G.L.w + sc] === 5) { AIM[i] = null; inp.j = true; }
-  if ((wall || foe) && Math.abs(tx - x) > 1.0) inp.j = true;   // right by the target (a box to push), walk up to it
+  if ((wall || foe) && Math.abs(tx - x) > 1.0) {   // right by the target (a box to push), walk up to it
+    inp.j = true;
+    // floaty (under the sea, by moonlight) a hop up a step carries far: aim it at somewhere to land, as at an edge
+    if (G.L.world.key === 'sea' || G.L.spec.moon) AIM[i] = aimFor(p, dir, feet, ax);
+  }
   return inp;
 }
 const LR = [null, null], AIM = [null, null], RUNV = 7.5;
@@ -154,7 +158,7 @@ function leapTo(i, tx, maxFeet = 99, max = 400) {
   return until(() => k > 10 && P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.7 && P(i).y + P(i).h <= maxFeet, () => {
     const p = P(i), dx = tx - cx(p);
     IN[1 - i] = {};
-    IN[i] = { j: k++ < (G.L.world.key === 'sea' ? 80 : 45), r: dx > 0.15, l: dx < -0.15 };   // a jump in the water takes longer to top out
+    IN[i] = { j: k++ < (G.L.world.key === 'sea' || G.L.spec.moon ? 80 : 45), r: dx > 0.15, l: dx < -0.15 };   // a jump in the water (or by moonlight) takes longer to top out
   }, max);
 }
 const idle = () => { IN[0] = {}; IN[1] = {}; };
@@ -221,6 +225,60 @@ function fireFrom(shooter, flyer, cn, plateX, ready) {
   if (!until(() => P(flyer).launch && P(flyer).launch.keep, () => { go(shooter, plateX, 0.2); IN[flyer] = {}; }, 1500)) return false;
   return until(() => P(flyer).grounded && !P(flyer).launch, () => { IN[flyer] = {}; IN[shooter] = {}; }, 700);
 }
+/* ── 📖 the story's new things (2026-11-27) ── */
+// walk under something in the air and hop until `cond` (a key overhead)
+function hopUntil(i, tx, cond, max = 400) {
+  if (!solo(i, tx, 1500, 0.2)) return false;
+  take(i); let k = 0;
+  return until(cond, () => { IN[1 - i] = {}; const dx = tx - cx(P(i)); IN[i] = { j: (k++ % 44) < 24, l: dx < -0.12, r: dx > 0.12 }; }, max);
+}
+// carry the key into its lock (walk on into it: stopping a hair short of it opens nothing)
+const lockAt = (lx) => { const c = Math.floor(lx); for (let r = 0; r < 13; r++) { const t = G.L.grid[r * G.L.w + c]; if (t === C.T_LOCKB || t === C.T_LOCKP) return true; } return false; };
+function toLock(i, lx, max = 900) {
+  if (!P(i).key) return !lockAt(lx);   // already open (brushed past it on the way)
+  take(i);
+  return until(() => !P(i).key, () => { go(i, lx + 0.8, 0.05); IN[1 - i] = {}; }, max);
+}
+// a fresh press of jump (the game wants the press, not the holding)
+function press(i) { IN[i] = {}; tick(); IN[i] = { j: true }; tick(); IN[i] = {}; tick(); }
+// 气球: walk into it, rise until the feet are above feetUp, drift over to tx, let go, land
+function floatTo(i, bx, feetUp, tx, max = 900) {
+  if (G.mode === 'solo') unstack(i);
+  take(i);
+  if (!until(() => P(i).balloon, () => { go(i, bx, 0.08); IN[1 - i] = {}; }, 2000)) return 'grab';
+  if (!until(() => P(i).y + P(i).h < feetUp || !P(i).balloon, () => { IN[i] = {}; IN[1 - i] = {}; }, max)) return 'rise';
+  if (!P(i).balloon) return 'lost';
+  if (!until(() => Math.abs(cx(P(i)) - tx) < 0.3 || !P(i).balloon, () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.1, r: dx > 0.1 }; IN[1 - i] = {}; }, max)) return 'drift';
+  if (P(i).balloon) press(i);
+  if (P(i).balloon) return 'let-go';
+  return until(() => P(i).grounded, () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.12, r: dx > 0.12 }; IN[1 - i] = {}; }, 700) || 'land';
+}
+// 涨潮: the sea's height in piece n
+const seaAt = () => (G.L.tides.length ? C.waterLevel(G.L.tides[0]) : 99);
+// wait for the sea to rise past `level`, then swim to tx holding jump, until standing there (feet at or above maxFeet)
+function swimTo(i, n, level, tx, maxFeet = 99, max = 2600) {
+  if (G.mode === 'solo') unstack(i);
+  take(i);
+  if (!until(() => seaAt(n) < level, () => { IN[0] = {}; IN[1] = {}; }, 2400)) return 'tide';
+  return until(() => P(i).grounded && Math.abs(cx(P(i)) - tx) < 0.5 && P(i).y + P(i).h <= maxFeet,
+    () => { const dx = tx - cx(P(i)); IN[i] = { l: dx < -0.15, r: dx > 0.15, j: P(i).y + P(i).h > maxFeet - 0.2 || Math.abs(dx) > 0.5 }; IN[1 - i] = {}; }, max) || 'swim';
+}
+// walk the one carrying their partner (a rider stays on: no unstacking)
+function carryWalk(i, tx, max = 2500) {
+  take(i);
+  return until(() => near(i, tx, 0.2), () => { go(i, tx, 0.12); IN[1 - i] = {}; }, max);
+}
+// 一起抬: both under the frame, lift, walk it to the stand (one phone in 一个人玩: hand in hand)
+function carryTo(n, tx, max = 3000) {
+  const f = G.L.frames.find(q => q.ch === n), fc = () => f.x + f.w / 2;
+  if (f.st === 'placed') return true;
+  if (!both(fc() - 0.6, fc() + 0.6, 2500, 0.2)) return 'gather';
+  if (!until(() => f.st === 'up', idle, 120)) return 'lift';
+  if (G.mode === 'solo') { take(0); if (!G.hold) C.toggleHold(); if (!G.hold) return 'hold'; }
+  until(() => f.st !== 'up', () => { const dx = tx - fc(), mv = { l: dx < -0.04, r: dx > 0.04 }; IN[0] = mv; IN[1] = mv; }, max);
+  if (G.mode === 'solo' && G.hold) C.toggleHold();
+  return f.st === 'placed' || 'frame:' + f.st;
+}
 function stepChunk(n) {
   const c = G.L.chunks[n], id = c.ch.id, x0 = c.x0, x1 = c.x0 + c.ch.w;
   // a piece starts with nobody on anybody's head: the one carrying can't jump (a piece can end with one landed on the other)
@@ -229,6 +287,158 @@ function stepChunk(n) {
   switch (id) {
     case 'goal': if (G.mode === 'solo') { solo(0, G.L.door.x - 0.3, 3000, 0.5); return solo(1, G.L.door.x + 0.3, 3000, 0.5) || G.state === 'won'; }
       return both(G.L.door.x - 0.3, G.L.door.x + 0.3, 3000, 0.5) || G.state === 'won';
+    // ── 第 1 章：钥匙和锁
+    case 'Q1_intro':
+      if (!solo(A, x0 + 7.5, 2500, 0.3)) return 'blue';
+      if (!until(() => !G.L.grid.some((t, k) => t === C.T_LOCKB && k % G.L.w >= x0 && k % G.L.w < x1), idle, 30)) return 'blue-lock';
+      if (!solo(B, x0 + 13.4, 2500, 0.3)) return 'pink';
+      if (!until(() => !G.L.grid.some((t, k) => t === C.T_LOCKP && k % G.L.w >= x0 && k % G.L.w < x1), idle, 30)) return 'pink-lock';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Q1_high':
+      if (!both(x0 + 5.6, x0 + 7, 2500, 0.25)) return 'gather';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 3.5, 6.1)) return 'ledge';
+      if (!P(B).key) return 'no-key';
+      if (!toLock(B, x0 + 10)) return 'lock';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Q2_relay':
+      if (!solo(A, x0 + 5.5, 1500, 0.3)) return 'plate-a';
+      if (!solo(B, x0 + 15.5, 2500, 0.3)) return 'key';
+      if (!toLock(B, x0 + 18)) return 'lock';
+      if (!solo(B, x0 + 20.5, 1500, 0.3)) return 'plate-b';
+      if (!solo(A, x0 + 23, 2500, 0.4)) return 'through';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Q2_ride':
+      if (!both(x0 + 1.6, x0 + 3.4, 2500, 0.25)) return 'gather';
+      if (!climbOn(A, B)) return 'stack';
+      if (!carryWalk(B, x0 + 16.9)) return 'ride';
+      if (!P(A).key) return 'no-key';
+      take(B);
+      if (!until(() => !P(A).key, () => { go(B, x0 + 18.8, 0.05); IN[A] = {}; }, 600)) return 'lock';
+      unstack(B);
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Q3_climb':
+      if (!solo(B, x0 + 12.6, 2500, 0.25)) return 'reach';
+      if (!leapTo(B, x0 + 10.5, 8.1)) return 'step1';
+      if (!leapTo(B, x0 + 6.5, 6.1)) return 'step2';
+      if (!leapTo(B, x0 + 2.4, 4.1)) return 'step3';
+      if (!P(B).key) return 'no-key';
+      if (!toLock(B, x0 + 14, 3000)) return 'lock';
+      if (!hopUntil(A, x0 + 19.5, () => P(A).key)) return 'blue-key';
+      if (!toLock(A, x0 + 24, 2500)) return 'lock-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'Q4_tree':
+      if (!both(x0 + 7, x0 + 5.6, 2500, 0.25)) return 'gather';
+      if (!climbOn(A, B)) return 'stack';
+      if (!leapTo(A, x0 + 3.5, 6.1)) return 'ledge';
+      if (!P(A).key) return 'no-key';
+      if (!toLock(A, x0 + 11, 1500)) return 'lock';
+      if (!solo(A, x0 + 14.5, 1500, 0.3)) return 'plate-a';
+      if (!solo(B, x0 + 30.5, 3000, 0.3)) return 'across-b';
+      if (!P(B).key) return 'no-pink';
+      if (!solo(A, x0 + 32.5, 3000, 0.3)) return 'across-a';
+      if (!toLock(B, x0 + 34, 1500)) return 'pink-lock';
+      return both(x1 + 0.5, x1 + 1.5);
+    // ── 第 2 章：气球和涨潮
+    case 'B1_wall': {
+      const r1 = floatTo(A, x0 + 6.5, 3.5, x0 + 15.5); if (r1 !== true) return 'a:' + r1;
+      const r2 = floatTo(B, x0 + 6.5, 3.5, x0 + 16.5); if (r2 !== true) return 'b:' + r2;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'B1_cross': {
+      const r1 = floatTo(A, x0 + 3.5, 8, x0 + 19.5); if (r1 !== true) return 'a:' + r1;
+      const r2 = floatTo(B, x0 + 3.5, 8, x0 + 18.5); if (r2 !== true) return 'b:' + r2;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'T1_ledge': {
+      const r1 = swimTo(A, n, 6.0, x0 + 17.5, 5.1); if (r1 !== true) return 'a:' + r1;
+      const r2 = swimTo(B, n, 6.0, x0 + 16.5, 5.1); if (r2 !== true) return 'b:' + r2;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'T1_pool': {
+      const r1 = swimTo(B, n, 8.4, x0 + 12.5, 10.1); if (r1 !== true) return 'b:' + r1;
+      if (!P(B).key) return 'no-key';
+      if (!leapTo(B, x0 + 17.6)) return 'b-shore';
+      if (!toLock(B, x0 + 19, 1500)) return 'lock';
+      const r2 = swimTo(A, n, 8.4, x0 + 12.5, 10.1); if (r2 !== true) return 'a:' + r2;
+      if (!leapTo(A, x0 + 17.6)) return 'a-shore';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'B2_plate': {
+      const r1 = floatTo(A, x0 + 6.5, 4.5, x0 + 9.5); if (r1 !== true) return 'a:' + r1;
+      if (!solo(A, x0 + 9.5, 600, 0.2)) return 'plate-a';
+      if (!solo(B, x0 + 21.5, 3000, 0.3)) return 'plate-b';
+      if (!solo(A, x0 + 6.4, 1500, 0.4)) return 'down';
+      if (!solo(A, x0 + 23, 3000, 0.4)) return 'through';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'W1_tide': {
+      const r1 = swimTo(B, n, 5.6, x0 + 4.5, 5.1); if (r1 !== true) return 'b:' + r1;
+      if (!P(B).key) return 'no-key';
+      if (!toLock(B, x0 + 13, 2500)) return 'lock';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'T3_wave': {
+      const r1 = swimTo(A, n, 4.2, x0 + 14.5, 4.1); if (r1 !== true) return 'a:' + r1;
+      if (!P(A).key) return 'no-key';
+      if (!leapTo(A, x0 + 21.4)) return 'a-shore';
+      if (!toLock(A, x0 + 22, 800)) return 'lock';
+      const r2 = swimTo(B, n, 4.2, x0 + 14.5, 4.1); if (r2 !== true) return 'b:' + r2;
+      if (!leapTo(B, x0 + 23.5)) return 'b-shore';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'W2_balloon': {
+      const r1 = floatTo(A, x0 + 3.5, 1.75, x0 + 18.5); if (r1 !== true) return 'a:' + r1;
+      if (!P(A).key) return 'no-key';
+      if (!toLock(A, x0 + 21, 1500)) return 'lock';
+      const r2 = floatTo(B, x0 + 3.5, 7, x0 + 19.5); if (r2 !== true) return 'b:' + r2;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    // ── 第 3 章：计时门和一起抬
+    case 'R1_intro':
+      if (!both(x0 + 4.5, x0 + 3.0, 2500, 0.25)) return 'gather';
+      if (!solo(B, x0 + 11.5, 1500, 0.3)) return 'through-b';
+      if (!solo(A, x0 + 10.5, 1500, 0.3)) return 'through-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'R2_run':
+      if (!both(x0 + 3.5, x0 + 2.0, 2500, 0.25)) return 'gather';
+      if (!solo(B, x0 + 28.5, 3000, 0.3)) return 'run-b';
+      if (!solo(A, x0 + 27, 3000, 0.3)) return 'run-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'F1_intro': {
+      const r = carryTo(n, x0 + 12.5); if (r !== true) return r;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'F2_carry': {
+      const r = carryTo(n, x0 + 20.5); if (r !== true) return r;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'R3_wind':
+      if (!solo(A, x0 + 3.5, 2500, 0.25)) return 'plate-a';
+      if (!rideWind(A, x0 + 6.5, 3.9, x0 + 9.5, 900, 4.1)) return 'wind-a';
+      if (!P(A).key) return 'no-key';
+      if (!toLock(A, x0 + 18, 1500)) return 'lock';
+      if (!solo(B, x0 + 3.5, 2500, 0.25)) return 'plate-b';
+      if (!rideWind(B, x0 + 6.5, 3.9, x0 + 10.4, 900, 4.1)) return 'wind-b';
+      if (!solo(B, x0 + 16, 1500, 0.4)) return 'down-b';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'F3_lockframe': {
+      if (!both(x0 + 12.6, x0 + 14, 2500, 0.25)) return 'gather';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 10.5, 6.1)) return 'ledge';
+      if (!P(B).key) return 'no-key';
+      if (!toLock(B, x0 + 15, 1500)) return 'lock';
+      const r = carryTo(n, x0 + 21.5); if (r !== true) return r;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'F4_finale': {
+      if (!solo(A, x0 + 9.5, 2500, 0.25)) return 'plate';
+      if (!rideWind(A, x0 + 6.5, 3.9, x0 + 2.5, 900, 4.1)) return 'wind';
+      if (!P(A).key) return 'no-key';
+      if (!toLock(A, x0 + 14, 2500)) return 'lock';
+      const r = carryTo(n, x0 + 42.5, 4000); if (r !== true) return r;
+      return both(x1 + 0.5, x1 + 1.5);
+    }
     case 'C_stack':
       if (!both(x0 + 5.5, x0 + 3.5)) return false;
       if (!climbOn(B, A)) return false;
@@ -654,7 +864,7 @@ window.__botRun = (i, tx) => { go(i, tx); return IN[i]; };
 window.__bot = {
   // ♾️ one 段 of the endless road (run seed rs, 段 d): the made stretches go to the plain-platforming runner below
   playE(rs, d, god, mode = 'duo', ws) { C.startE(rs, d, mode, ws); return this.run(god, `E${d}`); },
-  play(i, god, mode = 'duo') { C.start(i, mode); return this.run(god, i + 1); },
+  play(i, god, mode = 'duo') { C.start(i, mode); return this.run(god, i >= C.SI ? 'S' + (i - C.SI + 1) : i + 1); },
   run(god, label) {
     const i = label;
     C.set('god', !!god); steps = 0; ring.length = 0;

@@ -13,16 +13,16 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
   const p = await b.newPage();
   await p.goto(process.env.APP_URL || 'http://localhost:8765/index.html'); await p.waitForFunction(() => typeof App !== 'undefined');
   await p.evaluate(() => App.demoMode()); await new Promise(r => setTimeout(r, 800));
-  await p.evaluate(() => App.openCoop('home')); await p.waitForSelector('.cg-lv');
+  await p.evaluate(() => App.openCoop('home')); await p.waitForSelector('.cg-home .cg-mode');
   let res = await p.evaluate(() => {
     const T = CoopGames.test, G = T.G, out = [];
-    const tryIt = (it, setup, weak) => {   // setup puts the players somewhere; returns true if the item gets taken
+    const tryIt = (it, setup, weak, steer) => {   // setup puts the players somewhere; returns true if the item gets taken (steer: what to press, for a ride)
       it.got = false; G.stars = [false, false, false];
       const jumper = setup(); if (jumper == null) return false;
       let k = 0, airborne = false;
-      for (; k < 220; k++) {
+      for (; k < (steer ? 720 : 220); k++) {
         const p = G.players[jumper], dx = it.x - (p.x + p.w / 2);
-        T.inp(jumper, { j: k < 100, l: dx < -0.1, r: dx > 0.1 });   // held to the top (a jump in the water takes longer) T.inp(1 - jumper, {});
+        T.inp(jumper, steer ? steer(p) : { j: k < 100, l: dx < -0.1, r: dx > 0.1 });   // held to the top (a jump in the water takes longer) T.inp(1 - jumper, {});
         T.stepFn(T.STEP);
         if (!airborne && !p.grounded && p.vy < 0) { airborne = true; if (weak) p.vy *= 0.9; }
         if (it.got) return true;
@@ -30,7 +30,18 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
       }
       return false;
     };
-    for (let i = 0; i < T.LEVELS.length; i++) {
+    // the 50, then the story's levels (2026-11-27): there a lock counts as opened when the partner helps (as a held
+    // button does), a level with a tide is tried at high tide, and a balloon is ridden (rise, then drift to meet it)
+    const IDS = [...T.LEVELS.keys(), ...T.STORY_LV.map((L, k) => T.SI + k)];
+    const specOf = (i) => (i >= T.SI ? T.STORY_LV[i - T.SI] : T.LEVELS[i]);
+    const tryBalloon = (it, bl, far) => tryIt(it, () => {
+      far(1); const H = 1.18, W = 0.78; let r = Math.floor(bl.oy); while (r < 12 && !T.solidCell(Math.floor(bl.ox), r + 1, 'cs')) r++;
+      T.tp(0, bl.ox - W / 2, r + 1 - H); bl.back = 0; bl.held = -1; return 0;
+    }, false, (p) => {   // up until the rest of the way across rises you just to it, then across
+      const dx = it.x - (p.x + p.w / 2), lift = (p.y + p.h / 2) - it.y, need = 4.4 * Math.abs(dx) / 7.5;
+      return { j: false, l: lift <= need + 0.3 && dx < -0.1, r: lift <= need + 0.3 && dx > 0.1 };
+    });
+    for (const i of IDS) {
       T.start(i, 'duo'); T.set('god', true);
       const L = G.L, w = L.w, H = 1.18, W = 0.78;
       const stand = (c, r, who) => (T.solidCell(c, r, who) || T.oneWayCell(c, r)) && !T.solidCell(c, r - 1, who) && !T.solidCell(c, r - 2, who);
@@ -41,6 +52,8 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
         for (const pass of [[false, true], [true, true], [false, false], [true, false]]) {   // comfortable first (with/without buttons), then perfect
           const [force, weakPass] = pass;
           G.forceChan = force; if (force) G.latch.fill(1); else G.latch.fill(0);
+          if (force) for (let k = 0; k < L.grid.length; k++) if (L.grid[k] === T.T_LOCKB || L.grid[k] === T.T_LOCKP) L.grid[k] = 0;   // the keys used
+          if (L.tides.length) G.wt = L.tides[0].period * 0.5;   // high tide
           for (let k = 0; k < 3; k++) T.stepFn(T.STEP);
           const spots = [];
           for (let c = Math.floor(it.x) - 5; c <= Math.floor(it.x) + 5; c++) for (let r = Math.ceil(it.y); r <= 12; r++) for (const who of [0, 1]) if (c >= 0 && c < w && stand(c, r, who ? 'yy' : 'cs')) spots.push([c, r, who]);
@@ -65,6 +78,7 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
             }
             if (how) break;
           }
+          if (!how && !weakPass) for (const bl of L.balloons || []) if (Math.abs(bl.ox - it.x) < 16) { if (tryBalloon(it, bl, far)) { how = 'balloon'; comfy = true; break; } }
           if (!how && !weakPass) for (const e of L.elevs) if (Math.abs(e.x0 + 1.5 - it.x) < 5) {   // a lift held up
             for (let k = 0; k < 400; k++) T.stepFn(T.STEP);
             if (tryIt(it, () => { far(1); T.tp(0, e.x0 + 1.1, e.y - H - 0.02); return 0; }, false)) { how = 'lift'; comfy = true; break; }
@@ -72,11 +86,11 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
           if (how) { how += force ? '+button' : ''; break; }
         }
         G.forceChan = false; it.got = false;
-        if (it.type === 'star' || !how || !comfy) out.push({ lv: i, name: T.LEVELS[i].name, type: it.type, n: it.n, x: +it.x.toFixed(1), y: +it.y.toFixed(1), chunk: L.chunks[L.chunkOf[Math.floor(it.x)]].ch.id, how: how || 'NONE', comfy });
+        if (it.type === 'star' || !how || !comfy) out.push({ lv: i >= T.SI ? 'S' + (i - T.SI + 1) : i, name: specOf(i).name, type: it.type, n: it.n, x: +it.x.toFixed(1), y: +it.y.toFixed(1), chunk: L.chunks[L.chunkOf[Math.floor(it.x)]].ch.id, how: how || 'NONE', comfy });
       }
       T.closeStage();
     }
-    return { out, levels: T.LEVELS.length };
+    return { out, levels: IDS.length };
   });
   const nLv = res.levels; res = res.out;
   const stars = res.filter(r => r.type === 'star'), badStars = stars.filter(r => r.how === 'NONE'), tight = stars.filter(r => r.how !== 'NONE' && !r.comfy);

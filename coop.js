@@ -1591,6 +1591,357 @@ const LEVELS = [
 ];
 
 
+/* ══════════════ 📖 故事模式 · 找回我们的相册 (2026-11-27) ══════════════
+   Picked from the plan page: a grumpy cloud, 闷闷, blows your photo album apart and the photos land in the ten worlds.
+   Each chapter is one world: a comic, four levels, and one of your own photos back at the end. Chapters 1–3 are in
+   this update (钥匙和锁, 气球 and 涨潮, 计时门 and 一起抬); 4–10 arrive in the next two. Story levels have their own
+   indices (SI + k) so the 50 levels, their unlocking and their order are untouched. */
+Object.assign(CHUNKS, {
+  // ── 第 1 章 · 春：钥匙和锁
+  Q1_intro: { sign: '钥匙和锁：蓝钥匙只有 CS 拿得起，粉钥匙只有 YY 拿得起。带着钥匙碰一下同颜色的锁，锁就开了。', rows: [
+    '......#.......#.......',
+    '......#.......#.......',
+    '......#.......#.......',
+    '......#.......#.......',
+    '......#.......#.......',
+    '......#.......#.......',
+    '......#...*...#.......',
+    '......F.......J.......',
+    '......F.......J.......',
+    '......F.......J.......',
+    '.H.e..F...g...J.......',
+    '######################',
+    '######################'] },
+  Q1_high: { sign: '粉钥匙放得太高了：CS 站好别动，YY 跳到 CS 头上，再跳上去拿。', rows: [
+    '..........#.............',
+    '..........#.............',
+    '..........#.............',
+    '..........#.............',
+    '..........#.............',
+    '...g......#.............',
+    '..BBB.....#......*......',
+    '..........J.............',
+    '..........J.............',
+    '..........J.............',
+    '.H........J.............',
+    '########################',
+    '########################'] },
+  Q2_relay: { sign: 'CS 踩住按钮帮 YY 开门，YY 拿钥匙打开粉色的锁，再踩那边的按钮帮 CS 开门。', rows: [
+    '..........#.......#.......',
+    '..........#.......#.......',
+    '..........#.......#.......',
+    '..........#.......#.......',
+    '..........#.......#.......',
+    '..........#.......#.......',
+    '..........#.......#...*...',
+    '..........D.......J.......',
+    '..........D.......J.......',
+    '..........D.......J.......',
+    '.H...o....D...g...J.o.....',
+    '##########################',
+    '##########################'] },
+  Q2_ride: { sign: '粉色的桥只有 YY 能走：CS 站到 YY 头上，让 YY 背着走过去，顺路拿蓝钥匙。', rows: [
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................#.....',
+    '..................F.....',
+    '..................F..*..',
+    '..........e.......F.....',
+    '.H................F.....',
+    '####kkkkkkkkkkkk########',
+    '####............########'] },
+  Q3_climb: { sign: '粉色的台阶只有 YY 跳得上去。YY 拿粉钥匙打开粉色的锁，CS 就拿得到后面的蓝钥匙了。', rows: [
+    '..............#.........#...',
+    '..*...........#.........#...',
+    '..............#.........#...',
+    '..g...........#.........#...',
+    '.kkk..........#.........#...',
+    '..............#.........#...',
+    '.....kkk......#....e....#...',
+    '..............J.........F...',
+    '.........kkk..J.........F...',
+    '..............J.........F...',
+    '.H............J.........F...',
+    '############################',
+    '############################'] },
+  Q4_tree: { sign: '最高的樱花树：这次 CS 站到 YY 头上拿蓝钥匙。有人踩着按钮，桥才会出来。', rows: [
+    '...........#......................#..',
+    '...........#......................#..',
+    '...........#......................#..',
+    '...........#......................#..',
+    '...........#......................#..',
+    '...e.......#......................#..',
+    '..BBB......#.........*............#..',
+    '...........F......................J..',
+    '...........F......................J..',
+    '...........F......................J..',
+    '.H.........F..o............g..o...J..',
+    '##################bbbbbbb############',
+    '##################.......############'] },
+  // ── 第 2 章 · 夏：气球和涨潮
+  B1_wall: { sign: '抓住气球会慢慢飘上去，按一下跳就松手。气球过一会儿会回来，另一个人也能用。', rows: [
+    '....................',
+    '....................',
+    '...........*........',
+    '....................',
+    '..........####......',
+    '..........####......',
+    '..........####......',
+    '..........####......',
+    '..........####......',
+    '..........####......',
+    '.H....m...####......',
+    '####################',
+    '####################'] },
+  B1_cross: { sign: '坑太宽了：抓着气球飘过去，到了对面再松手。', rows: [
+    '........................',
+    '........................',
+    '........................',
+    '...........*............',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.H.m....................',
+    '#####............#######',
+    '#####............#######'] },
+  T1_ledge: { sign: '海水一涨一落：涨潮的时候，在水里按住跳往上游，就能上到高台。', rows: [
+    '......................',
+    '......................',
+    '......................',
+    '................*.....',
+    '......................',
+    '..............########',
+    '..............########',
+    '..............########',
+    '..............########',
+    '..............########',
+    '.H............########',
+    '######################',
+    '######################'] },
+  T1_pool: { sign: '涨潮的时候坑里全是水，按住跳就能游过去。粉钥匙在小岛上。', rows: [
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...........*.......#......',
+    '...................#......',
+    '...................J......',
+    '...................J......',
+    '............g......J......',
+    '.H.........###.....J......',
+    '####.......###...#########',
+    '####.......###...#########'] },
+  B2_plate: { sign: '飘到高台上踩住按钮，帮 TA 开门；TA 过去以后，再踩那边的按钮帮你开门。', rows: [
+    '....................#...',
+    '....................#...',
+    '..........*.........#...',
+    '....................#...',
+    '.........o..........#...',
+    '........#############...',
+    '..................#.....',
+    '..................#.....',
+    '..................D.....',
+    '..................D.....',
+    '.H....m...........D..o..',
+    '########################',
+    '########################'] },
+  W1_tide: { sign: '粉钥匙在高高的石柱上：等涨潮，YY 游上去拿。', rows: [
+    '.............#........',
+    '.............#........',
+    '.............#........',
+    '....*........#........',
+    '....g........#........',
+    '...BBB.......#........',
+    '...BBB.......#........',
+    '...BBB.......J........',
+    '...BBB.......J........',
+    '...BBB.......J........',
+    '.H.BBB.......J........',
+    '######################',
+    '######################'] },
+  T3_wave: { sign: '大浪来了：涨到最高的时候，蓝钥匙就在水面下。CS 游过去拿，再游到对面。', rows: [
+    '......................#.......',
+    '......................#.......',
+    '......................#.......',
+    '..............e.......#.......',
+    '.............###......#.......',
+    '.............###......#.......',
+    '.....*.......###......#.......',
+    '.............###......F.......',
+    '.............###......F.......',
+    '.............###......F.......',
+    '.H...........###......F.......',
+    '####.......#####.....#########',
+    '####.......#####.....#########'] },
+  W2_balloon: { sign: '蓝钥匙挂在天上：CS 抓着气球飘上去拿，飘到对面再松手。', rows: [
+    '..............................',
+    '...........e.........#........',
+    '.....................#........',
+    '........*............#........',
+    '.....................#........',
+    '.....................#........',
+    '.....................#........',
+    '.....................F........',
+    '.....................F........',
+    '.....................F........',
+    '.H.m.................F........',
+    '#####...........##############',
+    '#####...........##############'] },
+  // ── 第 3 章 · 秋：计时门和一起抬
+  R1_intro: { sign: '钟表按钮：踩一下，门会开 5 秒。快跑！', rows: [
+    '........#.......',
+    '........#.......',
+    '........#.......',
+    '........#.......',
+    '........#.......',
+    '........#.......',
+    '........#...*...',
+    '........D.......',
+    '........D.......',
+    '........D.......',
+    '.H..r...D.......',
+    '################',
+    '################'] },
+  R2_run: { sign: '桥只会出现 5 秒！一个人踩按钮，另一个快跑；或者踩一下，自己冲过去。', rows: [
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '................................',
+    '..............*.................',
+    '................................',
+    '................................',
+    '................................',
+    '.H.r........................r...',
+    '#####bbbbbb..bbbbbb..bbbbb######',
+    '#####.....................######'] },
+  F1_intro: { sign: '大相框要两个人一起抬：两个人都站到相框下面，它就会落到你们头上。一起走到「放这里」。', rows: [
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '...................D....',
+    '...................D....',
+    '..............*....D....',
+    '.H..t.......U......D....',
+    '########################',
+    '########################'] },
+  F2_carry: { sign: '抬着相框走过钟表按钮，桥会出来 5 秒：一起快走！', rows: [
+    '..........................#...',
+    '..........................#...',
+    '..........................#...',
+    '..........................#...',
+    '..........................#...',
+    '..........................#...',
+    '..........................#...',
+    '..........................D...',
+    '............*.............D...',
+    '..........................D...',
+    '.H.t.....r..........U.....D...',
+    '##########bbbbbbb#############',
+    '##########.......#############'] },
+  R3_wind: { sign: '钟表按钮会让风扇吹 5 秒。踩一下，赶快站进风里飞上去！', rows: [
+    '..................#.......',
+    '..................#.......',
+    '......*...........#.......',
+    '.........e........#.......',
+    '........####......#.......',
+    '........#.........#.......',
+    '........#.........#.......',
+    '........#.........F.......',
+    '........#.........F.......',
+    '........#.........F.......',
+    '.H.r....#.........F.......',
+    '#####fff##################',
+    '##########################'] },
+  F3_lockframe: { sign: '先拿钥匙打开粉色的锁，再一起把相框抬过去。', rows: [
+    '...............#..........#...',
+    '...............#..........#...',
+    '...............#..........#...',
+    '...............#..........#...',
+    '...............#..........#...',
+    '..........g....#..........#...',
+    '.........BBB...#..........#...',
+    '...............J..........D...',
+    '...............J..........D...',
+    '...............J....*.....D...',
+    '.H.t...........J.....U....D...',
+    '##############################',
+    '##############################'] },
+  F4_finale: { sign: '风里的信：CS 乘风去拿蓝钥匙，打开蓝色的锁；再一起抬着相框，趁桥还在，走到最后。', rows: [
+    '..............#..................................#..',
+    '..............#..................................#..',
+    '......*.......#..................................#..',
+    '..e...........#..................................#..',
+    '.###..........#..................................#..',
+    '..............#..................................#..',
+    '..............#..................................#..',
+    '..............F..................................D..',
+    '..............F..................................D..',
+    '..............F........................*.........D..',
+    '.H.......r....F...t.....r.................U......D..',
+    '#####fff#################bbbbbbbb###################',
+    '#########################........###################'] },
+});
+// the same preparing the 50's pieces get above (rows padded to 13, width and id): these are added after that loop ran
+for (const id in CHUNKS) if (!CHUNKS[id].id) {
+  const ch = CHUNKS[id], w = Math.max(...ch.rows.map(r => r.length));
+  ch.rows = Array.from({ length: 13 - ch.rows.length }, () => '.'.repeat(w)).concat(ch.rows).map(r => r.padEnd(w, '.'));
+  ch.w = w; ch.id = id;
+}
+const SI = 1000;   // a story level's index is SI + its place in STORY_LV
+// tip: shown before the level the first time, like the 50's (art keys are tipArt's)
+const STORY_LV = [
+  { id: 'S1', c: 0, name: '樱花门', world: 0, seq: ['start', 'P_flat', 'Q1_intro', 'Q1_high', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'key', title: '钥匙和锁', text: '蓝钥匙只有 CS 拿得起，粉钥匙只有 YY 拿得起。带着钥匙碰一下同颜色的锁，锁就开了。摔下去的话，钥匙会回到原来的地方。' } },
+  { id: 'S2', c: 0, name: '蜜蜂花园', world: 0, seq: ['start', 'P_gap2', 'Q2_relay', 'cp', 'Q2_ride', 'goal'], stars: [2, 3, 4] },
+  { id: 'S3', c: 0, name: '樱花树下', world: 0, seq: ['start', 'P_puffy', 'Q3_climb', 'P_float', 'goal'], stars: [1, 2, 3] },
+  { id: 'S4', c: 0, name: '最高的樱花树', world: 0, seq: ['start', 'P_pyramid', 'Q4_tree', 'cp', 'P_float2', 'goal'], stars: [1, 2, 3], finale: true },
+  { id: 'S5', c: 1, name: '海边气球', world: 1, seq: ['start', 'B1_wall', 'P_gap3', 'B1_cross', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'balloon', title: '气球', text: '碰到气球就会抓住它，慢慢飘上去；按一下跳就松手。气球过一会儿会飘回来，另一个人也能用。另一个人站在你头上，可以一起飘。' } },
+  { id: 'S6', c: 1, name: '涨潮了', world: 1, seq: ['start', 'T1_ledge', 'P_flat', 'T1_pool', 'goal'], stars: [1, 2, 3], tide: { lo: 14, hi: 4.6, period: 11 },
+    tip: { art: 'tide', title: '涨潮', text: '海水会一涨一落。在水里按住跳就能往上游：涨潮的时候能游上高台，也能游过平时过不去的坑。' } },
+  { id: 'S7', c: 1, name: '漂流瓶', world: 1, seq: ['start', 'B2_plate', 'cp', 'W2_balloon', 'goal'], stars: [1, 2, 3] },
+  { id: 'S8', c: 1, name: '大浪', world: 1, seq: ['start', 'P_float', 'W1_tide', 'cp', 'T3_wave', 'goal'], stars: [2, 3, 4], finale: true, tide: { lo: 14, hi: 3.0, period: 13 } },
+  { id: 'S9', c: 2, name: '落叶钟', world: 2, seq: ['start', 'R1_intro', 'P_spikes', 'R2_run', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'timer', title: '计时门', text: '踩一下钟表按钮，门（或者桥）会开 5 秒，门上的小钟会告诉你还剩多久。一个人踩，另一个人冲；站在按钮上不走，门就一直开着。' } },
+  { id: 'S10', c: 2, name: '抬相框', world: 2, seq: ['start', 'F1_intro', 'P_flat', 'F2_carry', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'frame', title: '一起抬', text: '两个人都站到大相框下面，它就会落到你们头上。抬着的时候不能跳；两个人走散了，它就会掉下来，回到原来的地方。一个人玩的时候，先「牵手」。' } },
+  { id: 'S11', c: 2, name: '秋风', world: 2, seq: ['start', 'R3_wind', 'cp', 'F3_lockframe', 'goal'], stars: [1, 2, 3] },
+  { id: 'S12', c: 2, name: '风里的信', world: 2, seq: ['start', 'F4_finale', 'cp', 'P_gap3', 'goal'], stars: [1, 2, 3], finale: true },
+];
+// rank (how fast the walkers go) is a level's place among the 50 for those; a story level's index is 1000+, which sent
+// the puffballs across at 31 tiles a second — so each takes its world's own: chapter c, level n → c·5 + n
+STORY_LV.forEach((L, k) => { L.story = true; L.si = k; L.rank = L.c * 5 + STORY_LV.slice(0, k).filter(q => q.c === L.c).length; });
+// the ten chapters: a world each; `lv` is what is in this update (an empty one is still to come)
+const CHAPTERS = [
+  { title: '花瓣里的第一张', world: 0, line: '照片挂在最高的樱花树上。', lv: [0, 1, 2, 3] },
+  { title: '漂流瓶', world: 1, line: '闷闷掀起大浪，照片装进漂流瓶漂走了。', lv: [4, 5, 6, 7] },
+  { title: '风里的信', world: 2, line: '秋风把照片吹成一阵叶子雨。', lv: [8, 9, 10, 11] },
+  { title: '冻住的笑脸', world: 3, line: '照片冻在冰墙里。', lv: [] },
+  { title: '拍照亭', world: 4, line: '小乌云们在镜子屋里乱按快门。', lv: [] },
+  { title: '甜甜的陷阱', world: 5, line: '糖浆地板黏住了脚。', lv: [] },
+  { title: '沉进海里的一页', world: 6, line: '照片沉进了海底。', lv: [] },
+  { title: '海市蜃楼', world: 7, line: '有的路只有一个人看得见。', lv: [] },
+  { title: '最烫的一张', world: 8, line: '熔岩往上涨。', lv: [] },
+  { title: '闷闷', world: 9, line: '星空里的最后一章。', lv: [] },
+];
+// the next level of the same chapter (none after its last)
+function storyNext(i) { const L = STORY_LV[i - SI], ch = CHAPTERS[L.c], k = ch.lv.indexOf(L.si); return k >= 0 && k + 1 < ch.lv.length ? SI + ch.lv[k + 1] : null; }
+
+
 /* ══════════════ ♾️ 一直走下去: the endless road (2026-11-26) ══════════════
    Asked for: 「make it more longer and more challenge … make sure is not short game … new for play」.
    A run is one 段 after another, each in a different world: stretches of new ground made for this run
@@ -1686,10 +2037,20 @@ function endlessSpec(run) {
     seq.push(gid());
   }
   seq.push('goal');
-  return makeESpec(run, wk, seq, storm ? { x0: 2, start: 4, speed: Math.min(2.4, 1.5 + d * 0.05) } : null, dark);
+  // the storm slows for each ⏱️ blessing taken this run
+  const slow = Math.pow(0.85, (run.bl || []).filter(k => k === 'slow').length);
+  return makeESpec(run, wk, seq, storm ? { x0: 2, start: 4, speed: Math.min(2.4, 1.5 + d * 0.05) * slow } : null, dark, roadEvent(run, storm, dark));
 }
-function makeESpec(run, wk, seq, chase, dark) {
-  return { id: 'E', name: `第 ${run.d} 段`, world: wk, seq, stars: [], endless: run.d, rank: Math.min(49, 15 + run.d * 2), seed: (run.rs + run.d * 7919) >>> 0, chase, dark };
+// 2026-11-27: things that happen on the road — a 段 now and then has a rain of hearts, moonlight (you jump higher and
+// fall slower), or fog (the night's darkness, by day)
+const EVENTS = { hearts: { e: '💗', n: '爱心雨：这一段有好多爱心' }, moon: { e: '🌙', n: '月光：这一段跳得更高、落得更慢' }, fog: { e: '🌫️', n: '起雾了：靠在一起走' } };
+function roadEvent(run, storm, dark) {
+  if (run.d < 3 || storm) return '';
+  const r = mulberry((Math.imul(run.rs, 31) + run.d * 977) >>> 0)();
+  return r < 0.55 ? '' : r < 0.72 ? 'hearts' : r < 0.88 ? 'moon' : dark ? 'hearts' : 'fog';
+}
+function makeESpec(run, wk, seq, chase, dark, ev) {
+  return { id: 'E', name: `第 ${run.d} 段`, world: wk, seq, stars: [], endless: run.d, rank: Math.min(49, 15 + run.d * 2), seed: (run.rs + run.d * 7919) >>> 0, chase, dark: dark || ev === 'fog', ev: ev || '', moon: ev === 'moon' };
 }
 
 /* ══════════════ the engine ══════════════ */
@@ -1705,6 +2066,13 @@ const T_PAIR = 16, T_FAN = 17, T_CONVL = 18, T_CONVR = 19;
 // 2026-11-24: quicksand (z: walk at 42%, jump 62% as hard — a partner's head is the way out) and fire vents (v: ground
 // that flares up on the shared clock; held button in its piece puts it out, so does a box sitting on it)
 const T_SAND = 20, T_VENT = 21;
+// 2026-11-27 故事模式: 钥匙和锁 (F a blue lock CS's key opens, J a pink lock YY's key opens — a lock is every touching
+// lock tile of its colour) and 计时门 (r: a clock button; its piece's gates and bridges stay open TIMER_S seconds after it
+// is let go, so one of you presses and the other runs)
+const T_LOCKB = 22, T_LOCKP = 23, T_TPLATE = 24, TIMER_S = 5;
+Object.assign(TILE_OF, { F: T_LOCKB, J: T_LOCKP, r: T_TPLATE });
+// 气球: held, it lifts you this fast (with your partner on your head, slower) for at most BAL_T seconds
+const BAL_RISE = 4.4, BAL_RISE2 = 3.0, BAL_T = 5.5;
 
 const G = {
   L: null, mode: 'duo', petImg: null, petName: '', meIdx: 0, wt: 0, ghost: 0,
@@ -1726,7 +2094,8 @@ function makePlayer(idx, sp) {
     an: { t: 0, run: 0, squash: 0, blinkT: 1 + idx, blink: 0, flap: 0 } };
 }
 
-const specOf = (i) => (i >= 0 ? LEVELS[i] : i === -1 ? G.espec : G.uspec);
+const specOf = (i) => (i >= SI ? STORY_LV[i - SI] : i >= 0 ? LEVELS[i] : i === -1 ? G.espec : G.uspec);
+const isStory = (i) => i >= SI && i - SI < STORY_LV.length;
 function buildLevel(i) {
   const spec = specOf(i), world = WORLDS[spec.world];
   const chunks = []; let w = 0;
@@ -1734,10 +2103,11 @@ function buildLevel(i) {
   // rank: how fast the walkers are (by the level's place in the list; the endless road by how far you have got)
   const L = { i, rank: spec.rank != null ? spec.rank : i, spec, world, w, grid: new Uint8Array(w * R), chunkOf: new Int16Array(w), chunks, plates: [], signs: [], decor: [], spawn: [], door: null, cps: [],
     items: [], enemies: [], movers: [], elevs: [], springs: [], boxes: [], seesaws: [], boss: null, heartsTotal: 0, qCount: 0,
-    pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [] };
+    pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [], tplates: [], balloons: [], frames: [], stands: [], tides: [] };
   const rng = mulberry(spec.seed != null ? spec.seed : 1000 + i * 7919);
   for (const c of chunks) {
     for (let x = 0; x < c.ch.w; x++) L.chunkOf[c.x0 + x] = c.n;
+
     const starOn = spec.stars.includes(c.n);
     for (let r = 0; r < R; r++) for (let x = 0; x < c.ch.w; x++) {
       const ch = c.ch.rows[r][x], gx = c.x0 + x, t = TILE_OF[ch];
@@ -1745,6 +2115,7 @@ function buildLevel(i) {
         L.grid[r * w + gx] = t;
         if (t === T_PLATE) L.plates.push({ c: gx, r, ch: c.n, down: false });
         else if (t === T_PAIR) L.pairs.push({ c: gx, r, ch: c.n, down: false });
+        else if (t === T_TPLATE) L.tplates.push({ c: gx, r, ch: c.n, down: false });
         continue;
       }
       if (ch !== '.') marker(L, ch, gx, r, c, starOn, rng);
@@ -1757,7 +2128,7 @@ function buildLevel(i) {
   }
   // a piece with an ordinary button powers its fans, portals and wheel from it; without one they are always on.
   // (同心锁 plates never power anything: a fan you need in order to reach one would then never start)
-  const powered = (n) => L.plates.some(p => p.ch === n);
+  const powered = (n) => L.plates.some(p => p.ch === n) || L.tplates.some(p => p.ch === n);
   for (let x = 0; x < w; x++) for (let r = 1; r < R; r++) if (L.grid[r * w + x] === T_FAN) {
     let top = r; while (top > 0 && r - top < 8 && !L.grid[(top - 1) * w + x]) top--;
     L.fans.push({ c: x, r, rTop: top, ch: L.chunkOf[x], powered: powered(L.chunkOf[x]), spin: 0 });
@@ -1777,6 +2148,12 @@ function buildLevel(i) {
     L.jets.push({ c: x, r, top, ch: n, powered: powered(n), ph });
   }
   L.hasSand = L.grid.includes(T_SAND);
+  // 涨潮: a level's sea, { lo, hi, period } in rows — over the whole beach, the way a tide comes in
+  if (spec.tide) L.tides.push(Object.assign({ x0: -50, x1: w + 50, ph: 0 }, spec.tide));
+  if (spec.ev === 'hearts') for (const c of chunks) if (c.ch.gen) for (let x = c.x0 + 3; x < c.x0 + c.ch.w - 3; x += 6) {
+    let top = -1; for (let r = 1; r < R; r++) if (L.grid[r * w + x]) { top = r; break; }
+    if (top > 3 && !L.grid[(top - 1) * w + x] && !L.grid[(top - 2) * w + x]) { L.items.push({ type: 'heart', x: x + 0.5, y: top - 1.6, ph: rng() * 6 }); L.heartsTotal++; }
+  }
   L.surfs = [...L.movers, ...L.elevs, ...L.springs, ...L.boxes, ...L.seesaws];
   return L;
 }
@@ -1822,19 +2199,29 @@ function marker(L, ch, x, r, c, starOn, rng) {
       for (let k = 0; k < 4; k++) L.movers.push({ kind: 'mover', axis: 'o', cx: wh.cx, cy: wh.cy, range: wh.r, period: wh.period, ph: k * Math.PI / 2, w: 2, ox: cx, oy: r, x: cx, y: r, x0: cx, x1: cx + 2, dx: 0, dy: 0, px: cx, py: r, wheel: wh });
       break;
     }
+    case 'e': case 'g':   // 钥匙: e is CS's (blue), g is YY's (pink)
+      L.items.push({ type: 'key', col: ch === 'e' ? 0 : 1, x: cx, y: r + 0.5, ox: cx, oy: r + 0.5, ph: rng() * 6, held: null, used: false });
+      break;
+    case 'm': L.balloons.push({ x: cx, y: r + 0.45, ox: cx, oy: r + 0.45, held: -1, back: 0, ph: rng() * 6, hue: L.balloons.length % 3 }); break;
+    case 't': {   // 一起抬: a picture frame 3 wide resting on two pegs at head height, its left edge in this column
+      const top = foot - PH - 0.04 - 1.1;
+      L.frames.push({ x, y: top, ox: x, oy: top, w: 3, h: 1.1, st: 'rest', vy: 0, t: 0, ch: c.n, foot });
+      break;
+    }
+    case 'U': L.stands.push({ x: cx, foot, ch: c.n }); break;
     case 'Z': L.boss = { x: x - 1, y: 1.6, px: x - 1, py: 1.6, w: 3, h: 2, hp: 3, st: 'float', t: 3.5, inv: 0, rain: 1.4, ax0: c.x0 + 2, ax1: c.x0 + c.ch.w - 6, dead: 0 }; break;
   }
 }
 
 /* ── tiles ── */
-const solidCell2 = (L, c, r) => r >= 0 && r < R && c >= 0 && c < L.w && [T_GROUND, T_BLOCK, T_ICE, T_GIFT, T_GIFTQ, T_CONVL, T_CONVR, T_SAND, T_VENT, T_BLUE, T_PINK, T_GATE].includes(L.grid[r * L.w + c]);
+const solidCell2 = (L, c, r) => r >= 0 && r < R && c >= 0 && c < L.w && [T_GROUND, T_BLOCK, T_ICE, T_GIFT, T_GIFTQ, T_CONVL, T_CONVR, T_SAND, T_VENT, T_BLUE, T_PINK, T_GATE, T_LOCKB, T_LOCKP].includes(L.grid[r * L.w + c]);
 const code = (c, r) => (r < 0 || r >= R ? 0 : c < 0 || c >= G.L.w ? T_GROUND : G.L.grid[r * G.L.w + c]);
 function crumbSolid(c, r) { const s = G.crumbs.get(r * G.L.w + c); return !s || s.st !== 'gone'; }
 function solidCell(c, r, who) {
   if (r < 0 || r >= R) return false;
   if (c < 0 || c >= G.L.w) return true;
   switch (G.L.grid[r * G.L.w + c]) {
-    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: case T_SAND: case T_VENT: return true;
+    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: case T_SAND: case T_VENT: case T_LOCKB: case T_LOCKP: return true;
     case T_BLUE: return who !== 'yy';
     case T_PINK: return who !== 'cs';
     case T_GATE: return !G.chanOn[G.L.chunkOf[c]];
@@ -1944,6 +2331,7 @@ function updatePlates() {
     }
     for (const [ch, list] of by) if (!G.latch[ch] && list.length >= 2 && list.every(p => p.down)) latchOn(ch, false);
   }
+  if (G.L.tplates.length) { tplateTick(); for (let n = 0; n < on.length; n++) if (G.tmr[n] > G.wt) on[n] = 1; }
   for (let n = 0; n < on.length; n++) if (G.latch[n]) on[n] = 1;
   if (G.forceChan) for (let n = 0; n < on.length; n++) on[n] = 1;   // play-testing only: "the partner is holding every button"
 }
@@ -2059,9 +2447,17 @@ function surfsFor(p) {
 const carrying = (p) => G.players.some(q => q !== p && !q.dead && q.grounded && q.ground && q.ground.ref === p);
 // 海底世界 floats: a world's gravity, jump and fall scale (everything else is the same game)
 const SEA = { g: 0.6, jump: 0.85, fall: 0.6 }, LAND = { g: 1, jump: 1, fall: 1 };
-const WK = () => (G.L && G.L.world.key === 'sea' ? SEA : LAND);
+const MOON = { g: 0.7, jump: 0.92, fall: 0.66 };   // 🌙 月光: ~4.9 tiles high, a gentle fall
+const WK = (p) => (G.L && (G.L.world.key === 'sea' || (p && G.L.tides.length && inWater(p))) ? SEA : G.L && G.L.spec.moon ? MOON : LAND);
+// 涨潮: the water in a tide piece rises and falls on the shared world clock (both phones see the same sea)
+const tideAt = (x) => { for (const td of G.L.tides) if (x >= td.x0 && x < td.x1) return td; return null; };
+const waterLevel = (td) => td.hi + (td.lo - td.hi) * (0.5 + 0.5 * Math.cos(2 * Math.PI * (G.wt / td.period + td.ph)));
+function inWater(p) { const td = tideAt(p.x + p.w / 2); return !!td && p.y + p.h * 0.55 > waterLevel(td); }
+// standing under a frame someone (or both) carries
+const underFrame = (p, f) => { const c = p.x + p.w / 2; return !p.dead && p.grounded && c > f.x - 0.05 && c < f.x + f.w + 0.05 && Math.abs(p.y - (f.y + f.h)) < 0.45; };
+const framed = (p) => G.L.frames.some(f => f.st === 'up' && underFrame(p, f));
 function doJump(p, v) {
-  v *= WK().jump;
+  v *= WK(p).jump;
   if (p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND) v *= 0.62;   // quicksand: 1.6 tiles instead of 4.2
   const g = p.ground && p.ground.ref;
   if (g && g.dx) p.vx += g.dx / STEP * 0.9;   // leave a moving thing with its speed
@@ -2111,19 +2507,36 @@ function updatePlayer(p, dt) {
   }
   if (jp) p.jbuf = 0.13; else p.jbuf = Math.max(0, p.jbuf - dt);
   p.coyote = p.grounded ? 0.1 : Math.max(0, p.coyote - dt);
-  const heavy = carrying(p);
-  if (p.jbuf > 0) {
+  const heavy = carrying(p) || framed(p);
+  // 气球: touch one to take hold of it (only your own phone decides; the partner's hears it), jump to let go
+  if (!p.balloon && !G.ghost && G.L.balloons.length && G.state === 'play') for (const b of G.L.balloons) {
+    if (b.held >= 0 || b.back > 0) continue;
+    if (Math.hypot(p.x + p.w / 2 - b.x, p.y + 0.15 - b.y) < 0.8) { grabBalloon(p, b, true); break; }
+  }
+  if (p.balloon) {
+    p.blT += dt;
+    if (!G.ghost && (jp || p.blT > BAL_T)) { letBalloon(p, true, p.blT > BAL_T ? 'pop' : 'let'); p.jbuf = 0; }
+  }
+  // in the sea of a tide piece, holding jump swims you up a stroke at a time (tapping it again and again is no fun on glass)
+  const swim = G.L.tides.length && inWater(p) && (!p.grounded || inp.j);
+  p.swimT = Math.max(0, (p.swimT || 0) - dt);
+  if (swim && !p.balloon && !heavy && p.swimT <= 0 && (jp || inp.j)) { doJump(p, JUMP_V * 0.72); p.swimT = 0.3; }
+  else if (p.jbuf > 0 && !p.balloon) {
     if (p.coyote > 0 && !heavy) doJump(p, JUMP_V);
     else if (p.coyote > 0 && heavy) { p.jbuf = 0; p.strain = 0.5; }
     else if (!p.grounded && p.wings && !p.usedDouble) { doJump(p, JUMP_V * 0.92); p.usedDouble = true; p.an.flap = 0.4; }
   }
   const g = p.vy < 0 ? (inp.j || p.launch || p.springy ? GRAV : GRAV * 2.3) : GRAV * 1.35;
-  const wind = windFor(p);
-  if (wind) {   // an updraft carries you up and holds you near its top; hold jump to rise faster
+  const wind = p.balloon ? null : windFor(p);
+  if (p.balloon) {   // up, but never off the top of the world: the balloon stops under the sky
+    p.vy = approach(p.vy, p.y < 0.4 ? 0 : -(carrying(p) ? BAL_RISE2 : BAL_RISE), 30 * dt);
+    if (p.grounded) { p.grounded = false; p.ground = null; }
+  }
+  else if (wind) {   // an updraft carries you up and holds you near its top; hold jump to rise faster
     const depth = clamp((p.y + p.h - wind.rTop - 0.3) / 2.2, 0, 1);
     p.vy = approach(p.vy, -(inp.j ? 10.5 : 7.5) * depth, 95 * dt);
     if (p.grounded && p.vy < 0) { p.grounded = false; p.ground = null; }
-  } else p.vy = Math.min(MAXFALL * WK().fall, p.vy + g * WK().g * dt);
+  } else p.vy = Math.min(MAXFALL * WK(p).fall, p.vy + g * WK(p).g * dt);
   p.push = null;
   const hit = moveX(p, p.vx * dt, p.k);
   if (hit) { if (hit.box && p.grounded && dir && dir === Math.sign(p.vx)) p.push = { box: hit.box, dir }; if (!p.launch) p.vx = 0; }
@@ -2143,6 +2556,7 @@ function updatePlayer(p, dt) {
   } else { p.grounded = false; p.ground = null; }
   // the partner's own phone decides what they bump and when they fall; here they only move
   if (res.head) { p.vy = Math.max(0, p.vy); if (!G.ghost && (res.head.code === T_GIFT || res.head.code === T_GIFTQ)) hitGift(res.head.c, res.head.r); }
+  if (p.balloon && !G.ghost && code(Math.floor(p.x + p.w / 2), Math.floor(p.y - 0.9)) === T_SPIKE) letBalloon(p, true, 'pop');
   if (p.grounded && G.L.springs.length) for (const sp of G.L.springs) {
     const feet = p.y + p.h;
     if (p.x + p.w > sp.x0 + 0.15 && p.x < sp.x1 - 0.15 && feet > sp.y - 0.05 && feet - sp.y < 0.75) { p.y = sp.y - p.h; landOn(p, { kind: 'spring', ref: sp }, 0); break; }
@@ -2265,6 +2679,8 @@ function addHearts(n, x, y) {
 }
 function fall(p) {
   if (p.dead) return;
+  if (p.key) dropKey(p, true);
+  if (p.balloon) letBalloon(p, true, 'pop');
   sfx('fall'); p.dead = 0.75; p.waitT = 0; p.vx = p.vy = 0; p.wings = false; p.shield = false; G.hold = false; syncHold();
   loseHp();
 }
@@ -2471,8 +2887,19 @@ function updateItems(dt) {
     if (it.rise > 0) { it.rise -= dt; it.y -= dt * 1.8; continue; }
     for (const p of G.players) {
       if (p.dead || !isLocal(p)) continue;
+      if (it.type === 'key' && (p.idx !== it.col || p.key)) continue;
       const cx = clamp(it.x, p.x, p.x + p.w), cy = clamp(it.y, p.y, p.y + p.h), rad = it.type === 'star' ? 0.5 : 0.4;
       if ((cx - it.x) ** 2 + (cy - it.y) ** 2 < rad * rad) { collect(p, it); break; }
+    }
+  }
+}
+function magnetTick(dt) {
+  for (const it of G.L.items) {
+    if (it.got || (it.type !== 'heart' && it.type !== 'star')) continue;
+    for (const p of G.players) {
+      if (p.dead || !isLocal(p)) continue;
+      const dx = p.x + p.w / 2 - it.x, dy = p.y + p.h / 2 - it.y, d = Math.hypot(dx, dy);
+      if (d < 3.2 && d > 0.05) { const v = Math.min(d, (6 + (3.2 - d) * 4) * dt); it.x += dx / d * v; it.y += dy / d * v; break; }
     }
   }
 }
@@ -2482,11 +2909,115 @@ function collect(p, it, fromNet) {
   // the host's own pickup carries the new 💗 count (the guest takes it at once instead of waiting for the next world)
   if (!fromNet && ONLINE()) netEv('item', { i: G.L.items.indexOf(it), key: it.key || '', he: isHost() ? G.hearts + (it.type === 'heart' ? 1 : 0) : undefined });
   // the host keeps the 💗 count; the guest hears it in the world update (adding it here too counted a resent one twice)
+  if (it.type === 'key') { p.key = it; it.held = p.idx; it.used = false; if (!fromNet) { sfx('power'); sparkle(it.x, it.y, it.col ? '#FF8FB3' : '#8FC4FF', 12); } return; }
   if (fromNet) { if (it.type === 'heart') { if (isHost()) addHearts(1, it.x, it.y); } else if (it.type === 'star') { G.stars[it.n] = true; starFx(it); } return; }
   if (it.type === 'heart') { addHearts(1, it.x, it.y); sparkle(it.x, it.y, '#FF8FB3', 5); sfx('heart'); }
   else if (it.type === 'star') { G.stars[it.n] = true; starFx(it); }
   else if (it.type === 'wings') { p.wings = true; sfx('power'); sparkle(it.x, it.y, '#FFFFFF', 12); }
   else if (it.type === 'shield') { p.shield = true; sfx('power'); sparkle(it.x, it.y, '#9FE3FF', 12); }
+}
+// 钥匙和锁
+function keyLocks() {
+  for (const p of G.players) {
+    if (p.dead || !p.key || !isLocal(p)) continue;
+    const want = p.key.col ? T_LOCKP : T_LOCKB;
+    const c0 = Math.floor(p.x - 0.18), c1 = Math.floor(p.x + p.w + 0.18), r0 = Math.floor(p.y - 0.2), r1 = Math.floor(p.y + p.h - 0.05);
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (code(c, r) === want) { unlockAt(c, r, true); return; }
+  }
+}
+// every lock tile of that colour touching this one goes, and the key that opened it is used up
+function unlockAt(c, r, mine, quiet) {
+  const L = G.L, t = code(c, r);
+  if (t !== T_LOCKB && t !== T_LOCKP) return;
+  const gone = [], todo = [[c, r]];
+  while (todo.length) { const [x, y] = todo.pop(); if (code(x, y) !== t || x < 0 || x >= L.w) continue; L.grid[y * L.w + x] = 0; gone.push([x, y]); todo.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); }
+  G.opened.push([c, r]);
+  const holder = G.players.find(p => p.key && (p.key.col ? T_LOCKP : T_LOCKB) === t);
+  if (holder) { holder.key.used = true; holder.key.held = null; holder.key = null; holder.happy = 1.2; }
+  if (!quiet) { for (const [x, y] of gone) sparkle(x + 0.5, y + 0.5, t === T_LOCKB ? '#8FC4FF' : '#FF8FB3', 5); sfx('latch'); G.shake = Math.max(G.shake, 0.1); }
+  if (mine && ONLINE()) netEv('unlock', { c, r });
+}
+// a key goes back to where it was when the one carrying it falls
+function dropKey(p, mine) {
+  const it = p.key; if (!it) return;
+  p.key = null; it.got = false; it.held = null; it.x = it.ox; it.y = it.oy; it.rise = 0;
+  sparkle(it.x, it.y, '#FFE08A', 8);
+  if (mine && ONLINE()) netEv('keyback', { i: G.L.items.indexOf(it) });
+}
+// 气球
+function grabBalloon(p, b, mine) {
+  if (p.balloon || b.held >= 0) return;
+  p.balloon = b; p.blT = 0; b.held = p.idx;
+  if (mine) { sfx('power'); if (ONLINE()) netEv('bl', { b: G.L.balloons.indexOf(b), on: 1 }); }
+}
+function letBalloon(p, mine, how) {
+  const b = p.balloon; if (!b) return;
+  p.balloon = null; p.blT = 0; b.held = -1; b.back = how === 'pop' ? 2.2 : 1.6;
+  if (how === 'pop') { sparkle(b.x, b.y, ['#FF8FB3', '#8FC4FF', '#FFD75E'][b.hue], 14); sfx('pop'); }
+  if (mine && ONLINE()) netEv('bl', { b: G.L.balloons.indexOf(b), on: 0, how });
+}
+function updateBalloons(dt) {
+  for (const b of G.L.balloons) {
+    if (b.held >= 0) { const p = G.players[b.held]; b.x = p.x + p.w / 2; b.y = p.y - 0.95; continue; }
+    if (b.back > 0) { b.back -= dt; if (b.back <= 0) { b.x = b.ox; b.y = b.oy; sparkle(b.x, b.y, '#FFFFFF', 8); } continue; }
+    b.x = b.ox; b.y = b.oy + (REDUCE ? 0 : Math.sin(G.clock * 2.2 + b.ph) * 0.12);
+  }
+}
+// 计时门: a clock button keeps its piece's gates open a while after it is let go
+function tplateTick() {
+  for (const tp of G.L.tplates) {
+    const was = tp.down; tp.down = pressed(tp);
+    if (tp.down !== was) sfx(tp.down ? 'click' : 'unclick');
+    if (!tp.down) continue;
+    const fresh = !(G.tmr[tp.ch] > G.wt);
+    G.tmr[tp.ch] = Math.max(G.tmr[tp.ch], G.wt + TIMER_S);
+    // the one standing on it says when it started (the partner's phone sees them there a moment late)
+    if (fresh && ONLINE() && G.players.some(p => isLocal(p) && !p.dead && p.grounded && p.x < tp.c + 0.94 && p.x + p.w > tp.c + 0.06 && Math.abs(p.y + p.h - tp.r - 1) < 0.08)) netEv('tmr', { ch: tp.ch, u: +(G.wt + TIMER_S).toFixed(2) });
+  }
+}
+// 一起抬: the frame goes up when both of you stand under it, rides on your heads, falls when you part (or one of you
+// jumps or falls), and stays put on its stand, which opens the piece's gates. Online, the host's phone decides those
+// moments and says so; both phones carry it between them.
+function updateFrames(dt) {
+  const auth = !ONLINE() || isHost(), [a, b] = G.players;
+  for (const f of G.L.frames) {
+    // it goes up when you both STAND under it a moment: walking past it together picked it up, and then neither of you
+    // could jump (the bot found it stacking right next to one)
+    if (f.st === 'rest') {
+      const still = (p) => underFrame(p, f) && Math.abs(p.vx) < 1.2;
+      f.ut = auth && G.state === 'play' && still(a) && still(b) ? (f.ut || 0) + dt : 0;
+      if (f.ut > 0.35) { f.ut = 0; frameSet(f, 'up'); }
+    }
+    else if (f.st === 'up') {
+      const ca = a.x + a.w / 2, cb = b.x + b.w / 2;
+      f.x = (ca + cb) / 2 - f.w / 2; f.y = Math.min(a.y, b.y) - f.h + 0.02;
+      if (!auth) continue;
+      if (a.dead || b.dead || Math.abs(ca - cb) > f.w - 0.15 || Math.abs(a.y - b.y) > 0.6 || !a.grounded && !b.grounded) { frameSet(f, 'fall'); continue; }
+      const st = G.L.stands.find(q => q.ch === f.ch && Math.abs(q.x - (f.x + f.w / 2)) < 0.7);
+      if (st) frameSet(f, 'placed', st);
+    } else if (f.st === 'fall') {
+      f.ut = 0; f.vy = Math.min(16, f.vy + 42 * dt);
+      let ny = f.y + f.vy * dt;
+      const c = Math.floor(f.x + f.w / 2), r = Math.floor(ny + f.h);
+      if (r >= R || solidCell(c, r, 'box') || oneWayCell(c, r)) { ny = Math.min(ny, r - f.h); f.vy = 0; f.t += dt; }
+      f.y = ny;
+      if (auth && (f.t > 1.1 || f.y > R + 1)) frameSet(f, 'rest');
+    }
+  }
+}
+function frameSet(f, st, stand, fromNet) {
+  if (f.st === st || f.st === 'placed') return;
+  f.st = st; f.t = 0; f.vy = 0;
+  if (st === 'rest') { f.x = f.ox; f.y = f.oy; sparkle(f.x + f.w / 2, f.y + f.h / 2, '#FFE08A', 10); }
+  else if (st === 'up') sfx('click');
+  else if (st === 'fall') sfx('unclick');
+  else if (st === 'placed') {
+    const s0 = stand || G.L.stands.find(q => q.ch === f.ch) || { x: f.x + f.w / 2, foot: f.foot };
+    f.x = s0.x - f.w / 2; f.y = s0.foot - PH - 0.04 - f.h;
+    confetti(f.x + f.w / 2, f.y, 18);
+    latchOn(f.ch, !!fromNet);
+  }
+  if (!fromNet && ONLINE() && isHost()) netEv('fr', { i: G.L.frames.indexOf(f), st });
 }
 function starFx(it) {
   sparkle(it.x, it.y, '#FFD75E', 26); sfx('star');
@@ -2543,7 +3074,10 @@ function step(dt) {
   if (isHost()) { if (L.boss) updateBoss(dt); }
   else if (L.boss) { netBossStep(dt); bossTouch(); }
   updateProj(dt);
-  if (G.state === 'play') { enemyHits(); spikeHits(); if (L.jets.length) jetHits(); updateItems(dt); checkpoints(); if (L.spec.chase) chaseTick(); }
+  if (G.state === 'play') { enemyHits(); spikeHits(); if (L.jets.length) jetHits(); updateItems(dt); checkpoints(); if (L.spec.chase) chaseTick(); keyLocks(); }
+  if (L.balloons.length) updateBalloons(dt);
+  if (L.i === -1 && G.run && G.run.bl && G.run.bl.includes('magnet') && G.state === 'play') magnetTick(dt);
+  if (L.frames.length) updateFrames(dt);
   for (const l of L.lamps) if (!l.lit && G.players.some(p => !p.dead && Math.abs(p.x + p.w / 2 - l.x) < 1.4 && Math.abs(p.y + p.h - l.y) < 2.2)) { l.lit = true; sfx('lamp'); sparkle(l.x, l.y - 1.5, '#FFD982', 12); }
   for (const f of L.fans) f.spin += dt * (!f.powered || G.chanOn[f.ch] ? 22 : 0);
   for (const cn of L.cannons) cn.kick = Math.max(0, cn.kick - dt * 2.5);
@@ -3043,9 +3577,88 @@ function drawItem(it) {
   } else if (it.type === 'wings') {
     ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#9FB7DA'; ctx.lineWidth = TP * 0.04;
     for (const sd of [-1, 1]) { ell(ctx, X + sd * TP * 0.22, Y, TP * 0.24, TP * 0.13, sd * 0.4); ctx.fill(); ctx.stroke(); }
-  } else if (it.type === 'shield') {
+  } else if (it.type === 'key') {
+    const pu = REDUCE ? 0.5 : 0.5 + 0.5 * Math.sin(G.clock * 3.4 + it.ph);
+    ctx.fillStyle = it.col ? `rgba(255,143,179,${0.16 + 0.16 * pu})` : `rgba(143,196,255,${0.16 + 0.16 * pu})`; ell(ctx, X, Y, TP * (0.62 + 0.08 * pu), TP * (0.62 + 0.08 * pu)); ctx.fill();
+    drawKey(X, Y, TP * 0.95, it.col);
+  }
+  else if (it.type === 'shield') {
     ell(ctx, X, Y, TP * 0.32, TP * 0.32); ctx.fillStyle = 'rgba(160,225,255,.45)'; ctx.fill(); ctx.strokeStyle = '#BDEBFF'; ctx.lineWidth = TP * 0.05; ctx.stroke();
     ctx.fillStyle = '#FFFFFF'; ell(ctx, X - TP * 0.1, Y - TP * 0.1, TP * 0.07, TP * 0.045, -0.6); ctx.fill();
+  }
+}
+// a key: gold, with a ribbon in its owner's colour
+function drawKey(X, Y, sz, col) {
+  const u = sz / 50;
+  ctx.save(); ctx.translate(X, Y); ctx.rotate(-0.5);
+  ctx.fillStyle = '#FFD75E'; ctx.strokeStyle = '#C9971C'; ctx.lineWidth = 4 * u;
+  ell(ctx, -14 * u, 0, 13 * u, 13 * u); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#FFF6D6'; ell(ctx, -14 * u, 0, 5 * u, 5 * u); ctx.fill();
+  ctx.fillStyle = '#FFD75E'; rrect(ctx, -2 * u, -4 * u, 30 * u, 8 * u, 3 * u); ctx.fill(); ctx.stroke();
+  ctx.fillRect(16 * u, 2 * u, 5 * u, 9 * u); ctx.fillRect(23 * u, 2 * u, 4 * u, 6 * u);
+  ctx.fillStyle = col ? '#FF6F9F' : '#4F8FDB'; ctx.beginPath(); ctx.moveTo(-26 * u, -4 * u); ctx.lineTo(-38 * u, -12 * u); ctx.lineTo(-36 * u, 2 * u); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-26 * u, 4 * u); ctx.lineTo(-36 * u, 12 * u); ctx.lineTo(-30 * u, 0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawBalloon(b, held) {
+  const X = sx(b.x), Y = sy(b.y), u = TP / 100, cols = [['#FF8FB3', '#D9558C'], ['#8FC4FF', '#4F86C6'], ['#FFD75E', '#C9971C']][b.hue];
+  if (!held && b.back > 0) return;
+  ctx.strokeStyle = 'rgba(80,70,90,.7)'; ctx.lineWidth = 2.2 * u; ctx.beginPath(); ctx.moveTo(X, Y + 34 * u);
+  ctx.quadraticCurveTo(X + (REDUCE ? 0 : Math.sin(G.clock * 3 + b.ph) * 8 * u), Y + 58 * u, X, Y + (held ? 82 : 70) * u); ctx.stroke();
+  ctx.fillStyle = cols[0]; ctx.strokeStyle = cols[1]; ctx.lineWidth = 3.5 * u;
+  ell(ctx, X, Y, 26 * u, 32 * u); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(X - 5 * u, Y + 34 * u); ctx.lineTo(X + 5 * u, Y + 34 * u); ctx.lineTo(X, Y + 28 * u); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(ctx, X - 9 * u, Y - 12 * u, 6 * u, 10 * u, -0.4); ctx.fill();
+  if (!held) { ctx.fillStyle = '#8A7E9A'; ell(ctx, X, Y + 72 * u, 6 * u, 4 * u); ctx.fill(); }
+}
+// the sea in a tide piece: in front of everything, see-through, a slow wave along its top
+function drawWater(W, H) {
+  for (const td of G.L.tides) {
+    const X0 = Math.max(0, sx(td.x0)), X1 = Math.min(W, sx(td.x1)); if (X1 <= X0) continue;
+    const wl = sy(waterLevel(td)), d = V.dpr, amp = TP * 0.06, ph = REDUCE ? 0 : G.wt * 2.4;
+    ctx.beginPath(); ctx.moveTo(X0, H);
+    for (let x = X0; x <= X1 + 8 * d; x += 8 * d) ctx.lineTo(Math.min(x, X1), wl + Math.sin(x / (TP * 0.7) + ph) * amp);
+    ctx.lineTo(X1, H); ctx.closePath();
+    ctx.fillStyle = 'rgba(70,160,225,.38)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3 * d; ctx.beginPath();
+    for (let x = X0; x <= X1; x += 8 * d) { const y = wl + Math.sin(x / (TP * 0.7) + ph) * amp; if (x === X0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
+}
+// the frame you carry together, and the stand it goes on
+function drawFrame(f) {
+  const X = sx(f.x), Y = sy(f.y), Wd = f.w * TP, Hd = f.h * TP, u = TP / 100;
+  if (f.st === 'rest' || f.st === 'placed') {   // on its pegs
+    ctx.fillStyle = '#B98A5E'; ctx.strokeStyle = '#7A5636'; ctx.lineWidth = 2.5 * u;
+    for (const px of [0.18, 0.82]) { const x = X + Wd * px - 5 * u; rrect(ctx, x, Y + Hd - 4 * u, 10 * u, sy(f.foot) - (Y + Hd) + 4 * u, 3 * u); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.fillStyle = '#F2C35E'; ctx.strokeStyle = '#A67718'; ctx.lineWidth = 4 * u;
+  rrect(ctx, X, Y, Wd, Hd, 8 * u); ctx.fill(); ctx.stroke();
+  const g = ctx.createLinearGradient(0, Y, 0, Y + Hd); g.addColorStop(0, '#BFE6FF'); g.addColorStop(1, '#FFE3EE');
+  ctx.fillStyle = g; rrect(ctx, X + 12 * u, Y + 12 * u, Wd - 24 * u, Hd - 24 * u, 4 * u); ctx.fill();
+  ctx.fillStyle = '#FF6F9F'; heartPath(ctx, X + Wd * 0.42, Y + Hd * 0.52, TP * 0.13); ctx.fill(); heartPath(ctx, X + Wd * 0.58, Y + Hd * 0.52, TP * 0.13); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.55)'; rrect(ctx, X + 6 * u, Y + 5 * u, Wd * 0.4, 5 * u, 3 * u); ctx.fill();
+}
+function drawStand(s) {
+  if (G.L.frames.some(f => f.st === 'placed' && f.ch === s.ch)) return;
+  const u = TP / 100, w = 3 * TP, top = sy(s.foot - PH - 0.04 - 1.1), X = sx(s.x) - w / 2, H = 1.1 * TP;
+  ctx.fillStyle = '#B98A5E'; ctx.strokeStyle = '#7A5636'; ctx.lineWidth = 2.5 * u;
+  for (const px of [0.18, 0.82]) { const x = X + w * px - 5 * u; rrect(ctx, x, top + H - 4 * u, 10 * u, sy(s.foot) - (top + H) + 4 * u, 3 * u); ctx.fill(); ctx.stroke(); }
+  ctx.setLineDash([10 * u, 8 * u]); ctx.strokeStyle = 'rgba(166,119,24,.85)'; ctx.lineWidth = 4 * u; rrect(ctx, X, top, w, H, 8 * u); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(166,119,24,.9)'; ctx.font = `800 ${Math.round(TP * 0.32)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('放这里', sx(s.x), top + H * 0.62);
+}
+// a piece held open by a clock button shows how long is left, over its gates
+function drawTimers() {
+  const L = G.L;
+  for (let n = 0; n < L.chunks.length; n++) {
+    const left = (G.tmr[n] || 0) - G.wt; if (left <= 0 || !L.tplates.some(t => t.ch === n)) continue;
+    if (L.tplates.some(t => t.ch === n && t.down)) continue;
+    const c = L.chunks[n]; let gc = -1, gr = 99;
+    for (let x = c.x0; x < c.x0 + c.ch.w; x++) for (let r = 0; r < R; r++) { const t = L.grid[r * L.w + x]; if ((t === T_GATE || t === T_BRIDGE) && r < gr) { gr = r; gc = x; } }
+    if (gc < 0) continue;
+    const X = sx(gc + 0.5), Y = sy(gr - 0.7), rad = TP * 0.32, k = clamp(left / TIMER_S, 0, 1);
+    ctx.fillStyle = 'rgba(255,255,255,.92)'; ell(ctx, X, Y, rad, rad); ctx.fill();
+    ctx.fillStyle = left < 1.5 ? '#FF6F6F' : '#2F8A6A'; ctx.beginPath(); ctx.moveTo(X, Y); ctx.arc(X, Y, rad * 0.82, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.closePath(); ctx.fill();
   }
 }
 function drawHouse(d) {
@@ -3592,6 +4205,9 @@ function render(al, dt) {
   for (const m of L.movers) if (m.axis === 'o') drawCabin(m, al); else drawPlatformThing(m, al, 'mover');
   for (const e of L.elevs) drawPlatformThing(e, al, 'elev');
   for (const b of L.boxes) drawBox(b, al);
+  for (const s of L.stands) drawStand(s);
+  for (const f of L.frames) if (f.st !== 'up') drawFrame(f);
+  for (const b of L.balloons) if (b.held < 0) drawBalloon(b, false);
   for (const it of L.items) drawItem(it);
   for (const e of L.enemies) drawEnemy(e, al);
   drawBoss(al);
@@ -3602,6 +4218,11 @@ function render(al, dt) {
   const [a, b] = G.players;
   const order = a.y < b.y ? [b, a] : [a, b];
   for (const p of order) drawChar(p, al);
+  for (const f of L.frames) if (f.st === 'up') drawFrame(f);
+  for (const b of L.balloons) if (b.held >= 0) drawBalloon(b, true);
+  for (const p of order) if (p.key && !p.dead) { const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0); drawKey(sx(x + p.w / 2 + 0.05), sy(y - 0.42 + (REDUCE ? 0 : Math.sin(G.clock * 4) * 0.05)), TP * 0.72, p.key.col); }
+  if (L.tides.length) drawWater(W, H);
+  if (L.tplates.length) drawTimers();
   if (L.hasSand) for (const p of order) sandRim(p, al);
   for (const cn of L.cannons) drawCannon(cn, true);
   for (const j of L.jets) drawJet(j);
@@ -3704,6 +4325,20 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
     ctx.fillStyle = '#8D95AE'; rrect(ctx, X + 8 * u, Y + Hh - 14 * u, Ww - 16 * u, 14 * u, 5 * u); ctx.fill();
     if (down) { ctx.fillStyle = 'rgba(255,215,94,.35)'; ell(ctx, X + Ww / 2, Y + Hh - 8 * u, Ww * 0.55, 14 * u); ctx.fill(); }
     ctx.fillStyle = down ? '#FFD75E' : '#E8A53A'; rrect(ctx, X + 18 * u, Y + Hh - (down ? 20 : 32) * u, Ww - 36 * u, (down ? 8 : 20) * u, 6 * u); ctx.fill();
+  } else if (t === T_LOCKB || t === T_LOCKP) {   // a lock: a block in its key's colour with a keyhole
+    const u = Ww / 100, blue = t === T_LOCKB;
+    ctx.fillStyle = blue ? '#8FB8EE' : '#F7A8C6'; ctx.strokeStyle = blue ? '#3F72B8' : '#C04A80'; ctx.lineWidth = 5 * u;
+    rrect(ctx, X + 3 * u, Y + 3 * u, Ww - 6 * u, Hh - 6 * u, 14 * u); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; rrect(ctx, X + 12 * u, Y + 10 * u, Ww - 24 * u, 10 * u, 5 * u); ctx.fill();
+    ctx.fillStyle = blue ? '#2F5C9C' : '#9E3666'; ell(ctx, X + Ww / 2, Y + Hh * 0.46, 11 * u, 11 * u); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(X + Ww / 2 - 6 * u, Y + Hh * 0.5); ctx.lineTo(X + Ww / 2 + 6 * u, Y + Hh * 0.5); ctx.lineTo(X + Ww / 2 + 9 * u, Y + Hh * 0.74); ctx.lineTo(X + Ww / 2 - 9 * u, Y + Hh * 0.74); ctx.fill();
+  } else if (t === T_TPLATE) {   // a clock button: a plate with a little clock face
+    const tp = L.tplates.find(q => q.c === c && q.r === r), down = tp && tp.down, u = Ww / 100;
+    ctx.fillStyle = '#8D95AE'; rrect(ctx, X + 8 * u, Y + Hh - 14 * u, Ww - 16 * u, 14 * u, 5 * u); ctx.fill();
+    const top = Y + Hh - (down ? 20 : 34) * u;
+    ctx.fillStyle = down ? '#9FE0C4' : '#6CC9A4'; rrect(ctx, X + 16 * u, top, Ww - 32 * u, (down ? 8 : 22) * u, 6 * u); ctx.fill();
+    ctx.fillStyle = '#FFFDF6'; ctx.strokeStyle = '#2F8A6A'; ctx.lineWidth = 4 * u; ell(ctx, X + Ww / 2, top - 16 * u, 15 * u, 15 * u); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X + Ww / 2, top - 16 * u); ctx.lineTo(X + Ww / 2, top - 26 * u); ctx.moveTo(X + Ww / 2, top - 16 * u); ctx.lineTo(X + Ww / 2 + 7 * u, top - 13 * u); ctx.stroke();
   } else if (t === T_BGATE) {
     if (G.bossFade >= 1) return;
     const u = Ww / 100;
@@ -3765,6 +4400,73 @@ html[data-theme="dark"] .cg-lv .st{color:#F2C46B}
 .cg-lv .co{font-size:11.5px;font-weight:800;color:#B23A72}
 html[data-theme="dark"] .cg-lv .co{color:#FF9CC4}
 .cg-lv[disabled]{opacity:.45;cursor:default}
+.cg-bless{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:4px 0}
+.cg-bless p{grid-column:1/-1;margin:0;font-weight:800}
+.cg-bless button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 5px;border-radius:14px;border:1.5px solid rgba(150,120,190,.35);background:rgba(255,255,255,.7);color:inherit;font-family:inherit;cursor:pointer;min-height:84px}
+.cg-pb-row{flex-direction:row!important}.cg-pb-row button{flex:1}
+@media (max-height:560px){
+  .cg-bless button{min-height:56px;flex-direction:row;justify-content:center;gap:5px;padding:6px 4px}.cg-bless small{display:none}.cg-bless i{font-size:20px}
+  .cg-veil .cg-panel .cg-seg-stats{display:none}
+  .cg-veil .cg-panel.cg-seg-card{padding:12px 14px;gap:7px}
+}
+html[data-theme="dark"] .cg-bless button{background:rgba(255,255,255,.07)}
+.cg-bless button:disabled{opacity:.55;cursor:default}
+.cg-bless button:not(:disabled):hover,.cg-bless button:focus-visible{border-color:#E0508F;outline:none}
+.cg-bless i{font-style:normal;font-size:24px}.cg-bless b{font-size:13.5px}.cg-bless small{font-size:11px;opacity:.75;line-height:1.3}
+.cg-mode{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;padding:14px;border-radius:22px;border:1.5px solid rgba(160,130,200,.28);background:rgba(255,255,255,.86);color:inherit;font-family:inherit;cursor:pointer;box-shadow:0 12px 22px -16px rgba(90,60,150,.55)}
+html[data-theme="dark"] .cg-mode{background:rgba(255,255,255,.07);border-color:rgba(200,180,255,.2)}
+.cg-mode:focus-visible{outline:3px solid #E0508F;outline-offset:2px}
+.cg-mode .ic{width:52px;height:52px;border-radius:17px;display:grid;place-items:center;font-size:26px;background:#FFE1EE}
+.cg-m-free .ic{background:#E1ECFB}
+html[data-theme="dark"] .cg-mode .ic{background:rgba(255,143,179,.18)}html[data-theme="dark"] .cg-m-free .ic{background:rgba(143,186,245,.18)}
+.cg-mode .tx{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cg-mode b{font-size:18px;font-weight:900}
+.cg-mode small{font-size:12.5px;opacity:.78;line-height:1.35}
+.cg-mode .go{font-weight:900;font-size:14px;color:#fff;background:#E0508F;border-radius:999px;padding:9px 15px;white-space:nowrap}
+html[data-theme="dark"] .cg-mode .go{background:#FF8DBE;color:#2A1030}
+.cg-bar{display:block;height:7px;border-radius:4px;background:rgba(150,120,190,.2);overflow:hidden;margin-top:3px}.cg-bar i{display:block;height:100%;background:#E0508F;border-radius:4px}
+.cg-smap{position:relative;border-radius:22px;background:linear-gradient(160deg,#20265E,#3D2F72);padding:26px 6px 12px;overflow:hidden}
+.cg-smap svg{display:block;width:100%;height:auto}
+.cg-node{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:2.5px solid #FFB3CF;background:#FFE1EE;font-size:20px;display:grid;place-items:center;cursor:pointer;padding:0;line-height:1}
+.cg-node[disabled]{background:#2E3270;border-color:#4A4F9A;cursor:default;font-size:15px}
+.cg-node.on{border-color:#FF6FA8;box-shadow:0 0 0 5px rgba(255,111,168,.35)}
+.cg-node i{position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#3DBE7A;color:#fff;font:900 11px/18px sans-serif;font-style:normal}
+.cg-smap-lab{position:absolute;left:14px;top:10px;font-size:12px;font-weight:800;color:#C9C3F0}
+.cg-ch-t{margin:0;font-size:19px;font-weight:900}
+.cg-slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.cg-slot{aspect-ratio:1;border-radius:10px;border:1.5px dashed rgba(150,120,190,.45);display:grid;place-items:center;font-weight:900;opacity:.75;overflow:hidden;position:relative}
+.cg-slot.got{border:3px solid #fff;box-shadow:0 4px 10px -6px rgba(0,0,0,.5);opacity:1;background:#FFE1EE}
+.cg-slot img{width:100%;height:100%;object-fit:cover}
+.cg-slot.drawn::after{content:'💞';font-size:20px}
+.cg-wgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+@media (min-width:520px){.cg-wgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.cg-wcard{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px;border-radius:18px;border:1.5px solid rgba(150,120,190,.3);background:linear-gradient(160deg,var(--w1),var(--w2));color:#3A2F4F;font-family:inherit;cursor:pointer;min-height:104px}
+.cg-wcard .wi{font-size:24px}.cg-wcard b{font-size:16px;font-weight:900}.cg-wcard small{font-size:12px;font-weight:700;opacity:.82}
+.cg-wcard[disabled]{filter:grayscale(.7);opacity:.55;cursor:default}
+.cg-sc{position:fixed;inset:0;z-index:170;background:rgba(20,16,40,.72);display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.cg-sc-card{width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;border-radius:24px;overflow:hidden;background:#FFFDF8;border:3px solid #2C2742;box-shadow:0 24px 50px -20px rgba(0,0,0,.7)}
+html[data-theme="dark"] .cg-sc-card{background:#1E1B36;border-color:#05061A;color:#EEE8F6}
+.cg-sc-art{aspect-ratio:16/10;max-height:56vh;background:#EAF4FF;display:grid;place-items:center;overflow:hidden}
+.cg-sc-art svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:no-preference){.cg-sc-art.in>*{animation:cg-scin .35s ease-out}}
+@keyframes cg-scin{from{opacity:0;transform:translateX(18px)}}
+.cg-sc-box{padding:12px 16px 14px;display:flex;flex-direction:column;gap:6px;border-top:3px solid #2C2742}
+html[data-theme="dark"] .cg-sc-box{border-top-color:#05061A}
+.cg-sc-box b{font-size:13px;font-weight:900;color:#B23A72}html[data-theme="dark"] .cg-sc-box b{color:#FF9CC4}
+.cg-sc-box p{margin:0;font-size:16px;line-height:1.55;font-weight:700}
+.cg-sc-b{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.cg-sc-b span{margin-right:auto;font-size:12.5px;font-weight:800;opacity:.6}
+.cg-sc-b button{min-height:44px;padding:0 18px;border-radius:14px;border:0;font:900 15px/1 sans-serif;font-family:inherit;cursor:pointer;background:#E0508F;color:#fff}
+.cg-sc-b button.alt{background:rgba(150,120,190,.16);color:inherit}
+html[data-theme="dark"] .cg-sc-b button:not(.alt){background:#FF8DBE;color:#2A1030}
+.cg-sc-photo{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,#FFF4C8,#FFE1EE 70%)}
+.cg-sc-gold .cg-sc-art{background:#FFF4C8}
+.cg-sc-photo .pol{width:min(62%,300px);background:#fff;padding:10px 10px 6px;border-radius:6px;box-shadow:0 14px 26px -12px rgba(80,40,30,.55);transform:rotate(-3deg);display:flex;flex-direction:column;gap:6px;color:#3A2F4F}
+@media (prefers-reduced-motion:no-preference){.cg-sc-photo .pol{animation:cg-pol .6s cubic-bezier(.2,1.4,.4,1)}}
+@keyframes cg-pol{from{transform:rotate(-14deg) scale(.6);opacity:0}}
+.cg-sc-photo .pic{aspect-ratio:4/3;background:#EEE;overflow:hidden;border-radius:2px}
+.cg-sc-photo .pic img,.cg-sc-photo .pic svg{width:100%;height:100%;object-fit:cover;display:block}
+.cg-sc-photo .pol span{font-size:13px;font-weight:800;text-align:center}
 .cg-lv.done{background:rgba(255,226,160,.35)}
 .cg-endless{background:linear-gradient(135deg,rgba(255,218,234,.92),rgba(226,216,255,.92));border-color:rgba(224,80,143,.32)}
 html[data-theme="dark"] .cg-endless{background:linear-gradient(135deg,rgba(255,120,170,.16),rgba(150,120,255,.16));border-color:rgba(255,150,200,.25)}
@@ -3946,6 +4648,7 @@ function startLevel(i) {
   G.chanOn = new Uint8Array(G.L.chunks.length); G.chanA = new Float32Array(G.L.chunks.length);
   G.crumbs = new Map(); G.bumps = []; G.proj = []; G.parts = []; G.fx = []; G.shells = []; G.sparks = []; G.amb = [];
   G.bossDown = false; G.bossFade = 0; G.rainbow = 0; G.fwT = 0; G.latch = new Uint8Array(G.L.chunks.length); G.chaseX = null;
+  G.tmr = new Float32Array(G.L.chunks.length); G.opened = [];
   G.players = [makePlayer(0, G.L.spawn[0]), makePlayer(1, G.L.spawn[1])];
   G.cp = { x: G.L.spawn[0].x + PW / 2 + 0.6, y: G.L.spawn[0].y + PH };
   G.cpSnap = null;
@@ -3956,13 +4659,19 @@ function startLevel(i) {
   V.spr.clear();
   syncHold();
   updateCamera(0, true);
-  if (i === -1) G.fx.push({ kind: 'text', text: `${G.L.world.icon} 第 ${G.L.spec.endless} 段`, x: G.L.spawn[0].x + 2.6, y: G.L.spawn[0].y - 1.1, t: 2.6, max: 2.6, col: '#E0508F' });
+  if (i === -1) {
+    G.fx.push({ kind: 'text', text: `${G.L.world.icon} 第 ${G.L.spec.endless} 段`, x: G.L.spawn[0].x + 2.6, y: G.L.spawn[0].y - 1.1, t: 2.6, max: 2.6, col: '#E0508F' });
+    const nx = (G.run && G.run.nx) || {};
+    for (const p of G.players) { if (nx.wings) p.wings = true; if (nx.shield) p.shield = true; }
+  }
 }
-function snapAtCp() { G.cpSnap = { cp: { ...G.cp }, hearts: G.hearts, stars: G.stars.slice(), time: G.time, got: G.L.items.map(it => (it.got ? 1 : 0)).join('') }; }
+function snapAtCp() { G.cpSnap = { cp: { ...G.cp }, hearts: G.hearts, stars: G.stars.slice(), time: G.time, got: G.L.items.map(it => (it.got && !(it.type === 'key' && !it.used) ? 1 : 0)).join(''), opened: (G.opened || []).map(o => o.slice()), placed: G.L.frames.map(f => (f.st === 'placed' ? 1 : 0)).join('') }; }
 function applySnap(snap) {
   if (!snap) return;
   G.cp = { ...snap.cp }; G.hearts = snap.hearts; G.stars = snap.stars.slice(); G.time = snap.time; G.cpSnap = snap;
-  G.L.items.forEach((it, k) => { if (snap.got[k] === '1') it.got = true; });
+  G.L.items.forEach((it, k) => { if (snap.got[k] === '1') { it.got = true; if (it.type === 'key') it.used = true; } });
+  if (Array.isArray(snap.opened)) for (const o of snap.opened) if (Array.isArray(o) && fin(o[0]) && fin(o[1])) unlockAt(o[0] | 0, o[1] | 0, false, true);
+  if (typeof snap.placed === 'string') G.L.frames.forEach((f, k) => { if (snap.placed[k] === '1') frameSet(f, 'placed', null, true); });
   for (const k of G.L.cps) if (k.x <= snap.cp.x + 0.01) k.on = true;
   G.players.forEach((p, k) => { p.x = p.px = snap.cp.x + (k ? 0.45 : -0.45) - PW / 2; p.y = p.py = snap.cp.y - PH; });
   updateCamera(0, true);
@@ -3993,6 +4702,7 @@ function updateCamera(dt, snap) {
 }
 
 function openStage(i, opts = {}) {
+  closeScene(true);
   buildStage();
   UI.stage.hidden = false; document.documentElement.style.overflow = 'hidden';
   if (UI.home) UI.home.hidden = true;
@@ -4020,17 +4730,18 @@ function togglePause(fromNet) {
   if (G.state === 'play') { G.state = 'paused'; showPause(fromNet); if (!fromNet) netEv('pause', {}); }
   else if (G.state === 'paused') { begin(); if (!fromNet) netEv('resume', {}); }
 }
-function showPanel(html, onClick) {
+function showPanel(html, onClick, cls = '') {
+  UI.panel.className = 'cg-panel' + (cls ? ' ' + cls : '');
   UI.panel.innerHTML = html; UI.veil.hidden = false;
-  UI.panel.onclick = (e) => { const b = e.target.closest('[data-a]'); if (b) onClick(b.dataset.a); };
+  UI.panel.onclick = (e) => { const b = e.target.closest('[data-a]'); if (b && !b.disabled) onClick(b.dataset.a, b); };
   const first = UI.panel.querySelector('button'); if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
 }
-const lvNum = (i) => (i === -2 ? '🛠️' : i < 0 ? `♾️ ${G.espec ? G.espec.endless : 1}` : `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`);
-const lvName = (i) => (i === -2 ? `🛠️ ${G.uspec ? G.uspec.name : ''}` : i < 0 ? `♾️ 第 ${G.espec ? G.espec.endless : 1} 段` : `${lvNum(i)} ${LEVELS[i].name}`);
+const lvNum = (i) => (i === -2 ? '🛠️' : i < 0 ? `♾️ ${G.espec ? G.espec.endless : 1}` : isStory(i) ? `📖 ${STORY_LV[i - SI].c + 1}-${CHAPTERS[STORY_LV[i - SI].c].lv.indexOf(i - SI) + 1}` : `${LEVELS[i].world + 1}-${IN_WORLD[LEVELS[i].world].indexOf(i) + 1}`);
+const lvName = (i) => (i === -2 ? `🛠️ ${G.uspec ? G.uspec.name : ''}` : i < 0 ? `♾️ 第 ${G.espec ? G.espec.endless : 1} 段` : `${lvNum(i)} ${specOf(i).name}`);
 function tipArt(kind) {
   const c = (k, st = '') => `<span style="display:inline-block;width:58px;${st}">${fullSvg(k, 'happy')}</span>`;
   if (kind === 'stack') return `<div class="tip-art" style="height:118px;position:relative;width:70px;margin:0 auto">${c('cs', 'position:absolute;left:6px;bottom:0')}${c('yy', 'position:absolute;left:6px;bottom:52px')}</div>`;
-  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧', endless: '♾️' }[kind] || '💞';
+  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧', endless: '♾️', key: '🔑🔒', balloon: '🎈', tide: '🌊', timer: '⏳🚪', frame: '🖼️' }[kind] || '💞';
   return `<div class="tip-art">${c('cs')}<span style="font-size:34px;align-self:center">${icon}</span>${c('yy')}</div>`;
 }
 function controlsLine() {
@@ -4089,15 +4800,16 @@ function win() {
   G.state = 'won'; G.wonT = 0; sfx('win');
   for (const p of G.players) { p.happy = 9; p.vx = 0; }
   if (G.L.i < 0) { confetti(G.L.door.x, G.L.door.y - 2.5, 40); G.paidLine = ''; return G.L.i === -1 ? endlessWin() : customWin(); }
-  const i = G.L.i, id = LEVELS[i].id, rec = G.save.best[id] || {}, sm = (rec.sm || [false, false, false]).map((v, k) => v || G.stars[k]);
+  const i = G.L.i, id = specOf(i).id, rec = G.save.best[id] || {}, sm = (rec.sm || [false, false, false]).map((v, k) => v || G.stars[k]);
   G.lastBest = !rec.t || G.time < rec.t;
+  G.wasNew = !G.save.best[id];
   G.save.best[id] = { t: G.lastBest ? G.time : rec.t, sm, h: Math.max(rec.h || 0, G.hearts) };
-  G.save.unlocked = Math.max(G.save.unlocked || 1, Math.min(LEVELS.length, i + 2));
+  if (!isStory(i)) G.save.unlocked = Math.max(G.save.unlocked || 1, Math.min(LEVELS.length, i + 2));
   keepSave();
   confetti(G.L.door.x, G.L.door.y - 2.5, 40);
   // the first clear of each level pays its player once; replays are just for fun
   G.paidLine = '';
-  const pay = API.pay && !G.test ? API.pay('coop', LEVELS[i].id, `${lvName(i)} 通关`) : Promise.resolve({ pts: 0, why: 'test' });
+  const pay = API.pay && !G.test ? API.pay('coop', id, `${lvName(i)} 通关`) : Promise.resolve({ pts: 0, why: 'test' });
   pay.then((r) => {
     G.paidLine = r.pts ? `<p class="win">💙 第一次通关 +${r.pts} 分，记给 ${esc(nameOf(API.me))}</p>`
       : r.why === 'cap' ? '<p>今天的 +3 分已经拿满，这一关明天再通关就有分</p>'
@@ -4108,6 +4820,7 @@ function win() {
 function showResult() {
   if (G.L.i === -2) return showCustomResult();
   if (G.L.i < 0) return showSegment();
+  if (isStory(G.L.i)) return showStoryResult();
   G.state = 'result';
   const i = G.L.i, n = G.stars.filter(Boolean).length, lastLv = i === LEVELS.length - 1;
   const stars = [0, 1, 2].map(k => (G.stars[k] ? '★' : '☆')).join('');
@@ -4122,6 +4835,21 @@ function showResult() {
     });
 }
 const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+function showStoryResult() {
+  G.state = 'result';
+  const i = G.L.i, L = STORY_LV[i - SI], n = G.stars.filter(Boolean).length, nx = storyNext(i), stars = [0, 1, 2].map(k => (G.stars[k] ? '★' : '☆')).join('');
+  const ending = nx == null && chDone(L.c) && !seen('c' + L.c);
+  showPanel(`<p style="font-size:13px">📖 第 ${L.c + 1} 章 · ${CHAPTERS[L.c].title}</p><h2>${ending ? '这一章打完了！' : '回到家啦！'}</h2><div class="stars" aria-label="${n} 颗星">${stars}</div>
+    <div class="stats"><div>${fmtT(G.time)}<small>${G.lastBest ? '新纪录！' : '用时'}</small></div><div>💗 ${G.hearts}<small>爱心</small></div><div>${n}/3<small>星星</small></div></div>
+    <div data-r="pay">${G.paidLine}</div>
+    ${ending ? '<p>闷闷藏起来的照片，就在前面……</p>' : ''}
+    <div class="pb">${ending ? '<button type="button" data-a="end">📷 看结尾，找回照片</button>' : nx != null ? '<button type="button" data-a="next">下一关</button>' : ''}<button type="button" class="alt" data-a="re">再玩一次</button><button type="button" class="alt" data-a="menu">回到故事</button></div>`,
+    (a) => {
+      if (a === 'end') { const c = L.c; screen = 'story'; storyCh = c; closeStage(); playScene('c' + c, null, true); }
+      else if (a === 'next') { if (ONLINE()) netRequest('next'); else { startLevel(nx); showIntro(); } }
+      else if (a === 're') restartFrom(false); else { screen = 'story'; closeStage(); }
+    });
+}
 
 /* ── ♾️ the endless run: starting, the next 段, the end ── */
 function newRun() {
@@ -4131,21 +4859,61 @@ function newRun() {
   return { rs: (1 + Math.floor(Math.random() * 2147483000)) >>> 0, d: 1, hp: HP_MAX, he: 0, t: 0, ws: WORLDS.map((w, k) => k) };
 }
 const nextRun = () => Object.assign({}, G.run, { d: G.run.d + 1, hp: Math.min(HP_MAX, G.hp + 1), he: G.run.he + G.hearts, t: G.run.t + G.time });
+// 2026-11-27: after each 段 you choose one of three — two phones take turns (CS the odd 段, YY the even ones); the three
+// on offer come from the run's own numbers, so both phones show the same three
+const BLESS = {
+  heart: { e: '💗', n: '多一颗心', d: '马上回 1 颗心' },
+  wings: { e: '🪽', n: '小翅膀', d: '下一段两个人都能二段跳' },
+  shield: { e: '🫧', n: '泡泡护盾', d: '下一段两个人各有一个泡泡' },
+  slow: { e: '⏱️', n: '暴风雨慢一点', d: '这次走完之前，暴风雨都慢一些' },
+  magnet: { e: '🧲', n: '吸爱心', d: '这次走完之前，附近的爱心会飞过来' },
+};
+function blessOffer(run) {
+  const has = run.bl || [], rng = mulberry((run.rs ^ Math.imul(run.d, 40503)) >>> 0);
+  const can = Object.keys(BLESS).filter(k => !(k === 'magnet' && has.includes('magnet')) && !(k === 'slow' && has.filter(q => q === 'slow').length >= 3));
+  return shuffled(can, (rng() * 2147483000) >>> 0).slice(0, 3);
+}
+const blessPicker = (d) => (d % 2 ? 0 : 1);   // who chooses after 段 d on two phones
+function applyBless(k, d, fromNet) {
+  if (!G.run || G.run.bp === d || !BLESS[k]) return;
+  G.run.bp = d;
+  if (k === 'heart') G.hp = Math.min(HP_MAX, G.hp + 1);
+  else if (k === 'wings' || k === 'shield') G.run.nx = { [k]: 1 };
+  if (k !== 'wings' && k !== 'shield') G.run.nx = {};
+  G.run.bl = (G.run.bl || []).concat(k);
+  sfx('power');
+  if (!fromNet && ONLINE()) netEv('bless', { d, k });
+  if (G.state === 'result') showSegment(true);
+}
 function startEndless() { G.run = newRun(); G.espec = endlessSpec(G.run); openStage(-1); }
+const dayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+// 📅 今日之路: one road a day, the same for both of you and for every try that day
+function dailyRun() {
+  const day = dayStr(); let h = 2166136261; for (const c of 'cg-day|' + day) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  G.endBest0 = (G.save.endless && G.save.endless.d) || 0;
+  return { rs: (h >>> 0) || 1, d: 1, hp: HP_MAX, he: 0, t: 0, ws: WORLDS.map((w, k) => k), daily: day };
+}
+function campRun() { const c = store.get(campKey(), null); if (!c || !c.run || !fin(c.run.rs) || !fin(c.run.d)) return null; G.endBest0 = (G.save.endless && G.save.endless.d) || 0; return Object.assign({}, c.run, { bp: 0, cd: 0 }); }
+function startRun(run) {
+  if (!run) return;
+  if (G.mode === 'online') { const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500; if (!peerOn) { if (API.toast) API.toast(`等 ${nameOf(other(API.me))} 也打开「一起回家」`); return; } G.run = run; G.espec = endlessSpec(run); return netStart(-1, null); }
+  G.run = run; G.espec = endlessSpec(run); artReady.then(() => openStage(-1));
+}
 function endlessAgain() {
   if (ONLINE()) return netRequest('new');
-  G.run = newRun(); G.espec = endlessSpec(G.run); startLevel(-1); showIntro();
+  G.run = G.run && G.run.daily === dayStr() ? dailyRun() : newRun(); G.espec = endlessSpec(G.run); startLevel(-1); showIntro();
 }
 // one phone, or the host: what starts next — the 'next' 段, a 'new' run, or this 段 again ('re' / 'cp') with the hearts as they are now.
 // 'next' goes once per 段: the host's own countdown and the partner's tap can both ask for it
 function endlessAdvance(k) {
   if (k === 'next') { if (G.segDone || G.state !== 'result') return false; G.segDone = true; G.run = nextRun(); }
-  else if (k === 'new') G.run = newRun();
+  else if (k === 'new') G.run = G.run && G.run.daily === dayStr() ? dailyRun() : newRun();
   else G.run = Object.assign({}, G.run, { hp: G.hp });
   G.espec = endlessSpec(G.run);
   return true;
 }
 function endlessRecord(done, he, t) {
+  if (G.run && G.run.daily && done > 0) { const dy = G.save.day; if (!dy || dy.date !== G.run.daily || done > dy.d) { G.save.day = { date: G.run.daily, d: done }; keepSave(); } }
   const b = G.save.endless;
   if (done > 0 && (!b || done > b.d || (done === b.d && he > (b.h || 0)))) { G.save.endless = { d: done, h: he, t: Math.round(t * 10) / 10 }; keepSave(); }
 }
@@ -4158,24 +4926,36 @@ function endlessWin() {
     if (G.state === 'result') { const el = UI.panel.querySelector('[data-r="pay"]'); if (el) el.innerHTML = G.paidLine; }
   }).catch(() => {});
 }
-// a 段 walked: say how far, what comes next, and go on by itself in a moment (one phone, or the host's)
-function showSegment() {
+// a 段 walked: say how far, choose a blessing (two phones take turns), what comes next, and go on by itself after
+// the choice (one phone, or the host's). Every 5th 段 is a camp: a heart more, and the run is kept there for next time
+const campKey = () => `cg_camp_${API.me}`;
+function showSegment(again) {
   G.state = 'result';
-  const d = G.run.d, nx = nextRun(), ns = endlessSpec(nx), w = WORLDS[ns.world], host = !ONLINE() || isHost();
-  let n = 4;
-  const label = () => (n > 0 || host ? `继续走 · ${Math.max(0, n)}` : `等 ${nameOf(other(API.me))} 的手机…`);
-  showPanel(`<div class="big">🏡</div><h2>走完第 ${d} 段！</h2>
-    <div class="stats"><div>${d}<small>走完的段</small></div><div>💗 ${nx.he}<small>爱心</small></div><div>${fmtT(nx.t)}<small>用时</small></div></div>
-    <p>${nx.hp > G.hp ? `❤ +1，现在有 ${nx.hp} 颗心` : `❤ ${nx.hp} 颗心，满了`}</p>
-    <p><b>下一段：${w.icon} ${esc(w.name)}</b>${ns.chase ? '<br>⛈️ 暴风雨会追上来，一起快跑！' : ns.dark ? '<br>🌙 天黑了，靠在一起走' : ''}</p>
+  const d = G.run.d, camp = d % 5 === 0, host = !ONLINE() || isHost();
+  if (camp && !again && G.run.cd !== d) {
+    G.run.cd = d; G.hp = Math.min(HP_MAX, G.hp + 1);
+    if (host) { const nr = nextRun(); store.set(campKey(), { run: Object.assign({}, nr, { bp: 0, cd: 0 }), d: nr.d, at: Date.now() }); syncSoon(); }
+  }
+  const nx = nextRun(), ns = endlessSpec(nx), w = WORLDS[ns.world], offer = blessOffer(G.run), picked = G.run.bp === d;
+  const mine = !ONLINE() || blessPicker(d) === G.meIdx, chooser = nameOf(blessPicker(d) ? 'yy' : 'cs');
+  let n = picked ? 3 : 14;
+  const label = () => (picked ? (n > 0 || host ? `继续走 · ${Math.max(0, n)}` : `等 ${nameOf(other(API.me))} 的手机…`) : '先选一个祝福');
+  showPanel(`<h2>${camp ? `⛺ 营地 · 走完第 ${d} 段！` : `🏡 走完第 ${d} 段！`}</h2>
+    <div class="stats cg-seg-stats"><div>${d}<small>走完的段</small></div><div>💗 ${nx.he}<small>爱心</small></div><div>${fmtT(nx.t)}<small>用时</small></div></div>
+    <p>${nx.hp > G.hp ? `❤ +1，现在有 ${nx.hp} 颗心` : `❤ ${nx.hp} 颗心${nx.hp >= HP_MAX ? '，满了' : ''}`}${camp ? `<br>⛺ 多回了 1 颗心，下次可以从第 ${d + 1} 段接着走` : ''}</p>
+    <div class="cg-bless" role="group" aria-label="选一个小祝福">${picked ? `<p class="cg-bl-got">${BLESS[G.run.bl[G.run.bl.length - 1]].e} ${BLESS[G.run.bl[G.run.bl.length - 1]].n}：${BLESS[G.run.bl[G.run.bl.length - 1]].d}</p>`
+      : `<p class="cg-bl-q">${!ONLINE() ? '选一个小祝福' : mine ? '轮到你选一个小祝福' : `${esc(chooser)} 在选小祝福…`}</p>${offer.map(k => `<button type="button" data-a="bl" data-bl="${k}" ${mine ? '' : 'disabled'}><i>${BLESS[k].e}</i><b>${BLESS[k].n}</b><small>${BLESS[k].d}</small></button>`).join('')}`}</div>
+    <p><b>下一段：${w.icon} ${esc(w.name)}</b>${ns.chase ? '<br>⛈️ 暴风雨会追上来，一起快跑！' : ns.ev ? `<br>${EVENTS[ns.ev].e} ${EVENTS[ns.ev].n}` : ns.dark ? '<br>🌙 天黑了，靠在一起走' : ''}</p>
     <div data-r="pay">${G.paidLine}</div>
-    <div class="pb"><button type="button" data-a="go" data-r="go">${esc(label())}</button><button type="button" class="alt" data-a="rest">歇一歇</button></div>`,
-    (a) => { if (a === 'go') segGo(); else endlessOver('quit'); });
+    <div class="pb cg-pb-row"><button type="button" data-a="go" data-r="go" ${picked ? '' : 'disabled'}>${esc(label())}</button><button type="button" class="alt" data-a="rest">歇一歇</button></div>`,
+    (a, b) => { if (a === 'bl' && b) applyBless(b.dataset.bl, d); else if (a === 'go') segGo(); else if (a === 'rest') endlessOver('quit'); }, 'cg-seg-card');
   clearInterval(G.segTimer);
   G.segTimer = setInterval(() => {
     if (G.state !== 'result' || !G.L || G.L.i !== -1) { clearInterval(G.segTimer); return; }
-    n--; const b = UI.panel.querySelector('[data-r="go"]'); if (b) b.textContent = label();
-    if (n <= 0) { clearInterval(G.segTimer); if (host) segGo(); }
+    n--; const btn = UI.panel.querySelector('[data-r="go"]'); if (btn) btn.textContent = label();
+    // nobody chose in time: the host's phone takes the first one on offer
+    if (!picked && n <= 0 && host) { clearInterval(G.segTimer); applyBless(offer[0], d); return; }
+    if (picked && n <= 0) { clearInterval(G.segTimer); if (host) segGo(); }
   }, 1000);
 }
 function segGo() {
@@ -4204,16 +4984,19 @@ function endlessOver(why, fromNet) {
 // two phones: the 段 travels as its numbers and its piece list; a guest builds exactly what it is sent
 function endlessWire() {
   const r = G.run, sp = G.espec;
-  return { rs: r.rs, d: r.d, hp: r.hp, he: r.he, t: Math.round(r.t * 10) / 10, ws: r.ws, w: sp.world, seq: sp.seq, ch: sp.chase ? [sp.chase.x0, sp.chase.start, sp.chase.speed] : 0, dk: sp.dark ? 1 : 0 };
+  return { rs: r.rs, d: r.d, hp: r.hp, he: r.he, t: Math.round(r.t * 10) / 10, ws: r.ws, w: sp.world, seq: sp.seq, ch: sp.chase ? [sp.chase.x0, sp.chase.start, sp.chase.speed] : 0, dk: sp.dark ? 1 : 0,
+    bl: r.bl || [], nx: r.nx || {}, dy: r.daily || '', ev: sp.ev || '' };
 }
 function endlessFromWire(e) {
   if (!e || typeof e !== 'object' || !fin(e.d) || e.d < 1 || e.d > 9999 || !fin(e.w) || e.w < 0 || e.w >= WORLDS.length || !fin(e.rs)) return null;
   if (!Array.isArray(e.seq) || e.seq.length < 3 || e.seq.length > 24 || e.seq[0] !== 'start' || e.seq[e.seq.length - 1] !== 'goal') return null;
   if (!e.seq.every(id => typeof id === 'string' && (Object.prototype.hasOwnProperty.call(CHUNKS, id) || GEN_RE.test(id)))) return null;
   const ws = Array.isArray(e.ws) ? e.ws.filter(k => fin(k) && k >= 0 && k < WORLDS.length).map(k => k | 0).slice(0, WORLDS.length) : [];
-  const run = { rs: e.rs >>> 0, d: e.d | 0, hp: clamp(e.hp | 0, 1, HP_MAX), he: Math.max(0, e.he | 0), t: Math.max(0, +e.t || 0), ws };
+  const bl = Array.isArray(e.bl) ? e.bl.filter(k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(BLESS, k)).slice(0, 999) : [];
+  const nx = e.nx && typeof e.nx === 'object' ? { wings: e.nx.wings ? 1 : 0, shield: e.nx.shield ? 1 : 0 } : {};
+  const run = { rs: e.rs >>> 0, d: e.d | 0, hp: clamp(e.hp | 0, 1, HP_MAX), he: Math.max(0, e.he | 0), t: Math.max(0, +e.t || 0), ws, bl, nx, daily: typeof e.dy === 'string' && /^\d{4}-\d\d-\d\d$/.test(e.dy) ? e.dy : '' };
   const ch = Array.isArray(e.ch) && e.ch.length === 3 && e.ch.every(fin) ? { x0: clamp(e.ch[0], 0, 20), start: clamp(e.ch[1], 0, 30), speed: clamp(e.ch[2], 0.5, 4) } : null;
-  return { run, spec: makeESpec(run, e.w | 0, e.seq.slice(), ch, !!e.dk) };
+  return { run, spec: makeESpec(run, e.w | 0, e.seq.slice(), ch, !!e.dk, Object.prototype.hasOwnProperty.call(EVENTS, e.ev) ? e.ev : '') };
 }
 
 /* ── the loop ── */
@@ -4496,7 +5279,6 @@ const NEW_IN = { M1: '新：叠罗汉', M2: '新：按钮开门', M3: '新：按
   M26: '新：跷跷板', M27: '新：黑夜和灯笼', M28: '新：暴风雨', M30: '最后一关' };   // by level id: positions move whenever a world goes in
 // levels by world: the picker, the names (2-3) and the star counts all come from here, not from "4 per world"
 const IN_WORLD = WORLDS.map((w, k) => LEVELS.map((L, i) => (L.world === k ? i : -1)).filter(i => i >= 0));
-let menuWorld = 0;
 function openHome() {
   css(); loadSave();
   if (!UI.home) {
@@ -4509,7 +5291,7 @@ function openHome() {
   }
   UI.home.hidden = false;
   if (G.mode === 'online' && !API.online) G.mode = 'duo';
-  menuWorld = LEVELS[Math.min(G.save.unlocked || 1, LEVELS.length) - 1].world;
+  screen = 'home'; freeWorld = null; storyCh = null;
   renderHome();
   netHome(true);
 }
@@ -4523,43 +5305,279 @@ function closeHome() {
   G.state = 'off'; G.L = null;
   if (API && API.onClose) API.onClose();
 }
-function renderHome() {
-  if (!UI.home) return;
-  const unlocked = G.mode === 'online' ? LEVELS.length : (G.save.unlocked || 1);
-  const peerOn = NET.peerAt && performance.now() - NET.peerAt < 4500;
-  const pi = API.payInfo ? API.payInfo('coop') : { paid: 0, max: 3 };
+// 「…也在这里」: on every screen in 各用自己的手机, since a level or a chapter is picked from all three
+const peerOnNow = () => !!(NET.peerAt && performance.now() - NET.peerAt < 4500);
+function peerHtml() {
+  const on = peerOnNow();
+  return `<div class="cg-peer ${on ? 'on' : ''}" data-r="peer"><i></i><span>${on ? `${esc(nameOf(other(API.me)))} 也在这里 · 选一关就一起开始` : verOff() ? VER_HINT : `等 ${esc(nameOf(other(API.me)))} 也打开「一起回家」，选「各用自己的手机」`}</span></div>`;
+}
+// it changes in place: redrawing the whole screen would move the levels under the finger choosing one
+function paintPeer() {
+  const el = UI.home && !UI.home.hidden && UI.home.querySelector('[data-r="peer"]');
+  if (el) el.outerHTML = peerHtml();
+}
+function howCard() {
   const petLine = G.petImg ? `${esc(G.petName || '你们的宠物')} 会跟着你们一起冒险` : '在小窝领养一只宠物（或者宝宝），TA 就会跟着你们一起冒险';
-  UI.home.innerHTML = `<div class="cg-col">
-    <div class="cg-top"><h3>🏠 一起回家</h3><button type="button" class="cg-x" data-a="x" aria-label="关闭">✕</button></div>
-    <div class="cg-card">
+  return `<div class="cg-card">
       <span class="cg-lab">怎么玩</span>
       <div class="cg-seg">
         <button type="button" data-mode="online" aria-pressed="${G.mode === 'online'}" ${API.online ? '' : 'disabled'}>🤝 各用自己的手机</button>
         <button type="button" data-mode="duo" aria-pressed="${G.mode === 'duo'}">👫 一部手机两个人</button>
         <button type="button" data-mode="solo" aria-pressed="${G.mode === 'solo'}">🙋 一个人玩两个</button></div>
-      ${G.mode === 'online' ? `<div class="cg-peer ${peerOn ? 'on' : ''}" data-r="peer"><i></i><span>${peerOn ? `${esc(nameOf(other(API.me)))} 也在这里 · 选一关就一起开始` : verOff() ? VER_HINT : `等 ${esc(nameOf(other(API.me)))} 也打开「一起回家」，选「各用自己的手机」`}</span></div>
+      ${G.mode === 'online' ? `${peerHtml()}
         <p class="cg-line">你是 <b>${esc(nameOf(API.me))}</b>，用这部手机控制自己。${COARSE ? '左边走，右边跳。' : '← → 走，空格跳。'}</p>`
       : G.mode === 'duo' ? `<p class="cg-line">${COARSE ? '手机横过来，一人一边：按住拖动走，往上推就跳。' : `${esc(nameOf('cs'))} 用 A D 走、W 跳；${esc(nameOf('yy'))} 用 ← → 走、↑ 跳。`}</p>`
-      : `<p class="cg-line">${COARSE ? '左边走，右边跳；「换人」切换角色，「牵手」让两个人一起走（推箱子要牵手）。' : '← → 走，空格跳，Q 换人，E 牵手（推箱子要牵手）。'}</p>`}
+      : `<p class="cg-line">${COARSE ? '左边走，右边跳；「换人」切换角色，「牵手」让两个人一起走（推箱子、抬相框要牵手）。' : '← → 走，空格跳，Q 换人，E 牵手（推箱子、抬相框要牵手）。'}</p>`}
       <p class="cg-line">${petLine}</p>
-      <p class="cg-pay">每一关第一次通关 +1 分 · 每天最多 +${pi.max}${pi.paid ? ` · 今天已拿 +${pi.paid}` : ''}</p>
-    </div>
+    </div>`;
+}
+/* ══════════════ the start screen: 故事模式 · 自由选关 · 一直走下去 (2026-11-27) ══════════════
+   Asked for: a story mode with a long story, the endless road made better, and a normal mode where you pick a theme
+   or a level. The start screen is those three; each opens its own screen (`screen`), and a level closed from one
+   goes back to it. */
+let screen = 'home', storyCh = null, freeWorld = null;
+const chLv = (c) => CHAPTERS[c].lv;
+const chDone = (c) => chLv(c).length > 0 && chLv(c).every(k => G.save.best[STORY_LV[k].id]);
+const chOpen = (c) => chLv(c).length > 0 && (c === 0 || G.mode === 'online' || chDone(c - 1));
+// in a chapter, a level opens when the one before it is cleared (on two phones, all of them: either of you may be ahead)
+const lvOpenS = (k) => { const L = STORY_LV[k], ls = chLv(L.c), j = ls.indexOf(k); return chOpen(L.c) && (G.mode === 'online' || j === 0 || !!G.save.best[STORY_LV[ls[j - 1]].id] || !!G.save.best[L.id]); };
+// the chapter you are on: the first open one not yet finished (on two phones every chapter is open, and the furthest one
+// put a new couple straight into chapter 3), or the last open one when all are done
+const curChapter = () => { let last = 0; for (let k = 0; k < CHAPTERS.length; k++) if (chOpen(k)) { last = k; if (!chDone(k)) return k; } return last; };
+const photosFound = () => CHAPTERS.filter((ch, k) => chDone(k)).length;
+const seen = (id) => !!(G.save.seen && G.save.seen[id]);
+function markSeen(id) { if (!G.save.seen) G.save.seen = {}; if (G.save.seen[id]) return; G.save.seen[id] = 1; keepSave(); syncSoon(); }
+const starsOf = (L) => ((G.save.best[L.id] || {}).sm || []).filter(Boolean).length;
+function renderHome() {
+  if (!UI.home) return;
+  if (screen === 'story') return renderStory();
+  if (screen === 'free') return renderFree();
+  const pi = API.payInfo ? API.payInfo('coop') : { paid: 0, max: 3 };
+  const c = curChapter(), done = chLv(c).filter(k => G.save.best[STORY_LV[k].id]).length, any = STORY_LV.some(L => G.save.best[L.id]);
+  let got = 0; for (const L of LEVELS) got += starsOf(L);
+  const total = LEVELS.reduce((n, L) => n + L.stars.length, 0);
+  UI.home.innerHTML = `<div class="cg-col">
+    <div class="cg-top"><h3>🏠 一起回家</h3><button type="button" class="cg-x" data-a="x" aria-label="关闭">✕</button></div>
+    ${howCard()}
+    <button type="button" class="cg-mode cg-m-story" data-go="story">
+      <span class="ic" aria-hidden="true">📖</span>
+      <span class="tx"><b>故事模式</b><small>找回我们的相册 · 第 ${c + 1} 章「${CHAPTERS[c].title}」${chDone(c) ? ' · 这一章找回来了' : ` · ${done}/${chLv(c).length} 关`}</small>
+        <span class="cg-bar" aria-hidden="true"><i style="width:${Math.round(photosFound() / CHAPTERS.length * 100)}%"></i></span><small>📷 找回的照片 ${photosFound()} / ${CHAPTERS.length}</small></span>
+      <span class="go">${any ? '继续' : '开始'}</span></button>
+    <button type="button" class="cg-mode cg-m-free" data-go="free">
+      <span class="ic" aria-hidden="true">🗺️</span>
+      <span class="tx"><b>自由选关</b><small>${WORLDS.length} 个世界 · ${LEVELS.length} 关 · ⭐ ${got}/${total}${STORY_LV.some(L => G.save.best[L.id]) ? ' · 故事里的关也能再玩' : ''}</small><small>还有 🛠️ 自己做一关送给 ${esc(nameOf(other(API.me)))}</small></span>
+      <span class="go">选关</span></button>
     ${endlessCard()}
-    ${levelsCard()}
-    <div class="cg-worlds" role="tablist" aria-label="${WORLDS.length} 个世界">${WORLDS.map((w, k) => {
-      let got = 0; for (const i of IN_WORLD[k]) got += ((G.save.best[LEVELS[i].id] || {}).sm || []).filter(Boolean).length;
-      return `<button type="button" role="tab" data-w="${k}" aria-selected="${k === menuWorld}">${w.icon} ${w.name.split(' · ')[1]} ⭐${got}</button>`;
-    }).join('')}</div>
-    <div class="cg-levels">${IN_WORLD[menuWorld].map((i, j) => {
-      // open: within how far you have got, or cleared before, or right after one you cleared (worlds can be added in between)
-      const L = LEVELS[i], rec = G.save.best[L.id], locked = !(i + 1 <= unlocked || rec || (i > 0 && G.save.best[LEVELS[i - 1].id]));
-      const st = rec ? (rec.sm || []).map(v => (v ? '★' : '☆')).join('') : '☆☆☆';
-      return `<button type="button" class="cg-lv${rec ? ' done' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
-        <span class="n">${locked ? '🔒 ' : ''}${L.world + 1}-${j + 1}</span><span class="nm">${L.name}</span><span class="st">${st}</span>
-        <span class="bt">${rec ? '最快 ' + fmtT(rec.t) : locked ? '先过前一关' : '还没玩过'}</span>${NEW_IN[L.id] ? `<span class="co">${NEW_IN[L.id]}</span>` : ''}</button>`;
-    }).join('')}</div>
-    <p class="cg-line" style="font-size:12.5px">${G.mode === 'online' ? `各用自己的手机时，${LEVELS.length} 关都能直接选。` : '过了一关才能玩下一关。'}最高纪录和星星记在这部手机上。</p>
+    <p class="cg-pay">每一关第一次通关 +1 分（故事里的关也算）· 每天最多 +${pi.max}${pi.paid ? ` · 今天已拿 +${pi.paid}` : ''}</p>
   </div>`;
+}
+// 📖 the story: the chapters on a path, the photos you have found, and the chapter you are on
+function renderStory() {
+  if (storyCh == null || !chOpen(storyCh)) storyCh = curChapter();
+  const c = storyCh, ch = CHAPTERS[c], pts = CHAPTERS.map((x, k) => [30 + k * 29, 150 - Math.round(Math.sin(k * 0.9) * 22) - k * 9]);
+  const path = 'M' + pts.map(q => q.join(' ')).join(' L ');
+  UI.home.innerHTML = `<div class="cg-col">
+    <div class="cg-top"><button type="button" class="cg-x" data-go="home" aria-label="回到开始">‹</button><h3>📖 找回我们的相册</h3><button type="button" class="cg-x" data-a="x" aria-label="关闭">✕</button></div>
+    ${G.mode === 'online' ? peerHtml() : ''}
+    <div class="cg-smap" role="group" aria-label="${CHAPTERS.length} 章">
+      <svg viewBox="0 0 320 180" aria-hidden="true"><path d="${path}" fill="none" stroke="rgba(190,180,255,.5)" stroke-width="5" stroke-dasharray="2 9" stroke-linecap="round"/></svg>
+      ${CHAPTERS.map((x, k) => { const [px, py] = pts[k], open = chOpen(k), done = chDone(k), soon = !chLv(k).length;
+        return `<button type="button" class="cg-node${k === c ? ' on' : ''}${done ? ' done' : ''}" data-ch="${k}" style="left:${(px / 320 * 100).toFixed(1)}%;top:${(py / 180 * 100).toFixed(1)}%" ${open ? '' : 'disabled'} aria-label="第 ${k + 1} 章 ${x.title}${soon ? '（下次更新）' : open ? '' : '（还没解锁）'}">${open ? WORLDS[x.world].icon : soon ? '⏳' : '🔒'}${done ? '<i>✓</i>' : ''}</button>`; }).join('')}
+      <span class="cg-smap-lab">⏳ 第 4–10 章，下次更新见</span>
+    </div>
+    <div class="cg-card cg-album"><span class="cg-lab">📷 找回的照片 ${photosFound()} / ${CHAPTERS.length}</span>
+      <div class="cg-slots">${CHAPTERS.map((x, k) => `<span class="cg-slot${chDone(k) ? ' got' : ''}" data-ph="${k}" aria-label="${chDone(k) ? `第 ${k + 1} 张` : '还没找到'}">${chDone(k) ? '' : '?'}</span>`).join('')}</div></div>
+    <div class="cg-card">
+      <span class="cg-lab">第 ${c + 1} 章 · ${WORLDS[ch.world].name}</span>
+      <h4 class="cg-ch-t">${ch.title}</h4><p class="cg-line">${ch.line}</p>
+      <div class="cg-levels">${chLv(c).map((k, j) => { const L = STORY_LV[k], rec = G.save.best[L.id], open = lvOpenS(k);
+        return `<button type="button" class="cg-lv${rec ? ' done' : ''}" data-s="${k}" ${open ? '' : 'disabled'}>
+          <span class="n">${open ? '' : '🔒 '}${c + 1}-${j + 1}</span><span class="nm">${L.name}</span><span class="st">${rec ? (rec.sm || []).map(v => (v ? '★' : '☆')).join('') : '☆☆☆'}</span>
+          <span class="bt">${rec ? '最快 ' + fmtT(rec.t) : open ? '还没玩过' : '先过前一关'}</span>${L.tip ? `<span class="co">新：${L.tip.title}</span>` : L.finale ? '<span class="co">这一章的最后一关</span>' : ''}</button>`; }).join('')}</div>
+      <div class="cg-seg"><button type="button" data-scene="${c === 0 ? 'pro' : 'o' + c}">▶ 看这一章的开头</button>${chDone(c) ? `<button type="button" data-scene="c${c}">▶ 看结尾和照片</button>` : ''}</div>
+    </div>
+    <p class="cg-line" style="font-size:12.5px">每章最后一关打完，就会找回一张你们自己的照片（来自「我们的时光」）。${G.mode === 'online' ? '各用自己的手机时，已经有的章节都能直接选。' : ''}</p>
+  </div>`;
+  fillSlots();
+}
+// the album's slots show the photos found so far
+function fillSlots() {
+  for (const el of UI.home.querySelectorAll('.cg-slot.got')) {
+    const k = +el.dataset.ph, ph = chapterPhoto(k);
+    if (ph) { const im = new Image(); im.alt = ''; im.onerror = () => { im.remove(); el.classList.add('drawn'); }; im.src = ph.src; el.appendChild(im); }
+    else el.classList.add('drawn');
+  }
+}
+// 🗺️ pick a world, then a level; and what is easy to miss: a random one, those still short of stars, the story's levels
+function renderFree() {
+  const unlocked = G.mode === 'online' ? LEVELS.length : (G.save.unlocked || 1);
+  const open = (i) => { const L = LEVELS[i]; return i + 1 <= unlocked || !!G.save.best[L.id] || (i > 0 && !!G.save.best[LEVELS[i - 1].id]); };
+  if (freeWorld == null) {
+    const short = LEVELS.filter(L => G.save.best[L.id] && starsOf(L) < L.stars.length).length + STORY_LV.filter(L => G.save.best[L.id] && starsOf(L) < L.stars.length).length;
+    const played = STORY_LV.filter(L => G.save.best[L.id]);
+    UI.home.innerHTML = `<div class="cg-col">
+      <div class="cg-top"><button type="button" class="cg-x" data-go="home" aria-label="回到开始">‹</button><h3>🗺️ 自由选关</h3><button type="button" class="cg-x" data-a="x" aria-label="关闭">✕</button></div>
+      ${G.mode === 'online' ? peerHtml() : ''}
+      <div class="cg-seg"><button type="button" data-a="rand">🎲 随机一关</button>${short ? `<button type="button" data-a="short">⭐ 还差星星的 ${short} 关</button>` : ''}</div>
+      <div class="cg-wgrid">${WORLDS.map((w, k) => {
+        const ids = IN_WORLD[k], got = ids.reduce((n, i) => n + starsOf(LEVELS[i]), 0), tot = ids.reduce((n, i) => n + LEVELS[i].stars.length, 0), cl = ids.filter(i => G.save.best[LEVELS[i].id]).length, op = open(ids[0]);
+        return `<button type="button" class="cg-wcard" data-w="${k}" ${op ? '' : 'disabled'} style="--w1:${w.sky[0]};--w2:${w.sky[1]}"><span class="wi" aria-hidden="true">${w.icon}</span><b>${w.name.split(' · ')[1]}</b><small>${op ? `${cl}/${ids.length} 关 · ⭐ ${got}/${tot}` : '🔒 先过前一个世界'}</small><span class="cg-bar" aria-hidden="true"><i style="width:${Math.round(cl / ids.length * 100)}%"></i></span></button>`;
+      }).join('')}</div>
+      ${played.length ? `<div class="cg-card"><span class="cg-lab">📖 故事里玩过的关</span><div class="cg-levels">${played.map(L => `<button type="button" class="cg-lv done" data-s="${L.si}"><span class="n">📖 ${L.c + 1}-${chLv(L.c).indexOf(L.si) + 1}</span><span class="nm">${L.name}</span><span class="st">${(G.save.best[L.id].sm || []).map(v => (v ? '★' : '☆')).join('')}</span><span class="bt">最快 ${fmtT(G.save.best[L.id].t)}</span></button>`).join('')}</div></div>` : ''}
+      ${levelsCard()}
+      <p class="cg-line" style="font-size:12.5px">${G.mode === 'online' ? `各用自己的手机时，${LEVELS.length} 关都能直接选。` : '过了一关才能玩下一关。'}纪录和星星会跟着你到每一部手机。</p>
+    </div>`;
+    return;
+  }
+  const k = freeWorld === 'short' ? -1 : freeWorld, list = k < 0 ? null : IN_WORLD[k];
+  const lvBtn = (i, label) => { const L = LEVELS[i], rec = G.save.best[L.id], locked = !open(i);
+    return `<button type="button" class="cg-lv${rec ? ' done' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
+      <span class="n">${locked ? '🔒 ' : ''}${label}</span><span class="nm">${L.name}</span><span class="st">${rec ? (rec.sm || []).map(v => (v ? '★' : '☆')).join('') : '☆☆☆'}</span>
+      <span class="bt">${rec ? '最快 ' + fmtT(rec.t) : locked ? '先过前一关' : '还没玩过'}</span>${NEW_IN[L.id] ? `<span class="co">${NEW_IN[L.id]}</span>` : ''}</button>`; };
+  const shortStory = STORY_LV.filter(L => G.save.best[L.id] && starsOf(L) < L.stars.length);
+  UI.home.innerHTML = `<div class="cg-col">
+    <div class="cg-top"><button type="button" class="cg-x" data-w="back" aria-label="回到选世界">‹</button><h3>${k < 0 ? '⭐ 还差星星的关' : `${WORLDS[k].icon} ${WORLDS[k].name}`}</h3><button type="button" class="cg-x" data-a="x" aria-label="关闭">✕</button></div>
+    ${G.mode === 'online' ? peerHtml() : ''}
+    <div class="cg-levels">${k < 0 ? LEVELS.map((L, i) => (G.save.best[L.id] && starsOf(L) < L.stars.length ? lvBtn(i, lvNum(i)) : '')).join('') + shortStory.map(L => `<button type="button" class="cg-lv done" data-s="${L.si}"><span class="n">📖 ${L.c + 1}-${chLv(L.c).indexOf(L.si) + 1}</span><span class="nm">${L.name}</span><span class="st">${(G.save.best[L.id].sm || []).map(v => (v ? '★' : '☆')).join('')}</span><span class="bt">最快 ${fmtT(G.save.best[L.id].t)}</span></button>`).join('')
+      : list.map((i, j) => lvBtn(i, `${k + 1}-${j + 1}`)).join('')}</div>
+  </div>`;
+}
+/* ══════════════ 📖 the story's comics ══════════════
+   Each scene is a few panels: a picture (drawn here, with the game's own CS and YY, your pet and 闷闷) and one line.
+   继续 (or a tap anywhere) goes on, 跳过 skips it. On two phones the scene shows on both and either can go on. The
+   last panel of a chapter's ending is one of your own photos from 我们的时光 — never anything in this file. */
+const SC = { root: null, id: '', k: 0, done: null, share: false };
+// the k-th photo the album finds: your photos in date order (the same one for the same chapter every time)
+function chapterPhoto(k) {
+  const list = API && API.photos ? (API.photos() || []).filter(q => q && q.src).slice().sort((a, b) => String(a.date).localeCompare(String(b.date))) : [];
+  return list.length ? list[k % list.length] : null;
+}
+const scChar = (k, face, x, y, w, flip = false) => {
+  const inner = fullSvg(k, face).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  return `<svg x="${x}" y="${y}" width="${w}" height="${w * 1.12}" viewBox="0 0 100 112" overflow="visible">${flip ? `<g transform="translate(100 0) scale(-1 1)">${inner}</g>` : inner}</svg>`;
+};
+function scMM(x, y, sc = 1, mood = 'grump') {   // 闷闷, the grumpy cloud
+  const brow = mood === 'sad' ? 'M-20 -6L-8 -10M20 -6L8 -10' : mood === 'happy' ? 'M-20 -10L-8 -12M20 -10L8 -12' : 'M-22 -12L-8 -6M22 -12L8 -6';
+  const mouth = mood === 'sad' ? 'M-8 14Q0 8 8 14' : mood === 'happy' ? 'M-9 9Q0 18 9 9' : 'M-9 13Q0 7 9 13';
+  return `<g transform="translate(${x} ${y}) scale(${sc})"><path d="M-52 22a20 20 0 0 1 4 -38a26 26 0 0 1 46 -14a24 24 0 0 1 42 10a19 19 0 0 1 12 42z" fill="${mood === 'happy' ? '#B9BEDB' : '#8E93B5'}" stroke="#6A6F94" stroke-width="3"/>
+    <path d="M-40 -6a18 18 0 0 1 22 -14" fill="none" stroke="#C9CDE6" stroke-width="5" stroke-linecap="round"/><path d="${brow}" stroke="#2E2A44" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="-13" cy="0" r="3.4" fill="#2E2A44"/><circle cx="13" cy="0" r="3.4" fill="#2E2A44"/><path d="${mouth}" fill="none" stroke="#2E2A44" stroke-width="2.6" stroke-linecap="round"/>
+    ${mood === 'sad' ? '<path d="M14 2q3 6 0 9q-3 -3 0 -9z" fill="#8CC8FF"/>' : ''}${mood === 'grump' ? '<path d="M30 26l-8 14h7l-5 13l13 -18h-7l5 -9z" fill="#FFD75E" stroke="#C9971C" stroke-width="1.6" stroke-linejoin="round"/>' : ''}</g>`;
+}
+const scPhoto = (x, y, r, col = '#9ED3F5', sc = 1) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${sc})"><rect x="-13" y="-15" width="26" height="30" rx="2" fill="#fff" stroke="#D9D2E6" stroke-width="1.4"/><rect x="-10" y="-12" width="20" height="18" fill="${col}"/><circle cx="-3" cy="-5" r="3" fill="#FFF3B0"/><path d="M-10 6l7 -7l5 4l3 -3l5 6z" fill="#7CCB6E"/></g>`;
+function scPet(x, floor, w, flip = false) {   // your own pet, its feet on `floor` (a stand-in when you have none yet)
+  if (G.petSvg) {
+    const m = /viewBox="([^"]+)"/.exec(G.petSvg), vb = (m ? m[1] : '0 0 100 100').split(/\s+/).map(Number), h = w * vb[3] / vb[2], inner = G.petSvg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    return `<svg x="${x}" y="${floor - h * 0.93}" width="${w}" height="${h}" viewBox="${vb.join(' ')}" overflow="visible">${flip ? `<g transform="translate(${vb[0] * 2 + vb[2]} 0) scale(-1 1)">${inner}</g>` : inner}</svg>`;
+  }
+  const y = floor - w * 0.75;
+  return `<g transform="translate(${x + w / 2} ${y + w * 0.4}) scale(${(flip ? -1 : 1) * w / 40} ${w / 40})"><ellipse cx="0" cy="12" rx="18" ry="4" fill="rgba(60,30,20,.18)"/><ellipse cx="0" cy="2" rx="17" ry="12" fill="#F6E3C6" stroke="#C9A77E" stroke-width="2"/><circle cx="12" cy="-8" r="10" fill="#F6E3C6" stroke="#C9A77E" stroke-width="2"/><ellipse cx="6" cy="-14" rx="4" ry="7" fill="#B98A5E" transform="rotate(-20 6 -14)"/><circle cx="14" cy="-9" r="1.8" fill="#3A2F3C"/><circle cx="21" cy="-6" r="2" fill="#3A2F3C"/></g>`;
+}
+const scBubble = (x, y, text, w) => `<g transform="translate(${x} ${y})"><rect width="${w}" height="24" rx="12" fill="#fff" stroke="#2E2A44" stroke-width="1.6"/><text x="${w / 2}" y="16.5" text-anchor="middle" font-size="12" font-weight="800" fill="#2E2A44">${esc(named(text))}</text></g>`;
+const scKey = (x, y, col, sc = 1) => `<g transform="translate(${x} ${y}) rotate(-28) scale(${sc})"><circle cx="-9" cy="0" r="7" fill="#FFD75E" stroke="#C9971C" stroke-width="2"/><circle cx="-9" cy="0" r="2.6" fill="#FFF6D6"/><rect x="-2" y="-2.4" width="18" height="4.8" rx="2" fill="#FFD75E" stroke="#C9971C" stroke-width="2"/><rect x="10" y="1" width="3" height="5" fill="#C9971C"/><path d="M-15 -3l-8 -5l1 9z" fill="${col ? '#FF6F9F' : '#4F8FDB'}"/></g>`;
+const scBalloon = (x, y, col) => `<g transform="translate(${x} ${y})"><path d="M0 18q4 10 0 22" stroke="rgba(80,70,90,.7)" stroke-width="1.6" fill="none"/><ellipse cx="0" cy="0" rx="12" ry="15" fill="${col}" stroke="rgba(0,0,0,.2)" stroke-width="2"/><ellipse cx="-4" cy="-6" rx="3" ry="5" fill="rgba(255,255,255,.6)" transform="rotate(-20 -4 -6)"/></g>`;
+const scBottle = (x, y, r = 0) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-8" y="-16" width="16" height="26" rx="6" fill="rgba(170,230,210,.75)" stroke="#5AA88E" stroke-width="2"/><rect x="-4" y="-22" width="8" height="7" rx="2" fill="#C9A26B"/>${scPhoto(0, -2, 8, '#FFC9DA', 0.4)}</g>`;
+const scFrame = (x, y, sc = 1) => `<g transform="translate(${x} ${y}) scale(${sc})"><rect x="-40" y="-14" width="80" height="28" rx="4" fill="#F2C35E" stroke="#A67718" stroke-width="3"/><rect x="-33" y="-8" width="66" height="16" fill="#E6F4FF"/></g>`;
+const scTree = (x, y, col = '#F9B8CF', sc = 1) => `<g transform="translate(${x} ${y}) scale(${sc})"><rect x="-3" y="-4" width="6" height="22" rx="2" fill="#9A6A4A"/><circle cx="-10" cy="-10" r="12" fill="${col}"/><circle cx="8" cy="-14" r="13" fill="${col}"/><circle cx="2" cy="-2" r="12" fill="${col}"/></g>`;
+function scBg(kind) {
+  const B = {
+    room: '<rect width="320" height="200" fill="#FBEFE3"/><rect y="150" width="320" height="50" fill="#E7C9A3"/><path d="M0 150H320" stroke="#C99B74" stroke-width="2"/>',
+    spring: `<rect width="320" height="200" fill="#CDEBFF"/><path d="M0 140Q90 112 180 132T320 120V200H0Z" fill="#BFE3C8"/><rect y="150" width="320" height="50" fill="#A3D7A6"/>${scTree(40, 132)}${scTree(276, 128, '#FFD0E0', 0.9)}`,
+    tree: `<rect width="320" height="200" fill="#CDEBFF"/><rect y="160" width="320" height="40" fill="#A3D7A6"/><rect x="150" y="40" width="20" height="124" rx="6" fill="#9A6A4A"/><circle cx="130" cy="44" r="38" fill="#F9B8CF"/><circle cx="190" cy="40" r="40" fill="#FFC7DA"/><circle cx="160" cy="18" r="30" fill="#F9B8CF"/>`,
+    beach: '<rect width="320" height="200" fill="#BFE8FF"/><rect y="118" width="320" height="40" fill="#6FC3EA"/><path d="M0 118q20 -6 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0" fill="none" stroke="#fff" stroke-width="3"/><rect y="150" width="320" height="50" fill="#F7E6AE"/>',
+    autumn: `<rect width="320" height="200" fill="#FFE3C8"/><path d="M0 140Q90 116 180 134T320 122V200H0Z" fill="#EBB088"/><rect y="150" width="320" height="50" fill="#D99A5E"/>${scTree(44, 132, '#EA8B3F')}${scTree(280, 128, '#D9662E', 0.9)}`,
+    snow: '<rect width="320" height="200" fill="#DCEBFA"/><path d="M0 150L70 70L140 150Z" fill="#FFFFFF" stroke="#BFD3E8" stroke-width="2"/><path d="M120 150L200 56L280 150Z" fill="#F4F9FF" stroke="#BFD3E8" stroke-width="2"/><rect y="150" width="320" height="50" fill="#FFFFFF"/>',
+  };
+  return B[kind] || B.spring;
+}
+// what each panel shows. `who` puts a name over the line; CS / YY in a line become your names
+const SCENES = {
+  pro: [
+    { art: () => scBg('room') + '<g transform="translate(220 30)"><rect width="64" height="56" fill="#CFEAFB" stroke="#C99B74" stroke-width="3"/><path d="M32 0V56M0 28H64" stroke="#C99B74" stroke-width="3"/></g>' + `<rect x="26" y="106" width="132" height="40" rx="14" fill="#8FB8E8" stroke="#5E8CC4" stroke-width="2.4"/><rect x="18" y="128" width="148" height="30" rx="12" fill="#A9CBF0" stroke="#5E8CC4" stroke-width="2.4"/>${scChar('cs', 'happy', 48, 78, 46)}${scChar('yy', 'happy', 100, 78, 46, true)}<path d="M74 118L96 122L118 118V136L96 140L74 136Z" fill="#FFF8EE" stroke="#C99B74" stroke-width="1.8"/>${scPet(206, 153, 46, true)}`, say: '周末的下午，CS 和 YY 窝在沙发上翻相册。' },
+    { art: () => scBg('room') + '<g transform="translate(220 30)"><rect width="64" height="56" fill="#9ED3F5"/><path d="M0 0L-18 8V62L0 56Z" fill="#FFF8EE" stroke="#C99B74" stroke-width="2"/><path d="M64 0L82 8V62L64 56Z" fill="#FFF8EE" stroke="#C99B74" stroke-width="2"/></g>' + `${scMM(252, 54, 0.8)}<rect x="26" y="106" width="132" height="40" rx="14" fill="#8FB8E8" stroke="#5E8CC4" stroke-width="2.4"/><rect x="18" y="128" width="148" height="30" rx="12" fill="#A9CBF0" stroke="#5E8CC4" stroke-width="2.4"/>${scChar('cs', 'hurt', 48, 78, 46)}${scChar('yy', 'hurt', 100, 78, 46, true)}${scBubble(146, 8, '亮晶晶的……都是我的！', 160)}`, say: '「砰！」窗户被吹开，一朵脾气很坏的乌云冲了进来——它叫闷闷。', who: 'mm' },
+    { art: () => `<rect width="320" height="200" fill="#9AD6FF"/><rect y="150" width="320" height="50" fill="#9CD08B"/>${scMM(250, 60, 0.9)}${scPhoto(70, 120, -14, '#FFC9DA')}${scPhoto(110, 90, 10)}${scPhoto(150, 62, -6, '#FFE29A')}${scPhoto(190, 46, 16, '#C9F0D2')}${scPhoto(40, 70, 8, '#D9C9FF')}`, say: '相册里的照片一张接一张被卷走，飞得满天都是。' },
+    { art: () => `<rect width="320" height="200" fill="#FFE8F2"/><path d="M0 150Q80 120 160 140T320 128V200H0Z" fill="#BFE3C8"/>${WORLDS.map((w, i) => `<text x="${18 + i * 30}" y="${128 - (i % 3) * 14}" font-size="16">${w.icon}</text>`).join('')}${scMM(250, 50, 0.55)}<path d="M40 70Q140 30 230 46" fill="none" stroke="#8E93B5" stroke-width="2" stroke-dasharray="5 6"/>${scPhoto(70, 62, -10, '#FFC9DA', 0.7)}${scPhoto(150, 44, 8, '#BFE0FF', 0.7)}`, say: '闷闷把照片撒进了十个世界：每个世界都藏着一张。' },
+    { art: () => `<rect width="320" height="200" fill="#9AD6FF"/><rect y="150" width="320" height="50" fill="#9CD08B"/>${scPet(92, 153, 62)}${scBubble(166, 84, '汪！', 52)}<path d="M160 150h60M170 140h40" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>`, say: '{PET}第一个冲了出去，追着照片跑远了。', who: 'pet' },
+    { art: () => `<rect width="320" height="200" fill="#FFE8F2"/><rect y="150" width="320" height="50" fill="#A3D7A6"/>${scChar('cs', 'normal', 96, 94, 56)}${scChar('yy', 'happy', 150, 94, 56, true)}${scBubble(14, 40, '我们的照片！', 104)}${scBubble(190, 40, '走，一起去找回来。', 120)}`, say: '「我们的照片！」「走，一起去找回来。」' },
+  ],
+  o0: [
+    { art: () => scBg('spring') + `${scPet(196, 153, 46)}${scChar('cs', 'normal', 70, 96, 48)}${scChar('yy', 'normal', 116, 96, 48)}${scBubble(188, 74, '嗅嗅……', 64)}`, say: '{PET}闻到了照片的味道，一路跑进了樱花草地。', who: 'pet' },
+    { art: () => scBg('tree') + `${scPhoto(160, 24, 10, '#FFE29A', 0.9)}${scMM(262, 40, 0.5)}${scChar('cs', 'hurt', 40, 110, 44)}${scChar('yy', 'hurt', 84, 110, 44)}`, say: '第一张照片挂在最高的樱花树上。闷闷在云后面偷看。', who: 'mm' },
+    { art: () => scBg('spring') + `${scKey(122, 140, 0, 1.4)}${scKey(196, 140, 1, 1.4)}${scChar('cs', 'happy', 92, 86, 48)}${scChar('yy', 'happy', 168, 86, 48, true)}${scBubble(60, 30, '蓝的给我，粉的给你。', 150)}`, say: '草地上有两把钥匙：蓝的只有 CS 拿得起，粉的只有 YY 拿得起。' },
+  ],
+  c0: [
+    { art: () => scBg('tree') + `${scPhoto(150, 96, -8, '#FFE29A', 1.1)}${scChar('cs', 'happy', 70, 108, 46)}${scChar('yy', 'happy', 186, 108, 46, true)}`, say: '照片轻轻落了下来，落到了 YY 手里。' },
+    { photo: 0, say: '第 1 张照片找回来了！' },
+    { art: () => `<rect width="320" height="200" fill="#CDEBFF"/><rect y="118" width="320" height="40" fill="#6FC3EA"/><rect y="150" width="320" height="50" fill="#F7E6AE"/>${scMM(220, 60, 0.75)}${scBubble(100, 20, '哼，下一张你们找不到的！', 170)}`, say: '闷闷气呼呼地往海边飞去了……', who: 'mm' },
+  ],
+  o1: [
+    { art: () => scBg('beach') + `${scBalloon(60, 70, '#FF8FB3')}${scBalloon(84, 62, '#8FC4FF')}${scBalloon(108, 72, '#FFD75E')}${scChar('cs', 'happy', 150, 96, 48)}${scChar('yy', 'happy', 196, 96, 48, true)}`, say: '海边的风好大，沙滩上飘着好多气球——抓住一个，就能飞起来！' },
+    { art: () => scBg('beach') + `${scMM(230, 50, 0.8)}<path d="M0 132q30 -26 60 0t60 0t60 0" fill="none" stroke="#fff" stroke-width="4"/>${scBottle(120, 112, 18)}`, say: '闷闷掀起大浪，把照片装进漂流瓶，冲向了远方。', who: 'mm' },
+    { art: () => scBg('beach') + `<rect y="104" width="320" height="54" fill="#5AB3E0" opacity=".8"/>${scChar('cs', 'normal', 90, 96, 48)}${scChar('yy', 'normal', 140, 96, 48)}${scBubble(150, 36, '涨潮的时候，可以游过去。', 160)}`, say: '海水一涨一落。涨潮的时候，在水里按住跳就能往上游。' },
+  ],
+  c1: [
+    { art: () => scBg('beach') + `${scBottle(160, 128, -10)}${scChar('cs', 'happy', 88, 100, 46)}${scChar('yy', 'happy', 200, 100, 46, true)}`, say: '漂流瓶被冲到了岸边，里面卷着一张照片。' },
+    { photo: 1, say: '第 2 张照片找回来了！' },
+    { art: () => scBg('autumn') + `${scMM(220, 60, 0.75)}${scBubble(90, 20, '秋天的风会帮我的！', 150)}`, say: '闷闷又溜走了，飞向了枫叶林。', who: 'mm' },
+  ],
+  o2: [
+    { art: () => scBg('autumn') + `${[30, 80, 140, 200, 250, 290].map((x, i) => `<path d="M${x} ${40 + (i % 3) * 22}l6 -4l6 4l-2 7h-8z" fill="${i % 2 ? '#EA8B3F' : '#D9662E'}"/>`).join('')}${scMM(240, 48, 0.7)}${scPhoto(150, 70, 30, '#FFC9DA', 0.8)}`, say: '闷闷把照片吹进了一阵叶子雨里，转啊转。', who: 'mm' },
+    { art: () => scBg('autumn') + `${scFrame(160, 106, 1.1)}${scChar('cs', 'normal', 96, 104, 46)}${scChar('yy', 'normal', 176, 104, 46, true)}${scBubble(70, 30, '要两个人一起抬着它。', 150)}`, say: '林子里有一个大相框：要两个人一起抬着，才能接住照片。' },
+    { art: () => scBg('autumn') + `<g transform="translate(150 150)"><rect x="-10" y="-8" width="20" height="8" rx="2" fill="#6CC9A4"/><circle cx="0" cy="-16" r="9" fill="#FFFDF6" stroke="#2F8A6A" stroke-width="2.5"/><path d="M0 -16V-22M0 -16l4 2" stroke="#2F8A6A" stroke-width="2"/></g>${scChar('cs', 'happy', 60, 96, 48)}${scChar('yy', 'happy', 220, 96, 48, true)}`, say: '还有会走的钟表按钮：踩一下，门开 5 秒——快跑！' },
+  ],
+  c2: [
+    { art: () => scBg('autumn') + `${scFrame(160, 96, 1.2)}${scPhoto(160, 96, 0, '#FFE29A', 0.7)}${scChar('cs', 'happy', 92, 104, 46)}${scChar('yy', 'happy', 184, 104, 46, true)}`, say: '照片正好落进了你们抬着的相框里。' },
+    { photo: 2, say: '第 3 张照片找回来了！' },
+    { art: () => scBg('snow') + `${scMM(230, 56, 0.7)}${scBubble(70, 18, '雪山上，谁也找不到！', 150)}`, say: '闷闷往雪山飞去……下一章「冻住的笑脸」，下次更新见。', who: 'mm' },
+  ],
+};
+function playScene(id, done, share) {
+  const sc = SCENES[id]; if (!sc) { if (done) done(); return; }
+  closeScene(true);
+  const r = document.createElement('div');
+  r.className = 'cg-sc'; r.setAttribute('role', 'dialog'); r.setAttribute('aria-modal', 'true'); r.setAttribute('aria-label', '故事');
+  r.innerHTML = `<div class="cg-sc-card"><div class="cg-sc-art" data-r="art"></div><div class="cg-sc-box"><b data-r="who"></b><p data-r="say" aria-live="polite"></p>
+    <div class="cg-sc-b"><span data-r="pg"></span><button type="button" class="alt" data-a="skip">跳过</button><button type="button" data-a="next">继续 ▸</button></div></div></div>`;
+  document.body.appendChild(r);
+  Object.assign(SC, { root: r, id, k: -1, done, share: !!share && G.mode === 'online' });
+  r.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b && b.dataset.a === 'skip') return sceneTo(sc.length, true);
+    sceneTo(SC.k + 1, true);
+  });
+  r.addEventListener('keydown', (e) => { if (e.key === 'Escape') sceneTo(sc.length, true); else if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); sceneTo(SC.k + 1, true); } });
+  sceneTo(0, true);
+  r.querySelector('[data-a="next"]').focus({ preventScroll: true });
+}
+function sceneTo(k, mine) {
+  const sc = SCENES[SC.id]; if (!SC.root || !sc || k <= SC.k) return;
+  if (mine && SC.share) netSend('scn', { id: SC.id, p: k >= sc.length ? -1 : k, who: G.meIdx });
+  if (k >= sc.length) { markSeen(SC.id); const d = SC.done; closeScene(); if (UI.home && !UI.home.hidden) renderHome(); if (d) d(); return; }
+  SC.k = k;
+  const pn = sc[k], R2 = (q) => SC.root.querySelector(`[data-r="${q}"]`), art = R2('art');
+  art.classList.remove('in'); void art.offsetWidth; art.classList.add('in');
+  if (pn.photo != null) {
+    const ph = chapterPhoto(pn.photo), c = pn.photo;
+    art.innerHTML = `<div class="cg-sc-photo"><div class="pol"><div class="pic"></div><span>第 ${c + 1} 张 · ${ph && ph.date ? esc(String(ph.date).slice(0, 10)) : '我们的时光'}</span></div></div>`;
+    const pic = art.querySelector('.pic'), drawn = () => { pic.innerHTML = `<svg viewBox="0 0 320 200" aria-hidden="true">${scBg(['spring', 'beach', 'autumn'][c] || 'spring')}${scChar('cs', 'happy', 100, 96, 52)}${scChar('yy', 'happy', 168, 96, 52, true)}</svg>`; };
+    if (ph) { const im = new Image(); im.alt = '你们的照片'; im.onerror = drawn; im.src = ph.src; pic.appendChild(im); } else drawn();
+    SC.root.classList.add('cg-sc-gold');
+  } else { SC.root.classList.remove('cg-sc-gold'); art.innerHTML = `<svg viewBox="0 0 320 200" role="img" aria-label="${esc(named(pn.say.replace('{PET}', G.petName || '小家伙')))}">${pn.art()}</svg>`; }
+  R2('who').textContent = pn.who === 'mm' ? '闷闷' : pn.who === 'pet' ? (G.petName || '小家伙') : '';
+  R2('who').hidden = !pn.who;
+  R2('say').textContent = named(pn.say.replace('{PET}', G.petName || '小家伙'));
+  R2('pg').textContent = `${k + 1} / ${sc.length}`;
+  SC.root.querySelector('[data-a="next"]').textContent = k === sc.length - 1 ? '好 ▸' : '继续 ▸';
+}
+function closeScene(quiet) { if (SC.root) { SC.root.remove(); SC.root = null; if (!quiet) SC.done = null; } }
+// the partner's phone moved the scene on (or opened one)
+function netScene(m) {
+  if (typeof m.id !== 'string' || !SCENES[m.id] || !fin(m.p) || m.who === G.meIdx) return;
+  // the partner finished it: close it here too, and whatever was waiting for it (the level about to start) goes ahead
+  if (m.p < 0) { if (SC.root && SC.id === m.id) { const d = SC.done; markSeen(m.id); closeScene(); if (UI.home && !UI.home.hidden) renderHome(); if (d) d(); } return; }
+  if (!SC.root || SC.id !== m.id) { playScene(m.id, null, true); }
+  if (SC.root && (m.p | 0) > SC.k) sceneTo(m.p | 0, false);
 }
 
 /* ══════════════ 🛠️ 关卡编辑: levels you make for each other (2026-11-26) ══════════════
@@ -4703,7 +5721,7 @@ const TOOLS = [
 const TOOL_OF = Object.fromEntries(TOOLS.map(t => [t[0], t]));
 function blankLevel() {
   const rows = Array.from({ length: R }, (_, r) => (r >= 11 ? '#' : '.').repeat(ED_W0));
-  return { id: 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36), n: '我们的小路', w: menuWorld || 0, r: encRows(rows), v: '', s: 0, at: Date.now(), by: API.me };
+  return { id: 'u' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36), n: '我们的小路', w: typeof freeWorld === 'number' ? freeWorld : 0, r: encRows(rows), v: '', s: 0, at: Date.now(), by: API.me };
 }
 function openEditor(id) {
   if (!id && myLevels().length >= ED_MAX) { if (API.toast) API.toast(`最多 ${ED_MAX} 个关卡，删掉一个再做`); return false; }
@@ -4879,12 +5897,30 @@ function edDraw() {
   }
 }
 
+// a story level: its chapter's opening first, the first time (and the prologue before chapter 1); `quick` (from 自由选关) skips them
+function playStory(k, quick) {
+  const L = STORY_LV[k], first = chLv(L.c)[0] === k, go = () => { if (G.mode === 'online') netPick(SI + k); else artReady.then(() => openStage(SI + k)); };
+  if (quick || !first) return go();
+  const open = 'o' + L.c;
+  if (L.c === 0 && !seen('pro')) return playScene('pro', () => playScene(open, go, true), true);
+  if (!seen(open)) return playScene(open, go, true);
+  go();
+}
+// 🎲 any level you have opened (or a story level you have played)
+function randomLevel() {
+  const unlocked = G.mode === 'online' ? LEVELS.length : (G.save.unlocked || 1);
+  const pool = LEVELS.map((L, i) => i).filter(i => i + 1 <= unlocked || G.save.best[LEVELS[i].id]).concat(STORY_LV.filter(L => G.save.best[L.id]).map(L => SI + L.si));
+  const i = pool[Math.floor(Math.random() * pool.length)];
+  if (G.mode === 'online') return netPick(i);
+  artReady.then(() => openStage(i));
+}
 function endlessCard() {
-  const rec = G.save.endless;
+  const rec = G.save.endless, camp = store.get(campKey(), null), dy = G.save.day && G.save.day.date === dayStr() ? G.save.day.d : 0;
   return `<div class="cg-card cg-endless">
       <div class="cg-erow"><div class="cg-etxt"><span class="cg-lab">♾️ 无尽模式</span><h4>一直走下去 <span class="cg-new">新</span></h4></div>
         <button type="button" class="cg-ego" data-a="endless">${G.mode === 'online' ? '一起出发' : '出发'}</button></div>
-      <p class="cg-line">一段接一段，每段换一个世界，越走越难：坑更宽、怪更多，每 4 段暴风雨追一次。每走完一段回 1 颗心，心用完就结束。</p>
+      <p class="cg-line">一段接一段，每段换一个世界，越走越难。每走完一段回 1 颗心、选一个小祝福（两部手机时轮流选）；路上会下爱心雨、出月亮、起雾；每 5 段有一个营地，会记住你们走到哪里。</p>
+      <div class="cg-seg">${camp && camp.d > 1 ? `<button type="button" data-a="camp">⛺ 从第 ${camp.d} 段接着走</button>` : ''}<button type="button" data-a="daily">📅 今日之路${dy ? ` · 今天最远 ${dy} 段` : ''}</button></div>
       <p class="cg-erec">${rec && rec.d ? `🏆 最远走完 <b>${rec.d}</b> 段 · 💗 ${rec.h || 0}` : '🏁 还没走过：看你们能走多远'}</p>
       <p class="cg-line cg-esub">第一次走完 3 段、6 段、10 段，各 +1 分</p>
     </div>`;
@@ -4893,13 +5929,21 @@ function onHomeClick(e) {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.a === 'x') return closeHome();
   if (b.dataset.a === 'endless') { if (G.mode === 'online') return netPick(-1); artReady.then(() => startEndless()); return; }
+  if (b.dataset.a === 'camp') return startRun(campRun());
+  if (b.dataset.a === 'daily') return startRun(dailyRun());
   if (b.dataset.a === 'newlv') { if (!b.disabled) openEditor(null); return; }
   if (b.dataset.ed) return openEditor(b.dataset.ed);
   if (b.dataset.send) return sendLevel(b.dataset.send);
   if (b.dataset.try) return playCustom(myLevels().find(l => l.id === b.dataset.try), false);
   if (b.dataset.pplay) return playCustom(PART.lv.find(l => l.id === b.dataset.pplay), false);
   if (b.dataset.mode) { if (b.disabled) return; G.mode = b.dataset.mode; store.set('cg_mode', G.mode); netHome(G.mode === 'online'); renderHome(); return; }
-  if (b.dataset.w) { menuWorld = +b.dataset.w; renderHome(); return; }
+  if (b.dataset.w) { freeWorld = b.dataset.w === 'back' ? null : +b.dataset.w; renderHome(); UI.home.scrollTop = 0; return; }
+  if (b.dataset.go) { screen = b.dataset.go; freeWorld = null; renderHome(); UI.home.scrollTop = 0; return; }
+  if (b.dataset.ch != null && !b.disabled) { storyCh = +b.dataset.ch; renderHome(); return; }
+  if (b.dataset.scene) return playScene(b.dataset.scene, null, true);
+  if (b.dataset.a === 'rand') return randomLevel();
+  if (b.dataset.a === 'short') { freeWorld = 'short'; renderHome(); UI.home.scrollTop = 0; return; }
+  if (b.dataset.s != null && !b.disabled) return playStory(+b.dataset.s, screen !== 'story');
   if (b.dataset.i && !b.disabled) {
     const i = +b.dataset.i;
     if (G.mode === 'online') return netPick(i);
@@ -4917,7 +5961,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 7, DELAY = 110;   // 7: 🛠️ a made level in \`go\` (2026-11-26); 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
+const NET_V = 8, DELAY = 110;   // 8: 📖 故事模式 — story levels (lv ≥ SI), keys, balloons, timer buttons, the frame, blessings (2026-11-27); 7: 🛠️ a made level in \`go\` (2026-11-26); 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -4951,7 +5995,7 @@ function netHome(on) {
   clearInterval(NET.hiTimer); NET.hiTimer = 0;
   if (want) {
     netListen();
-    const hi = () => { netSend('hi', { who: G.meIdx }); if (UI.home && !UI.home.hidden) { const el = UI.home.querySelector('[data-r="peer"]'); const on2 = NET.peerAt && performance.now() - NET.peerAt < 4500; if (el && el.classList.contains('on') !== !!on2) renderHome(); } };
+    const hi = () => { netSend('hi', { who: G.meIdx }); const el = UI.home && !UI.home.hidden && UI.home.querySelector('[data-r="peer"]'); if (el && el.classList.contains('on') !== peerOnNow()) paintPeer(); };
     hi(); NET.hiTimer = setInterval(hi, 1500);
     // the first one usually goes before the channel has joined (and is lost): say it again as soon as it can
     // be heard, so 「也在这里」 shows up in a moment rather than at the next tick
@@ -4978,7 +6022,7 @@ function netStart(i, snap) {
 }
 function netGo(m) {
   const endless = m.lv === -1, made = m.lv === -2;
-  if (!fin(m.lv) || !(endless || made || (m.lv >= 0 && m.lv < LEVELS.length)) || !fin(m.n) || m.who === G.meIdx) return;
+  if (!fin(m.lv) || !(endless || made || (m.lv >= 0 && m.lv < LEVELS.length) || isStory(m.lv)) || !fin(m.n) || m.who === G.meIdx) return;
   // both picked in the same moment: CS's pick wins, on both phones. (This once also asked for the countdown to be
   // showing — but the stage opens a moment after the pick, so who won depended on timing.)
   if (NET.role === 'host' && performance.now() - NET.goAt < 2000 && G.meIdx === 0) return;
@@ -5000,6 +6044,7 @@ function netRequest(k) {
     const i = G.L.i;
     if (i === -1) return endlessAdvance(k) ? netStart(-1, k === 'cp' ? G.cpSnap : null) : undefined;
     if (i === -2) return k === 'next' ? undefined : netStart(-2, k === 'cp' ? G.cpSnap : null);
+    if (k === 'next' && isStory(i)) { const nx = storyNext(i); return nx != null ? netStart(nx, null) : undefined; }
     return netStart(k === 'next' ? i + 1 : i, k === 'cp' ? G.cpSnap : null);
   }
   netSend('rq', { n: NET.n, k }); NET.rq = { k, at: performance.now(), t0: performance.now() };   // resent until the new level starts
@@ -5013,7 +6058,7 @@ function partnerLeft() {
 }
 function onNet(m) {
   if (!m) return;
-  if (m.v !== NET_V) { if (m.t === 'hi' && !verOff() && UI.home && !UI.home.hidden) { verAt = performance.now(); renderHome(); } else if (m.t === 'hi') verAt = performance.now(); return; }
+  if (m.v !== NET_V) { if (m.t === 'hi' && !verOff()) { verAt = performance.now(); paintPeer(); } else if (m.t === 'hi') verAt = performance.now(); return; }
   const now = performance.now();
   // the partner is still in a level this phone has left (it was away too long, or the bye was lost): say so again
   if (m.n && m.n !== NET.n && NET.dead.includes(m.n) && m.t !== 'bye' && m.t !== 'go') { if (now - NET.byeAt > 1000) { NET.byeAt = now; netSend('bye', { n: m.n }); } return; }
@@ -5021,7 +6066,7 @@ function onNet(m) {
     if (m.who === G.meIdx) return;   // the same login on another device is not the partner
     const was = NET.peerAt && now - NET.peerAt < 4500; NET.peerAt = now;
     if (m.n && m.n === NET.n) { NET.heard = true; NET.lastRx = now; netAck(m.ak); }
-    if (!was && UI.home && !UI.home.hidden) renderHome(); return;
+    if (!was) paintPeer(); return;
   }
   if (m.t === 'pi') { netSend('po', { a: m.a, b: now }); return; }
   if (m.t === 'po') {
@@ -5033,6 +6078,7 @@ function onNet(m) {
     return;
   }
   if (m.t === 'go') return netGo(m);
+  if (m.t === 'scn') return netScene(m);
   if (m.t === 'bye') { if (m.n && m.n === NET.n) partnerLeft(); return; }
   if (!ONLINE() || !NET.n || m.n !== NET.n) return;
   NET.lastRx = now; NET.peerAt = now; NET.heard = true;
@@ -5281,7 +6327,13 @@ function netEvent(m) {
     case 'win': if (!isHost() && (G.state === 'play' || G.state === 'paused')) win(); break;
     case 'fail': if (!isHost() && G.state === 'play') { G.hp = 0; G.state = 'dying'; G.failT = 0.9; } break;
     case 'over': if (G.L && G.L.i === -1) endlessOver('quit', true); break;
+    case 'bless': if (G.L && G.L.i === -1 && fin(m.d) && typeof m.k === 'string' && Object.prototype.hasOwnProperty.call(BLESS, m.k) && G.run && (m.d | 0) === G.run.d) applyBless(m.k, m.d | 0, true); break;
     case 'latch': if (fin(m.ch) && m.ch >= 0 && m.ch < G.L.chunks.length) latchOn(m.ch | 0, true); break;
+    case 'unlock': if (fin(m.c) && fin(m.r)) unlockAt(m.c | 0, m.r | 0, false); break;
+    case 'keyback': { const it = L.items[m.i]; if (it && it.type === 'key') { const h = G.players.find(p => p.key === it); if (h) dropKey(h, false); else { it.got = false; it.held = null; it.x = it.ox; it.y = it.oy; } } break; }
+    case 'bl': { const b = L.balloons[m.i != null ? m.i : m.b]; if (!b) break; if (m.on) grabBalloon(them, b, false); else if (them.balloon === b) letBalloon(them, false, m.how === 'pop' ? 'pop' : 'let'); break; }
+    case 'tmr': if (fin(m.ch) && fin(m.u) && m.ch >= 0 && m.ch < L.chunks.length) G.tmr[m.ch] = Math.max(G.tmr[m.ch], Math.min(m.u, G.wt + TIMER_S + 1)); break;
+    case 'fr': { const f = L.frames[m.i]; if (f && ['rest', 'up', 'fall', 'placed'].includes(m.st) && !isHost()) frameSet(f, m.st, null, true); break; }
     case 'pause': if (G.state === 'play') togglePause(true); break;
     case 'resume': if (G.state === 'paused') togglePause(true); break;
   }
@@ -5541,6 +6593,7 @@ function adopt(api) {
   CH.cs.name = api.names.cs || 'CS'; CH.yy.name = api.names.yy || 'YY';
   G.meIdx = api.me === 'yy' ? 1 : 0;
   G.petName = api.pet ? api.pet.name || '' : '';
+  G.petSvg = api.pet && typeof api.pet.svg === 'string' ? api.pet.svg : '';
   return rasterPet(api.pet && api.pet.svg).then((c) => { G.petImg = c; });
 }
 window.CoopGames = {
@@ -5557,6 +6610,11 @@ window.CoopGames = {
   test: {
     LEVELS, CHUNKS, G, NET, BT,
     start(i, mode = 'duo') { G.mode = mode; if (mode !== 'online') { NET.n = 0; } openStage(i); G.test = true; begin(); },
+    SI, STORY_LV, CHAPTERS, waterLevel, T_LOCKB, T_LOCKP, T_TPLATE, isStory, storyNext,
+    // the start screen's screens: ui('free', 0) is 自由选关's first world, ui('story') the story, ui('home') the start
+    ui(scr, w) { screen = scr || 'home'; freeWorld = w == null ? null : w; storyCh = null; renderHome(); }, screenNow: () => ({ screen, freeWorld, storyCh }),
+    playScene: (id) => playScene(id, null, true), sceneState: () => (SC.root ? { id: SC.id, k: SC.k } : null), SCENES, BLESS, blessOffer, EVENTS, campKey: () => campKey(), dayStr,
+    unlock: (c, r) => unlockAt(c, r, false), flag: (k) => flagOn(k), restartCp: () => restartFrom(true),
     // ♾️ the endless road: a given run and 段 (ws: which worlds; all of them by default)
     startE(rs, d = 1, mode = 'duo', ws) { G.mode = mode; if (mode !== 'online') NET.n = 0; G.run = { rs: rs >>> 0, d, hp: HP_MAX, he: 0, t: 0, ws: ws || WORLDS.map((w, k) => k) }; G.espec = endlessSpec(G.run); openStage(-1); G.test = true; begin(); },
     endless: { spec: endlessSpec, genRows, POOL, chunkFor, GEN_RE, wire: endlessWire, fromWire: endlessFromWire, E_PAY },
