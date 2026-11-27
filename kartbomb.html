@@ -51,6 +51,12 @@ button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .go button.b { background: var(--blue); box-shadow: 0 6px 16px rgba(79, 143, 219, .3); }
 .go button.c { grid-column: 1 / -1; background: linear-gradient(135deg, #8B7BE8, #B78BEF); box-shadow: 0 6px 16px rgba(139, 123, 232, .3); }
 .go button small { display: block; font-weight: 700; font-size: 12px; opacity: .9; }
+.go button.d { grid-column: 1 / -1; background: linear-gradient(135deg, #E8508F, #4F8FDB); box-shadow: 0 6px 16px rgba(160, 100, 200, .3); }
+.go button.d[aria-disabled="true"] { filter: saturate(.35); opacity: .75; }
+.peer { margin: 0; font-size: 13px; font-weight: 800; color: var(--sub); }
+.peer.on { color: var(--pink-ink); }
+.peer.on::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3DBE7A; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 3px rgba(61, 190, 122, .2); }
+.panel .netnote { font-size: 13px; color: #5A5170; }
 .note { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px 18px; font-size: 14.5px; line-height: 1.7; color: var(--sub); }
 .note h3 { margin: 0 0 6px; font-size: 16px; color: var(--ink); }
 .note ul { margin: 0; padding-left: 1.2em; }
@@ -218,7 +224,9 @@ html.in-app .wrap { padding-top: 56px; }
           <button type="button" data-play="kart:1p">一个人<small>和闷闷、电脑比</small></button>
           <button type="button" class="b" data-play="kart:2p">两个人<small>一部手机：横着左右分，竖着面对面</small></button>
           <button type="button" class="c" data-play="kart:tt">👻 影子赛<small>和 TA 跑过的最快一次比，看得见 TA 的影子</small></button>
+          <button type="button" class="d" data-play="kart:net" hidden>🤝 各用自己的手机<small>两部手机一起比，每人一整个屏幕</small></button>
         </div>
+        <p class="peer" id="peer-kart" hidden></p>
       </div>
     </section>
     <section class="gcard" aria-labelledby="h-bomb">
@@ -234,9 +242,10 @@ html.in-app .wrap { padding-top: 56px; }
           <li>每人带一只宠物：<b>🐶 叼回宝贝</b>、<b>🐱 踢走烟花、吓住小怪</b>、<b>🐰 跳过箱子</b>、<b>🐻 抱紧不受伤</b>。</li>
         </ul>
         <div class="go">
-          <button type="button" data-play="bomb:coop">一起闯关<small>一个人或两个人</small></button>
+          <button type="button" data-play="bomb:coop">一起闯关<small>一个人、两个人，或各用自己的手机</small></button>
           <button type="button" class="b" data-play="bomb:vs">对战<small>和电脑，或两个人</small></button>
         </div>
+        <p class="peer" id="peer-bomb" hidden></p>
       </div>
     </section>
   </div>
@@ -323,7 +332,10 @@ const ME = { k: 'cs' };
 // your names, pays the points and keeps your records on every phone. On its own (the tests) it is the try-out.
 const HOST = (() => { try { return window.parent !== window && window.parent.__kbHost ? window.parent.__kbHost : null; } catch (e) { return null; } })();
 if (HOST) ME.k = HOST.me === 'yy' ? 'yy' : 'cs';
-const NAME = { cs: (HOST && HOST.names && HOST.names.cs) || 'CS', yy: (HOST && HOST.names && HOST.names.yy) || 'YY', mm: '闷闷' };
+// the couple's names come from the app, where they are typed by hand: never markup, and short enough for a name tag
+const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cleanName = (v, d) => (String(v || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12) || d);
+const NAME = { cs: cleanName(HOST && HOST.names && HOST.names.cs, 'CS'), yy: cleanName(HOST && HOST.names && HOST.names.yy, 'YY'), mm: '闷闷' };
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
@@ -342,6 +354,221 @@ function payLine(kind, key, detail) {
   }).catch(() => {});
   return `<p class="paid" id="${id}" hidden></p>`;
 }
+
+/* ══════════════ 🤝 各用自己的手机 — each of you on your own phone (CLAUDE.md §7.37) ══════════════
+   Over the couple's private live channel, the way 一起回家 uses it (§7.33). Each phone is in charge of its own player and
+   draws the partner from what their phone says; the phone that pressed 开始 (the host) also runs what belongs to both —
+   闷闷 on the road; the monsters, the fireworks going off, the boxes and the little house in a maze; who won. One-off
+   things (a 布丁 dropped, a 小雨云 sent, crossing the line, a firework placed, a pause) are numbered and resent until
+   the other phone has them. Supabase bills every message twice (sent, received), so a phone says where it is about six
+   times a second while playing and next to nothing otherwise. Never trust the wire: our own login on another device is
+   not the partner, and anything out of range is dropped. */
+const KB_V = 1;
+const LIVE = HOST && HOST.live ? HOST.live : null;
+const ONLINE = () => { try { return !!(LIVE && HOST.online && HOST.online()); } catch (e) { return false; } };
+const PEER = ME.k === 'cs' ? 'yy' : 'cs';
+const PAGE_GAME = (() => { const g = new URLSearchParams(location.search).get('game'); return g === 'kart' || g === 'bomb' ? g : ''; })();
+const NET = { n: 0, role: null, peerAt: 0, peerG: '', peerN: 0, lastRx: 0, tx: 0, rx: 0, pend: [], hold: new Map(), holdAt: 0, rtts: [], rttMin: 160, lags: [], piAt: 0, hiAt: 0,
+  wait: null, okMsg: null, okAt: 0, okT0: 0, rq: null, heard: false, started: false, dead: [], byeAt: 0, verAt: 0, listening: false, hiTimer: 0, sent: 0, quiet: false };
+const fin = (v) => typeof v === 'number' && isFinite(v);
+const r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+const pageGame = () => PAGE_GAME || (game ? game.kind : '');
+const peerHere = () => !!NET.peerAt && performance.now() - NET.peerAt < 4500;
+function netSend(t, d) {
+  if (!LIVE) return false;
+  let ok = false; try { ok = LIVE.send('kb', Object.assign({}, d, { t, v: KB_V, w: ME.k })); } catch (e) {}   // the envelope wins: no payload field may be called t, v or w
+  if (ok) NET.sent++;
+  return ok;
+}
+function netListen() { if (NET.listening || !LIVE) return; NET.listening = true; LIVE.on('kb', (m) => { try { netOn(m); } catch (e) { console.error(e); } }); }
+// keep the channel up while this page is open (logged in, the app in front), and say hello now and then
+function netHome(on) {
+  if (!LIVE) return;
+  const want = !!on && ONLINE();
+  try { LIVE.want(want); } catch (e) {}
+  clearInterval(NET.hiTimer); NET.hiTimer = 0;
+  if (!want) return;
+  netListen();
+  const hi = () => netSend('hi', { g: pageGame(), n: NET.n, ak: NET.rx });
+  hi(); NET.hiTimer = setInterval(() => { if (!NET.n) hi(); paintPeer(); }, 1500);
+  // the first hello usually goes before the channel has joined, and is lost: say it again as soon as it can be heard
+  let tries = 0; const early = () => { if (!NET.hiTimer) return; let j = false; try { j = LIVE.state().joined; } catch (e) {} if (!j) { if (++tries < 30) setTimeout(early, 200); return; } hi(); };
+  setTimeout(early, 200);
+}
+function paintPeer() {
+  const on = ONLINE(), here = peerHere(), ver = NET.verAt && performance.now() - NET.verAt < 6000;
+  for (const g of ['kart', 'bomb']) {
+    const el = document.getElementById('peer-' + g); if (!el) continue;
+    el.hidden = !on; if (!on) continue;
+    const same = here && NET.peerG === g, what = g === 'kart' ? '比' : '玩';
+    const txt = ver ? `${NAME[PEER]} 手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次`
+      : same ? `${NAME[PEER]} 也在这里，可以各用自己的手机一起${what}`
+      : here ? `${NAME[PEER]} 在${NET.peerG === 'kart' ? '🏎️ 卡丁车' : NET.peerG === 'bomb' ? '💣 烟花炸弹' : '小游戏'}`
+      : `${NAME[PEER]} 也打开这里，就能各用自己的手机一起${what}`;
+    if (el.textContent !== txt) el.textContent = txt;
+    el.classList.toggle('on', !!same && !ver);
+  }
+  const nb = document.querySelector('[data-play="kart:net"]'); if (nb) { nb.hidden = !on; nb.setAttribute('aria-disabled', String(!(here && NET.peerG === 'kart'))); }
+}
+function netReset() {
+  NET.lags = [];
+  NET.n = 0; NET.role = null; NET.tx = 0; NET.rx = 0; NET.pend = []; NET.hold = new Map(); NET.holdAt = 0;
+  NET.wait = null; NET.okMsg = null; NET.okAt = 0; NET.rq = null; NET.heard = false; NET.started = false; NET.quiet = false;
+}
+function netForget(n) { if (n) { NET.dead.push(n); if (NET.dead.length > 8) NET.dead.shift(); } }
+// leaving a game together (✕, 换个玩法, the page closing): the partner's phone is told at once
+function netBye() { if (NET.n) netSend('bye', { n: NET.n }); netForget(NET.n); netReset(); }
+// a one-off thing; `once` for what only matters at that moment (a burst's flash), the rest is resent until confirmed
+function netEv(e, data, once) {
+  if (!NET.n) return;
+  const m = Object.assign({ n: NET.n, e }, data);
+  if (!once) { m.q = ++NET.tx; const now = performance.now(); NET.pend.push({ m, at: now, t0: now }); }
+  netSend('ev', m);
+}
+function netAck(ak) { if (fin(ak) && NET.pend.length) NET.pend = NET.pend.filter((x) => x.m.q > ak); }
+function netDrain() {
+  while (NET.hold.has(NET.rx + 1)) { const e = NET.hold.get(NET.rx + 1); NET.hold.delete(NET.rx + 1); NET.rx++; netApply(e); }
+  NET.holdAt = NET.hold.size ? performance.now() : 0;
+}
+function netApply(e) {
+  if (e.e === 'pz') return netPause(!!e.on);
+  if (game && game.net && game.netEvent) game.netEvent(e);
+}
+function netPause(on) {
+  if (!game || !game.net || game.state === 'end' || game.state === 'card' || game.state === 'tip') return;
+  if (on && !game.paused) { game.paused = true; game.pauseCard = true; resetIn(); if (game.kind === 'kart') Engine.set(0, false); Music.pause(true); pauseCard(`${NAME[PEER]} 暂停了一下`); }
+  else if (!on && game.paused) { game.paused = false; game.pauseCard = false; UI.msg.hidden = true; Music.pause(false); if (game.kind === 'kart' && game.ctl() === 'tilt') Tilt.center(); }
+}
+function netOn(m) {
+  if (!m || typeof m !== 'object') return;
+  if (m.w === ME.k) return;   // our own login on another device is not the partner
+  if (m.v !== KB_V) { if (m.t === 'hi') { NET.verAt = performance.now(); paintPeer(); } return; }
+  const now = performance.now();
+  if (m.t === 'hi') {
+    const was = peerHere(); NET.peerAt = now; NET.peerG = m.g === 'kart' || m.g === 'bomb' ? m.g : ''; NET.peerN = fin(m.n) ? m.n : 0;
+    if (NET.n && m.n === NET.n) { NET.lastRx = now; NET.heard = true; netAck(m.ak); }
+    if (!was || !NET.n) paintPeer();
+    return;
+  }
+  if (m.t === 'pi') { netSend('po', { a: m.a, b: now }); return; }
+  if (m.t === 'po') { const rtt = now - m.a; if (rtt >= 0 && rtt < 4000) { NET.rtts.push(rtt); if (NET.rtts.length > 8) NET.rtts.shift(); NET.rttMin = Math.min(...NET.rtts); } return; }
+  if (m.t === 'go') return netGo(m);
+  if (m.t === 'bye') { if (m.n && m.n === NET.n) netPartnerLeft(); else if (NET.wait && m.n === NET.wait.go.n) netDeclined({ n: m.n, why: 'left' }); return; }
+  if ((m.t === 'no' || m.t === 'busy') && NET.wait && m.n === NET.wait.go.n) return netDeclined(m);
+  if (!NET.n || m.n !== NET.n) {   // the partner is still in a game this phone has left: say so again
+    if (m.n && NET.dead.includes(m.n) && m.t !== 'no' && m.t !== 'busy' && now - NET.byeAt > 1000) { NET.byeAt = now; netSend('bye', { n: m.n }); }
+    return;
+  }
+  NET.lastRx = now; NET.peerAt = now; NET.heard = true;
+  if (m.t === 'st' || m.t === 'ev') NET.started = true;   // the host's game is really going (a hello alone is not an answer to 出发)
+  if (m.t === 'ok') return netAccepted(m);
+  if (m.t === 'st') { netAck(m.ak); if (game && game.net && game.netState) game.netState(m, now); return; }
+  if (m.t === 'ev') {
+    if (!fin(m.q)) { netApply(m); return; }
+    if (m.q <= NET.rx || NET.hold.has(m.q)) return;   // a resend of one already applied
+    if (!NET.hold.size) NET.holdAt = now;
+    NET.hold.set(m.q, m); netDrain(); return;
+  }
+  if (m.t === 'rq' && NET.role === 'host' && game && game.net && game.netRequest && (m.k === 'again' || m.k === 'next')) { game.netRequest(m.k); return; }
+}
+// the options a host sends, checked before anything is built from them
+function netOpts(g, o) {
+  if (!o || typeof o !== 'object') return false;
+  if (g === 'kart') {
+    if (!TRACKS.some((t) => t.id === o.place) || (o.cls && !CLASSES[o.cls])) return false;
+    if (o.trip && !(Array.isArray(o.trip) && o.trip.length === 2 && o.trip.every((id) => TRACKS.some((t) => t.id === id)))) return false;
+    if (o.cup && !(CUPS[o.cup.set] && Number.isInteger(o.cup.i) && o.cup.i >= 0 && o.cup.i < CUPS[o.cup.set].ids.length && CUPS[o.cup.set].ids[o.cup.i] === o.place
+      && (!o.cup.pts || Object.entries(o.cup.pts).every(([k, v]) => ['mm', 'cs', 'yy'].includes(k) && fin(v))))) return false;
+    return true;
+  }
+  if (g === 'bomb') {
+    if (!PLACES.some((p) => p.id === o.place) || (o.mode !== 'coop' && o.mode !== 'vs') || !Number.isInteger(o.seed) || o.seed < 1 || o.seed > 2147483646) return false;
+    if (o.pets && !Object.entries(o.pets).every(([k, v]) => (k === 'cs' || k === 'yy') && PET_IDS.includes(v))) return false;
+    if (o.round && !(Number.isInteger(o.round) && o.round >= 1 && o.round <= 5)) return false;
+    if (o.wins && !Object.entries(o.wins).every(([k, v]) => (k === 'cs' || k === 'yy') && Number.isInteger(v) && v >= 0 && v <= 3)) return false;
+    return true;
+  }
+  return false;
+}
+// the host: a game for both of you, waiting for the partner's phone to say 出发
+function netInvite(g, o) {
+  if (!game) return;
+  if (!(peerHere() && NET.peerG === g)) {
+    panel(`<div class="big">⏳</div><h2>等 ${esc(NAME[PEER])} 也打开${g === 'kart' ? '卡丁车' : '烟花炸弹'}</h2><p>TA 在自己的手机上打开 小游戏 › ${g === 'kart' ? '🏎️ 卡丁车' : '💣 烟花炸弹'}，这边就能开始。</p>
+      <div class="btns"><button type="button" data-m="try">TA 打开了，开始</button><button type="button" class="alt" data-m="back">先不了</button></div>`,
+      (m) => { if (m === 'try') netInvite(g, o); else closeGame(); });
+    return;
+  }
+  netReset(); NET.n = 1 + Math.floor(Math.random() * 2e9); NET.role = 'host';
+  const now = performance.now(), go = { n: NET.n, g, o }; NET.wait = { go, sent: now, t0: now };
+  netSend('go', go);
+  if (o.auto) return;   // the partner asked for this one: their phone starts it without asking
+  panel(`<div class="big">📨</div><h2>等 ${esc(NAME[PEER])} 准备好…</h2><p class="netnote">TA 的手机上会问要不要一起${g === 'kart' ? '比' : '玩'}，TA 点「出发」就开始。</p>
+    <div class="btns"><button type="button" class="alt wide" data-m="cancel">不等了</button></div>`,
+    () => { netBye(); closeGame(); });
+}
+function netDeclined(m) {
+  const g = NET.wait ? NET.wait.go.g : ''; NET.wait = null; netForget(NET.n); netReset();
+  if (!game || game.state === 'race' || game.state === 'play') return;
+  panel(`<div class="big">${m.t === 'busy' ? '🎮' : '🙂'}</div><h2>${esc(NAME[PEER])} ${m.t === 'busy' ? (m.why === 'other' ? '打开的是另一个游戏' : '正在玩别的') : m.why === 'left' ? '离开了' : '这次不' + (g === 'kart' ? '比' : '玩')}</h2>
+    <p>${m.t === 'busy' ? `等 TA 回到${g === 'kart' ? '卡丁车' : '烟花炸弹'}的菜单，再叫 TA 一次。` : '下次再一起吧。'}</p><div class="btns"><button type="button" class="wide" data-m="ok">好</button></div>`, () => closeGame());
+}
+// the partner's phone: an invitation arrives
+function netGo(m) {
+  const o = m.o, now = performance.now();
+  if ((m.g !== 'kart' && m.g !== 'bomb') || !fin(m.n) || m.n === NET.n || NET.dead.includes(m.n)) return;
+  if (!netOpts(m.g, o)) return;   // never trust the wire
+  if (PAGE_GAME && PAGE_GAME !== m.g) { netSend('busy', { n: m.n, why: 'other' }); return; }
+  // both pressed 开始 in the same moment: CS's game wins, on both phones
+  if (NET.wait) { if (ME.k === 'cs') return; netForget(NET.n); netReset(); }
+  const free = !game || (game.net && (game.state === 'card' || game.state === 'tip' || game.shown)) || (game.state === 'card' && !game.tt) || game.state === 'tip';
+  if (!free) { netSend('busy', { n: m.n }); return; }
+  if (game && game.net && NET.n && NET.n !== m.n) netForget(NET.n);
+  netReset(); NET.n = m.n; NET.role = 'guest'; NET.peerAt = now; NET.lastRx = now;
+  const invite = { by: m.w === 'yy' ? 'yy' : 'cs', auto: !!o.auto };
+  if (m.g === 'kart') { SEL.kart = o.place; openGame('kart', { mode: 'net', place: o.place, cls: o.cls || KSET.cls, cup: o.cup || null, trip: o.trip || null, net: { role: 'guest', invite }, skipCard: false }); }
+  else { SEL.bomb = o.place; openGame('bomb', { mode: o.mode, place: o.place, seed: o.seed, pets: o.pets || {}, round: o.round || 1, wins: o.wins || { cs: 0, yy: 0 }, net: { role: 'guest', invite } }); }
+}
+// the partner's phone says 出发: off we go
+function netAccepted(m) {
+  if (NET.role !== 'host' || !NET.wait || m.n !== NET.wait.go.n) return;
+  NET.wait = null; NET.heard = true;
+  if (game && game.net && game.netStart) game.netStart(m);
+}
+// the partner's phone: 出发 — told to the host until it answers
+function netAccept(extra) {
+  if (NET.role !== 'guest' || !NET.n) return;
+  const now = performance.now(); NET.okMsg = Object.assign({ n: NET.n }, extra || {}); NET.okAt = now; NET.okT0 = now; NET.started = false;
+  netSend('ok', NET.okMsg);
+}
+function netDecline() { if (NET.role === 'guest' && NET.n) { netSend('no', { n: NET.n }); netForget(NET.n); netReset(); } }
+// 再来一次 / 下一条 from the partner's phone: the host's phone starts it, for both
+function netRequest(k) { if (NET.role !== 'guest' || !NET.n) return; const now = performance.now(); NET.rq = { k, at: now, t0: now }; netSend('rq', { n: NET.n, k }); }
+function netPartnerLeft() {
+  const n = NET.n, role = NET.role; netForget(n); netReset();
+  if (game && game.net && game.netGone) game.netGone(role);
+}
+function netTick(now) {
+  if (!LIVE) return;
+  if (NET.wait && now - NET.wait.sent > 800) {   // the invitation goes again until it is answered (the partner may still be choosing)
+    if (now - NET.wait.t0 > 90000) { const w = NET.wait; NET.wait = null; netDeclined({ t: 'no', n: w.go.n, why: 'left' }); return; }
+    NET.wait.sent = now; netSend('go', NET.wait.go);
+  }
+  if (!NET.n) return;
+  if (now - NET.piAt > 4000) { NET.piAt = now; netSend('pi', { a: now }); }
+  const playing = game && game.net && (game.state === 'race' || game.state === 'play' || game.state === 'count') && !game.paused;
+  if (now - NET.hiAt > (playing ? 5000 : 1500)) { NET.hiAt = now; netSend('hi', { g: pageGame(), n: NET.n, ak: NET.rx }); }   // while playing, every position message already says the partner is there
+  if (NET.pend.length) { NET.pend = NET.pend.filter((x) => now - x.t0 < 30000); for (const x of NET.pend) if (now - x.at > 400 && netSend('ev', x.m)) x.at = now; }
+  if (NET.hold.size && now - NET.holdAt > 6000) { NET.rx = Math.min(...NET.hold.keys()) - 1; netDrain(); }   // a gap that never filled: go on
+  if (NET.okMsg && !NET.started && now - NET.okAt > 600 && now - NET.okT0 < 20000) { NET.okAt = now; netSend('ok', NET.okMsg); }
+  if (NET.rq && now - NET.rq.at > 1200 && now - NET.rq.t0 < 20000) { NET.rq.at = now; netSend('rq', { n: NET.n, k: NET.rq.k }); }
+  if (game && game.net && game.netTick && !game.paused) game.netTick(now);
+  if (game && game.net && NET.heard) {   // a quiet partner: say so; after a long while, carry on without them
+    const q = now - NET.lastRx; NET.quiet = q > 3500;
+    if (q > 25000) netPartnerLeft();
+  }
+}
+if (LIVE) setInterval(() => netTick(performance.now()), 100);
 
 /* ══════════════ the game's own CS, YY and 闷闷 (from 一起回家) ══════════════ */
 const CH = {
@@ -578,7 +805,7 @@ const KEYS = {
   ArrowLeft: ['yy', 'l'], ArrowRight: ['yy', 'r'], ArrowUp: ['yy', 'u'], ArrowDown: ['yy', 'd'], Enter: ['yy', 'bomb'], ShiftRight: ['yy', 'drift'], Slash: ['yy', 'item'],
 };
 function onKey(e, on) {
-  if (!game) { if (on && e.code === 'Escape' && HOST && HOST.close) HOST.close(); return; }
+  if (!game) { if (on && e.code === 'Escape' && HOST && HOST.close) { netBye(); netHome(false); HOST.close(); } return; }
   if (on && e.code === 'Escape') { closeGame(); return; }
   if (on && e.code === 'KeyP') { togglePause(); return; }
   if (on && e.code === 'KeyR' && game && game.rewind && !game.paused) { game.rewind(); return; }
@@ -768,6 +995,7 @@ function openGame(kind, opts) {
   last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
 }
 function closeGame() {
+  if ((game && game.net) || NET.wait) netBye();   // a game together: the partner's phone hears at once
   coachOff(); Music.stop();
   if (game && game.stop) game.stop();
   game = null; cancelAnimationFrame(raf); UI.play.hidden = true; UI.msg.hidden = true; UI.pad.innerHTML = ''; UI.hud.innerHTML = '';
@@ -778,6 +1006,7 @@ function frame(now) {
   const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
   if (!game.paused) game.update(dt);
   if (!game) return;
+  if (game.net && NET.n && game.netTick && !game.paused) game.netTick(now);   // 🤝 a message goes the frame it is due (the 100 ms tick is the backstop)
   const keysOn = !COARSE && !!game.keysHtml && (game.paused || game.t < 12);
   if (UI.keys.hidden === keysOn) UI.keys.hidden = !keysOn;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -796,6 +1025,7 @@ function togglePause(force) {
   if (game.paused) return;
   game.paused = true; game.pauseCard = true; resetIn(); if (game.kind === 'kart') Engine.set(0, false);
   Music.pause(true);
+  if (game.net && NET.n && game.state !== 'card' && game.state !== 'tip') netEv('pz', { on: 1 });
   pauseCard();
 }
 function ctlRow() {   // on a phone: how you steer (卡丁车) or walk (烟花炸弹)
@@ -814,15 +1044,16 @@ function pickCtl(c, after) {
   KSET.ctl = c; store.set('kb_kset', KSET); resize(); after();
   if (c === 'tilt') Tilt.start().then((ok) => { if (!game || game.kind !== 'kart') return; if (!ok) { KSET.ctl = 'btn'; store.set('kb_kset', KSET); } game.buildPad(); bindPad(); after(); });
 }
-function pauseCard() {
-  panel(`<h2>暂停一下</h2><p>${game.title}</p>${ctlRow()}<div class="btns"><button type="button" data-m="go">继续</button><button type="button" class="alt" data-m="help">怎么玩</button><button type="button" class="alt" data-m="re">重来</button><button type="button" class="alt" data-m="x">退出</button></div>`,
+function pauseCard(note) {
+  const two = !!(game.net && NET.n);   // together on two phones: either of you can carry on; 重来 is the host's, after the end
+  panel(`<h2>暂停一下</h2>${note ? `<p class="netnote">${esc(note)}</p>` : ''}<p>${game.title}</p>${ctlRow()}<div class="btns"><button type="button" data-m="go">继续</button><button type="button" class="alt" data-m="help">怎么玩</button>${two ? '' : '<button type="button" class="alt" data-m="re">重来</button>'}<button type="button" class="alt${two ? ' wide' : ''}" data-m="x">${two ? '不玩了' : '退出'}</button></div>`,
     (m) => {
-      if (m === 'go') { game.paused = false; game.pauseCard = false; UI.msg.hidden = true; Music.pause(false); if (game.kind === 'kart' && game.ctl() === 'tilt') Tilt.center(); }
-      else if (m === 'help') panel(`<h2>怎么玩</h2>${game.kind === 'kart' ? HELP_KART : HELP_BOMB}<div class="btns"><button type="button" class="wide" data-m="back">回去</button></div>`, () => pauseCard());
+      if (m === 'go') { game.paused = false; game.pauseCard = false; UI.msg.hidden = true; Music.pause(false); if (game.kind === 'kart' && game.ctl() === 'tilt') Tilt.center(); if (two) netEv('pz', { on: 0 }); }
+      else if (m === 'help') panel(`<h2>怎么玩</h2>${game.kind === 'kart' ? HELP_KART : HELP_BOMB}<div class="btns"><button type="button" class="wide" data-m="back">回去</button></div>`, () => pauseCard(note));
       else if (m === 're') game.restart(); else closeGame();
     });
   const old = UI.msg.onclick;
-  UI.msg.onclick = (e) => { const b = e.target.closest('[data-c]'); if (b) { pickCtl(b.dataset.c, pauseCard); return; } old(e); };
+  UI.msg.onclick = (e) => { const b = e.target.closest('[data-c]'); if (b) { pickCtl(b.dataset.c, () => pauseCard(note)); return; } old(e); };
 }
 const HELP_KART = `<ul class="tips"><li><b>转弯</b>：手机上按住 ◀ ▶（在这里的暂停菜单可以换成<b>滑条</b>，或者<b>倾斜手机</b>像方向盘一样转）；电脑上 ← → 或 A D。</li><li><b>漂移</b>：转弯时按住「漂移」（↓ / S），火花变蓝再变粉，松开冲一下。开着自动漂移时，急转弯会自己漂。</li><li><b>道具</b>：撞开礼物盒，点 🎁（↑ / W）用掉。💗 冲刺，🍮 布丁丢在后面，🫧 泡泡挡一下，☁️ 小雨云追前面那辆，🌈 落后时的彩虹冲刺。</li><li><b>起步冲刺</b>：数到 1 时按住漂移。<b>跳台</b>：在空中按一下漂移，落地加速。</li><li>路上的 💗 越吃越快，被撞到会掉两个。紧跟在别人后面一会儿会<b>跟风加速</b>。</li><li><b>季节门</b>：第一圈快到终点有两道门，跑在最前面的人开过哪一道，第二圈就去哪个地方跑，第三圈回家。</li><li>翻车、掉海里、跑反了：点 <b>⏪ 倒回 3 秒</b>（电脑上按 R）。<b>影子赛</b>里没有礼物盒，和 TA 跑过的最快一次比。</li></ul>`;
 const HELP_BOMB = `<ul class="tips"><li><b>走路</b>：按住方向键（暂停菜单里可以换成摇杆；电脑上 W A S D / 方向键）。<b>放烟花</b>：💥（空格 / Enter），2 秒后十字炸开，快炸到的格子会先亮。</li><li><b>宠物</b>：点宠物按钮（E / 句号）用技能，按钮上的圈是还要等多久。</li><li><b>目标</b>写在上面；完成后小屋出来，两个人都走进去才过关。倒下的人，另一个走过去就能扶起来。</li><li>两个人的烟花同时炸开是 <b>💞 默契</b>：天上一颗爱心，宠物技能也马上好了。</li><li>每关藏着 3 张 📷 照片；🌈 能穿过箱子，💞 炸成一颗心的形状。</li></ul>`;
@@ -1332,6 +1563,7 @@ const KSET = Object.assign({ cls: 'easy', assist: true, auto: true, ctl: 'btn' }
 
 function makeKart(opts) {
   const def = TRACKS.find((t) => t.id === opts.place) || TRACKS[0], mode = opts.mode, preview = !!opts.preview;
+  const net = mode === 'net' && opts.net && ONLINE() && !preview ? opts.net : null;   // 🤝 each on their own phone: { role: 'host' | 'guest', invite? }
   const T = buildTrack(def); buildTex(T); buildFar(T);
   const humans = mode === '2p' ? ['cs', 'yy'] : [ME.k], cls = CLASSES[opts.cls || KSET.cls] || CLASSES.easy, assist = opts.assist ?? KSET.assist, autoDrift = opts.autoDrift ?? KSET.auto;
   const cup = opts.cup || null;
@@ -1339,7 +1571,7 @@ function makeKart(opts) {
   const tt = mode === 'tt'; G.tt = tt;
   const slots = tt ? [[12, 0]] : [[6, -2.3], [12, 2.3], [18, 0]];
   const other = ME.k === 'cs' ? 'yy' : 'cs';
-  (tt ? [ME.k] : ['mm', mode === '2p' ? 'cs' : ME.k, mode === '2p' ? 'yy' : other]).forEach((k, i) => {
+  (tt ? [ME.k] : mode === '2p' || net ? ['mm', 'cs', 'yy'] : ['mm', ME.k, other]).forEach((k, i) => {
     const idx = T.N - slots[i][0], s = T.S[idx], lat = slots[i][1];
     G.karts.push({ k, human: humans.includes(k), idx, x: s.x - s.ty * lat, y: s.y + s.tx * lat, h: s.ang, v: 0, vx: 0, vy: 0, lap: 0, prog: 0, place: i + 1, st: 0,
       drift: 0, ddir: 0, charge: 0, boost: 0, boostCol: '#8FD3FF', spin: 0, slow: 0, shield: 0, item: null, roll: 0, done: false, time: 0, rescue: 0, padAt: -1, bumpT: 0,
@@ -1347,6 +1579,9 @@ function makeKart(opts) {
       skill: (k === 'mm' ? def.skill : def.skill - 0.05) * cls.ai, lane: rand(-1.4, 1.4), aiT: rand(1, 3) / cls.items, off: false, ice: false, sparkT: 0, cam: { x: 0, y: 0, h: s.ang, f: 1 } });
   });
   for (const k of G.karts) { k.cam.x = k.x - Math.cos(k.h) * 5; k.cam.y = k.y - Math.sin(k.h) * 5; kartFrames(k.k); }
+  G.net = net; G.pudN = 0;
+  if (net) for (const k of G.karts) k.remote = k.k === PEER || (k.k === 'mm' && net.role === 'guest');
+  const isRacer = (o) => o.human || (net && o.k === PEER);   // the two of you, whichever phone each is on
   // 影子赛: the best run on this track is kept as a ghost — your own, or your partner's to race against
   const GHOST = (who) => store.get(`kb_ghost_${def.id}_${who}`, null);
   const ghostWho = tt ? (opts.ghost === 'me' ? ME.k : opts.ghost === 'partner' ? other : GHOST(other) ? other : GHOST(ME.k) ? ME.k : null) : null;
@@ -1365,7 +1600,7 @@ function makeKart(opts) {
     if (G.ttNew) store.set(key, { t: k.time, laps: k.splits || [], d: G.rec });
   }
   // ⏪ 倒回去 (one player, not 影子赛): the last few seconds are kept, and after a fall or a crash a button offers three back
-  const canRewind = humans.length === 1 && !tt && !preview;
+  const canRewind = humans.length === 1 && !tt && !preview && !net;
   G.hist = []; G.histT = 0; G.rwCd = 0; G.rwOffer = 0; G.rwFx = 0; let rwEl = null;
   function showRw(on) {
     if (!on) { if (rwEl) rwEl.hidden = true; return; }
@@ -1393,6 +1628,7 @@ function makeKart(opts) {
     }
     return { opts: [a, others[Math.floor(r() * others.length)]], gi: gi >= 0 ? gi : Math.floor(T.N * 0.85), worlds: [null, null], home: null, state: 0, ready: false };
   })() : null;
+  if (trip && opts.trip) { const o2 = opts.trip.map((id) => TRACKS.find((t2) => t2.id === id)).filter(Boolean); if (o2.length === 2) trip.opts = o2; }   // 🤝 the host's two, whatever the date says here
   G.trip = trip;
   function worldOf(d2) {   // the same road dressed as another place: its ground, its sky, its trees
     const r = seeded(d2.id.length * 7 + 3), total = d2.scenery.reduce((a2, [, w]) => a2 + w, 0);
@@ -1476,12 +1712,17 @@ function makeKart(opts) {
     const it = k.item; k.item = null;
     if (it === 'boost') { k.boost = 1.3; k.boostCol = '#FF8FB8'; if (k.human) snd('boost'); }
     else if (it === 'shield') { k.shield = 8; if (k.human) snd('pick'); }
-    else if (it === 'pudding') { G.puddles.push({ x: k.x - Math.cos(k.h) * 2.8, y: k.y - Math.sin(k.h) * 2.8, t: 20, own: k, safe: 0.6 }); if (k.human) snd('place'); }
+    else if (it === 'pudding') {
+      const pd = { id: `${k.k}${++G.pudN}`, x: r2(k.x - Math.cos(k.h) * 2.8), y: r2(k.y - Math.sin(k.h) * 2.8), t: 20, own: k, safe: 0.6 };
+      G.puddles.push(pd); if (k.human) snd('place');
+      if (net) netEv('pud', { id: pd.id, x: pd.x, y: pd.y, f: k.k });
+    }
     else if (it === 'rainbow') { k.rainbow = 2.6; k.shield = Math.max(k.shield, 2.6); if (k.human) { snd('boost'); say(k, '🌈 彩虹冲刺！'); } }
     else if (it === 'rain') {
       const ahead = G.karts.find((o) => o.place === k.place - 1 && !o.done);
       if (!ahead) { k.boost = 1.0; k.boostCol = '#FF8FB8'; return; }
       G.clouds.push({ x: k.x, y: k.y, tgt: ahead, rain: 0 }); if (k.human) snd('pick');
+      if (net) netEv('rain', { f: k.k, g: ahead.k });
     }
   }
   function hurt(k, kind) {
@@ -1502,7 +1743,33 @@ function makeKart(opts) {
     return angDiff(k.h, Math.atan2(ty - k.y, tx - k.x));
   }
 
+  // 🤝 a kart driven on the other phone: carried on from what it last said by its speed and turn, and glided there
+  const BCOL = ['#8FD3FF', '#FF8FB8', '#FFD34D', '#DDF3FF'];
+  // where it is by now: the message's own age (how long it took, by its send time, beyond the quickest one) carried
+  // along the bend it was taking — its velocity turned at the rate its heading was turning
+  function kartAt(s, now) {
+    const a = clamp((now - s.at + NET.rttMin / 2 + s.late) / 1000, 0, 0.5), hv = s.f & 8 ? 0 : s.hv;
+    return { x: s.x + s.vx * a - 0.5 * s.vy * hv * a * a, y: s.y + s.vy * a + 0.5 * s.vx * hv * a * a, h: s.h + hv * a, a };
+  }
+  function remoteKart(k, dt) {
+    const s = k.ns;
+    if (!s || k.gone) { k.v = approach(k.v, 0, 12 * dt); k.x += Math.cos(k.h) * k.v * dt; k.y += Math.sin(k.h) * k.v * dt; return; }
+    // drawn where it should be by now, plus whatever was left over when the last message moved it, fading out (a glide
+    // that chases the kart instead always trails it by its speed × the glide time — 2.4 at full speed)
+    const t = kartAt(s, performance.now()), d = Math.exp(-dt / 0.15);
+    k.ex = (k.ex || 0) * d; k.ey = (k.ey || 0) * d; k.eh = (k.eh || 0) * d;
+    k.x = t.x + k.ex; k.y = t.y + k.ey;
+    if (s.f & 8) k.h += 10 * dt; else k.h = t.h + k.eh;
+    const fl = s.f;
+    k.vx = s.vx; k.vy = s.vy; k.v = s.v;
+    k.drift = fl & 1 ? 1 : 0; k.boost = fl & 2 ? 0.3 : 0; k.shield = fl & 4 ? 1 : 0; k.spin = fl & 8 ? 0.3 : 0; k.slow = fl & 16 ? 0.3 : 0; k.rainbow = fl & 32 ? 0.3 : 0;
+    k.air = !!(fl & 64); k.trick = !!(fl & 128); k.owe = !!(fl & 256); k.mid = !!(fl & 512); k.rescue = fl & 1024 ? 0.3 : 0; k.off = !!(fl & 2048); k.ice = !!(fl & 4096);
+    k.z = k.air ? Math.max(0, s.z + s.vz * t.a - 11 * t.a * t.a) : 0;
+    k.ddir = s.ddir; k.charge = s.charge; k.st = s.st; k.lap = s.lap; k.idx = s.idx; k.prog = s.prog + s.v * t.a; k.coins = s.coins; k.boostCol = BCOL[s.bc] || BCOL[0]; k.flip = s.flip;
+    for (const hrt of T.hearts) if (hrt.t <= 0 && !k.air && Math.hypot(k.x - hrt.x, k.y - hrt.y) < 1.4) hrt.t = 8;   // a heart they ate is gone here too
+  }
   function stepKart(k, dt) {
+    if (k.remote) return remoteKart(k, dt);
     let steer = 0, drift = 0, useIt = 0;
     if (k.human) {
       const s = IN[k.k];
@@ -1540,7 +1807,7 @@ function makeKart(opts) {
     }
     if (k.rescue > 0) { k.rescue -= dt; if (k.rescue <= 0) rescueTo(k); return; }
     if (k.rainbow > 0) { k.rainbow -= dt; const d = steerToward(k, 0, 14); steer = clamp(d * 3, -1, 1); drift = 0; }   // the rainbow drives for you
-    const lead = Math.max(...G.karts.filter((o) => o.human).map((o) => o.prog));
+    const lead = Math.max(...G.karts.filter(isRacer).map((o) => o.prog));
     let band = 1; if (!k.human) { const gap = k.prog - lead; band = gap > cls.wait[0] ? cls.wait[1] : gap < -35 ? cls.chase : 1; }   // 轻松 waits for you and never chases; 挑战 chases
     k.pileT = Math.max(0, (k.pileT || 0) - dt);
     let maxV = (k.off && !k.air ? T.th.offV : 24) * (k.human ? 1 : k.skill * band) * (1 + k.coins * 0.012) * (k.boost > 0 ? 1.5 : 1) * (k.rainbow > 0 ? 1.6 : 1) * (k.slow > 0 ? 0.55 : 1) * (k.pileT > 0 ? 0.42 : 1);   // (in a leaf pile: well under half)
@@ -1613,7 +1880,7 @@ function makeKart(opts) {
         const close = G.karts.some((o) => o !== k && (o.done ? G.t - o.time < 0.35 : k.prog - o.prog < 5));
         if (close && !REDUCE) { G.freeze = 0.35; G.worldFx = Math.max(G.worldFx || 0, 0.3); }
       }
-      if (k.lap > LAPS && !k.done) { k.done = true; k.time = G.t; G.order.push(k); if (tt && k.human) saveGhost(k); if (k.human) { snd(G.order.length === 1 ? 'win' : 'go'); if (!REDUCE) for (let i = 0; i < 60; i++) G.confetti.push({ p: k.k, x: Math.random(), y: -0.1 - Math.random() * 0.3, vy: rand(0.25, 0.5), w: rand(0, TAU), c: ['#FF8FB8', '#FFD34D', '#8FD3FF', '#9FE09A'][i % 4] }); } }
+      if (k.lap > LAPS && !k.done) { k.done = true; k.time = G.t; G.order.push(k); if (net) { G.order.sort((a, b) => a.time - b.time); netEv('fin', { k: k.k, tm: r3(k.time) }); if (k.human) G.myDoneT = G.t; } if (tt && k.human) saveGhost(k); if (k.human) { snd(G.order.length === 1 ? 'win' : 'go'); if (!REDUCE) for (let i = 0; i < 60; i++) G.confetti.push({ p: k.k, x: Math.random(), y: -0.1 - Math.random() * 0.3, vy: rand(0.25, 0.5), w: rand(0, TAU), c: ['#FF8FB8', '#FFD34D', '#8FD3FF', '#9FE09A'][i % 4] }); } }
       else if (k.lap === LAPS && k.human) { k.finalT = 2.2; snd('final'); }
       else if (k.lap > 1 && k.human) { k.lapT = 1.6; snd('count'); }
     }
@@ -1645,7 +1912,7 @@ function makeKart(opts) {
       for (const k of G.karts) if (k.human) { const held = IN[k.k].drift; if (held && G.count > 1.7) k.rocket = -1; else if (held && G.count <= 1.2 && k.rocket === 0) k.rocket = 1; else if (!held && k.rocket === 1) k.rocket = 0; if (!held && k.rocket === -1 && G.count > 1.7) k.rocket = 0; }
       if (G.count <= 0) {
         G.state = 'race'; snd('go'); Engine.start(); Music.start(songFor(def.id));
-        for (const k of G.karts) { if (k.rocket === 1) { k.boost = 1.2; k.boostCol = '#FFD34D'; k.v = 12; say(k, '起步冲刺！'); snd('boost'); } else if (!k.human && rnd01() < 0.5) { k.boost = 0.8; k.boostCol = '#FFD34D'; k.v = 10; } }
+        for (const k of G.karts) { if (k.rocket === 1) { k.boost = 1.2; k.boostCol = '#FFD34D'; k.v = 12; say(k, '起步冲刺！'); snd('boost'); } else if (!k.human && !k.remote && rnd01() < 0.5) { k.boost = 0.8; k.boostCol = '#FFD34D'; k.v = 10; } }
       }
     }
     if (G.state === 'race') {
@@ -1654,20 +1921,23 @@ function makeKart(opts) {
       for (let i = 0; i < G.karts.length; i++) for (let j = i + 1; j < G.karts.length; j++) {
         const a = G.karts[i], b = G.karts[j]; if (a.rescue > 0 || b.rescue > 0 || Math.abs(a.z - b.z) > 0.8) continue;
         const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-        if (d < 2.6 && d > 0.001) { const push = (2.6 - d) / 2, nx = dx / d, ny = dy / d; a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push; }
+        if (d < 2.6 && d > 0.001) {
+          const both = !a.remote && !b.remote, push = (2.6 - d) / (both ? 2 : 1), nx = dx / d, ny = dy / d;
+          if (!a.remote) { a.x -= nx * push; a.y -= ny * push; } if (!b.remote) { b.x += nx * push; b.y += ny * push; }
+        }
       }
       if (!tt) for (const bx of T.boxes) {
         bx.t = Math.max(0, bx.t - dt); if (bx.t > 0) continue;
-        for (const k of G.karts) if (!k.done && k.rescue <= 0 && Math.hypot(k.x - bx.x, k.y - bx.y) < 2.1 && k.z < 1.2) { bx.t = 3; burst(bx.x, bx.y, '#FFB3CB', 10); if (!k.item && k.roll <= 0) { giveItem(k); if (k.human) snd('pick'); } break; }
+        for (const k of G.karts) if (!k.done && k.rescue <= 0 && Math.hypot(k.x - bx.x, k.y - bx.y) < 2.1 && k.z < 1.2) { bx.t = 3; burst(bx.x, bx.y, '#FFB3CB', 10); if (!k.remote && !k.item && k.roll <= 0) { giveItem(k); if (k.human) snd('pick'); } break; }
       }
       for (const hrt of T.hearts) hrt.t = Math.max(0, hrt.t - dt);
       for (const p of G.puddles) {
         p.t -= dt; p.safe -= dt;
-        for (const k of G.karts) if (p.t > 0 && (k !== p.own || p.safe <= 0) && k.spin <= 0 && k.rescue <= 0 && !k.air && Math.hypot(k.x - p.x, k.y - p.y) < 1.9) { hurt(k, 'spin'); p.t = 0; burst(p.x, p.y, '#FFD36E', 12); }
+        for (const k of G.karts) if (p.t > 0 && !k.remote && (k !== p.own || p.safe <= 0) && k.spin <= 0 && k.rescue <= 0 && !k.air && Math.hypot(k.x - p.x, k.y - p.y) < 1.9) { hurt(k, 'spin'); p.t = 0; burst(p.x, p.y, '#FFD36E', 12); if (net && p.id) netEv('pudx', { id: p.id }); }
       }
       G.puddles = G.puddles.filter((p) => p.t > 0);
       for (const c of G.clouds) {
-        if (!c.rain) { const dx = c.tgt.x - c.x, dy = c.tgt.y - c.y, d = Math.hypot(dx, dy), sp = 40 * dt; if (d < 1.5) { c.rain = 2.2; hurt(c.tgt, 'rain'); } else { c.x += dx / d * Math.min(sp, d); c.y += dy / d * Math.min(sp, d); } }
+        if (!c.rain) { const dx = c.tgt.x - c.x, dy = c.tgt.y - c.y, d = Math.hypot(dx, dy), sp = 40 * dt; if (d < 1.5) { c.rain = 2.2; if (!c.tgt.remote) hurt(c.tgt, 'rain'); } else { c.x += dx / d * Math.min(sp, d); c.y += dy / d * Math.min(sp, d); } }
         else { c.x = c.tgt.x; c.y = c.tgt.y; c.rain -= dt; }
       }
       G.clouds = G.clouds.filter((c) => !c.rain || c.rain > 0);
@@ -1682,16 +1952,21 @@ function makeKart(opts) {
         G.rwOffer = trouble && !me.done ? 4 : Math.max(0, G.rwOffer - dt);
         showRw(G.rwOffer > 0 && G.rwCd <= 0 && G.hist.length >= 12);
       }
-      if (trip && trip.ready && trip.state < 2) {   // the leader at the gates
+      if (trip && trip.ready && trip.state < 2 && (!net || net.role === 'host')) {   // the leader at the gates (on two phones, as the host's phone sees it)
         const lead = G.karts.reduce((a, k) => (k.prog > a.prog ? k : a), G.karts[0]);
         if (lead.lap === trip.state + 1 && lead.pidx !== undefined && lead.pidx < trip.gi && lead.idx >= trip.gi && lead.idx - lead.pidx < 40) {
           if (trip.state === 0) {
             const side = lateral(lead) < 0 ? 0 : 1, w = trip.worlds[side]; trip.chosenDef = w.def; trip.worlds = [null, null]; trip.state = 1;
-            applyWorld(w, `✨ ${humans.length === 2 && lead.human ? NAME[lead.k] + ' 带大家' : ''}去${w.def.icon} ${w.def.name}！`);
-          } else { trip.state = 2; applyWorld(trip.home, '🏠 回家啦'); }
+            applyWorld(w, `✨ ${(humans.length === 2 || net) && lead.k !== 'mm' ? NAME[lead.k] + ' 带大家' : ''}去${w.def.icon} ${w.def.name}！`);
+            if (net) netEv('gate', { s: side, by: lead.k });
+          } else { trip.state = 2; applyWorld(trip.home, '🏠 回家啦'); if (net) netEv('gate', { s: -1 }); }
         }
       }
-      if (G.karts.filter((k) => k.human).every((k) => k.done) || G.t > 300) { G.state = 'end'; G.endT = 1.6; Music.stop(); showRw(false); }
+      const mineDone = G.karts.filter((k) => k.human).every((k) => k.done), pk = net ? G.karts.find((k) => k.k === PEER) : null;
+      if (net && mineDone && pk && !pk.done && !G.peerGone && G.t - (G.myDoneT || G.t) < 45) {   // over the line first: wait for them
+        const me = G.karts.find((k) => k.human); if (me) { me.msg = `等 ${NAME[PEER]} 到终点…`; me.msgT = 0.3; }
+      } else if (mineDone || G.t > 300) { G.state = 'end'; G.endT = 1.6; Music.stop(); showRw(false); }
+      if (net && NET.quiet && !mineDone) { const me = G.karts.find((k) => k.human); if (me) { me.msg = `等 ${NAME[PEER]} 的网络…`; me.msgT = 0.3; } }
       const mine = G.karts.filter((k) => k.human);
       Engine.set(mine.length ? mine.reduce((a, k) => a + k.v, 0) / mine.length : 0, mine.length > 0);
     } else if (G.state === 'end') {
@@ -1721,7 +1996,7 @@ function makeKart(opts) {
     setHud('');
   };
   function results() {
-    place();
+    place(); G.shownAt = performance.now();
     if (tt) {
       const k = G.karts[0], gh = G.ghost, diff = gh ? k.time - gh.t : null, whose = gh ? (gh.who === ME.k ? '自己的' : `${NAME[gh.who]} 的`) : '';
       const vs = gh ? (diff < 0 ? `🎉 比${whose}影子快了 <b>${(-diff).toFixed(2)}</b> 秒！` : `比${whose}影子慢了 ${diff.toFixed(2)} 秒，再来一次？`) : '第一次跑这里。';
@@ -1739,8 +2014,14 @@ function makeKart(opts) {
     const record = myT.length && prevBest && Math.min(...myT) < prevBest;
     if (myT.length && (!rec.time || Math.min(...myT) < rec.time)) rec.time = Math.min(...myT);
     PROG.kart[def.id] = rec; saveProg();
-    const won = humans.includes(first.k);
+    const won = net ? first.k !== 'mm' : humans.includes(first.k);
     snd(won ? 'win' : 'hit');
+    // 🤝 再来一次 / 下一条 / 下一站: the host's phone starts it for both; from the partner's phone it is asked for
+    const together = (m, place, cupNext) => {
+      if (!NET.n || G.peerGone) { panel(`<div class="big">👋</div><h2>${esc(NAME[PEER])} 已经离开了</h2><div class="btns"><button type="button" class="wide" data-m="x">好</button></div>`, () => closeGame()); return; }
+      if (NET.role === 'host') { if (place) { SEL.kart = place; store.set('kb_sel_kart', place); } openGame('kart', Object.assign({}, opts, { place: place || def.id, cup: cupNext !== undefined ? cupNext : opts.cup, skipCard: true, net: { role: 'host', again: true, auto: m === 'auto' } })); return; }
+      netRequest(m); const b = UI.msg.querySelector('.btns'); if (b && !UI.msg.querySelector('.netwait')) b.insertAdjacentHTML('beforebegin', `<p class="netnote netwait">等 ${esc(NAME[PEER])} 的手机开始…</p>`);
+    };
     const pay = !tt && !cup && first.k === ME.k && humans.includes(ME.k) ? payLine('kart', 'K:' + def.id, `${def.name} 第一名`) : '';
     if (cup) {   // a cup: points for every race, the cup after the last
       const CU = CUPS[cup.set || 'sakura'];
@@ -1753,28 +2034,31 @@ function makeKart(opts) {
       if (nextT) {
         panel(`<div class="big">${won ? '🏆' : '🏁'}</div><h2>第 ${cup.i + 1} 站：${def.name}</h2><div class="rows">${rows}</div><p><b>${CU.name}积分</b></p><div class="rows">${stand}</div>
           <div class="btns"><button type="button" class="wide" data-m="next">下一站：${nextT.icon} ${nextT.name}</button><button type="button" class="alt wide" data-m="back">不比了</button></div>`,
-          (m) => { if (m === 'next') openGame('kart', Object.assign({}, opts, { place: nextT.id, cup: { i: cup.i + 1, pts, set: cup.set }, skipCard: true })); else closeGame(); });
+          (m) => { if (net && m === 'next') return together('next', nextT.id, { i: cup.i + 1, pts, set: cup.set }); if (m === 'next') openGame('kart', Object.assign({}, opts, { place: nextT.id, cup: { i: cup.i + 1, pts, set: cup.set }, skipCard: true })); else closeGame(); });
+        G.netAgain = (k, auto) => { if (k === 'next') together(auto ? 'auto' : 'next', nextT.id, { i: cup.i + 1, pts, set: cup.set }); };
       } else {
-        const champ = table[0][0], mine = humans.includes(champ);
+        const champ = table[0][0], mine = net ? champ !== 'mm' : humans.includes(champ);
         if (mine) { PROG.kart.cup = Math.max(PROG.kart.cup || 0, 1); saveProg(); }
         const cupPay = champ === ME.k ? payLine('kart', 'C:' + (cup.set || 'sakura'), CU.name) : '';
         panel(`<div class="big">${mine ? CU.icon : '☁️'}</div><h2>${mine ? `${NAME[champ]} 拿到${CU.name}！` : `${CU.name}被闷闷拿走了…`}</h2>${cupPay}<div class="rows">${stand}</div><p>${mine ? `${CU.ids.length} 条赛道跑下来，你们才是最快的。` : '换「轻松」再来一次？'}</p>
           <div class="btns"><button type="button" data-m="again">再跑一次${CU.name}</button><button type="button" class="alt" data-m="back">换个玩法</button></div>`,
-          (m) => { if (m === 'again') openGame('kart', Object.assign({}, opts, { place: CU.ids[0], cup: { i: 0, pts: {}, set: cup.set }, skipCard: true })); else closeGame(); });
+          (m) => { if (net && m === 'again') return together('again', CU.ids[0], { i: 0, pts: {}, set: cup.set }); if (m === 'again') openGame('kart', Object.assign({}, opts, { place: CU.ids[0], cup: { i: 0, pts: {}, set: cup.set }, skipCard: true })); else closeGame(); });
+        G.netAgain = (k, auto) => { if (k === 'again') together(auto ? 'auto' : 'again', CU.ids[0], { i: 0, pts: {}, set: cup.set }); };
       }
       return;
     }
-    const rows = ordered.map((k, i) => `<div><span>${medal[i]} ${NAME[k.k]}</span><span>${k.done ? fmt(k.time) : '还在路上'}</span></div>`).join('');
+    const rows = ordered.map((k, i) => `<div><span>${medal[i]} ${esc(NAME[k.k])}</span><span>${k.done ? fmt(k.time) : k.gone ? '离开了' : '还在路上'}</span></div>`).join('');
+    if (net) G.netAgain = (k, auto) => together(auto ? 'auto' : k, k === 'next' && next ? next.id : def.id);
     const title = won ? `${NAME[first.k]} 第一名！` : '闷闷赢了这一次…';
     let closeTxt = '';
     { const meK = G.karts.filter((k) => k.human && k.done).sort((a, b) => a.time - b.time)[0];
       if (meK && humans.length === 1) { let gap = 9, who = null; for (const o of G.karts) if (o !== meK && o.done && Math.abs(o.time - meK.time) < gap) { gap = Math.abs(o.time - meK.time); who = o; }
         if (who && gap < 0.5) closeTxt = meK.time < who.time ? `险胜！只比${NAME[who.k]}快 ${gap.toFixed(2)} 秒` : `就差 ${gap.toFixed(2)} 秒！`; } }
-    const tip = first.k === 'mm' ? (def.id === 'beach' ? '别冲进海里，沿着路跑。' : def.id === 'snow' ? '冰面上提前转弯，别在冰上漂移。' : '转弯时按住漂移，攒到粉色再松开；多吃路上的 💗。') : humans.length === 2 ? '两个人都到啦。' : '闷闷气得冒烟了。';
+    const tip = first.k === 'mm' ? (def.id === 'beach' ? '别冲进海里，沿着路跑。' : def.id === 'snow' ? '冰面上提前转弯，别在冰上漂移。' : '转弯时按住漂移，攒到粉色再松开；多吃路上的 💗。') : humans.length === 2 || (net && !G.peerGone) ? '两个人都到啦。' : '闷闷气得冒烟了。';
     const next = TRACKS[TRACKS.indexOf(def) + 1];
     panel(`<div class="big">${won ? '🏆' : '☁️'}</div><h2>${title}</h2>${pay}${closeTxt ? `<p class="rec">${closeTxt}</p>` : ''}${record ? `<p class="rec">🎉 新纪录！${fmt(Math.min(...myT))}（上次最快 ${fmt(prevBest)}）</p>` : myT.length && prevBest ? `<p style="font-size:13px">最快纪录 ${fmt(prevBest)}</p>` : ''}<p>${tip}</p><div class="rows">${rows}</div>
       <div class="btns"><button type="button" data-m="again">再来一次</button>${next ? `<button type="button" data-m="next">下一条：${next.icon} ${next.name}</button>` : ''}<button type="button" class="alt ${next ? 'wide' : ''}" data-m="back">换个玩法</button></div>`,
-      (m) => { if (m === 'again') openGame('kart', Object.assign({}, opts, { skipCard: true })); else if (m === 'next') { SEL.kart = next.id; store.set('kb_sel_kart', next.id); openGame('kart', Object.assign({}, opts, { place: next.id, skipCard: true })); } else closeGame(); });
+      (m) => { if (net && (m === 'again' || m === 'next')) return together(m, m === 'next' && next ? next.id : def.id); if (m === 'again') openGame('kart', Object.assign({}, opts, { skipCard: true })); else if (m === 'next') { SEL.kart = next.id; store.set('kb_sel_kart', next.id); openGame('kart', Object.assign({}, opts, { place: next.id, skipCard: true })); } else closeGame(); });
   }
 
   // ── drawing ──
@@ -2174,9 +2458,12 @@ function makeKart(opts) {
       const c = KSET.cls, seg = (k, label) => `<button type="button" data-o="cls:${k}" aria-pressed="${c === k}">${label}</button>`;
       const gm = GHOST(ME.k), gp = GHOST(other), pn = NAME[other];
       const ttText = !tt ? '' : G.ghost ? `和<b>${G.ghost.who === ME.k ? '自己' : pn}</b>的影子比：${G.ghost.who === ME.k ? '你' : 'TA'}最快 <b>${fmt(G.ghost.t)}</b>。影子是半透明的，撞不到你；路上没有礼物盒，只比谁快。` : `第一次跑这里：跑完就留下<b>你的影子</b>，${pn} 下次就能和它比。`;
-      panel(`<div class="big">${tt ? '👻' : def.icon}</div><h2>${tt ? '影子赛 · ' : cup ? `${CUPS[cup.set || 'sakura'].name} · 第 ${cup.i + 1} 站 · ` : ''}${def.name}</h2><p>${tt ? ttText : def.what}</p>
+      const inv = net && net.invite, cupTxt = cup ? `${CUPS[cup.set || 'sakura'].name} · 第 ${cup.i + 1} 站 · ` : '';
+      const head = inv ? `<div class="big">🤝</div><h2>${esc(NAME[inv.by])} 想和你比一场</h2><p><b>${def.icon} ${cupTxt}${def.name}</b> · ${CLASSES[opts.cls || KSET.cls].name}。各用自己的手机，每人一整个屏幕。</p><p>${def.what}</p>`
+        : `<div class="big">${tt ? '👻' : def.icon}</div><h2>${net ? '🤝 ' : ''}${tt ? '影子赛 · ' : cupTxt}${def.name}</h2><p>${tt ? ttText : def.what}</p>${net ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机比：你选好赛道，TA 的手机上会问要不要一起。</p>` : ''}`;
+      panel(`${head}
         <div class="opts">
-          ${tt ? (gm && gp ? `<div class="opt"><b>影子</b><div class="seg3"><button type="button" data-o="ghost:partner" aria-pressed="${G.ghost && G.ghost.who === other}">${pn} 的</button><button type="button" data-o="ghost:me" aria-pressed="${G.ghost && G.ghost.who === ME.k}">自己的</button></div></div>` : '') : `<div class="opt"><b>难度</b><div class="seg3">${seg('easy', '轻松')}${seg('normal', '普通')}${seg('hard', '挑战')}</div></div>`}
+          ${inv ? '' : tt ? (gm && gp ? `<div class="opt"><b>影子</b><div class="seg3"><button type="button" data-o="ghost:partner" aria-pressed="${G.ghost && G.ghost.who === other}">${pn} 的</button><button type="button" data-o="ghost:me" aria-pressed="${G.ghost && G.ghost.who === ME.k}">自己的</button></div></div>` : '') : `<div class="opt"><b>难度</b><div class="seg3">${seg('easy', '轻松')}${seg('normal', '普通')}${seg('hard', '挑战')}</div></div>`}
           <div class="opt"><b>辅助转向</b><button type="button" class="tog" data-o="assist" aria-pressed="${KSET.assist}">${KSET.assist ? '开' : '关'}</button><small>快冲出路边时帮你拉回来</small></div>
           <div class="opt"><b>自动漂移</b><button type="button" class="tog" data-o="auto" aria-pressed="${KSET.auto}">${KSET.auto ? '开' : '关'}</button><small>急转弯时自动漂移，不用按按钮</small></div>
           ${COARSE ? `<div class="opt"><b>转弯</b><div class="seg3">${[['btn', '按钮'], ['bar', '滑条'], ...(humans.length === 1 ? [['tilt', '倾斜']] : [])].map(([k2, l2]) => `<button type="button" data-o="ctl:${k2}" aria-pressed="${G.ctl() === k2}"${k2 === 'tilt' && EMBEDDED ? ' disabled' : ''}>${l2}</button>`).join('')}</div>
@@ -2185,14 +2472,17 @@ function makeKart(opts) {
         </div>
         ${humans.length === 2 && COARSE ? `<p style="font-size:13px">${H > W ? '竖着拿：手机平放在桌上，<b>面对面</b>玩——CS 坐上边，YY 坐下边。横过来就是左右分屏。' : '横着拿：左边是 CS，右边是 YY。竖起来平放在桌上，就能面对面玩。'}</p>` : ''}
         <ul class="tips">${tt ? '' : '<li>第一圈快到终点时有两道<b>季节门</b>：跑在最前面的人开过哪一道，第二圈就去哪里跑</li>'}<li>数到 <b>1</b> 时按住<b>漂移</b> → 起步冲刺</li><li>转弯按住漂移（或开着<b>自动漂移</b>），火花变<b>粉色</b>再松开</li><li>紧跟在别人后面一会儿 → <b>跟风加速</b></li><li>路上的 💗 越吃越快（最多 10 个）</li></ul>
-        <div class="btns">${cup || tt ? '' : `<button type="button" class="alt" data-m="cup">${CUPS[cupOf(def.id)].icon} ${CUPS[cupOf(def.id)].name}<br><small>${CUPS[cupOf(def.id)].ids.length} 条连着比</small></button>`}<button type="button" class="${cup || tt ? 'wide' : ''}" data-m="go">开始！</button></div>`,
+        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不比了</button><button type="button" data-m="go">出发！</button>' : `${cup || tt ? '' : `<button type="button" class="alt" data-m="cup">${CUPS[cupOf(def.id)].icon} ${CUPS[cupOf(def.id)].name}<br><small>${CUPS[cupOf(def.id)].ids.length} 条连着比</small></button>`}<button type="button" class="${cup || tt ? 'wide' : ''}" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
         (m) => {
           if (m === 'cup') { const set = cupOf(def.id); openGame('kart', Object.assign({}, opts, { place: CUPS[set].ids[0], cup: { i: 0, pts: {}, set }, skipCard: false })); return; }
-          UI.msg.hidden = true; G.paused = false; G.state = 'count'; audioOn(); kartCoach(); setTimeout(buildTrip, 60);
-          if (G.ctl() === 'tilt' && Tilt.state !== 'on') Tilt.start().then((ok) => {   // asked inside this tap; if the phone won't say, buttons it is
+          if (m === 'no') { netDecline(); closeGame(); return; }
+          const askTilt = () => { if (G.ctl() === 'tilt' && Tilt.state !== 'on') Tilt.start().then((ok) => {   // asked inside this tap; if the phone won't say, buttons it is
             if (ok || game !== G) return; KSET.ctl = 'btn'; store.set('kb_kset', KSET); G.buildPad(); bindPad();
             const me = G.karts.find((q) => q.human); me.msg = '读不到手机的倾斜，先用按钮'; me.msgT = 3;
-          });
+          }); };
+          if (net && !inv) { askTilt(); netInvite('kart', netKartOpts()); return; }   // 🤝 the host: the partner's phone is asked; the countdown starts when it says 出发
+          if (inv) netAccept();
+          beginRace(); askTilt();
         });
       const old = UI.msg.onclick;
       UI.msg.onclick = (e) => {
@@ -2216,7 +2506,72 @@ function makeKart(opts) {
       : c === 'tilt' ? [['.tw', '像方向盘一样转手机'], ...more] : [[sel, c === 'bar' ? '按住左边或右边转弯' : '按住 ◀ ▶ 转弯'], ...more],
       two ? 'CS：A D 转弯 · S 漂移 · W 道具　YY：← → 转弯 · ↓ 漂移 · ↑ 道具　P 暂停' : '← → 转弯 · ↓ 漂移 · ↑ 道具 · P 暂停');
   }
-  if (!preview) setTimeout(() => { if (game !== G) return; if (opts.skipCard) { G.state = 'count'; setTimeout(buildTrip, 60); } else startCard(); }, 30);
+  function beginRace() { UI.msg.hidden = true; G.paused = false; G.state = 'count'; audioOn(); kartCoach(); setTimeout(buildTrip, 60); }
+  const netKartOpts = () => ({ place: def.id, cls: opts.cls || KSET.cls, cup: cup ? { i: cup.i, pts: cup.pts || {}, set: cup.set || 'sakura' } : null, trip: trip ? trip.opts.map((t2) => t2.id) : null });
+  if (!preview) setTimeout(() => {
+    if (game !== G) return;
+    if (net && net.role === 'host' && net.again) { G.paused = true; netInvite('kart', Object.assign(netKartOpts(), { auto: !!net.auto })); return; }
+    if (net && net.invite && net.invite.auto) { netAccept(); beginRace(); return; }
+    if (opts.skipCard) { G.state = 'count'; setTimeout(buildTrip, 60); } else startCard();
+  }, 30);
+  // 🤝 what travels between the two phones during a race
+  G.netStart = () => { if (G.state === 'card') beginRace(); };
+  G.netRequest = (k) => { if (G.shown && G.netAgain) G.netAgain(k, true); };
+  G.stAt = 0;
+  const packKart = (k) => {
+    const f = (k.drift ? 1 : 0) | (k.boost > 0 ? 2 : 0) | (k.shield > 0 ? 4 : 0) | (k.spin > 0 ? 8 : 0) | (k.slow > 0 ? 16 : 0) | (k.rainbow > 0 ? 32 : 0) | (k.air ? 64 : 0) | (k.trick ? 128 : 0)
+      | (k.owe ? 256 : 0) | (k.mid ? 512 : 0) | (k.rescue > 0 ? 1024 : 0) | (k.off ? 2048 : 0) | (k.ice ? 4096 : 0);
+    return [k.k, r2(k.x), r2(k.y), r3(k.h), r2(k.v), r2(k.vx), r2(k.vy), r2(k.z), r2(k.vz), f, k.ddir || 0, r2(k.charge), r2(k.st), k.lap, k.idx, r1(k.prog), k.coins, Math.max(0, BCOL.indexOf(k.boostCol)), r2(k.flip || 0)];
+  };
+  G.netTick = (now) => {
+    if (G.state === 'card' || (!NET.heard && NET.role === 'host')) return;
+    if (G.shown && now - (G.shownAt || now) > 3000) return;   // after the end card: only the hellos keep going
+    const me = G.karts.find((q) => q.human), racing = G.state === 'race';
+    // ~6 a second while racing (the other phone carries the kart on in between), and at once when it does something the
+    // other phone could not have guessed: a drift, a boost, a spin, a jump, a hit, a sudden change of speed
+    const sig = me ? `${me.drift ? 1 : 0}${me.boost > 0 ? 1 : 0}${me.spin > 0 ? 1 : 0}${me.air ? 1 : 0}${me.rescue > 0 ? 1 : 0}${me.slow > 0 ? 1 : 0}${me.rainbow > 0 ? 1 : 0}` : '';
+    const jolt = me && (sig !== G.ksig || Math.abs(me.v - (G.kv || 0)) > 6);   // (against what was last sent: a speed hovering at an edge would send every frame)
+    const due = !racing ? 1000 : me && me.done ? 500 : jolt ? 50 : 160;
+    if (now - G.stAt < due) return;
+    G.stAt = now; G.ksig = sig; G.kv = me ? me.v : 0;
+    netSend('st', { n: NET.n, ts: Math.round(now), ak: NET.rx, gt: r2(G.t), k: G.karts.filter((q) => !q.remote && (q.human || (net.role === 'host' && q.k === 'mm'))).map(packKart) });
+  };
+  G.netState = (m) => {
+    if (!Array.isArray(m.k) || !fin(m.ts)) return;
+    for (const a of m.k) {
+      if (!Array.isArray(a) || a.length < 19 || !a.slice(1).every(fin)) continue;
+      const k = G.karts.find((q) => q.k === a[0]); if (!k || !k.remote) continue;   // the wire never moves a kart this phone drives
+      const prev = k.ns; if (prev && m.ts <= prev.ts) continue;   // an old one arriving late
+      const ns = { x: a[1], y: a[2], h: a[3], v: a[4], vx: a[5], vy: a[6], z: a[7], vz: a[8], f: a[9] | 0, ddir: a[10], charge: a[11], st: a[12], lap: a[13] | 0, idx: clamp(a[14] | 0, 0, T.N - 1), prog: a[15], coins: clamp(a[16] | 0, 0, 10), bc: a[17] | 0, flip: a[18], at: performance.now(), ts: m.ts };
+      if (Math.abs(ns.x) > 1e4 || Math.abs(ns.y) > 1e4) continue;
+      ns.hv = prev && !(ns.f & 8) ? clamp(angDiff(prev.h, ns.h) / Math.max(0.05, (ns.ts - prev.ts) / 1000), -4, 4) : 0;
+      // how late this one is: (arrival − send) beyond the quickest of the last few (the two clocks' difference cancels out)
+      const lag = ns.at - m.ts; NET.lags.push(lag); if (NET.lags.length > 40) NET.lags.shift(); ns.late = Math.max(0, lag - Math.min(...NET.lags));
+      if (k.seen && prev) {   // keep it where it is drawn; the difference fades out
+        const t = kartAt(ns, ns.at); k.ex = k.x - t.x; k.ey = k.y - t.y; k.eh = angDiff(t.h, k.h);
+        if (Math.hypot(k.ex, k.ey) > 10) { k.ex = 0; k.ey = 0; k.eh = 0; }   // a respawn, or a long silence: jump
+      } else { const t = kartAt(ns, ns.at); k.x = t.x; k.y = t.y; k.h = t.h; k.ex = k.ey = k.eh = 0; k.seen = true; }
+      k.ns = ns;
+    }
+  };
+  G.netEvent = (e) => {
+    const K = (id) => G.karts.find((q) => q.k === id);
+    if (e.e === 'fin') { const k = K(e.k); if (k && k.remote && !k.done && fin(e.tm)) { k.done = true; k.time = e.tm; G.order.push(k); G.order.sort((a, b) => a.time - b.time); } }
+    else if (e.e === 'pud') { const k = K(e.f); if (k && fin(e.x) && fin(e.y) && typeof e.id === 'string' && e.id.length < 16 && !G.puddles.some((q) => q.id === e.id)) G.puddles.push({ id: e.id, x: e.x, y: e.y, t: 20, own: k, safe: 0.6 }); }
+    else if (e.e === 'pudx') { const pd = G.puddles.find((q) => q.id === e.id); if (pd) { pd.t = 0; burst(pd.x, pd.y, '#FFD36E', 12); } }
+    else if (e.e === 'rain') { const f = K(e.f), g = K(e.g); if (f && g && f !== g) { G.clouds.push({ x: f.x, y: f.y, tgt: g, rain: 0 }); if (g.human) say(g, `☁️ ${NAME[f.k]} 的小雨云来了！`, 1.6); } }
+    else if (e.e === 'gate' && trip && trip.ready) {
+      if (e.s === -1) { if (trip.state === 1) { trip.state = 2; applyWorld(trip.home, '🏠 回家啦'); } }
+      else if ((e.s === 0 || e.s === 1) && trip.state === 0 && trip.worlds[e.s]) { const w = trip.worlds[e.s]; trip.chosenDef = w.def; trip.worlds = [null, null]; trip.state = 1; applyWorld(w, `✨ ${e.by && e.by !== 'mm' && NAME[e.by] ? NAME[e.by] + ' 带大家' : ''}去${w.def.icon} ${w.def.name}！`); }
+    }
+  };
+  G.netGone = () => {   // the partner has left: race on; if it was the host's phone, 闷闷 is driven here now
+    G.peerGone = true;
+    const pk = G.karts.find((q) => q.k === PEER); if (pk) pk.gone = true;
+    const mm = G.karts.find((q) => q.k === 'mm'); if (mm && mm.remote) { mm.remote = false; mm.ns = null; }
+    const me = G.karts.find((q) => q.human); if (me) say(me, `${NAME[PEER]} 离开了`, 2.4);
+    if (G.state === 'card') panel(`<div class="big">👋</div><h2>${esc(NAME[PEER])} 不等了</h2><div class="btns"><button type="button" class="wide" data-m="x">好</button></div>`, () => closeGame());
+  };
   G.setupPreview = (w, h) => {
     G.layout(w, h); const k = G.karts[1]; G.state = 'race'; G.t = 2; for (const kk of G.karts) kk.v = 20;
     k.x += Math.cos(k.h) * 2; k.y += Math.sin(k.h) * 2;
@@ -2442,18 +2797,21 @@ const GOAL_TEXT = { clear: '把小云都赶跑', free: '放出 3 只小海龟 �
 
 function makeBomb(opts) {
   const PL = PLACES.find((p) => p.id === opts.place) || PLACES[0], mode = opts.mode, coop = mode === 'coop', preview = !!opts.preview, goal = PL.goal;
-  const humans = opts.two ? ['cs', 'yy'] : [ME.k];
+  const net = opts.net && ONLINE() && !preview ? opts.net : null;   // 🤝 each on their own phone: { role: 'host' | 'guest', invite? }
+  const host = !net || net.role === 'host';   // the phone that runs the monsters, the fireworks going off, the boxes and the little house
+  const humans = opts.two && !net ? ['cs', 'yy'] : [ME.k];
   const G = { kind: 'bomb', title: `💣 ${PL.icon} ${PL.name}${coop ? '' : ' · 对战'}`, mode, coop, humans, PL, t: 0, grid: new Uint8Array(GW * GHt), ice: new Uint8Array(GW * GHt), loot: new Map(),
     bombs: [], flames: new Map(), burning: [], items: new Map(), parts: [], players: [], enemies: [], pets: [], boss: null, rains: [], door: null, state: preview ? 'play' : 'tip', endT: 0, startT: 1.8, shake: 0,
     lay: { cs: 30, x: 0, y: 0 }, paused: false, downs: 0, round: opts.round || 1, wins: opts.wins || { cs: 0, yy: 0 }, amb: [], bg: null,
     turtles: new Set(), lanterns: new Set(), lit: new Set(), portals: new Map(), portalCol: new Map(), twin: {}, freed: 0, candy: 0, photos: 0, walkers: [], combo: 0, lastBurst: {}, lastCombo: -9, shells: [], sparks: [], banner: '', bannerT: 0 };
+  G.net = net; G.eid = 0; G.took = new Map(); G.stAt = 0; G.wdAt = 0; G.wsig = ''; G.psig = ''; G.gridSent = ''; G.gridAt = 0;
   const key = (c, r) => c + ',' + r;
   const cellOf = Math.floor;
   const starts = { cs: [1, 1], yy: [11, 9] };
   const counts = []; for (const [type, n] of PL.enemies) for (let i = 0; i < n; i++) counts.push(type);
   const M = MAPS[PL.id], spawns = [];
   let doorCell = [6, 5];
-  const rnd = Math.random;
+  const rnd = net && Number.isInteger(opts.seed) ? seeded(opts.seed) : Math.random;   // 🤝 the host's seed: the same boxes, and what they hide, on both phones
   const lootKind = () => { const x = rnd() * 100; return x < 26 ? 'more' : x < 52 ? 'range' : x < 68 ? 'speed' : x < 80 ? 'heart' : x < 90 ? 'pierce' : 'love'; };
   const keep = new Set();
   for (let r = 0; r < GHt; r++) for (let c = 0; c < GW; c++) if (M[r][c] === 'e') { spawns.push([c, r]); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) keep.add(key(c + dc, r + dr)); }
@@ -2482,14 +2840,14 @@ function makeBomb(opts) {
   G.nobody = { k: 'sky', human: false, ai: false, maxB: 99 };   // the owner of fireworks that fall from the sky
   for (const k of ['cs', 'yy']) {   // both of you are always there; in 一起 alone, the computer plays your partner
     const [c, r] = starts[k];
-    const ai = !humans.includes(k);
-    G.players.push({ k, human: !ai, x: c + 0.5, y: r + 0.5, speed: 3.3, maxB: 1, range: 2, hearts: 3, maxH: 3, inv: 1.5, state: 'ok', pass: new Set(), walk: 0, faceL: k === 'yy', ai, tc: null, think: 0, slide: null, placedT: 0,
-      pet: ai ? (savedPets[k] && humans.length === 1 && coop ? savedPets[k] : pick(PET_IDS)) : savedPets[k], cd: 0, dir: k === 'yy' ? [-1, 0] : [1, 0], trail: [], shield: 0, hop: null, stun: 0, pierce: 0, love: 0 });
+    const remote = !!net && k === PEER, ai = !remote && !humans.includes(k);   // 🤝 the partner, moved by their own phone
+    G.players.push({ k, human: !ai && !remote, x: c + 0.5, y: r + 0.5, speed: 3.3, maxB: 1, range: 2, hearts: 3, maxH: 3, inv: 1.5, state: 'ok', pass: new Set(), walk: 0, faceL: k === 'yy', ai, tc: null, think: 0, slide: null, placedT: 0,
+      pet: remote ? ((opts.pets && opts.pets[k]) || 'dog') : ai ? (savedPets[k] && humans.length === 1 && coop ? savedPets[k] : pick(PET_IDS)) : savedPets[k], remote, cd: 0, dir: k === 'yy' ? [-1, 0] : [1, 0], trail: [], shield: 0, hop: null, stun: 0, pierce: 0, love: 0 });
   }
   if (coop) counts.forEach((type, i) => {
     if (type === 'boss') { G.boss = { x: 6.5, y: 4.5, tx: 6.5, ty: 4.5, hp: 3, inv: 0, t: 0, nextRain: 3, nextCall: 6, move: 0, hurtT: 0 }; return; }
     const [c, r] = spawns[i % spawns.length];
-    G.enemies.push({ type, x: c + 0.5, y: r + 0.5, dir: type === 'crab' ? pick([[1, 0], [-1, 0]]) : pick([[1, 0], [-1, 0], [0, 1], [0, -1]]), speed: type === 'fast' ? 2.15 : type === 'crab' ? 2.6 : type === 'pink' ? 1.9 : 1.7, alive: true, die: 0, t: rand(0, 5), at: '', freeze: 0 });
+    G.enemies.push({ id: ++G.eid, type, x: c + 0.5, y: r + 0.5, dir: type === 'crab' ? pick([[1, 0], [-1, 0]]) : pick([[1, 0], [-1, 0], [0, 1], [0, -1]]), speed: type === 'fast' ? 2.15 : type === 'crab' ? 2.6 : type === 'pink' ? 1.9 : 1.7, alive: true, die: 0, t: rand(0, 5), at: '', freeze: 0 });
   });
   const ENEMY_IMG = { cloud: 'cloud', fast: 'cloudfast', pink: 'cloudpink', crab: 'crab' };
   function makePets() { G.pets = G.players.map((p) => ({ owner: p, kind: p.pet, x: p.x - p.dir[0] * 0.6, y: p.y, hopT: rand(0, 1), task: null, say: null, sayT: 0 })); }
@@ -2585,6 +2943,7 @@ function makeBomb(opts) {
     const b = { c, r, fx: c + 0.5, fy: r + 0.5, t: FUSE, range: p.range, own: p, kick: null, pierce: p.pierce > 0, love: p.love > 0 };
     if (b.love) p.love--; else if (b.pierce) p.pierce--;
     G.bombs.push(b);
+    if (net && !host) { b.pred = performance.now(); netEv('bomb', { c, r, rg: b.range, pi: b.pierce ? 1 : 0, lo: b.love ? 1 : 0 }); }   // 🤝 the host's phone sets it down for real
     for (const q of G.players) if (Math.abs(q.x - (c + 0.5)) < 1 && Math.abs(q.y - (r + 0.5)) < 1) q.pass.add(key(c, r));
     p.placedT = 0.18; snd('place'); return true;
   }
@@ -2607,7 +2966,7 @@ function makeBomb(opts) {
   function touchLanterns(cells) {
     for (const [c, r] of cells) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const k = key(c + dx, r + dy);
-      if (G.lanterns.has(k) && !G.lit.has(k)) { G.lit.add(k); snd('door'); say(`🏮 亮了 ${G.lit.size}/${goal.n || 4}`); for (let i = 0; i < (REDUCE ? 3 : 14); i++) { const a = rand(0, TAU); G.parts.push({ x: c + dx + 0.5, y: r + dy + 0.5, z: 0.8, vx: Math.cos(a) * 1.5, vy: Math.sin(a) * 1.5, vz: rand(1, 3), life: 0.8, max: 0.8, c: '#FFE9A8', r: 0.07, star: true }); } }
+      if (G.lanterns.has(k) && !G.lit.has(k)) { G.lit.add(k); snd('door'); say(`🏮 亮了 ${G.lit.size}/${goal.n || 4}`, 2.2, true); for (let i = 0; i < (REDUCE ? 3 : 14); i++) { const a = rand(0, TAU); G.parts.push({ x: c + dx + 0.5, y: r + dy + 0.5, z: 0.8, vx: Math.cos(a) * 1.5, vy: Math.sin(a) * 1.5, vz: rand(1, 3), life: 0.8, max: 0.8, c: '#FFE9A8', r: 0.07, star: true }); } }
     }
   }
   function explode(b) {
@@ -2638,13 +2997,14 @@ function makeBomb(opts) {
     G.lastBurst[o.k] = G.t;
     if (coop && partner && G.t - (G.lastBurst[partner.k] ?? -9) < 0.6 && G.t - G.lastCombo > 0.9) {
       G.combo++; G.lastCombo = G.t; snd('revive');
-      say(`💞 默契 ×${G.combo}！宠物的技能都准备好了`);
+      say(`💞 默契 ×${G.combo}！宠物的技能都准备好了`, 2.2, true);
       for (const q of G.players) q.cd = 0;
       launch(6.5, 4, 'both', 'bigheart');
     }
     G.shake = REDUCE ? 0 : 0.15; snd('boom');
     G.chainN = G.t - (G.chainT ?? -9) < 0.25 ? (G.chainN || 1) + 1 : 1; G.chainT = G.t;   // fireworks setting each other off
-    if (G.chainN === 3 || G.chainN === 5 || G.chainN === 8) { say(`💥 连环 ×${G.chainN}！`, 1.2); G.freeze = 0.07; }
+    if (G.chainN === 3 || G.chainN === 5 || G.chainN === 8) { say(`💥 连环 ×${G.chainN}！`, 1.2, true); G.freeze = 0.07; }
+    if (net && host && NET.n) netEv('bx', { c: b.c, r: b.r, cells: cells.map((x) => [x[0], x[1], x[2] | 0]), lo: b.love ? 1 : 0, o: b.own.k, cb: G.lastCombo === G.t ? G.combo : 0 }, true);
   }
   // a firework shell climbs from the burst into the sky above the maze and opens there
   function launch(x, y, who, kind) {
@@ -2663,9 +3023,9 @@ function makeBomb(opts) {
     }
     if (G.sparks.length > 600) G.sparks.splice(0, G.sparks.length - 600);
   }
-  function say(txt, t = 2.2) { G.banner = txt; G.bannerT = t; }
+  function say(txt, t = 2.2, share) { G.banner = txt; G.bannerT = t; if (share && net && host && NET.n) netEv('say', { s: txt, d: t }, true); }
   function hurtP(p) {
-    if (p.state !== 'ok' || p.inv > 0 || p.shield > 0 || p.hop) return;
+    if (p.remote || p.state !== 'ok' || p.inv > 0 || p.shield > 0 || p.hop) return;   // 🤝 the partner's own phone counts their hits
     p.hearts--; p.inv = 1.6; snd('hit'); if (p.human) { G.flash = 0.6; buzz(60); G.freeze = Math.max(G.freeze || 0, 0.06); }
     if (p.hearts <= 0) { p.state = coop ? 'down' : 'out'; G.downs++; puff(p.x, p.y, '#FFFFFF'); p.slide = null; if (coop) say(`${NAME[p.k]} 倒下了，快走过去扶起来！`); }
   }
@@ -2692,7 +3052,7 @@ function makeBomb(opts) {
       p.shield = 4; for (const q of G.players) if (q !== p && q.state === 'ok' && Math.hypot(q.x - p.x, q.y - p.y) < 1.7) q.shield = 4;
       petSay(pet, '抱紧！'); ok = true;
     }
-    if (ok) { p.cd = P.cd; snd('pick'); }
+    if (ok) { p.cd = P.cd; snd('pick'); if (net && !p.remote && (p.pet === 'cat' || p.pet === 'bear')) netEv('skill', { p: p.pet, x: r2(p.x), y: r2(p.y) }); }
   }
   function petStep(pet, dt) {
     const p = pet.owner; pet.hopT += dt; pet.sayT = Math.max(0, pet.sayT - dt);
@@ -2700,7 +3060,7 @@ function makeBomb(opts) {
       const t = pet.task, tx = t.phase === 'go' ? t.tx : p.x, ty = t.phase === 'go' ? t.ty : p.y, d = Math.hypot(tx - pet.x, ty - pet.y), sp = 9 * dt;
       if (d > 0.1) { pet.x += (tx - pet.x) / d * Math.min(sp, d); pet.y += (ty - pet.y) / d * Math.min(sp, d); }
       if (d <= 0.15) {
-        if (t.phase === 'go') { const it = G.items.get(t.k); if (it) { G.items.delete(t.k); t.carry = it.k; } t.phase = 'back'; }
+        if (t.phase === 'go') { const it = G.items.get(t.k); if (it) { G.items.delete(t.k); t.carry = it.k; if (!host) { G.took.set(t.k, performance.now()); const [c, r] = t.k.split(',').map(Number); netEv('take', { c, r }); } } t.phase = 'back'; }
         else { if (t.carry) giveItem(p, t.carry); pet.task = null; }
       }
       return;
@@ -2719,9 +3079,9 @@ function makeBomb(opts) {
     if (kind === 'more') p.maxB = Math.min(5, p.maxB + 1); else if (kind === 'range') p.range = Math.min(6, p.range + 1);
     else if (kind === 'speed') p.speed = Math.min(5.4, p.speed + 0.6); else if (kind === 'heart') p.hearts = Math.min(p.maxH, p.hearts + 1);
     else if (kind === 'pierce') { p.pierce = 3; p.love = 0; } else if (kind === 'love') { p.love = 2; p.pierce = 0; }
-    else if (kind === 'photo') { G.photos++; say(`📷 找到一张照片！${G.photos}/3`); launch(p.x, p.y, p.k, 'heart'); }
-    else if (kind === 'candy') { G.candy++; }
-    else if (kind === 'apple') { G.candy++; say(`🍎 ${G.candy}/${goal.n || 8}`, 1.2); }
+    else if (kind === 'photo') { if (host) { G.photos++; say(`📷 找到一张照片！${G.photos}/3`, 2.2, true); } launch(p.x, p.y, p.k, 'heart'); }
+    else if (kind === 'candy') { if (host) G.candy++; }
+    else if (kind === 'apple') { if (host) { G.candy++; say(`🍎 ${G.candy}/${goal.n || 8}`, 1.2, true); } }
     G.parts.push({ text: POW[kind], x: p.x, y: p.y - 0.4, z: 1.3, vx: 0, vy: 0, vz: 1, life: 0.8, max: 0.8 }); snd('pick');
     if (kind === 'pierce' || kind === 'love') say(`${POW[kind]} ${POW_NAME[kind]}`, 1.8);
   }
@@ -2821,10 +3181,10 @@ function makeBomb(opts) {
     B.nextCall -= dt;
     if (B.nextCall <= 0) {
       B.nextCall = 9;
-      if (G.enemies.filter((e) => e.alive).length < 2) for (const [c, r] of [[1, 9], [11, 1]]) if (!solid(c, r) && !occupied(c, r)) G.enemies.push({ type: 'cloud', x: c + 0.5, y: r + 0.5, dir: [1, 0], speed: 1.7, alive: true, die: 0, t: 0, at: '', freeze: 0 });
+      if (G.enemies.filter((e) => e.alive).length < 2) for (const [c, r] of [[1, 9], [11, 1]]) if (!solid(c, r) && !occupied(c, r)) G.enemies.push({ id: ++G.eid, type: 'cloud', x: c + 0.5, y: r + 0.5, dir: [1, 0], speed: 1.7, alive: true, die: 0, t: 0, at: '', freeze: 0 });
     }
     const k = key(cellOf(B.x), cellOf(B.y));   // a burst under it, and it is hurt
-    if (G.flames.has(k) && B.inv <= 0 && B.hp > 0) { B.hp--; B.inv = 1.4; B.hurtT = 0.8; snd('hit'); G.freeze = 0.12; puff(B.x, B.y, '#C9CDE6'); if (B.hp <= 0) { B.gone = 1.2; snd('win'); for (const e of G.enemies) e.alive = false; G.rains = []; } else say(`闷闷还剩 ${B.hp} 次`, 1.4); }
+    if (G.flames.has(k) && B.inv <= 0 && B.hp > 0) { B.hp--; B.inv = 1.4; B.hurtT = 0.8; snd('hit'); G.freeze = 0.12; puff(B.x, B.y, '#C9CDE6'); if (B.hp <= 0) { B.gone = 1.2; snd('win'); for (const e of G.enemies) e.alive = false; G.rains = []; } else say(`闷闷还剩 ${B.hp} 次`, 1.4, true); }
     for (const p of G.players) if (p.state === 'ok' && Math.hypot(p.x - B.x, p.y - (B.y + 0.2)) < 0.95) hurtP(p);
   }
   function enemyStep(e, dt) {
@@ -2853,7 +3213,7 @@ function makeBomb(opts) {
     Music.speed(1.08);
     const [c, r] = doorCell;
     G.grid[r * GW + c] = 0; G.items.delete(key(c, r)); G.ice[r * GW + c] = 0; G.bg = null;
-    G.door = { c, r, t: 0 }; snd('door'); say('🏠 小屋出来啦！两个人都走进去');
+    G.door = { c, r, t: 0 }; snd('door'); say('🏠 小屋出来啦！两个人都走进去', 2.2, true);
     for (let i = 0; i < 3; i++) launch(c + 0.5 + (i - 1) * 2, r + 0.5, i === 1 ? 'both' : i ? 'yy' : 'cs', 'peony');
     for (let i = 0; i < (REDUCE ? 6 : 24); i++) { const a = rand(0, TAU), sp = rand(1, 3); G.parts.push({ x: c + 0.5, y: r + 0.5, z: 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(2, 4), life: 0.9, max: 0.9, c: ['#FFE27A', '#FFFFFF', '#FF8FB8'][i % 3], r: 0.08, star: true }); }
   }
@@ -2872,7 +3232,9 @@ function makeBomb(opts) {
     if (G.freeze > 0) { G.freeze -= dt; return; }
     G.t += dt; G.shake = Math.max(0, G.shake - dt); G.startT -= dt; G.bannerT = Math.max(0, G.bannerT - dt); G.flash = Math.max(0, (G.flash || 0) - dt);
     if (G.state === 'play') {
+      if (net && NET.quiet) { G.banner = `等 ${NAME[PEER]} 的网络…`; G.bannerT = 0.3; }
       for (const p of G.players) {
+        if (p.remote) { remotePlayer(p, dt); continue; }
         if (p.state !== 'ok') continue;
         p.inv = Math.max(0, p.inv - dt); p.placedT = Math.max(0, p.placedT - dt); p.cd = Math.max(0, p.cd - dt); p.shield = Math.max(0, p.shield - dt); p.stun = Math.max(0, p.stun - dt);
         p.trail.push({ x: p.x, y: p.y, t: G.t }); while (p.trail.length && p.trail[0].t < G.t - 0.6) p.trail.shift();
@@ -2896,7 +3258,7 @@ function makeBomb(opts) {
               const v = vec(d); if (!v) continue;
               if (moveEnt(p, v[0], v[1], dt)) { moved = true; p.dir = v; if (v[0]) p.faceL = v[0] < 0; const nc = cellOf(p.x), nr = cellOf(p.y); if (G.ice[nr * GW + nc] === 1 && (nc !== c || nr !== r)) p.slide = v; break; }
               const bomb = bombAt(c + v[0], r + v[1]);   // a cat's person kicks the firework in the way
-              if (p.pet === 'cat' && bomb && !bomb.kick && !p.pass.has(key(bomb.c, bomb.r))) { bomb.kick = v; p.dir = v; snd('bump'); break; }
+              if (p.pet === 'cat' && bomb && !bomb.kick && !p.pass.has(key(bomb.c, bomb.r))) { if (host) bomb.kick = v; else if (!bomb.asked) { bomb.asked = 1; netEv('kick', { c: bomb.c, r: bomb.r, d: v }); } p.dir = v; snd('bump'); break; }
               if (d === a) p.dir = v;
             }
           }
@@ -2906,13 +3268,17 @@ function makeBomb(opts) {
         if (s.skillHit) { s.skillHit = 0; if (!p.ai) useSkill(p); }
         updPass(p); portal(p);
         const k = key(cellOf(p.x), cellOf(p.y)), it = G.items.get(k);
-        if (it) { G.items.delete(k); giveItem(p, it.k); }
+        if (it) { G.items.delete(k); giveItem(p, it.k); if (!host) { G.took.set(k, performance.now()); netEv('take', { c: cellOf(p.x), r: cellOf(p.y) }); } }
         if (G.flames.has(k)) hurtP(p);
-        for (const q of G.players) if (q !== p && q.state === 'down' && Math.hypot(p.x - q.x, p.y - q.y) < 0.75) {   // pick up a partner who has fallen
+        for (const q of G.players) if (q !== p && !q.remote && q.state === 'down' && Math.hypot(p.x - q.x, p.y - q.y) < 0.75) {   // pick up a partner who has fallen (on two phones, theirs does)
           q.state = 'ok'; q.hearts = 1; q.inv = 2; snd('revive'); G.parts.push({ text: '💞', x: q.x, y: q.y - 0.3, z: 1.4, vx: 0, vy: 0, vz: 1, life: 1, max: 1 }); say(`${NAME[p.k]} 把 ${NAME[q.k]} 扶起来了`, 1.6);
         }
       }
+      if (net) for (const q of G.players) if (!q.remote && q.state === 'down') for (const p of G.players) if (p.remote && p.state === 'ok' && Math.hypot(p.x - q.x, p.y - q.y) < 0.75) {   // 🤝 picked up by the partner walking over
+        q.state = 'ok'; q.hearts = 1; q.inv = 2; snd('revive'); G.parts.push({ text: '💞', x: q.x, y: q.y - 0.3, z: 1.4, vx: 0, vy: 0, vz: 1, life: 1, max: 1 }); say(`${NAME[p.k]} 把 ${NAME[q.k]} 扶起来了`, 1.6);
+      }
       for (const pet of G.pets) petStep(pet, dt);
+      if (host) {
       for (const e of G.enemies) { enemyStep(e, dt); if (e.alive) portal(e); }
       if (G.boss) { if (G.boss.gone !== undefined) G.boss.gone -= dt; else bossStep(G.boss, dt); }
       for (const rn of G.rains) {
@@ -2927,7 +3293,7 @@ function makeBomb(opts) {
         if (b.t <= 0) {
           const k = key(b.c, b.r), l = G.loot.get(k);
           if (l) { G.loot.delete(k); G.items.set(k, { k: l, born: G.t }); }
-          if (G.turtles.has(k)) { G.turtles.delete(k); G.walkers.push({ x: b.c + 0.5, y: b.r + 0.5, t: 0 }); G.freed++; snd('door'); say(`🐢 放出一只小海龟 ${G.freed}/${goal.n || 3}`); }
+          if (G.turtles.has(k)) { G.turtles.delete(k); G.walkers.push({ x: b.c + 0.5, y: b.r + 0.5, t: 0 }); G.freed++; snd('door'); say(`🐢 放出一只小海龟 ${G.freed}/${goal.n || 3}`, 2.2, true); }
         }
       }
       G.burning = G.burning.filter((b) => b.t > 0);
@@ -2938,12 +3304,13 @@ function makeBomb(opts) {
       if (coop) {
         if (!G.door && goalDone()) openDoor();
         if (!ok.length) end('lose');
-        else if (G.door && G.door.t > 0.6 && G.players.every((p) => p.state === 'ok' && !p.hop && cellOf(p.x) === G.door.c && cellOf(p.y) === G.door.r)) end('win');
+        else if (G.door && G.door.t > 0.6 && G.players.every((p) => p.state === 'ok' && !p.hop && cellOf(px(p)) === G.door.c && cellOf(py(p)) === G.door.r)) end('win');
       } else {
-        if (G.t > 100) { G.rainT = (G.rainT || 0) - dt; if (G.rainT <= 0) { G.rainT = 1.1; const free = []; for (let r = 1; r < GHt - 1; r++) for (let c = 1; c < GW - 1; c++) if (!solid(c, r) && !bombAt(c, r)) free.push([c, r]); if (free.length) { const [c, r] = pick(free); G.bombs.push({ c, r, fx: c + 0.5, fy: r + 0.5, t: 1.6, range: 3, own: G.nobody, kick: null }); } if (!G.rainSaid) { G.rainSaid = true; say('🎆 烟花雨！天上开始掉烟花了', 2.6); } } }
-        if (!G.hurry && G.t > 75) { G.hurry = true; for (const q of G.players) { q.range = Math.max(q.range, 5); q.maxB = Math.max(q.maxB, 3); } say('🎆 烟花大会！大家都炸得更远了', 2.6); snd('final'); Music.speed(1.15); }
+        if (G.t > 100) { G.rainT = (G.rainT || 0) - dt; if (G.rainT <= 0) { G.rainT = 1.1; const free = []; for (let r = 1; r < GHt - 1; r++) for (let c = 1; c < GW - 1; c++) if (!solid(c, r) && !bombAt(c, r)) free.push([c, r]); if (free.length) { const [c, r] = pick(free); G.bombs.push({ c, r, fx: c + 0.5, fy: r + 0.5, t: 1.6, range: 3, own: G.nobody, kick: null }); } if (!G.rainSaid) { G.rainSaid = true; say('🎆 烟花雨！天上开始掉烟花了', 2.6, true); } } }
+        if (!G.hurry && G.t > 75) { G.hurry = true; for (const q of G.players) { q.range = Math.max(q.range, 5); q.maxB = Math.max(q.maxB, 3); } say('🎆 烟花大会！大家都炸得更远了', 2.6, true); snd('final'); Music.speed(1.15); }
         if (ok.length <= 1) end(ok.length ? ok[0].k : 'draw');
       }
+      } else guestWorld(dt);   // 🤝 the host's world, carried on between its messages; and what hurts this phone's player
     } else if (G.state === 'end') {
       G.endT -= dt;
       for (const [k, f] of G.flames) { f.t -= dt; if (f.t <= 0) { G.flames.delete(k); if (!REDUCE && (f.cen || Math.random() < 0.45)) { const [c, r] = k.split(',').map(Number); G.parts.push({ smoke: true, x: c + 0.5 + rand(-0.15, 0.15), y: r + 0.5, z: 0.3, vz: rand(0.5, 0.9), vx: rand(-0.2, 0.2), vy: 0, life: rand(0.8, 1.2), max: 1.2, r: 0.2 }); } } }
@@ -2971,14 +3338,21 @@ function makeBomb(opts) {
     hud();
     if (COARSE) for (const p of G.players) if (p.human) { const b = UI.pad.querySelector(`[data-p="${p.k}"][data-k="skill"]`); if (b) { const pct = p.cd > 0 ? Math.round(p.cd / PETS[p.pet].cd * 100) : 0; if (b.dataset.cd !== String(pct)) { b.dataset.cd = pct; b.style.background = pct ? `conic-gradient(rgba(20,10,40,.72) ${pct}%, rgba(30,20,60,.34) 0)` : ''; } } }
   };
-  function end(how) {
+  function end(how, told) {
     if (G.state !== 'play') return; G.state = 'end'; G.how = how; G.endT = how === 'win' ? 1.3 : 1.2; Music.stop();
     if (how === 'win') for (let i = 0; i < 5; i++) setTimeout(() => { if (game === G) launch(rand(2, 11), rand(2, 9), pick(['cs', 'yy', 'both']), i % 2 ? 'heart' : 'peony'); }, i * 220);
-    if (!coop && how !== 'draw') G.wins[how] = (G.wins[how] || 0) + 1;
+    if (!coop && how !== 'draw' && !told) G.wins[how] = (G.wins[how] || 0) + 1;
+    if (net && host && NET.n) netEv('end', { how, tm: r2(G.t), ph: G.photos, cb: G.combo, ws: G.wins });
   }
   function results() {
+    G.shownAt = performance.now();
     const next = PLACES[PLACES.indexOf(PL) + 1];
     const withPets = (o) => Object.assign({}, opts, o, { pets: Object.fromEntries(G.players.filter((p) => p.human).map((p) => [p.k, p.pet])) });
+    const together = (k, o, auto) => {   // 🤝 the host's phone starts it for both; from the partner's phone it is asked for
+      if (!NET.n || G.peerGone) { panel(`<div class="big">👋</div><h2>${esc(NAME[PEER])} 已经离开了</h2><div class="btns"><button type="button" class="wide" data-m="x">好</button></div>`, () => closeGame()); return; }
+      if (NET.role === 'host') { if (o.place) { SEL.bomb = o.place; store.set('kb_sel_bomb', o.place); } openGame('bomb', withPets(Object.assign({ seed: 1 + Math.floor(Math.random() * 2147483645) }, o, { net: { role: 'host', again: true, auto: !!auto } }))); return; }
+      netRequest(k); const b = UI.msg.querySelector('.btns'); if (b && !UI.msg.querySelector('.netwait')) b.insertAdjacentHTML('beforebegin', `<p class="netnote netwait">等 ${esc(NAME[PEER])} 的手机开始…</p>`);
+    };
     if (coop) {
       if (G.how === 'win') {
         const s1 = G.photos >= 3, s2 = G.combo >= 3, stars = 1 + (s1 ? 1 : 0) + (s2 ? 1 : 0);
@@ -2989,11 +3363,13 @@ function makeBomb(opts) {
           <div class="rows"><div><span>★ 过关</span><span>✓</span></div><div><span>★ 找到三张照片</span><span>📷 ${G.photos}/3</span></div><div><span>★ 默契三次</span><span>💞 ${G.combo}/3</span></div></div>
           <p>用了 ${fmt(G.t)}。${PL.id === 'night' ? '原来闷闷只是想有人陪它玩。' : s2 ? '' : '两个人的烟花同时炸开，就是一次「默契」。'}</p>
           <div class="btns">${next ? `<button type="button" data-m="next">下一关：${next.icon} ${next.name}</button>` : ''}<button type="button" class="${next ? 'alt' : ''}" data-m="again">再来一次</button><button type="button" class="alt wide" data-m="back">换个玩法</button></div>`,
-          (m) => { if (m === 'next') { SEL.bomb = next.id; store.set('kb_sel_bomb', next.id); openGame('bomb', withPets({ place: next.id })); } else if (m === 'again') openGame('bomb', withPets({})); else closeGame(); });
+          (m) => { if (net && (m === 'next' || m === 'again')) return m === 'next' ? together('next', { place: next.id }) : together('again', {}); if (m === 'next') { SEL.bomb = next.id; store.set('kb_sel_bomb', next.id); openGame('bomb', withPets({ place: next.id })); } else if (m === 'again') openGame('bomb', withPets({})); else closeGame(); });
+        G.netAgain = (k, auto) => (k === 'next' && next ? together('next', { place: next.id }, auto) : together('again', {}, auto));
       } else {
         snd('hit');
         panel(`<div class="big">☁️</div><h2>被围住了…</h2><p>先炸开箱子开路，捡 🎆 和 ✨ 变强，再去完成目标：${goalText(goal)}。倒下的人，另一个走过去就能扶起来。也可以换一只宠物试试。</p>
-          <div class="btns"><button type="button" data-m="again">再来一次</button><button type="button" class="alt" data-m="back">换个玩法</button></div>`, (m) => { if (m === 'again') openGame('bomb', withPets({})); else closeGame(); });
+          <div class="btns"><button type="button" data-m="again">再来一次</button><button type="button" class="alt" data-m="back">换个玩法</button></div>`, (m) => { if (net && m === 'again') return together('again', {}); if (m === 'again') openGame('bomb', withPets({})); else closeGame(); });
+        G.netAgain = (k, auto) => together('again', {}, auto);
       }
       return;
     }
@@ -3004,10 +3380,12 @@ function makeBomb(opts) {
     if (done) {
       const w = G.wins.cs >= 2 ? 'cs' : 'yy'; snd('win');
       panel(`<div class="big">🏆</div><h2>${NAME[w]} 赢了三局两胜！</h2>${score}<p>${humans.length === 1 ? (w === humans[0] ? '电脑被你炸得晕乎乎。' : '别站在烟花的那一行上。') : '输的人今晚洗碗？'}</p>
-        <div class="btns"><button type="button" data-m="again">再来三局</button><button type="button" class="alt" data-m="back">换个玩法</button></div>`, (m) => { if (m === 'again') openGame('bomb', withPets({ round: 1, wins: { cs: 0, yy: 0 } })); else closeGame(); });
+        <div class="btns"><button type="button" data-m="again">再来三局</button><button type="button" class="alt" data-m="back">换个玩法</button></div>`, (m) => { if (net && m === 'again') return together('again', { round: 1, wins: { cs: 0, yy: 0 } }); if (m === 'again') openGame('bomb', withPets({ round: 1, wins: { cs: 0, yy: 0 } })); else closeGame(); });
+      G.netAgain = (k, auto) => together('again', { round: 1, wins: { cs: 0, yy: 0 } }, auto);
     } else {
       panel(`<h2>${title}</h2>${score}<p>第 ${G.round + 1} 局，先赢两局的人获胜。</p><div class="btns"><button type="button" class="wide" data-m="next">下一局</button></div>`,
-        () => openGame('bomb', withPets({ round: G.round + 1, wins: G.wins })));
+        () => (net ? together('next', { round: G.round + 1, wins: G.wins }, true) : openGame('bomb', withPets({ round: G.round + 1, wins: G.wins }))));
+      G.netAgain = () => together('next', { round: G.round + 1, wins: G.wins }, true);
     }
   }
   function hud() {
@@ -3016,7 +3394,7 @@ function makeBomb(opts) {
     if (COARSE && H > W && !preview) {   // upright phone: your line sits just above your own controls
       const b = reserveBomb(humans.length === 2).bottom + 6;
       const mine = G.players.filter((p) => p.human).map((p, i) => `<span class="hc pc" style="bottom:${b}px;${humans.length === 2 ? (p.k === 'cs' ? 'left:8px' : 'right:8px') : 'left:8px'}"><i style="background:${CH[p.k].tint}"></i>${humans.length === 2 ? NAME[p.k] + ' ' : ''}${stat(p)}</span>`).join('');
-      const ai = G.players.filter((p) => p.ai).map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}🤖 ${stat(p)}</span>`).join('');
+      const ai = G.players.filter((p) => p.ai || p.remote).map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}${p.ai ? '🤖' : ''} ${stat(p)}</span>`).join('');
       setHud(top + ai + mine);
     } else setHud(G.players.map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}${p.ai ? '🤖' : ''} ${stat(p)}</span>`).join('') + top);
   }
@@ -3337,21 +3715,21 @@ function makeBomb(opts) {
     const ai = G.players.find((p) => p.ai);
     const picker = () => humans.map((h) => `<div class="pp"><b>${humans.length === 2 ? `${NAME[h]} 带谁去？` : '带一只宠物去'}</b><div class="pps" role="group" aria-label="${NAME[h]} 的宠物">${PET_IDS.map((id) => `<button type="button" data-pet="${h}:${id}" aria-pressed="${sel[h] === id}"><img src="${IMG['pet_' + id].src}" alt=""><span>${PETS[id].kind}</span></button>`).join('')}</div><p class="ppd">${PETS[sel[h]].icon} <b>${PETS[sel[h]].name} · ${PETS[sel[h]].skill}</b>：${PETS[sel[h]].does}</p></div>`).join('');
     const draw = () => {
-      panel(`<div class="big">${PL.icon}</div><h2>${coop ? `第 ${PLACES.indexOf(PL) + 1} 关 · ${PL.name}` : `对战 · ${PL.name}`}</h2><p>${coop ? PL.tip : '三颗心，自己的烟花也会炸到自己。先赢两局的人获胜。'}</p>
+      const inv = net && net.invite;
+      panel(`<div class="big">${inv ? '🤝' : PL.icon}</div><h2>${inv ? `${esc(NAME[inv.by])} 想和你${coop ? '一起闯' : '对战'} · ${PL.icon} ${PL.name}` : `${net ? '🤝 ' : ''}${coop ? `第 ${PLACES.indexOf(PL) + 1} 关 · ${PL.name}` : `对战 · ${PL.name}`}`}</h2>${net && !inv ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机：你选好地方，TA 的手机上会问要不要一起。</p>` : ''}<p>${coop ? PL.tip : '三颗心，自己的烟花也会炸到自己。先赢两局的人获胜。'}</p>
         ${coop ? `<p style="font-size:13px">每关还藏着 <b>3 张照片 📷</b>；两个人的烟花同时炸开是一次 <b>💞 默契</b>，会放出爱心烟花，宠物技能也马上准备好。${ai ? `<br>这次 <b>${NAME[ai.k]}</b> 由电脑陪你一起，带着${PETS[ai.pet].kind}。` : ''}</p>` : ''}
         ${picker()}
         ${COARSE ? `<div class="opts"><div class="opt"><b>走路</b><div class="seg3"><button type="button" data-w="dpad" aria-pressed="${BSET.walk !== 'stick'}">方向键</button><button type="button" data-w="stick" aria-pressed="${BSET.walk === 'stick'}">摇杆</button></div></div></div>` : ''}
         <p style="font-size:12.5px">${COARSE ? (BSET.walk === 'stick' ? '按住左边随便哪里拖动就能走' : '按住方向键走，手指可以直接滑到别的方向') + '；💥 放烟花，宠物按钮放技能。' : 'CS：W A S D 走、空格放烟花、E 宠物技能；YY：方向键走、Enter 放烟花、句号 . 宠物技能。P 暂停。'}</p>
-        <div class="btns"><button type="button" class="wide" data-m="go">开始！</button></div>`,
-        () => {
+        <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不玩了</button><button type="button" data-m="go">出发！</button>' : `<button type="button" class="wide" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
+        (m) => {
+          if (m === 'no') { netDecline(); closeGame(); return; }
           for (const p of G.players) if (p.human) p.pet = sel[p.k];
           if (ai && humans.length === 1 && ai.pet === sel[humans[0]]) ai.pet = PET_IDS.find((x) => x !== sel[humans[0]]);
           store.set('kb_pets', Object.assign(store.get('kb_pets', {}), sel));
-          applyPassives(); resize();
-          UI.msg.hidden = true; G.paused = false; G.state = 'play'; G.startT = 1.8; Music.start(songFor(PL.id, true));
-          const wz = BSET.walk === 'stick' ? '.jz' : '.dz', wt = BSET.walk === 'stick' ? '按住拖动走路' : '按住方向键走路';
-          coach('bomb', humans.length === 2 ? [[`${wz}.cs`, 'CS ' + wt], [`${wz}.yy`, 'YY ' + wt], ['[data-p="cs"][data-k="bomb"]', '放烟花']] : [[wz, wt], ['[data-k="bomb"]', '放烟花'], ['[data-k="skill"]', '宠物技能']],
-            humans.length === 2 ? 'CS：W A S D 走 · 空格 烟花 · E 宠物　YY：方向键走 · Enter 烟花 · 句号 宠物　P 暂停' : 'W A S D 走 · 空格 放烟花 · E 宠物技能 · P 暂停');
+          if (net && !inv) { applyPassives(); netInvite('bomb', netBombOpts()); return; }   // 🤝 the host: the partner's phone is asked; it starts when they say 出发
+          if (inv) netAccept({ pet: sel[ME.k] });
+          beginPlay();
         });
       const old = UI.msg.onclick;
       UI.msg.onclick = (e) => {
@@ -3361,10 +3739,230 @@ function makeBomb(opts) {
     };
     draw();
   }
+  function beginPlay() {
+          applyPassives(); resize();
+          UI.msg.hidden = true; G.paused = false; G.state = 'play'; G.startT = 1.8; Music.start(songFor(PL.id, true));
+          const wz = BSET.walk === 'stick' ? '.jz' : '.dz', wt = BSET.walk === 'stick' ? '按住拖动走路' : '按住方向键走路';
+          coach('bomb', humans.length === 2 ? [[`${wz}.cs`, 'CS ' + wt], [`${wz}.yy`, 'YY ' + wt], ['[data-p="cs"][data-k="bomb"]', '放烟花']] : [[wz, wt], ['[data-k="bomb"]', '放烟花'], ['[data-k="skill"]', '宠物技能']],
+            humans.length === 2 ? 'CS：W A S D 走 · 空格 烟花 · E 宠物　YY：方向键走 · Enter 烟花 · 句号 宠物　P 暂停' : 'W A S D 走 · 空格 放烟花 · E 宠物技能 · P 暂停');
+  }
+  const netBombOpts = (auto) => ({ mode, place: PL.id, seed: opts.seed, pets: { [ME.k]: (G.players.find((q) => q.k === ME.k) || {}).pet || 'dog' }, round: G.round, wins: G.wins, auto: !!auto });
   if (!preview) setTimeout(() => {
     if (!game || game !== G) return;
-    if (coop || G.round === 1) tipCard(); else { G.state = 'play'; G.startT = 1.8; Music.start(songFor(PL.id, true)); }
+    if (net && net.role === 'host' && net.again) { G.paused = true; netInvite('bomb', netBombOpts(net.auto)); return; }   // 🤝 the host's 再来 / 下一关 / 下一局: the partner's phone is asked again (or it asked)
+    if (net && net.invite && net.invite.auto) { netAccept({ pet: (G.players.find((q) => q.k === ME.k) || {}).pet }); beginPlay(); return; }
+    if ((net && net.invite) || coop || G.round === 1) tipCard(); else { G.state = 'play'; G.startT = 1.8; Music.start(songFor(PL.id, true)); }
   }, 30);
+  // ── 🤝 two phones ──
+  const ETYPES = ['cloud', 'fast', 'pink', 'crab'], OWNK = ['cs', 'yy', 'sky'], PSTATE = ['ok', 'down', 'out'];
+  const px = (p) => (p.remote && fin(p.netX) ? p.netX : p.x), py = (p) => (p.remote && fin(p.netY) ? p.netY : p.y);   // where the partner's phone last said they were
+  const okCell = (c, r) => Number.isInteger(c) && Number.isInteger(r) && c > 0 && r > 0 && c < GW - 1 && r < GHt - 1;
+  // the partner: carried on the way they were walking, and glided to where their phone says
+  function remotePlayer(p, dt) {
+    const s = p.ns; if (!s) return;
+    const age = clamp((performance.now() - s.at) / 1000 + NET.rttMin / 2000, 0, 0.4);
+    let tx = s.x, ty = s.y;
+    if (s.hop) { const k = Math.min(1, s.hop[4] + age / 0.42); tx = lerp(s.hop[0], s.hop[2], k); ty = lerp(s.hop[1], s.hop[3], k); p.hop = k < 1 ? { t: k, fx: s.hop[0], fy: s.hop[1], tx: s.hop[2], ty: s.hop[3] } : null; }
+    else { p.hop = null; if (s.walk && s.state === 'ok') { tx += s.dx * s.sp * age; ty += s.dy * s.sp * age; } }
+    if (!p.seen || Math.hypot(tx - p.x, ty - p.y) > 2.5) { p.x = tx; p.y = ty; p.seen = true; }
+    else { const f = 1 - Math.exp(-dt / 0.07); p.x += (tx - p.x) * f; p.y += (ty - p.y) * f; }
+    p.dir = [s.dx, s.dy]; if (s.dx) p.faceL = s.dx < 0; else p.faceL = s.faceL; p.walk = s.walk ? p.walk + dt : 0;
+    const was = p.state; p.state = s.state;
+    if (coop && was === 'ok' && p.state === 'down') say(`${NAME[p.k]} 倒下了，快走过去扶起来！`);
+    if (was === 'down' && p.state === 'ok') { snd('revive'); G.parts.push({ text: '💞', x: p.x, y: p.y - 0.3, z: 1.4, vx: 0, vy: 0, vz: 1, life: 1, max: 1 }); }
+    if (was === 'ok' && p.state !== 'ok') puff(p.x, p.y, '#FFFFFF');
+    p.hearts = s.hearts; p.maxH = s.maxH; p.inv = s.inv; p.shield = s.shield; p.stun = s.stun; p.cd = s.cd; p.maxB = s.maxB; p.range = s.range; p.speed = s.sp; p.pierce = s.pierce; p.love = s.love;
+    if (s.pet !== p.pet) { p.pet = s.pet; makePets(); }
+    p.trail.push({ x: p.x, y: p.y, t: G.t }); while (p.trail.length && p.trail[0].t < G.t - 0.6) p.trail.shift();
+    p.netX = s.x; p.netY = s.y;
+  }
+  // the partner's phone: the host's world goes on between its messages; what hurts this phone's player is decided here
+  function guestWorld(dt) {
+    const now = performance.now(), f = 1 - Math.exp(-dt / 0.1);
+    for (const e of G.enemies) {
+      if (!e.alive) { e.die -= dt; continue; }
+      e.t += dt;
+      if (e.freeze > 0) e.freeze -= dt; else { e.x += e.dir[0] * e.speed * dt; e.y += e.dir[1] * e.speed * dt; }
+      if (e.ns) {
+        const age = clamp((now - e.ns.at) / 1000 + NET.rttMin / 2000, 0, 0.5), mv = e.freeze > 0 ? 0 : e.speed * age;
+        const tx = e.ns.x + e.dir[0] * mv, ty = e.ns.y + e.dir[1] * mv;
+        if (Math.hypot(tx - e.x, ty - e.y) > 1.5) { e.x = tx; e.y = ty; } else { e.x += (tx - e.x) * f; e.y += (ty - e.y) * f; }
+      }
+    }
+    if (G.boss && G.boss.ns) { const Bs = G.boss; Bs.t = (Bs.t || 0) + dt; Bs.inv = Math.max(0, Bs.inv - dt); Bs.hurtT = Math.max(0, Bs.hurtT - dt); if (Bs.gone !== undefined) Bs.gone -= dt; Bs.x += (Bs.ns.x - Bs.x) * f; Bs.y += (Bs.ns.y - Bs.y) * f; }
+    for (const b of G.bombs) { b.t = Math.max(0.02, b.t - dt); if (b.ns) { b.fx += (b.ns.fx - b.fx) * f; b.fy += (b.ns.fy - b.fy) * f; } }   // the fuse burns down here too; it goes off when the host's phone says so
+    G.bombs = G.bombs.filter((b) => !b.pred || now - b.pred < 1200 || b.ns);
+    for (const [k, fl] of G.flames) { fl.t -= dt; if (fl.t <= 0) G.flames.delete(k); }
+    for (const b of G.burning) b.t -= dt; G.burning = G.burning.filter((b) => b.t > 0);
+    for (const rn of G.rains) { if (rn.t > 0) { rn.t -= dt; if (rn.t <= 0) rn.on = 0.7; } else rn.on -= dt; }
+    G.rains = G.rains.filter((rn) => rn.t > 0 || rn.on > 0);
+    for (const w of G.walkers) { w.t += dt; w.y += dt * 1.6; } G.walkers = G.walkers.filter((w) => w.t < 2);
+    if (G.door) G.door.t += dt;
+    const me = G.players.find((q) => !q.remote);
+    if (me && me.state === 'ok') {
+      for (const e of G.enemies) if (e.alive && e.freeze <= 0 && Math.hypot(me.x - e.x, me.y - e.y) < 0.72) hurtP(me);
+      const Bs = G.boss; if (Bs && Bs.hp > 0 && Bs.gone === undefined && Math.hypot(me.x - Bs.x, me.y - (Bs.y + 0.2)) < 0.95) hurtP(me);
+      for (const rn of G.rains) if (rn.on > 0) for (const [c, r] of rn.cells) if (cellOf(me.x) === c && cellOf(me.y) === r) hurtP(me);
+    }
+  }
+  const gridStr = () => { let g = ''; for (let i = 0; i < G.grid.length; i++) g += G.grid[i]; return g; };
+  const packPlayer = (p) => [r3(p.x), r3(p.y), p.dir[0], p.dir[1], Math.max(0, PSTATE.indexOf(p.state)), p.hearts, p.maxH,
+    (p.walk > 0 ? 1 : 0) | (p.faceL ? 2 : 0) | (p.inv > 0 ? 4 : 0) | (p.shield > 0 ? 8 : 0) | (p.stun > 0 ? 16 : 0), Math.max(0, PET_IDS.indexOf(p.pet)), r2(p.cd), p.maxB, p.range, r2(p.speed), p.pierce, p.love,
+    p.hop ? [r3(p.hop.fx), r3(p.hop.fy), r3(p.hop.tx), r3(p.hop.ty), r2(Math.min(1, p.hop.t))] : 0];
+  function packWorld(now) {
+    const w = {
+      t: r2(G.t),
+      e: G.enemies.map((e) => [e.id, Math.max(0, ETYPES.indexOf(e.type)), r3(e.x), r3(e.y), e.dir[0], e.dir[1], e.speed, e.alive ? 1 : 0, r2(Math.max(0, e.die)), r2(Math.max(0, e.freeze))]),
+      m: G.bombs.map((b) => [b.c, b.r, r3(b.fx), r3(b.fy), r2(b.t), b.range, Math.max(0, OWNK.indexOf(b.own.k)), b.pierce ? 1 : 0, b.love ? 1 : 0, b.kick ? b.kick[0] : 0, b.kick ? b.kick[1] : 0]),
+      f: [...G.flames].map(([k, fl]) => [k, r2(fl.t), (fl.h ? 1 : 0) | (fl.v ? 2 : 0) | (fl.cen ? 4 : 0) | (fl.love ? 8 : 0)]),
+      i: [...G.items].map(([k, it]) => [k, it.k]),
+      c: [G.freed, G.candy, G.photos, G.combo, G.downs],
+      r: G.rains.map((rn) => [rn.cells, r2(rn.t), r2(rn.on || 0)]),
+    };
+    const g = gridStr(); if (g !== G.gridSent || now - G.gridAt > 2000) { w.g = g; G.gridSent = g; G.gridAt = now; }   // the boxes: when they change, and every 2 s in case one was lost
+    if (G.boss) w.b = [r3(G.boss.x), r3(G.boss.y), G.boss.hp, r2(G.boss.inv), r2(G.boss.hurtT), G.boss.gone === undefined ? -1 : r2(G.boss.gone)];
+    if (G.lit.size) w.l = [...G.lit];
+    if (coop) w.tu = [...G.turtles];
+    if (G.door) w.d = [G.door.c, G.door.r, r2(G.door.t)];
+    if (G.hurry) w.h = 1;
+    if (G.state === 'end') { w.s = G.how; w.wn = G.wins; }
+    return w;
+  }
+  // the partner's phone takes the host's world as it is (never trusting a value out of range)
+  function takeWorld(w) {
+    const now = performance.now();
+    if (fin(w.t)) G.t = w.t;
+    if (Array.isArray(w.e)) {
+      const by = new Map(G.enemies.map((e) => [e.id, e])), list = [];
+      for (const a of w.e) {
+        if (!Array.isArray(a) || a.length < 10 || !a.every(fin)) continue;
+        let e = by.get(a[0]); if (!e) e = { id: a[0], t: 0, at: '', x: clamp(a[2], 0, GW), y: clamp(a[3], 0, GHt), die: 0 };
+        const alive = !!a[7]; if (e.alive && !alive) { puff(e.x, e.y, '#E4E6F4'); snd('pick'); }
+        e.type = ETYPES[a[1]] || 'cloud'; e.dir = [Math.sign(a[4]), Math.sign(a[5])]; e.speed = clamp(a[6], 0, 6); e.alive = alive; e.die = a[8]; e.freeze = a[9];
+        e.ns = { x: clamp(a[2], 0, GW), y: clamp(a[3], 0, GHt), at: now }; list.push(e);
+      }
+      G.enemies = list;
+    }
+    if (G.boss && Array.isArray(w.b) && w.b.length >= 6 && w.b.every(fin)) {
+      const Bs = G.boss, hp = clamp(w.b[2] | 0, 0, 9); if (hp < Bs.hp) { snd('hit'); puff(Bs.x, Bs.y, '#C9CDE6'); }
+      Bs.ns = { x: clamp(w.b[0], 0, GW), y: clamp(w.b[1], 0, GHt) }; Bs.hp = hp; Bs.inv = w.b[3]; Bs.hurtT = w.b[4]; if (w.b[5] >= 0) Bs.gone = w.b[5]; else delete Bs.gone;
+    }
+    if (Array.isArray(w.m)) {
+      const list = [];
+      for (const a of w.m) {
+        if (!Array.isArray(a) || a.length < 11 || !a.every(fin) || !okCell(a[0] | 0, a[1] | 0)) continue;
+        const c = a[0] | 0, r = a[1] | 0; let b = G.bombs.find((x) => x.c === c && x.r === r && !list.includes(x));
+        if (!b) b = { c, r, fx: a[2], fy: a[3] };
+        b.t = a[4]; b.range = clamp(a[5] | 0, 1, 9); b.own = G.players.find((q) => q.k === OWNK[a[6]]) || G.nobody; b.pierce = !!a[7]; b.love = !!a[8];
+        b.kick = a[9] || a[10] ? [Math.sign(a[9]), Math.sign(a[10])] : null; b.ns = { fx: a[2], fy: a[3] }; delete b.pred; list.push(b);
+      }
+      for (const b of G.bombs) if (b.pred && !list.includes(b) && now - b.pred < 1200) list.push(b);   // ours, still on its way to the host's phone
+      G.bombs = list;
+    }
+    if (Array.isArray(w.f)) {
+      G.flames = new Map();
+      for (const a of w.f) if (Array.isArray(a) && typeof a[0] === 'string' && /^\d{1,2},\d{1,2}$/.test(a[0]) && fin(a[1]) && fin(a[2])) G.flames.set(a[0], { t: a[1], h: !!(a[2] & 1), v: !!(a[2] & 2), cen: !!(a[2] & 4), love: !!(a[2] & 8) });
+    }
+    if (typeof w.g === 'string' && w.g.length === GW * GHt && /^[0-7]+$/.test(w.g)) {
+      for (let i = 0; i < w.g.length; i++) {
+        const v = w.g.charCodeAt(i) - 48, was = G.grid[i]; if (v === was) continue;
+        const c = i % GW, r = Math.floor(i / GW);
+        if ((was === 2 || was === 4) && v === 0 && !G.burning.some((b) => b.c === c && b.r === r)) G.burning.push({ c, r, t: FLAME, jelly: was === 4 });
+        G.grid[i] = v;
+      }
+    }
+    if (Array.isArray(w.i)) {
+      const old = G.items; G.items = new Map();
+      for (const a of w.i) if (Array.isArray(a) && typeof a[0] === 'string' && /^\d{1,2},\d{1,2}$/.test(a[0]) && POW[a[1]] && !(G.took.has(a[0]) && now - G.took.get(a[0]) < 1500)) G.items.set(a[0], { k: a[1], born: old.has(a[0]) ? old.get(a[0]).born : G.t });
+    }
+    if (Array.isArray(w.l)) for (const k of w.l) if (G.lanterns.has(k) && !G.lit.has(k)) { G.lit.add(k); snd('door'); }
+    if (coop && Array.isArray(w.tu)) { const left = new Set(w.tu.filter((k) => G.turtles.has(k))); for (const k of G.turtles) if (!left.has(k)) { const [c, r] = k.split(',').map(Number); G.walkers.push({ x: c + 0.5, y: r + 0.5, t: 0 }); } G.turtles = left; }
+    if (Array.isArray(w.c) && w.c.length >= 5 && w.c.every(fin)) [G.freed, G.candy, G.photos, G.combo, G.downs] = w.c.map((v) => Math.max(0, v | 0));
+    if (Array.isArray(w.d) && w.d.length === 3 && w.d.every(fin) && !G.door && okCell(w.d[0], w.d[1])) { const [c, r] = w.d; G.grid[r * GW + c] = 0; G.items.delete(key(c, r)); G.ice[r * GW + c] = 0; G.bg = null; G.door = { c, r, t: w.d[2] }; snd('door'); }
+    if (Array.isArray(w.r)) G.rains = w.r.filter((a) => Array.isArray(a) && Array.isArray(a[0]) && a[0].length <= 13 && fin(a[1]) && fin(a[2])).map((a) => ({ cells: a[0].filter((x) => Array.isArray(x) && okCell(x[0], x[1])), t: a[1], on: a[2] }));
+    if (w.h && !G.hurry) { G.hurry = true; for (const q of G.players) if (!q.remote) { q.range = Math.max(q.range, 5); q.maxB = Math.max(q.maxB, 3); } snd('final'); Music.speed(1.15); }
+    if (w.s && G.state === 'play' && ['win', 'lose', 'draw', 'cs', 'yy'].includes(w.s)) { if (w.wn && fin(w.wn.cs) && fin(w.wn.yy)) G.wins = { cs: w.wn.cs | 0, yy: w.wn.yy | 0 }; end(w.s, true); }   // (the end event is the way; this is the backstop)
+  }
+  // the partner's phone: a burst the host's phone set off — the same flash, fire and noise
+  function burstHere(e) {
+    if (!okCell(e.c, e.r)) return;
+    G.bombs = G.bombs.filter((b) => !(b.c === e.c && b.r === e.r));
+    const cells = Array.isArray(e.cells) ? e.cells.filter((a) => Array.isArray(a) && a.length >= 3 && a.every(fin) && okCell(a[0], a[1])) : [];
+    for (const [c, r, dir] of cells) {
+      const k = key(c, r), fl = G.flames.get(k) || { t: 0, h: false, v: false, cen: false };
+      fl.t = FLAME; if (dir === 0) fl.cen = true; else if (dir === 1) fl.h = true; else fl.v = true; if (e.lo) fl.love = true; G.flames.set(k, fl);
+      const gv = G.grid[r * GW + c];
+      if (gv === 2 || gv === 4) { G.grid[r * GW + c] = 0; G.burning.push({ c, r, t: FLAME, jelly: gv === 4 }); }
+      else if (gv === 7) { G.grid[r * GW + c] = 0; if (!REDUCE) for (let i = 0; i < 8; i++) G.parts.push({ x: c + 0.5, y: r + 0.5, z: 0.3, vx: rand(-2.5, 2.5), vy: rand(-2.5, 2.5), vz: rand(1, 3), life: 0.6, max: 0.6, c: ['#E86A36', '#F2B035', '#C2453A'][i % 3], r: 0.1 }); }
+      else if (gv === 3) G.grid[r * GW + c] = 4;
+    }
+    if (!REDUCE) { const cols = ['#FFE27A', '#FF8FB8', '#9FD8FF', '#B9F5A0', '#FFFFFF']; for (let i = 0; i < 20; i++) { const a = i / 20 * TAU, sp = rand(1.5, 3.5); G.parts.push({ x: e.c + 0.5, y: e.r + 0.5, z: 0.4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(2.5, 5), life: rand(0.6, 0.9), max: 0.9, c: cols[i % 5], r: rand(0.05, 0.09) }); } G.parts.push({ ring: true, x: e.c + 0.5, y: e.r + 0.5, life: 0.35, max: 0.35 }); }
+    launch(e.c + 0.5, e.r + 0.5, OWNK.includes(e.o) ? e.o : 'sky', e.lo ? 'heart' : 'peony');
+    if (fin(e.cb) && e.cb > 0) { G.combo = Math.max(G.combo, e.cb | 0); snd('revive'); for (const q of G.players) if (!q.remote) q.cd = 0; launch(6.5, 4, 'both', 'bigheart'); }
+    G.shake = REDUCE ? 0 : 0.15; snd('boom');
+  }
+  G.netTick = (now) => {
+    if (G.state === 'tip' || (NET.role === 'host' && !NET.heard)) return;
+    if (G.shown && now - (G.shownAt || now) > 3000) return;   // after the end card: only the hellos keep going
+    const me = G.players.find((q) => !q.remote); if (!me) return;
+    const pk = packPlayer(me), psig = `${pk[2]},${pk[3]},${pk[4]},${pk[5]},${pk[7] & 1},${me.hop ? 1 : 0},${pk[13]},${pk[14]}`;
+    let world = null;
+    if (host) {
+      const busy = G.enemies.some((e) => e.alive) || (G.boss && G.boss.hp > 0) || G.bombs.length || G.flames.size || G.rains.length;
+      const wsig = `${G.bombs.length}|${G.items.size}|${G.door ? 1 : 0}|${G.freed},${G.candy},${G.photos},${G.combo}|${G.lit.size}|${G.turtles.size}|${G.state}|${G.hurry ? 1 : 0}|${G.boss ? G.boss.hp : ''}`;
+      if (now - G.wdAt >= (busy ? 150 : 700) || (wsig !== G.wsig && now - G.wdAt > 50)) { world = packWorld(now); G.wdAt = now; G.wsig = wsig; }
+    }
+    const due = psig !== G.psig ? 50 : me.walk > 0 || me.hop ? 180 : 900;   // at once when you turn, stop or are hurt; every 180 ms while walking
+    if (!world && now - G.stAt < due) return;
+    G.stAt = now; G.psig = psig;
+    const m = { n: NET.n, ts: Math.round(now), ak: NET.rx, p: pk }; if (world) m.wd = world;
+    netSend('st', m);
+  };
+  G.netState = (m) => {
+    if (!fin(m.ts)) return;
+    const rp = G.players.find((q) => q.remote), a = m.p;
+    if (rp && Array.isArray(a) && a.length >= 16 && a.slice(0, 15).every(fin) && !(rp.ns && m.ts <= rp.ns.ts)) {
+      rp.ns = { x: clamp(a[0], 0, GW), y: clamp(a[1], 0, GHt), dx: Math.sign(a[2]), dy: Math.sign(a[3]), state: PSTATE[a[4]] || 'ok', hearts: clamp(a[5] | 0, 0, 6), maxH: clamp(a[6] | 0, 1, 6),
+        walk: !!(a[7] & 1), faceL: !!(a[7] & 2), inv: a[7] & 4 ? 1 : 0, shield: a[7] & 8 ? 1 : 0, stun: a[7] & 16 ? 1 : 0, pet: PET_IDS[a[8]] || rp.pet, cd: Math.max(0, a[9]),
+        maxB: clamp(a[10] | 0, 1, 9), range: clamp(a[11] | 0, 1, 9), sp: clamp(a[12], 1, 8), pierce: clamp(a[13] | 0, 0, 9), love: clamp(a[14] | 0, 0, 9),
+        hop: Array.isArray(a[15]) && a[15].length === 5 && a[15].every(fin) ? a[15] : null, at: performance.now(), ts: m.ts };
+    }
+    if (!host && m.wd && typeof m.wd === 'object') takeWorld(m.wd);
+  };
+  G.netEvent = (e) => {
+    const gp = G.players.find((q) => q.remote), me = G.players.find((q) => !q.remote);
+    if (host) {
+      if (e.e === 'bomb' && gp && okCell(e.c, e.r) && G.state === 'play') {   // the partner set one down: here it is for real (the fuse already burning on their phone)
+        const c = e.c, r = e.r;
+        if (!solid(c, r) && !bombAt(c, r) && !G.portals.has(key(c, r)) && !(G.door && G.door.c === c && G.door.r === r)) {
+          G.bombs.push({ c, r, fx: c + 0.5, fy: r + 0.5, t: Math.max(0.6, FUSE - NET.rttMin / 2000), range: clamp(e.rg | 0, 1, 9), own: gp, kick: null, pierce: !!e.pi, love: !!e.lo });
+          for (const q of G.players) if (!q.remote && Math.abs(q.x - (c + 0.5)) < 1 && Math.abs(q.y - (r + 0.5)) < 1) q.pass.add(key(c, r));
+          snd('place');
+        }
+      } else if (e.e === 'kick' && okCell(e.c, e.r) && Array.isArray(e.d)) { const b = bombAt(e.c, e.r), d = [Math.sign(e.d[0]) | 0, Math.sign(e.d[1]) | 0]; if (b && !b.kick && Math.abs(d[0]) + Math.abs(d[1]) === 1) { b.kick = d; snd('bump'); } }
+      else if (e.e === 'take' && gp && okCell(e.c, e.r)) { const k = key(e.c, e.r), it = G.items.get(k); if (it) { G.items.delete(k); giveItem(gp, it.k); } }
+    } else {
+      if (e.e === 'bx') return burstHere(e);
+      if (e.e === 'say' && typeof e.s === 'string') { say(e.s.slice(0, 40), clamp(+e.d || 2.2, 0.5, 4)); return; }
+      if (e.e === 'end' && G.state === 'play' && ['win', 'lose', 'draw', 'cs', 'yy'].includes(e.how)) {
+        if (fin(e.tm)) G.t = e.tm; if (fin(e.ph)) G.photos = e.ph | 0; if (fin(e.cb)) G.combo = e.cb | 0; if (e.ws && fin(e.ws.cs) && fin(e.ws.yy)) G.wins = { cs: e.ws.cs | 0, yy: e.ws.yy | 0 };
+        end(e.how, true); return;
+      }
+    }
+    if (e.e === 'skill' && me && fin(e.x) && fin(e.y)) {   // the partner's pet: what it does to this phone's player (and, on the host's phone, to the monsters)
+      const d = Math.hypot(me.x - e.x, me.y - e.y);
+      if (e.p === 'cat') { if (host) for (const en of G.enemies) if (en.alive && Math.hypot(en.x - e.x, en.y - e.y) < 3.3) en.freeze = 2.5; if (!coop && me.state === 'ok' && d < 3.3) me.stun = 1.2; G.parts.push({ ring: true, x: e.x, y: e.y, life: 0.45, max: 0.45, big: 3.3 }); }
+      else if (e.p === 'bear' && coop && me.state === 'ok' && d < 1.7) me.shield = Math.max(me.shield, 4);
+    }
+  };
+  G.netStart = (m) => { if (G.state !== 'tip') return; const rp = G.players.find((q) => q.remote); if (rp && PET_IDS.includes(m && m.pet)) rp.pet = m.pet; beginPlay(); };
+  G.netRequest = (k) => { if (G.shown && G.netAgain) G.netAgain(k, true); };
+  G.netGone = () => {   // the partner has left: a maze needs you both
+    G.peerGone = true;
+    if (G.shown) return;
+    G.state = 'end'; G.shown = true; Music.stop();
+    panel(`<div class="big">👋</div><h2>${esc(NAME[PEER])} 离开了这一关</h2><p>等 TA 回来，再一起开始吧。</p><div class="btns"><button type="button" class="wide" data-m="x">回到菜单</button></div>`, () => closeGame());
+  };
   G.setupPreview = (w, h) => {
     G.layout(w, h); G.state = 'play';
     const p0 = G.players[0];
@@ -3402,14 +4000,20 @@ $('#bomb-places').addEventListener('click', (e) => { const b = e.target.closest(
 refreshCards();
 document.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => {
   const [kind, m] = b.dataset.play.split(':');
+  if (kind === 'kart' && m === 'net') { if (ONLINE()) openGame('kart', { mode: 'net', place: SEL.kart, net: { role: 'host' } }); return; }   // 🤝 the start card, then the partner's phone is asked
   if (kind === 'kart') return openGame('kart', { mode: m, place: SEL.kart });
   audioOn();   // 一起 / 对战: one person or two
   UI.play.hidden = false; document.documentElement.style.overflow = 'hidden';
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#1E1A36'; ctx.fillRect(0, 0, UI.cv.width, UI.cv.height);
   const PL = PLACES.find((p) => p.id === SEL.bomb);
   panel(`<div class="big">${PL.icon}</div><h2>${m === 'coop' ? `一起闯关 · ${PL.name}` : `对战 · ${PL.name}`}</h2><p>${m === 'coop' ? '把小怪都赶跑，再一起走进小屋。' : '先赢两局的人获胜。'}</p>
-    <div class="btns"><button type="button" data-m="1">${m === 'coop' ? '一个人<br><small>电脑陪你</small>' : '和电脑'}</button><button type="button" data-m="2">两个人<br><small>一部手机</small></button><button type="button" class="alt wide" data-m="0">返回</button></div>`,
-    (n) => { if (n === '0') return closeGame(); UI.msg.hidden = true; openGame('bomb', { mode: m, place: SEL.bomb, two: n === '2' }); });
+    <div class="btns"><button type="button" data-m="1">${m === 'coop' ? '一个人<br><small>电脑陪你</small>' : '和电脑'}</button><button type="button" data-m="2">两个人<br><small>一部手机</small></button>${ONLINE() ? `<button type="button" class="wide" data-m="net">🤝 各用自己的手机<br><small>${peerHere() && NET.peerG === 'bomb' ? `${esc(NAME[PEER])} 也在这里` : `${esc(NAME[PEER])} 打开烟花炸弹就能一起`}</small></button>` : ''}<button type="button" class="alt wide" data-m="0">返回</button></div>`,
+    (n) => {
+      if (n === '0') return closeGame();
+      UI.msg.hidden = true;
+      if (n === 'net') return openGame('bomb', { mode: m, place: SEL.bomb, seed: 1 + Math.floor(Math.random() * 2147483645), net: { role: 'host' } });   // 🤝 the start card, then the partner's phone is asked
+      openGame('bomb', { mode: m, place: SEL.bomb, two: n === '2' });
+    });
 }));
 function drawPreviews(which) {
   Promise.all([artReady, petReady]).then(() => {
@@ -3427,7 +4031,10 @@ drawPreviews();
 if (HOST) {
   document.documentElement.classList.add('in-app');
   const x = document.createElement('button'); x.type = 'button'; x.className = 'pgx'; x.setAttribute('aria-label', '回到小游戏'); x.textContent = '✕';
-  x.addEventListener('click', () => HOST.close && HOST.close()); document.body.appendChild(x);
+  x.addEventListener('click', () => { netBye(); netHome(false); if (HOST.close) HOST.close(); }); document.body.appendChild(x);
+  // 🤝 while this page is open the couple's channel stays up, so the partner's phone can see you are here
+  netHome(true); paintPeer();
+  addEventListener('pagehide', () => { if (NET.n || NET.wait) netBye(); });
   try {   // the app's own day or night
     const pr = window.parent.document.documentElement, th = () => { const t = pr.getAttribute('data-theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); };
     th(); new MutationObserver(th).observe(pr, { attributes: true, attributeFilter: ['data-theme'] });
@@ -3442,7 +4049,7 @@ if (HOST) {
   $('header p').textContent = `主角是你们俩，捣乱的还是闷闷。${want === 'bomb' ? pays.bomb : want === 'kart' ? pays.kart : '赢一个新地方 +1 分'}，每个游戏每天最多 +3 分，会记在「本月记录」里。`;
   const note = $('.note'); if (note) { const h3 = note.querySelector('h3'), ul = note.querySelector('ul'); if (h3) h3.hidden = true; if (ul) ul.hidden = true; }
 }
-window.__kb = { open: (k, o) => openGame(k, o), close: closeGame, get game() { return game; }, IN, press, TRACKS, PLACES, buildTrack, buildTex, buildFar, Tilt, KSET, BSET, Music, get UIS() { return UIS; } };
+window.__kb = { open: (k, o) => openGame(k, o), close: closeGame, get game() { return game; }, get NET() { return NET; }, IN, press, TRACKS, PLACES, buildTrack, buildTex, buildFar, Tilt, KSET, BSET, Music, get UIS() { return UIS; } };
 })();
 </script>
 

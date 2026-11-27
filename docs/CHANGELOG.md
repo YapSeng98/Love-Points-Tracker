@@ -12,6 +12,22 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-28 — 🤝 卡丁车 and 烟花炸弹 on two phones
+
+Both games can now be played each on your own phone. When your partner has the same
+game open, its menu says so; tap 🤝 各用自己的手机 (卡丁车), or 一起闯关 / 对战 › 🤝
+(烟花炸弹), pick the track or the place, and tap 「叫 TA 一起」. Their phone asks whether
+to join — they choose only how to steer, or which pet to bring — and 「出发」 starts it on
+both. Each of you gets the whole screen.
+
+Racing, you see each other's karts where they really are, a 布丁 you drop is on their
+road too, a 小雨云 you send rains on them, and the leader at the 季节门 picks lap two's
+world for both. In a maze you each walk and set fireworks down at once; the monsters,
+the boxes and the little house are the same on both phones. A pause on one phone pauses
+both; 再来一次 / 下一关 works from either phone; if one of you leaves, the other is told.
+Points work as before — each phone pays the person holding it: a race's winner, or both
+of you for a maze cleared.
+
 ## 2026-11-27 (night) — 卡丁车: tilting left works again
 
 Steering by tilting the phone only ever turned right when the phone was held

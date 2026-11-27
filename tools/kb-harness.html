@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Two-phone harness</title>
+<style>html, body { margin: 0; height: 100%; background: #16132A; } iframe { border: 0; display: block; width: 100%; height: 100%; }</style>
+</head>
+<body>
+<script>
+// A stand-in for the app around kartbomb.html, for tools/kartbomb-net-test.js (CLAUDE.md §7.37). Two of these pages in
+// one browser talk over a BroadcastChannel the way two phones talk over the couple's live channel: what one sends the
+// other hears, after a delay and jitter when the test asks for them, now and then not at all (drop), or nothing for a
+// while (the socket going down). Messages from one sender stay in order, as they do on a real socket.
+(() => {
+  const q = new URLSearchParams(location.search), me = q.get('me') === 'yy' ? 'yy' : 'cs';
+  const net = { lat: +(q.get('lat') || 0), jit: +(q.get('jit') || 0), drop: +(q.get('drop') || 0), down: false };
+  const bc = new BroadcastChannel('kb-harness-' + (q.get('room') || 'a'));
+  const on = {}, log = [];
+  let wanted = false, joined = false, sent = 0, lastAt = 0;
+  bc.onmessage = (e) => {
+    if (!wanted || !joined || net.down) return;
+    const d = e.data || {}, h = on[d.ev];
+    if (h) { try { h(d.p); } catch (x) { log.push(['handler error', String(x)]); } }
+  };
+  window.__harness = {
+    net, log, sent: () => sent,
+    setNet: (o) => Object.assign(net, o),
+    goDown: (ms) => { net.down = true; joined = false; setTimeout(() => { net.down = false; if (wanted) joined = true; }, ms); },
+    inject: (ev, p) => { const h = on[ev]; if (h) h(p); },   // as if it came over the channel
+    joined: () => joined,
+  };
+  window.__kbHost = {
+    me, names: { cs: q.get('cs') || 'CS', yy: q.get('yy') || 'YY' },
+    online: () => q.get('online') !== '0',
+    pay: (g, key, detail) => { log.push(['pay', g, key, detail]); return Promise.resolve({ pts: 1 }); },
+    sync: () => {}, close: () => { log.push(['close']); },
+    live: {
+      want: (yes) => { wanted = !!yes; if (wanted) setTimeout(() => { if (wanted && !net.down) joined = true; }, 150); else joined = false; },
+      send: (ev, p) => {
+        if (!joined || net.down) return false;
+        sent++;
+        if (Math.random() < net.drop) return true;   // lost on the way
+        const now = performance.now(), at = Math.max(lastAt, now + net.lat + Math.random() * net.jit);
+        lastAt = at;
+        const msg = JSON.parse(JSON.stringify({ ev, p }));
+        setTimeout(() => bc.postMessage(msg), at - now);
+        return true;
+      },
+      on: (ev, f) => { on[ev] = f; },
+      state: () => ({ open: wanted, joined }),
+    },
+  };
+  const f = document.createElement('iframe');
+  f.src = '../kartbomb.html?game=' + (q.get('game') === 'bomb' ? 'bomb' : 'kart');
+  f.allow = 'accelerometer; gyroscope; autoplay';
+  document.body.appendChild(f);
+})();
+</script>
+</body>
+</html>

@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.27-88';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.28-89';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2309,9 +2309,9 @@ const App = (() => {
     // 🏎️ 卡丁车 and 💣 烟花炸弹 (kartbomb.html in a frame, CLAUDE.md §7.37): the first win on each track or cup, the
     // first clear of each maze — paid like the two above (one key each, never twice, at most +3 a day)
     kart: { name: '卡丁车', icon: '🏎️', how: '九条赛道、樱花杯和云朵杯、影子赛：漂移攒火花冲刺，跳台、蹦床、大风、落叶堆，开出云边会掉下去', max: 3,
-      open: "App.openKB('kart')", payHow: '每条赛道第一次拿第一 +1', note: '👫 一部手机两个人比，或者一个人和闷闷比' },
+      open: "App.openKB('kart')", payHow: '每条赛道第一次拿第一 +1', note: '🤝 可以各用自己的手机一起比，也能一部手机两个人' },
     bomb: { name: '烟花炸弹', icon: '💣', how: '七个地方的迷宫：放烟花炸开箱子，赶跑小云、放小海龟、点冰灯、收糖果、找苹果、穿传送门，最后打败闷闷', max: 3,
-      open: "App.openKB('bomb')", payHow: '每个地方第一次过关 +1', note: '👫 一部手机两个人一起闯关，或者电脑陪你' },
+      open: "App.openKB('bomb')", payHow: '每个地方第一次过关 +1', note: '🤝 可以各用自己的手机一起闯，也能一部手机两个人' },
   };
   const _gameDef = (g) => GAMES[g] || TOGETHER[g];
   // 接零食 never ends by itself: each level asks for more, falls faster and adds a hazard.
@@ -2765,6 +2765,9 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       pay: (g, key, detail) => (TOGETHER[g] ? _cgPay(g, key, detail) : Promise.resolve({ pts: 0, why: 'game' })),
       sync: () => { Prog.sync(); },
       close: () => closeKB(),
+      // 🤝 各用自己的手机: the couple's live channel (§7.235), kept up only while the game page is open (event 'kb')
+      online: () => !!(S.usingSN && S.matchId && S.apiKey),
+      live: { want: (on) => Live.want('kb', on), send: (e, p) => Live.send(e, p), on: (e, f) => Live.on(e, f), state: () => Live.state() },
     };
     if (!document.getElementById('kb-css')) {
       const st = document.createElement('style'); st.id = 'kb-css';
@@ -2790,6 +2793,7 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
   function closeKB() {
     document.querySelector('body > .kb-root')?.remove();
     window.__kbHost = null;
+    try { Live.want('kb', false); } catch (e) {}
     if (_kbSong) { _kbSong = false; const bg = document.getElementById('bg-audio'); if (bg) bg.play().catch(() => {}); }   // ✕ / Esc is a tap, so the song may start again
     _gameCover(); _mgHomeCard(); Prog.sync();
   }
