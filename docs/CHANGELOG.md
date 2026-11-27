@@ -12,6 +12,31 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-27 (evening) — 🏎️ 卡丁车 and 💣 烟花炸弹 join 小游戏
+
+Two new games, both played on one phone: two of you face to face, or one of you
+against 闷闷 (or with the computer as your partner).
+
+**🏎️ 卡丁车**: nine tracks — 樱花小镇, 海边, 雪山, 糖果乐园, 星空夜路, 秋叶山道,
+游乐园, 风车麦田 and 云上花园 — two cups (樱花杯, 云朵杯) and 影子赛 against your
+own best lap. Drift for a boost, jump, bounce on trampolines, ride the wind, plough
+through leaf piles, and don't drive off the edge of the cloud track. On a phone,
+steer with buttons, a slider, or by **tilting the phone** like a wheel — which now
+works, because the game runs inside the app.
+
+**💣 烟花炸弹**: seven mazes — 花园, 海边, 雪地, 糖果屋, 秋天果园, 游乐园 and
+星空 — each with its own goal: chase off the little clouds, free the turtles,
+light the ice lanterns, collect sweets, find the apples, go through portals, and
+finally beat 闷闷. Every burst sends a firework up into the sky; two at the same
+moment make a heart.
+
+Points work like the other games: +1 the first time you win each track, +1 the
+first time you win each cup, +1 the first time you clear each maze, at most +3 a
+day per game, written into 本月记录 for whoever is holding the phone. Your best
+places, times and stars follow you to your other phones; 影子赛's ghost stays on
+the phone that raced it. While either game is open the app's own song pauses, and
+it picks up again when you leave.
+
 ## 2026-11-27 — 一起回家: a story mode, free select, and a better endless road
 
 一起回家's start screen now offers three ways to play.

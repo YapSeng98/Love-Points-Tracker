@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.27-86';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.27-87';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -606,7 +606,7 @@ const App = (() => {
     if (document.getElementById('game-cover-css')) return;
     const on = 'html.game-cover body';
     // (anything that can open OVER a game stays out of it: the toast, and the anniversary / birthday films at 00:00)
-    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .cg-ed, .cg-sc, .hm-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;   // .cg-ed: 一起回家's level editor (2026-11-26); .cg-sc: the story's comics (2026-11-27)
+    const behind = `${on} > :not(.mg-root, .cg-home, .cg-stage, .cg-ed, .cg-sc, .hm-root, .kb-root, .toast, #anv-root, .bdf-root, .bdf-tab, script, style)`;   // .kb-root: 卡丁车 / 烟花炸弹 (2026-11-27)   // .cg-ed: 一起回家's level editor (2026-11-26); .cg-sc: the story's comics (2026-11-27)
     const st = document.createElement('style');
     st.id = 'game-cover-css';
     st.textContent = `${on}::before, ${on}::after, ${behind}, ${behind} *, ${behind} *::before, ${behind} *::after { animation-play-state: paused !important; }
@@ -614,7 +614,7 @@ const App = (() => {
     document.head.appendChild(st);
   })();
   function _gameCover() {
-    try { document.documentElement.classList.toggle('game-cover', !!document.querySelector('body > .mg-root, body > .cg-home, body > .cg-stage, body > .hm-root')); } catch (e) {}
+    try { document.documentElement.classList.toggle('game-cover', !!document.querySelector('body > .mg-root, body > .cg-home, body > .cg-stage, body > .hm-root, body > .kb-root')); } catch (e) {}
   }
 
   /* ── State ── */
@@ -2302,8 +2302,16 @@ const App = (() => {
   // The two you play together (coop.js, CLAUDE.md §7.33). They pay differently:
   // the FIRST clear of each level pays once, so replaying never farms points.
   const TOGETHER = {
-    coop: { name: '一起回家', icon: '🏠', how: '📖 故事模式「找回我们的相册」、🗺️ 自由选关（50 关、10 个世界）、♾️ 一直走下去：钥匙和锁、气球、涨潮、抬相框、叠罗汉、大炮……两个人都进小屋才算过关', max: 3 },
-    beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3 },
+    coop: { name: '一起回家', icon: '🏠', how: '📖 故事模式「找回我们的相册」、🗺️ 自由选关（50 关、10 个世界）、♾️ 一直走下去：钥匙和锁、气球、涨潮、抬相框、叠罗汉、大炮……两个人都进小屋才算过关', max: 3,
+      open: "App.openCoop('home')", payHow: '每一关第一次过关 +1', note: '🤝 可以各用自己的手机一起玩' },
+    beat: { name: '默契拍拍', icon: '💓', how: '跟着心跳，两个人在同一刻拍下去，一共 5 关', max: 3,
+      open: "App.openCoop('beat')", payHow: '每一关第一次过关 +1', note: '🤝 可以各用自己的手机一起玩' },
+    // 🏎️ 卡丁车 and 💣 烟花炸弹 (kartbomb.html in a frame, CLAUDE.md §7.37): the first win on each track or cup, the
+    // first clear of each maze — paid like the two above (one key each, never twice, at most +3 a day)
+    kart: { name: '卡丁车', icon: '🏎️', how: '九条赛道、樱花杯和云朵杯、影子赛：漂移攒火花冲刺，跳台、蹦床、大风、落叶堆，开出云边会掉下去', max: 3,
+      open: "App.openKB('kart')", payHow: '每条赛道第一次拿第一 +1', note: '👫 一部手机两个人比，或者一个人和闷闷比' },
+    bomb: { name: '烟花炸弹', icon: '💣', how: '七个地方的迷宫：放烟花炸开箱子，赶跑小云、放小海龟、点冰灯、收糖果、找苹果、穿传送门，最后打败闷闷', max: 3,
+      open: "App.openKB('bomb')", payHow: '每个地方第一次过关 +1', note: '👫 一部手机两个人一起闯关，或者电脑陪你' },
   };
   const _gameDef = (g) => GAMES[g] || TOGETHER[g];
   // 接零食 never ends by itself: each level asks for more, falls faster and adds a hazard.
@@ -2530,10 +2538,10 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
   function openGames() {
     const together = Object.keys(TOGETHER).map(g => {
       const paid = gamePaidToday(g), max = TOGETHER[g].max;
-      return `<button type="button" class="mg-pick" data-g="${g}" onclick="App.openCoop('${g === 'coop' ? 'home' : 'beat'}')">`
+      return `<button type="button" class="mg-pick" data-g="${g}" onclick="${TOGETHER[g].open}">`
         + `<span class="mg-ic">${TOGETHER[g].icon}</span><span><b>${TOGETHER[g].name}</b><span>${TOGETHER[g].how}</span>`
-        + `<span class="mg-pay${paid >= max ? ' mg-paid' : ''}">${paid >= max ? `今天的 +${max} 分拿满啦 · 还可以随便玩` : `每一关第一次过关 +1 · 今天最多 +${max}${paid ? ` · 已拿 +${paid}` : ''}`}</span>`
-        + `<span class="mg-best">🤝 可以各用自己的手机一起玩</span></span></button>`;
+        + `<span class="mg-pay${paid >= max ? ' mg-paid' : ''}">${paid >= max ? `今天的 +${max} 分拿满啦 · 还可以随便玩` : `${TOGETHER[g].payHow} · 今天最多 +${max}${paid ? ` · 已拿 +${paid}` : ''}`}</span>`
+        + `<span class="mg-best">${TOGETHER[g].note}</span></span></button>`;
     }).join('');
     _mgShell('🎮 小游戏', together + Object.keys(GAMES).map(g =>
       `<button type="button" class="mg-pick" data-g="${g}" onclick="App.playGame('${g}')">`
@@ -2575,11 +2583,32 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
     const W = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
     const K = { coop: () => `cg_save3_${ck()}`, paid: (g) => `cg_paid_${g}_${who()}`, best: (g) => `mg_best_${g}_${who()}`,
       // 🛠️ 关卡编辑: the levels you made, the ones you deleted (so another phone doesn't bring them back), how you did on your partner's
-      lv: () => `cg_lv_${ck()}`, lvdel: () => `cg_lvdel_${ck()}`, pl: () => `cg_pl_${ck()}` };
+      lv: () => `cg_lv_${ck()}`, lvdel: () => `cg_lvdel_${ck()}`, pl: () => `cg_pl_${ck()}`,
+      // 🏎️ 卡丁车 / 💣 烟花炸弹: the best place and time on each track, the stars and time of each maze, the cups
+      kb: () => `kb_prog_${ck()}` };
     const local = () => ({ v: 1, coop: J(K.coop(), null),
       paid: Object.fromEntries(Object.keys(TOGETHER).map(g => [g, J(K.paid(g), [])])),
       mg: Object.fromEntries(Object.keys(GAMES).map(g => [g, J(K.best(g), null)])),
-      lv: J(K.lv(), []), lvdel: J(K.lvdel(), []), pl: J(K.pl(), {}) });
+      lv: J(K.lv(), []), lvdel: J(K.lvdel(), []), pl: J(K.pl(), {}), kb: J(K.kb(), null) });
+    function mergeKb(a, b) {   // the better of each: a lower place, a shorter time, more stars, a cup won anywhere
+      const src = [a, b].filter((x) => x && typeof x === 'object');
+      if (!src.length) return null;
+      const out = { kart: {}, bomb: {} };
+      for (const s2 of src) {
+        for (const [id, r] of Object.entries(s2.kart && typeof s2.kart === 'object' ? s2.kart : {})) {
+          if (id === 'cup') { out.kart.cup = Math.max(out.kart.cup || 0, Number(r) || 0); continue; }
+          if (!r || typeof r !== 'object') continue;
+          const q = out.kart[id] || {}, place = Math.min(q.place || 9, r.place || 9), time = Math.min(q.time || 1e9, r.time || 1e9);
+          out.kart[id] = {}; if (place < 9) out.kart[id].place = place; if (time < 1e9) out.kart[id].time = time;
+        }
+        for (const [id, r] of Object.entries(s2.bomb && typeof s2.bomb === 'object' ? s2.bomb : {})) {
+          if (!r || typeof r !== 'object') continue;
+          const q = out.bomb[id] || {}, time = Math.min(q.time || 1e9, r.time || 1e9);
+          out.bomb[id] = { stars: Math.max(q.stars || 0, r.stars || 0) }; if (time < 1e9) out.bomb[id].time = time;
+        }
+      }
+      return out;
+    }
     const okMg = (b) => b && typeof b === 'object' && b.lv >= 0;
     const betterMg = (g, a, b) => !okMg(a) ? (okMg(b) ? b : null) : !okMg(b) ? a : a.lv !== b.lv ? (a.lv > b.lv ? a : b) : ((g === 'catch' ? a.n >= b.n : a.n <= b.n) ? a : b);
     function merge(a, b) {
@@ -2629,6 +2658,7 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       // played the mini games or made a level never had any of it saved; found by coop-editor-live-test)
       const out = { v: 1 };
       if (coop) out.coop = coop;
+      const kb = mergeKb(a.kb, b.kb); if (kb) out.kb = kb;
       return Object.assign(out, { paid, mg, lv, lvdel, pl });
     }
     function writeLocal(m) {
@@ -2636,6 +2666,7 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       for (const [g, list] of Object.entries(m.paid)) W(K.paid(g), list);
       for (const [g, b] of Object.entries(m.mg)) if (b) W(K.best(g), b);
       W(K.lv(), m.lv); W(K.lvdel(), m.lvdel); W(K.pl(), m.pl);
+      if (m.kb) W(K.kb(), m.kb);
     }
     // → true when this phone learned something from another one
     async function run() {
@@ -2720,6 +2751,47 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
       await window.CoopGames.open(kind, _coopApi());
       _gameCover();
     } catch (e) { showToast('游戏没打开，网络好像不太好，再试一次'); }
+  }
+  /* ── 🏎️ 卡丁车 and 💣 烟花炸弹 live in kartbomb.html, opened full screen in a frame of the app's own (CLAUDE.md §7.37) ──
+     A frame keeps the game's ~340 KB, its class names and its code entirely apart from the app's (§1.1). It is the same
+     site, so the page reads who holds the phone, your names and the way to pay through window.__kbHost — and may read
+     the phone's motion for 倾斜, which a frame from another site (the Claude app's viewer) is refused. */
+  function openKB(kind) {
+    closeGames();
+    document.querySelector('body > .kb-root')?.remove();
+    window.__kbHost = {
+      me: _me() === 'char2' ? 'yy' : 'cs',
+      names: { cs: charDisplayName('char1'), yy: charDisplayName('char2') },
+      pay: (g, key, detail) => (TOGETHER[g] ? _cgPay(g, key, detail) : Promise.resolve({ pts: 0, why: 'game' })),
+      sync: () => { Prog.sync(); },
+      close: () => closeKB(),
+    };
+    if (!document.getElementById('kb-css')) {
+      const st = document.createElement('style'); st.id = 'kb-css';
+      // the bands round the frame (the home bar, a notch held sideways) are the game page's own background, by day and by night
+      st.textContent = '.kb-root{position:fixed;inset:0;z-index:150;background:#FBF5FA}html[data-theme="dark"] .kb-root{background:#16132A}'
+        + '.kb-root iframe{position:absolute;border:0;display:block;top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px);'
+        + 'width:calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));height:calc(100% - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}';
+      document.head.appendChild(st);
+    }
+    const root = document.createElement('div'); root.className = 'kb-root';
+    const fr = document.createElement('iframe'); fr.title = kind === 'kart' ? '卡丁车' : '烟花炸弹';
+    fr.allow = 'accelerometer; gyroscope; autoplay';
+    fr.src = `kartbomb.html?v=${encodeURIComponent(APP_VERSION)}&game=${kind === 'bomb' ? 'bomb' : 'kart'}`;
+    fr.addEventListener('load', () => { try { fr.contentWindow.focus(); } catch (e) {} });
+    root.appendChild(fr); document.body.appendChild(root);
+    // the games have their own music: the app's song waits rather than playing underneath (the 🎵 setting is untouched)
+    const bg = document.getElementById('bg-audio');
+    _kbSong = !!(bg && !bg.paused); if (_kbSong) bg.pause();
+    _gameCover();
+    Prog.sync();
+  }
+  let _kbSong = false;
+  function closeKB() {
+    document.querySelector('body > .kb-root')?.remove();
+    window.__kbHost = null;
+    if (_kbSong) { _kbSong = false; const bg = document.getElementById('bg-audio'); if (bg) bg.play().catch(() => {}); }   // ✕ / Esc is a tap, so the song may start again
+    _gameCover(); _mgHomeCard(); Prog.sync();
   }
   /* ── 🧩 照片拼图 (picked from the try-out on 2026-11-24, built 2026-11-25; CLAUDE.md §7.32) ──
      Slide the pieces of one of your own photos back into place. 「今日拼图」 is one photo a day, the same
@@ -10207,7 +10279,7 @@ html[data-theme="dark"] .bdf-warn{background:#33240F;color:#F3C27A}
       const st = petStageInfo();
       return { exp: st.exp, lv: st.stage.lv, scale: st.scale, mood: petMood() };
     },
-    openGames, closeGames, playGame, openCoop, openHome, closeHome, _progTest: { sync: async () => { await Prog.idle(); const r = await Prog.sync(); await Prog.idle(); return r; }, merge: (a, b) => Prog.merge(a, b), local: () => Prog.local() }, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _puzzlePhotoTest: (d) => _puzzlePhoto(d), _catchLevelTest: catchLevel,
+    openGames, closeGames, playGame, openCoop, openKB, closeKB, openHome, closeHome, _progTest: { sync: async () => { await Prog.idle(); const r = await Prog.sync(); await Prog.idle(); return r; }, merge: (a, b) => Prog.merge(a, b), local: () => Prog.local() }, _homeApiTest: () => _homeApi(), _themesAtTest: (d) => _themesAt(d), _coopApiTest: () => _coopApi(), _cgPayTest: (g, k, d) => _cgPay(g, k, d), _cgPaidKeysTest: (g) => _cgPaidKeys(g), _mgTest: () => _mg, _gamePointsTest: gamePoints, _gameBestTest: gameBest, _puzzlePhotoTest: (d) => _puzzlePhoto(d), _catchLevelTest: catchLevel,
     showPetHome, closePetHome, pokePet, openPetRename, renamePet,
     openDecor, closeDecor, decorTab, buyDecor, placeDecor, unplaceDecor, layerDecor,
     dismissSeasonCard, openDecorFromSeason,

@@ -1964,6 +1964,83 @@ score card, the four tiles, each 一起 tile opening its place, the shop under
 the bar, ＋ on top from every page, 320–1280 by day and night with nothing
 under the bar or off the side, keyboard, reduced motion, and HTML_V = the meta.
 
+## 7.37 🏎️ 卡丁车 · 💣 烟花炸弹 — a page of their own, in a frame
+
+Shipped 2026-11-27 after a try-out the user played through many rounds (UX, phone
+controls held either way up, laptop fit, a more real world, more maps, two full
+test passes) and then 「yes push」. Both are played on **one phone**: two people face
+to face, or one person against 闷闷 / with the computer as the partner. Two phones
+are not built (the try-out's 「放进 app 以后」 promised it; still owed).
+
+- **They live in `kartbomb.html`, opened in a frame** (`body > .kb-root iframe`,
+  z 150, safe-area insets), not as a script in app.js. It is ~340 KB of canvas game
+  whose class and id names are short and global (`.panel`, `.opt`, `.note`, `#msg`,
+  `#hud`, `.pb`) — inside the app's one stylesheet that is §1.1 waiting to happen
+  forty times. A page of its own keeps every name out, and keeps the page the same
+  file the try-out tested. It loads as `kartbomb.html?v=APP_VERSION`, so a deploy
+  reaches the next open, and it carries all its CSS inline, so there is no
+  stale-HTML split to guard (§7.27).
+- **Same origin is what makes it work.** The frame reads `window.parent.__kbHost`
+  and may use the phone's motion (`allow="accelerometer; gyroscope"`), so **倾斜
+  steering works in the app** where the try-out inside the Claude app could not.
+  `EMBEDDED` means a *cross-origin* frame only (that viewer): there 倾斜 is greyed
+  out and says to play it in the app. Anywhere else a tilt start that gets nothing
+  (a laptop, a refused iPhone prompt) falls back to 按钮 and says this device gave
+  none (`TILT_WHY`) — the first version told an in-app laptop to "play it in the app".
+- **`window.__kbHost`** — `{ me, names, pay(game, key, detail), sync(), close() }`,
+  set by `openKB()` and cleared by `closeKB()`. `me` is `_me()` (§6): the game never
+  asks 「我是 CS/YY」 (`.who` hidden) and drives the holder's kart. `names` are the
+  couple's names from 设置.
+- **Points: `TOGETHER.kart` / `TOGETHER.bomb`, through `_cgPay`** like 一起回家 —
+  key `K:<track>` for the first 1st place in an ordinary race, `C:<cup>` for the
+  first time champion of 樱花杯 / 云朵杯, `B:<maze>` for the first clear of a maze;
+  ≤ +3 a day per game; the result card says +1, 已经拿过 or 拿满 (`.paid`). 影子赛,
+  对战 and wins by the partner's kart pay nothing. The paid keys sync with Prog's
+  `paid` like every TOGETHER game. No server rule, so §7.32's warning stands.
+- **Records follow you; ghosts don't.** The page writes `kb_prog_<cs|yy>` and calls
+  `sync()`; Prog carries it as `kb` (`mergeKb`: the better place, the faster time,
+  more stars, a cup won anywhere). 影子赛 ghosts (`kb_ghost_<track>_<who>`) stay on
+  the phone that raced them: a lap of positions per track, nine tracks, against
+  game-save's 16 KB — syncing them needs a function change first.
+- **Day and night come from the app**, not the OS: the frame mirrors the parent's
+  `data-theme` (a MutationObserver), because 设置's mode can differ from the system's.
+- **One game per open** (`?game=kart|bomb`): the other card is hidden and the card's
+  own title is visually hidden (`.kb-sr`; it still labels the card) so the title is
+  not said twice. ✕ (`.pgx`) and Esc on the menu go back; inside a race or a maze
+  Esc still pauses — the game's own ⏸ and 回到菜单 lead out.
+- `game-cover` (§7.32) lists `.kb-root` in `_gameCover` and in the rule's
+  `:not(…)`, so the app behind holds still while a game is up.
+- The result card's +1 line is a fixed dark green on the game's fixed cream card
+  (§7.3: a theme token on a fixed-colour surface is wrong); `#2F9E6B` was 3.4:1.
+- **The app's song waits while a game is open** (both have their own music): `openKB`
+  pauses `#bg-audio` if it was playing and `closeKB` starts it again; the saved 🎵
+  setting is never touched, and a song that was off stays off.
+- **The computer partner** (someone playing alone gets one) clears a maze with a
+  second computer 65–100% of the time — 游乐园 hardest, 花园 and 星空 every time —
+  and nearly every heart it loses is to a monster, not a firework: it only thinks
+  again when it reaches the square it set off for. Turning back mid-step when a
+  monster closes in was tried: 30 runs looked like a gain, 60 showed none (花园
+  54→55, 雪地 48→49, 糖果屋 46→42, 游乐园 38→39), so it was not shipped. **Measure
+  a change to the computer over ≥ 60 runs per maze**; 30 is inside the noise.
+  The suite's "every maze can be beaten" check was "2 wins of 3", which failed a
+  third of full runs on perfectly beatable mazes; it is "2 wins within 8 tries".
+
+What the try-out rounds found, each worth keeping: a `<p id="keys">` on the page
+collided with the in-game key legend (now `#gkeys`); `strokeText` was 36% of a
+frame until text became cached pictures; result cards spilled off short screens
+until `#msg`'s grid row was `minmax(0, 1fr)`; a benchmark with every kart on AI
+ends at once (`every()` of nothing is true); leaf piles were no brake at all until
+they capped top speed; ramps on bends threw karts off the track.
+
+`tools/kartbomb-test.js` plays the games themselves (geometry, every mechanic, the
+cups, races and mazes end to end, controls held both ways up, nine tracks and seven
+mazes, phone and laptop sizes, frame rate, reduced motion, WebKit);
+`tools/kartbomb-app-test.js` plays them inside the app (opening from 小游戏, who is
+playing, payouts and the cap, YY's side, the records in Prog, ✕ / Esc, day and
+night, the song waiting, 390 / 844×390 / 1280 and 经典, and WebKit);
+`tools/sync-live-test.js` §3b carries the records and a paid track from a phone to an
+iPad on the live backend.
+
 ## 7.27 🔁 The stale-HTML guard must COMPARE, not just check presence
 
 `app.js` is always fetched fresh; `index.html` (which carries every bit of CSS
@@ -2240,7 +2317,7 @@ What made the difference, and what must not come back:
   fireworks-live-test.js, smooth-test.js, instant-test.js, coop-test.js,
   coop-live-test.js, coop-net-test.js, coop-stars-test.js, coop-endless-test.js,
   coop-endless-live-test.js, coop-editor-test.js, coop-editor-live-test.js, coop-story-test.js,
-  coop-story-live-test.js, home-test.js,
+  coop-story-live-test.js, kartbomb-test.js, kartbomb-app-test.js, home-test.js,
   home-live-test.js, sync-live-test.js, nav-test.js — serve the repo
   on :8765 first, or any port with APP_URL=http://localhost:PORT/index.html;
   loader-test.js and speed-test.js serve it themselves)
@@ -2357,12 +2434,14 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it), all 12 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
 | `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
+| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (`ONLY=…` sections, `KB_URL` to point elsewhere): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
+| `node tools/kartbomb-app-test.js` | The two games inside the app (§7.37): opening from 小游戏 full screen, never asking who you are, 倾斜 allowed, +1 for a first win / clear, nothing twice, 拿满 after three, YY's phone paying YY, the records in Prog and their merge, 今天's chip, ✕ and Esc, the app's day and night and the bands round the frame, the app's song pausing and coming back, 390 / 844×390 / 1280 / 经典, WebKit |
 | `node tools/coop-net-test.js` | The same two phones over a simulated phone network: how evenly the partner moves (good / 4G / poor), stacking and the box on 4G, nothing lost when a socket drops (heart, star, flag, hit, win), a locked phone pausing both through a 27 s call, a partner gone for good, simultaneous picks, 下一关/重来 with a lost request, falls, gift blocks, crumbling clouds, stomps, the same login on an iPad, token renewal and refusal, 默契拍拍 verdicts through jitter and a drop, a 90 s soak, two slow phones. `PHONE_B=webkit` for an iPhone partner |
 | `node tools/nav-test.js` | 首页 · 积分 · ＋ · 一起 · 商店 (§7.36, `ONLY=…`, `LOOK=classic`): the bar in order in both looks, every page and pane and the old names landing in them, 今天's rows and each button (and YY's side), 本月 = the score card, the four tiles staying put, every 一起 tile opening its place, the shop under the bar, ＋ on top from every page, 320–1280 by day and night with nothing under the bar or off the side, keyboard, reduced motion, HTML_V = the meta |
 | `node tools/home-test.js` | 我们的家 on demo data and a faked clock (`ONLY=…` sections, `BROWSER=webkit`; §12 is the two of you: 💞 互动's four actions, walking up and facing each other, hand in hand with either leading and letting go on the stairs, walking round the sofa and never through it, the clock keeping time, birds / fireflies / butterflies, reduced motion): the garden rules on their own (five waterings, two a day together, three dry days droop, the saving watering doesn't count, one flower picked once), a week of tapping through it, seeds opening with flowers and festivals, every way to move (a tap anywhere on a floor, the stick, the keys incl. diagonals, walls with doorways, smaller further back, behind and in front of the sofa) incl. stairs and the view following, upgrades and festival pieces from the one wallet, festivals by date (12-24 is both 周年 and 圣诞), a save whose answer is lost, offline actions kept across closing, the 客厅 = the 小窝, the full-screen layout at 360×740 / 390×844 / 430×932 / 844×390 / 820×1180 / 1280×800 both themes (the house under the top buttons, the bottom buttons off the floor), reduced motion, and the screen used only by its buttons: the welcome, every menu closed four ways, a whole week of gardening by the 「下一步」 chip alone, and a laptop playing it all from the keyboard (§11: held walking, blur, stairs, Space, E, H/J/K, 1–4, Esc, ⌘ left alone, the key labels — and none on a phone) |
 | `node tools/home-live-test.js` | 我们的家 on two logged-in phones, live backend: arriving and leaving, tap and hold walking mirrored, wave, 💞 互动 on both phones (a hug in the same place on both, a kiss with the right one blushing, hand in hand following on both, 放手 from either), one garden across phones, both watering at the same instant (both count), both picking one flower (picked once, the loser told who), two seeds for one pot, an upgrade built on both, watering a pot the partner planted a moment ago before their save arrives (§8a — it waits, it is not lost), sitting together, the off-screen tag walking you to your partner, where you left |
 | `node supabase/test-games.mjs` | game-save, attacked: compare-and-set (stale writes, six rounds of simultaneous writes), the flower count that only grows, bad requests, one house save, each person's own progress slot (the partner reads, can't write), another couple, direct Postgres |
-| `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); the garden is the same on both; the second device isn't taken for the partner |
+| `node tools/sync-live-test.js` | One person on a phone and an iPad, live backend: 一起回家 levels/stars/times, paid levels and 接零食 records follow from one device to the other; a level paid on one doesn't pay on the other; separate changes merge (the faster time, every star); 卡丁车 / 烟花炸弹 records meet as the best of both and a paid track doesn't pay again on the other device; the garden is the same on both; the second device isn't taken for the partner |
 | `node tools/settle-test.js` | 月末结算 in a browser: backdated entries, 补记 rounds, the 409 stale path against a mocked server, double tap, midnight, 年度回顾 and pet EXP over multi-round months |
 | ~~Browser tests (scratchpad)~~ | **Gone.** `regression_reported.js`, `icon_sweep.js`, `number_oracle.js`, `artsheet.js`, `art_verify.js`, `responsive_test.js`, `days_test.js`, `bounce_test.js`, `split_weather_test.js` and the pet audit lived in a session scratchpad, which is wiped between sessions — none of them exist any more. The sections below still describe what they checked, which is worth keeping. **Every new test goes in `tools/` and gets committed.** |
 | `servicenow/test-*.sh` | **Historical.** Tests the ServiceNow backend, which nothing uses. Kept only while that instance is the rollback. |

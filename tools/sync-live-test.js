@@ -102,6 +102,23 @@ const J = (p, k) => p.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'nul
   const yyw = await call('/game-save', { method: 'PUT', token: r2.data.accessToken, body: { game: 'play', slot: 'char1', rev: fin.data.rev, data: { v: 1 } } });
   ok(yyw.status === 403, 'but YY can\'t change it');
 
+  console.log('\n3b. 🏎️ 卡丁车 / 💣 烟花炸弹: records and paid tracks follow you too (CLAUDE.md §7.37)');
+  await phone.p.evaluate(() => localStorage.setItem('kb_prog_cs', JSON.stringify({ kart: { sakura: { place: 1, time: 95.2 }, cup: 1 }, bomb: { garden: { stars: 2, time: 120 } } })));
+  await pad.p.evaluate(() => localStorage.setItem('kb_prog_cs', JSON.stringify({ kart: { sakura: { place: 2, time: 90.1 }, beach: { place: 1, time: 101 } }, bomb: { garden: { stars: 3, time: 140 } } })));
+  const kp = await phone.p.evaluate(() => App._cgPayTest('kart', 'K:sakura', '樱花小镇 第一名'));
+  ok(kp.pts === 1, `a first win on 樱花小镇 pays on the phone (${JSON.stringify(kp)})`);
+  await Promise.all([pad.p.evaluate(() => App._progTest.sync()), phone.p.evaluate(() => App._progTest.sync())]); await sleep(400);
+  await Promise.all([pad.p.evaluate(() => App._progTest.sync()), phone.p.evaluate(() => App._progTest.sync())]); await sleep(400);
+  const kbs = await call('/game-save?game=play&slot=char1', { token: T });
+  const kb = kbs.data.data.kb || {};
+  const kbOk = (x) => x && x.kart && x.kart.sakura && x.kart.sakura.place === 1 && x.kart.sakura.time === 90.1 && x.kart.beach && x.kart.beach.place === 1 && x.kart.cup === 1
+    && x.bomb && x.bomb.garden && x.bomb.garden.stars === 3 && x.bomb.garden.time === 120;
+  ok(kbs.status === 200 && kbOk(kb), `the server keeps the best of both: 1st place with the iPad's faster time, the phone's cup, the iPad's 3 stars with the phone's faster clear (${JSON.stringify(kb)})`);
+  ok((kbs.data.data.paid.kart || []).includes('K:sakura') && kbs.data.data.coop.unlocked === 6, `the paid track is saved beside 一起回家's progress, which is untouched (${JSON.stringify(kbs.data.data.paid.kart)})`);
+  ok(kbOk(await J(phone.p, 'kb_prog_cs')) && kbOk(await J(pad.p, 'kb_prog_cs')), 'and both devices now have those records');
+  const kpad = await pad.p.evaluate(() => App._cgPayTest('kart', 'K:sakura', '樱花小镇 第一名'));
+  ok(kpad.pts === 0 && kpad.why === 'again', `樱花小镇 doesn't pay a second time on the iPad (${JSON.stringify(kpad)})`);
+
   console.log('\n4. 我们的家 on both devices');
   await phone.p.evaluate(() => App.openHome()); await phone.p.waitForFunction(() => !!(window.HomeGame && HomeGame.test.state()), null, { timeout: 20000 });
   await sleep(800);

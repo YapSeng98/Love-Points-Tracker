@@ -128,7 +128,7 @@ const cardsDone = (p) => p.waitForFunction(() => App._mgTest() && App._mgTest().
     await p.evaluate(() => App.nav('together')); await sleep(200);
     ok(await p.evaluate(() => document.querySelectorAll('#mg-home').length === 1), '重画以后还是只有一张');
     await p.evaluate(() => document.getElementById('mg-home').click()); await sleep(300);
-    ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,catch,cards,puzzle'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面，照片拼图在最后）');
+    ok(await p.evaluate(() => [...document.querySelectorAll('.mg-pick')].map(b => b.dataset.g).join() === 'coop,beat,kart,bomb,catch,cards,puzzle'), '点它打开选游戏的页面（一起回家、默契拍拍在最前面，然后卡丁车、烟花炸弹，照片拼图在最后）');
     await p.evaluate(() => App.closeGames());
     await p.evaluate(() => App.showPetHome()); await sleep(600);
     const door = await p.evaluate(() => { const b = document.querySelector('.pet-panel .mg-open'); const r = b && b.getBoundingClientRect(); return b && { n: document.querySelectorAll('.pet-panel .mg-open').length, h: r.height, vis: r.bottom <= innerHeight && r.width > 200 }; });
