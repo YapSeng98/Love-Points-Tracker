@@ -70,7 +70,10 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #hud { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; pointer-events: none;
   padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(max(10px, env(safe-area-inset-right, 0px)) + 100px * var(--ui)) 8px calc(max(10px, env(safe-area-inset-left, 0px)) + 50px * var(--ui)); }
-.hc { display: inline-flex; align-items: center; gap: 5px; background: rgba(20, 16, 40, .62); color: #fff; font-weight: 800; font-size: calc(13px * var(--ui)); border-radius: 999px; padding: calc(6px * var(--ui)) calc(11px * var(--ui)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hc { display: inline-flex; align-items: center; gap: 5px; background: rgba(24, 18, 48, .58); color: #fff; font-weight: 800; font-size: calc(13px * var(--ui)); border-radius: 999px; padding: calc(6px * var(--ui)) calc(11px * var(--ui)); font-variant-numeric: tabular-nums; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(10, 6, 30, .18), inset 0 1px 0 rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#hud .hr1 { flex-basis: 100%; display: flex; justify-content: center; min-height: calc(30px * var(--ui)); align-items: center; }
+#hud .hr2 { flex: 0 0 calc(100% + 150px * var(--ui) - 4px); display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 2px calc(-100px * var(--ui) + 2px) 0 calc(-50px * var(--ui) + 2px); }   /* out under the corner buttons: the whole width */
 .hc i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .tb { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 6px); width: calc(42px * var(--ui)); height: calc(42px * var(--ui)); border-radius: 50%; border: 0; background: rgba(20, 16, 40, .62); color: #fff; font-size: calc(17px * var(--ui)); font-weight: 900; cursor: pointer; z-index: 3; display: grid; place-items: center; padding: 0; }
 #xbtn { left: max(8px, env(safe-area-inset-left, 0px)); }
@@ -130,17 +133,25 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .cl .tag, .jz .tag { position: absolute; top: -20px; font-size: 12px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 .jz .tag { top: 6px; }
 .cl.l .tag { left: 2px; } .cl.r .tag { right: 2px; }
-.pb { pointer-events: auto; width: var(--s, 62px); height: var(--s, 62px); border-radius: 50%; border: 2px solid rgba(255, 255, 255, .75); background: rgba(30, 20, 60, .34);
-  color: #fff; font: 900 20px/1 var(--font); display: grid; place-items: center; touch-action: none; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(4px); padding: 0; }
-.pb.on { background: rgba(30, 20, 60, .6); transform: scale(.94); }
+.pb { pointer-events: auto; width: var(--s, 62px); height: var(--s, 62px); border-radius: 50%; border: 2px solid rgba(255, 255, 255, .75); background: radial-gradient(circle at 50% 30%, rgba(80, 66, 130, .42), rgba(30, 20, 60, .38));
+  color: #fff; font: 900 20px/1 var(--font); display: grid; place-items: center; touch-action: none; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(4px); padding: 0;
+  box-shadow: 0 4px 12px rgba(10, 6, 30, .22), inset 0 2px 0 rgba(255, 255, 255, .22); transition: transform .08s; }
+.pb.on { background: rgba(30, 20, 60, .6); transform: scale(.93); }
+/* 💥 is the button you press most: a warm round sweet you can't miss, the firework big on it */
+.pb[data-k="bomb"] { background: radial-gradient(circle at 38% 30%, #FFD9A6 0%, #FF9E6B 34%, #F0548C 100%); border: 3px solid rgba(255, 255, 255, .92); font-size: calc(var(--s, 62px) * .42);
+  box-shadow: 0 6px 16px rgba(200, 50, 100, .35), inset 0 -6px 12px rgba(150, 20, 70, .28), inset 0 3px 0 rgba(255, 255, 255, .45); text-shadow: 0 2px 4px rgba(120, 20, 60, .35); }
+.pb[data-k="bomb"].on { background: radial-gradient(circle at 38% 30%, #FFC88A 0%, #F98A5A 34%, #D9467F 100%); }
+.pb.sk { background: radial-gradient(circle at 40% 30%, rgba(255, 255, 255, .95), rgba(236, 228, 255, .85)); border-width: 3px; box-shadow: 0 4px 12px rgba(10, 6, 30, .2), inset 0 -4px 8px rgba(120, 100, 180, .2); }
 .pb.wide { border-radius: 20px; width: calc(var(--s, 62px) * 1.25); font-size: 14px; }
 .pb.cs { border-color: rgba(127, 178, 236, .95); } .pb.yy { border-color: rgba(255, 143, 179, .95); }
 .col { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 /* the thumb stick: touch anywhere in its zone and it appears under the thumb */
 .jz { position: absolute; pointer-events: auto; touch-action: none; }
-.jb { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; background: rgba(30, 20, 60, .22); border: 2px solid rgba(255, 255, 255, .55); pointer-events: none; transition: opacity .2s; }
-.jz.cs .jb { border-color: rgba(127, 178, 236, .9); } .jz.yy .jb { border-color: rgba(255, 143, 179, .9); }
-.jk { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 3px 10px rgba(0, 0, 0, .25); }
+.jb { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; background: radial-gradient(circle, rgba(30, 20, 60, .1) 0%, rgba(30, 20, 60, .26) 70%, rgba(255, 255, 255, .16) 100%); border: 3px solid rgba(255, 255, 255, .6); pointer-events: none; transition: opacity .2s;
+  box-shadow: 0 4px 14px rgba(10, 6, 30, .18), inset 0 2px 6px rgba(10, 6, 30, .2); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.jz.cs .jb { border-color: rgba(127, 178, 236, .95); } .jz.yy .jb { border-color: rgba(255, 143, 179, .95); }
+.jz.cs .jk { border: 3px solid rgba(127, 178, 236, .95); } .jz.yy .jk { border: 3px solid rgba(255, 143, 179, .95); }
+.jk { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #FFFFFF 0%, #F3EEFF 45%, #D9CFF2 100%); box-shadow: 0 3px 10px rgba(0, 0, 0, .25), inset 0 -3px 6px rgba(110, 90, 170, .25); }
 .jz.idle .jb { opacity: .55; }
 #msg { position: absolute; inset: 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); background: rgba(14, 10, 30, .55); padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 4; }   /* a definite row, so a tall card's max-height: 100% holds and it scrolls inside the screen */
 .panel { box-sizing: border-box; width: min(100%, 380px); max-height: 100%; overflow: auto; background: #FFFDF9; color: #2C2540; border-radius: 24px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); }
@@ -844,13 +855,15 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && gam
 const UI = { play: $('#play'), cv: $('#cv'), hud: $('#hud'), pad: $('#pad'), msg: $('#msg'), keys: $('#gkeys') };
 const ctx = UI.cv.getContext('2d');
 let game = null, raf = 0, last = 0, W = 0, H = 0, DPR = 1, UIS = 1;
+const HELD = new Map();   // pointerId → { el, move(e), end() }: the fingers on the controls (bindPad)
+let padStale = false;     // the screen changed while a finger was down: redraw the controls once it lifts
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1);
   W = UI.play.clientWidth; H = UI.play.clientHeight;
   UIS = clamp(Math.min(W / 440, H / 620), 1, 1.55);   // a laptop or a tablet: the buttons and words grow with the screen
   UI.play.style.setProperty('--ui', UIS.toFixed(3));
   UI.cv.width = Math.round(W * DPR); UI.cv.height = Math.round(H * DPR);
-  if (game) { game.layout(); UI.play.classList.toggle('face', !!game.face); game.buildPad(); bindPad(); }
+  if (game) { game.layout(); UI.play.classList.toggle('face', !!game.face); if (HELD.size) padStale = true; else { game.buildPad(); bindPad(); } }
 }
 // 倾斜手机转弯: which way is down, seen from the screen, gives how far the phone is turned like a steering wheel
 const Tilt = {
@@ -929,74 +942,111 @@ function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch 
 // a thumb on a control must never start the page scrolling, zooming or selecting (iPhones take the touch away when they do)
 UI.pad.addEventListener('touchstart', (e) => { if (e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });
 UI.pad.addEventListener('touchmove', (e) => { if (e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });
+// A finger on a control (2026-11-29, from an iPhone: the stick stuck in one direction and stopped answering). Only a
+// lift ends a hold — pointerup / pointercancel, heard by the control or anywhere on the page — never a dropped capture;
+// a new touch on the same control takes over from one whose lift was never heard; lifting every finger lets go of
+// everything; so does the page going to the background. The controls are not redrawn under a finger (resize waits).
+function grab(e, el, move, end) {
+  for (const [id, h] of [...HELD]) if (h.el === el) { HELD.delete(id); h.end(); }   // its lift was never heard
+  HELD.set(e.pointerId, { el, move, end });
+  try { el.setPointerCapture(e.pointerId); } catch (x) {}
+}
+function letGo(id) {
+  const h = HELD.get(id); if (!h) return;
+  HELD.delete(id); h.end();
+  if (!HELD.size && padStale && game) { padStale = false; game.buildPad(); bindPad(); }
+}
+function letGoAll() { for (const id of [...HELD.keys()]) letGo(id); }
+document.addEventListener('pointermove', (e) => { const h = HELD.get(e.pointerId); if (h && h.move) h.move(e); }, true);
+for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, (e) => letGo(e.pointerId), true);
+for (const ev of ['touchend', 'touchcancel']) document.addEventListener(ev, (e) => { if (!e.touches.length) letGoAll(); }, true);
+addEventListener('blur', letGoAll); addEventListener('pagehide', letGoAll);
+document.addEventListener('visibilitychange', () => { if (document.hidden) letGoAll(); });
+const STICK_MAX = 40, STICK_DEAD = 12, RING = 56;   // the knob's reach, the still middle, the ring you see (px)
 function bindPad() {
   for (const b of UI.pad.querySelectorAll('.pb')) {
-    const set = (on) => { b.classList.toggle('on', on); press(b.dataset.p, b.dataset.k, on); };
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} set(true); });
-    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, () => set(false));
+    const p = b.dataset.p, k = b.dataset.k;
+    const set = (on) => { b.classList.toggle('on', on); press(p, k, on); };
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (IN[p] && IN[p][k]) press(p, k, false);   // held by a finger whose lift was lost: this is a new press all the same
+      grab(e, b, null, () => set(false)); set(true);
+    });
     b.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   for (const z of UI.pad.querySelectorAll('.bz')) {   // ◀ ▶: whichever half the thumb is on, sliding across switches
-    const p = z.dataset.p, flip = z.closest('.flip') ? -1 : 1; let pid = null;
+    const p = z.dataset.p, flip = z.closest('.flip') ? -1 : 1;
     const at = (x) => { const r = z.getBoundingClientRect(), d = (x - (r.left + r.width / 2)) * flip; press(p, 'l', d < 0); press(p, 'r', d >= 0); z.dataset.dir = d < 0 ? 'l' : 'r'; };
-    z.addEventListener('pointerdown', (e) => { if (pid !== null) return; e.preventDefault(); pid = e.pointerId; try { z.setPointerCapture(pid); } catch (x) {} at(e.clientX); coachOff(); });
-    z.addEventListener('pointermove', (e) => { if (e.pointerId === pid) at(e.clientX); });
-    const up = (e) => { if (e.pointerId !== pid) return; pid = null; press(p, 'l', false); press(p, 'r', false); z.dataset.dir = ''; };
-    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up); z.addEventListener('lostpointercapture', up);
+    z.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      grab(e, z, (m) => at(m.clientX), () => { press(p, 'l', false); press(p, 'r', false); z.dataset.dir = ''; });
+      at(e.clientX); coachOff();
+    });
     z.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   for (const z of UI.pad.querySelectorAll('.dz')) {   // 方向键: the arm under the thumb, and a second way to try at a corner
-    const p = z.dataset.p, c = z.querySelector('.dzc'), flip = z.closest('.flip') ? -1 : 1; let pid = null;
+    const p = z.dataset.p, c = z.querySelector('.dzc'), flip = z.closest('.flip') ? -1 : 1;
     const at = (x, y) => {
       const r = c.getBoundingClientRect(), dx = (x - (r.left + r.width / 2)) * flip, dy = (y - (r.top + r.height / 2)) * flip, ax = Math.abs(dx), ay = Math.abs(dy);
       if (Math.max(ax, ay) < r.width * 0.1) { IN[p].joy = null; z.dataset.a = ''; z.dataset.b = ''; return; }
       const h = dx > 0 ? 'r' : 'l', v = dy > 0 ? 'd' : 'u', j = ax >= ay ? [h, ay / ax > 0.5 ? v : null] : [v, ax / ay > 0.5 ? h : null];
       IN[p].joy = j; z.dataset.a = j[0]; z.dataset.b = j[1] || '';
     };
-    z.addEventListener('pointerdown', (e) => { if (pid !== null) return; e.preventDefault(); pid = e.pointerId; try { z.setPointerCapture(pid); } catch (x) {} at(e.clientX, e.clientY); coachOff(); });
-    z.addEventListener('pointermove', (e) => { if (e.pointerId === pid) at(e.clientX, e.clientY); });
-    const up = (e) => { if (e.pointerId !== pid) return; pid = null; IN[p].joy = null; z.dataset.a = ''; z.dataset.b = ''; };
-    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up); z.addEventListener('lostpointercapture', up);
+    z.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      grab(e, z, (m) => at(m.clientX, m.clientY), () => { IN[p].joy = null; z.dataset.a = ''; z.dataset.b = ''; });
+      at(e.clientX, e.clientY); coachOff();
+    });
     z.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   for (const b of UI.pad.querySelectorAll('.tw')) b.addEventListener('click', () => { Tilt.center(); coachOff(); b.querySelector('.twl').textContent = '已回正'; setTimeout(() => { b.querySelector('.twl').textContent = '点我回正'; }, 1200); });
   for (const z of UI.pad.querySelectorAll('.sz')) {   // the steering bar: hold its left or right to turn, the further out the harder (dragging works too)
-    const p = z.dataset.p, bar = z.querySelector('.szb'), knob = z.querySelector('.szk'), flip = z.closest('.flip') ? -1 : 1; let pid = null;
+    const p = z.dataset.p, bar = z.querySelector('.szb'), knob = z.querySelector('.szk'), flip = z.closest('.flip') ? -1 : 1;
     const at = (x) => {
       const r = bar.getBoundingClientRect(), half = r.width / 2, dx = (x - (r.left + half)) * flip, room = half - knob.offsetWidth / 2 - 3;
       IN[p].steer = Math.abs(dx) < half * 0.12 ? 0 : clamp(dx / (half * 0.8), -1, 1);
       knob.style.transform = `translateX(${clamp(dx, -room, room)}px)`; z.dataset.dir = IN[p].steer < 0 ? 'l' : IN[p].steer > 0 ? 'r' : '';
     };
-    z.addEventListener('pointerdown', (e) => { if (pid !== null) return; e.preventDefault(); pid = e.pointerId; try { z.setPointerCapture(pid); } catch (x) {} IN[p].steerOn = true; z.classList.add('on'); at(e.clientX); coachOff(); });
-    z.addEventListener('pointermove', (e) => { if (e.pointerId === pid) at(e.clientX); });
-    const up = (e) => { if (e.pointerId !== pid) return; pid = null; IN[p].steerOn = false; IN[p].steer = 0; knob.style.transform = ''; z.dataset.dir = ''; z.classList.remove('on'); };
-    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up); z.addEventListener('lostpointercapture', up);
+    z.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      grab(e, z, (m) => at(m.clientX), () => { IN[p].steerOn = false; IN[p].steer = 0; knob.style.transform = ''; z.dataset.dir = ''; z.classList.remove('on'); });
+      IN[p].steerOn = true; z.classList.add('on'); at(e.clientX); coachOff();
+    });
   }
+  // 摇杆: touch the ring and it answers at once (the side you touch is the way you go); touch elsewhere in its corner
+  // and it comes to your thumb. Pushed further than it reaches, it follows the thumb, so turning back is always a short
+  // move (it used to measure from where the thumb first came down: after a long push right, up still went right). The
+  // way you are going sticks a little at the diagonals, so a thumb on a 45° line doesn't flicker between two.
   for (const z of UI.pad.querySelectorAll('.jz')) {
     const p = z.dataset.p, base = z.querySelector('.jb'), knob = z.querySelector('.jk');
-    let pid = null, sx = 0, sy = 0;
+    let sx = 0, sy = 0;
     const rest = () => { const r = z.getBoundingClientRect(); base.style.left = r.width / 2 + 'px'; base.style.top = r.height / 2 + 'px'; knob.style.transform = ''; z.classList.add('idle'); };
+    const place = () => { const r = z.getBoundingClientRect(); base.style.left = (sx - r.left) + 'px'; base.style.top = (sy - r.top) + 'px'; };
+    const aim = (x, y) => {
+      let dx = x - sx, dy = y - sy; const len = Math.hypot(dx, dy);
+      if (len > STICK_MAX) { sx = x - dx / len * STICK_MAX; sy = y - dy / len * STICK_MAX; dx = x - sx; dy = y - sy; place(); }
+      knob.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
+      if (Math.hypot(dx, dy) < STICK_DEAD) { IN[p].joy = null; return; }
+      const ax = Math.abs(dx), ay = Math.abs(dy), h = dx > 0 ? 'r' : 'l', v = dy > 0 ? 'd' : 'u', was = IN[p].joy && IN[p].joy[0];
+      let across = ax >= ay;
+      if ((was === 'l' || was === 'r') && ay < ax * 1.25) across = true;
+      else if ((was === 'u' || was === 'd') && ax < ay * 1.25) across = false;
+      IN[p].joy = across ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null];
+    };
     rest();
     z.addEventListener('pointerdown', (e) => {
-      if (pid !== null) return; e.preventDefault(); pid = e.pointerId; try { z.setPointerCapture(pid); } catch (x) {} coachOff();
-      const r = z.getBoundingClientRect(); sx = e.clientX; sy = e.clientY;
-      base.style.left = (e.clientX - r.left) + 'px'; base.style.top = (e.clientY - r.top) + 'px'; z.classList.remove('idle');
+      e.preventDefault(); coachOff();
+      const r = z.getBoundingClientRect(), bx = r.left + (parseFloat(base.style.left) || r.width / 2), by = r.top + (parseFloat(base.style.top) || r.height / 2);
+      if (Math.hypot(e.clientX - bx, e.clientY - by) <= RING) { sx = bx; sy = by; }   // on the ring: it stays, and answers at once
+      else { sx = e.clientX; sy = e.clientY; place(); }   // elsewhere: it comes to the thumb
+      z.classList.remove('idle');
+      grab(e, z, (m) => aim(m.clientX, m.clientY), () => { IN[p].joy = null; rest(); });
+      aim(e.clientX, e.clientY);
     });
-    z.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== pid) return;
-      let dx = e.clientX - sx, dy = e.clientY - sy; const len = Math.hypot(dx, dy), max = 40;
-      if (len > max) { dx = dx / len * max; dy = dy / len * max; }
-      knob.style.transform = `translate(${dx}px,${dy}px)`;
-      if (len < 12) { IN[p].joy = null; return; }
-      const ax = Math.abs(dx), ay = Math.abs(dy), h = dx > 0 ? 'r' : 'l', v = dy > 0 ? 'd' : 'u';
-      IN[p].joy = ax >= ay ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null];
-    });
-    const up = (e) => { if (e.pointerId !== pid) return; pid = null; IN[p].joy = null; rest(); };
-    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up); z.addEventListener('lostpointercapture', up);
   }
 }
 function openGame(kind, opts) {
-  audioOn(); resetIn();
+  audioOn(); padStale = false; letGoAll(); resetIn();
   UI.play.hidden = false; UI.msg.hidden = true; document.documentElement.style.overflow = 'hidden';
   if (game && game.stop) game.stop();
   Music.stop();
@@ -1007,6 +1057,7 @@ function openGame(kind, opts) {
   last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
 }
 function closeGame() {
+  padStale = false; letGoAll();
   if ((game && game.net) || NET.wait) netBye();   // a game together: the partner's phone hears at once
   coachOff(); Music.stop();
   if (game && game.stop) game.stop();
@@ -2645,9 +2696,9 @@ function petSvg(id) {
 const petReady = Promise.all([...PET_IDS.map((id) => loadImg('pet_' + id, petSvg(id))), loadImg('turtle', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><ellipse cx="50" cy="74" rx="34" ry="5" fill="rgba(0,0,0,.15)"/><ellipse cx="82" cy="48" rx="12" ry="10" fill="#9BD97E" stroke="#5FA347" stroke-width="2.4"/><circle cx="86" cy="45" r="2.6" fill="#2E2A44"/><ellipse cx="28" cy="62" rx="8" ry="6" fill="#9BD97E" stroke="#5FA347" stroke-width="2.2"/><ellipse cx="66" cy="64" rx="8" ry="6" fill="#9BD97E" stroke="#5FA347" stroke-width="2.2"/><path d="M14 56C14 30 34 18 50 18C66 18 80 30 78 56Z" fill="#5FB36B" stroke="#3E8A4C" stroke-width="2.6"/><path d="M34 30L44 40L56 40L64 30M44 40L40 54M56 40L60 54" fill="none" stroke="#3E8A4C" stroke-width="2"/><ellipse cx="38" cy="28" rx="7" ry="4" fill="rgba(255,255,255,.4)"/></svg>`)]);
 // every kind of square as a standing picture, drawn once per size; its bottom is the front edge of its square
 const SPR_CACHE = {};
-function bombSprites(PL, cs) {
-  const key = PL.id + cs + 'x' + DPR; if (SPR_CACHE[key]) return SPR_CACHE[key];
-  const SH = Math.ceil(cs * 1.9), rd = cs * RD, bh = cs * BH;
+function bombSprites(PL, cs, rdr = RD) {
+  const key = PL.id + cs + 'x' + DPR + 'r' + rdr.toFixed(3); if (SPR_CACHE[key]) return SPR_CACHE[key];
+  const SH = Math.ceil(cs * 1.9), rd = cs * rdr, bh = cs * BH;
   const mk = (draw) => { const c = document.createElement('canvas'); c.width = Math.ceil(cs * DPR); c.height = Math.ceil(SH * DPR); const g = c.getContext('2d'); g.scale(DPR, DPR); draw(g); return c; };
   const S = { SH };
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; r = clamp(Math.round(r * k), 0, 255); g = clamp(Math.round(g * k), 0, 255); b = clamp(Math.round(b * k), 0, 255); return `rgb(${r},${g},${b})`; };
@@ -2658,7 +2709,8 @@ function bombSprites(PL, cs) {
     g.fillStyle = fg; rr(g, m, yT + rd * 0.5, cs - m * 2, SH - (yT + rd * 0.5), r); g.fill();
     const tg = g.createLinearGradient(0, yT, 0, yF); tg.addColorStop(0, shade(col, 1.12)); tg.addColorStop(1, shade(col, 0.98));
     g.fillStyle = tg; rr(g, m, yT, cs - m * 2, rd - m * 0.5, r); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.35)'; rr(g, m + cs * 0.1, yT + rd * 0.1, cs * 0.34, rd * 0.14, rd * 0.07); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)'; rr(g, cs - m - cs * 0.44, yT + rd * 0.1, cs * 0.34, rd * 0.14, rd * 0.07); g.fill();   // the sun is on the right
+    g.fillStyle = 'rgba(30,20,60,.1)'; rr(g, m, yT + rd * 0.5, cs * 0.14, SH - (yT + rd * 0.5), r * 0.6); g.fill();   // the side away from it
     g.strokeStyle = 'rgba(40,30,60,.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(m + r * 0.5, yF - m * 0.5); g.lineTo(cs - m - r * 0.5, yF - m * 0.5); g.stroke();
     return { yT, yF, m };
   };
@@ -2893,10 +2945,16 @@ function makeBomb(opts) {
 
   G.layout = (w = W, h = H) => {
     const R = preview ? { top: 0, bottom: 0, side: 0 } : reserveBomb(humans.length === 2), aw = w - R.side * 2, ah = h - R.top - R.bottom;
-    const units = BH + GHt * RD + BASE;
-    const cs = Math.max(12, Math.floor(Math.min(aw / GW, ah / units)));
-    G.lay = { cs, rd: cs * RD, bh: cs * BH, x: Math.round(R.side + (aw - cs * GW) / 2), y: Math.round(R.top + (ah - cs * units) / 2) };
-    G.bg = null; G.spr = bombSprites(PL, cs);
+    // upright on a phone the width decides everything, and the lawn below the board went unused (2026-11-29). So there
+    // the hedge round the edge may run a little off the screen (it is only a wall: nobody walks in it, nothing lies in
+    // it) and the rows grow toward square to fill the height — the same board, a sixth bigger and a third taller
+    const up = !preview && w < h, crop = up && COARSE && aw / GW < 40 ? 0.6 : 0;   // (a tablet has room: no need)
+    let rdr = RD, cs = Math.floor(Math.min(aw / (GW - crop * 2), ah / (BH + GHt * rdr + BASE)));
+    if (up) { rdr = clamp((ah / Math.max(12, cs) - BH - BASE) / GHt, RD, 1); cs = Math.floor(Math.min(aw / (GW - crop * 2), ah / (BH + GHt * rdr + BASE))); }
+    cs = Math.max(12, cs);
+    const units = BH + GHt * rdr + BASE;
+    G.lay = { cs, rd: cs * rdr, bh: cs * BH, rdr, x: Math.round(R.side + (aw - cs * GW) / 2), y: Math.round(R.top + (ah - cs * units) / 2) };
+    G.bg = null; G.spr = bombSprites(PL, cs, rdr);
   };
   G.keysHtml = humans.length === 2
     ? '<span>CS：<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 走 · <kbd>空格</kbd> 烟花 · <kbd>E</kbd> 宠物</span><span>YY：方向键 走 · <kbd>Enter</kbd> 烟花 · <kbd>.</kbd> 宠物 · <kbd>P</kbd> 暂停</span>'
@@ -3426,7 +3484,9 @@ function makeBomb(opts) {
       const b = reserveBomb(humans.length === 2).bottom + 6;
       const mine = G.players.filter((p) => p.human).map((p, i) => `<span class="hc pc" style="bottom:${b}px;${humans.length === 2 ? (p.k === 'cs' ? 'left:8px' : 'right:8px') : 'left:8px'}"><i style="background:${CH[p.k].tint}"></i>${humans.length === 2 ? NAME[p.k] + ' ' : ''}${stat(p)}</span>`).join('');
       const ai = G.players.filter((p) => p.ai || p.remote).map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}${p.ai ? '🤖' : ''} ${stat(p)}</span>`).join('');
-      setHud(top + ai + mine);
+      const head = coop ? `<span class="hc">${PL.icon} ${G.door ? '🏠 一起去小屋' : goalLine()} · ${fmt(G.t)}</span>` : `<span class="hc">${PL.icon} 第 ${G.round} 局 · ${fmt(G.t)}</span>`;
+      const more = coop ? `<span class="hc">📷 ${G.photos}/3 · 💞 ${G.combo}</span>` : '';
+      setHud(`<div class="hr1">${head}</div>${ai || more ? `<div class="hr2">${ai}${more}</div>` : ''}${mine}`);
     } else setHud(G.players.map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}${p.ai ? '🤖' : ''} ${stat(p)}</span>`).join('') + top);
   }
   // ── drawing ──
@@ -3537,17 +3597,17 @@ function makeBomb(opts) {
       sh.addColorStop(0, 'rgba(255,255,255,.22)'); sh.addColorStop(0.5, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,40,90,.08)'); g.fillStyle = sh; g.fillRect(x, y, cs + 0.5, rd + 0.5);
     }
     const lg = g.createLinearGradient(0, floorTop, 0, floorBot); lg.addColorStop(0, 'rgba(255,255,255,.12)'); lg.addColorStop(1, 'rgba(0,0,0,.06)'); g.fillStyle = lg; g.fillRect(ox, floorTop, boardW, floorBot - floorTop);
-    // what never moves casts a soft shadow down and to the right: dark where it stands, fading away from it
+    // what never moves casts a soft shadow down and to the left (the sun is up on the right): dark where it stands, fading
     const ownShadow = ['snowman', 'lolly', 'crystal', 'appletree', 'balloon'].includes(PL.post);
     for (let r = 0; r < GHt - 1; r++) for (let c = 0; c < GW; c++) {
       const v = G.grid[r * GW + c], below = G.grid[(r + 1) * GW + c];
       if ((v === 1 || v === 6) && below !== 1 && below !== 5 && !(ownShadow && v === 1 && !(r === 0 || c === 0 || c === GW - 1))) {
-        const x = ox + c * cs + cs * 0.1, y = floorTop + (r + 1) * rd, sg = g.createLinearGradient(0, y, 0, y + rd * 0.5);
+        const x = ox + c * cs - cs * 0.1, y = floorTop + (r + 1) * rd, sg = g.createLinearGradient(0, y, 0, y + rd * 0.5);
         sg.addColorStop(0, 'rgba(20,20,50,.3)'); sg.addColorStop(1, 'rgba(20,20,50,0)'); g.fillStyle = sg; rr(g, x, y, cs * 1.0, rd * 0.5, rd * 0.12); g.fill();
       }
-      if (v === 1 && c < GW - 1 && G.grid[r * GW + c + 1] !== 1 && G.grid[r * GW + c + 1] !== 5) {   // and a little to its right
-        const x = ox + (c + 1) * cs, y = floorTop + r * rd + rd * 0.3, sg = g.createLinearGradient(x, 0, x + cs * 0.28, 0);
-        sg.addColorStop(0, 'rgba(20,20,50,.16)'); sg.addColorStop(1, 'rgba(20,20,50,0)'); g.fillStyle = sg; g.fillRect(x, y, cs * 0.28, rd * 0.7);
+      if (v === 1 && c > 0 && G.grid[r * GW + c - 1] !== 1 && G.grid[r * GW + c - 1] !== 5) {   // and a little to its left
+        const x = ox + c * cs, y = floorTop + r * rd + rd * 0.3, sg = g.createLinearGradient(x, 0, x - cs * 0.28, 0);
+        sg.addColorStop(0, 'rgba(20,20,50,.16)'); sg.addColorStop(1, 'rgba(20,20,50,0)'); g.fillStyle = sg; g.fillRect(x - cs * 0.28, y, cs * 0.28, rd * 0.7);
       }
     }
     G.bg = cv;
@@ -3634,6 +3694,26 @@ function makeBomb(opts) {
       gl.addColorStop(0, f.love ? `rgba(255,150,200,${0.42 * a})` : `rgba(255,190,110,${0.42 * a})`); gl.addColorStop(1, 'rgba(255,160,90,0)'); g.globalAlpha = 1; g.fillStyle = gl; g.fillRect(x - R, y - R, R * 2, R * 2);
     }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    if (!S.cshadow) {   // a box's soft shadow on the floor in front of it, down and to the left (made once per size)
+      const c2 = document.createElement('canvas'), sw = Math.ceil(cs * 1.1), shh = Math.ceil(rd * 0.5); c2.width = Math.ceil(sw * DPR); c2.height = Math.ceil(shh * DPR);
+      const g2 = c2.getContext('2d'); g2.scale(DPR, DPR); const sg2 = g2.createLinearGradient(0, 0, 0, shh); sg2.addColorStop(0, 'rgba(20,20,50,.26)'); sg2.addColorStop(1, 'rgba(20,20,50,0)');
+      g2.fillStyle = sg2; rr(g2, 0, 0, sw, shh, shh * 0.3); g2.fill(); S.cshadow = c2;
+    }
+    for (let r = 0; r < GHt - 1; r++) for (let c = 0; c < GW; c++) {
+      const v = G.grid[r * GW + c]; if (v < 2 || v > 4) continue;
+      const below = G.grid[(r + 1) * GW + c]; if (below === 1 || below === 6 || below === 5) continue;
+      g.drawImage(S.cshadow, GX(c) - cs * 0.1, GY(r + 1), cs * 1.1, rd * 0.5);
+    }
+    if (!REDUCE && G.hasWater !== false) {   // the pond: little glints drifting across it
+      let any = false;
+      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = Math.max(1, cs * 0.035); g.lineCap = 'round'; g.beginPath();
+      for (let r = 0; r < GHt; r++) for (let c = 0; c < GW; c++) if (G.grid[r * GW + c] === 5) {
+        any = true; const x = GX(c), y = GY(r), ph = (G.t * 0.35 + (c * 0.37 + r * 0.61)) % 1;
+        const gx = x + cs * (0.1 + ph * 0.7), gy = y + rd * (0.32 + 0.3 * ((c + r) % 2));
+        g.moveTo(gx, gy); g.quadraticCurveTo(gx + cs * 0.08, gy - rd * 0.06, gx + cs * 0.16, gy);
+      }
+      g.stroke(); if (!any) G.hasWater = false;
+    }
     const list = [];   // everything that stands up, back to front
     if (!REDUCE) for (const [k, f] of G.flames) { const [c, r] = k.split(',').map(Number); list.push({ y: r + 0.52, fire: f, c, r }); }
     for (let r = 0; r < GHt; r++) for (let c = 0; c < GW; c++) {

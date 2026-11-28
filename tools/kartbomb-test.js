@@ -1,6 +1,6 @@
 // 🏎️ 卡丁车 and 💣 烟花炸弹 (kartbomb.html, CLAUDE.md §7.37): the game page on its own, the full suite.
 // The app around it (opening from 小游戏, the points, the records): tools/kartbomb-app-test.js.
-//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb exit ui layout perf motion webkit)
+//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb exit touch ui layout perf motion webkit)
 const { chromium, webkit } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const fs = require('fs'), path = require('path');
 const URL = process.env.KB_URL || 'file://' + path.join(__dirname, '..', 'kartbomb.html');
@@ -650,7 +650,8 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
       if (touch) await press('[data-k="bomb"]', 60); else await p.keyboard.press('Space');
       await sleep(60); if (!(await p.evaluate(() => __kb.game.bombs.some((b) => b.own.human)))) probs.push('bomb: no firework placed');
       if (await fits('#pad .pb, #pad .dzb, #pad .jz, .tb, .hc')) probs.push('bomb: something off the screen');
-      const L = await p.evaluate(() => { const G = __kb.game, L2 = G.lay; return { b: L2.y + L2.bh + 11 * L2.rd + L2.cs * 0.75, r: L2.x + 13 * L2.cs, l: L2.x, t: L2.y }; });
+      // every square you can walk on (upright on a phone the hedge round the edge may run off the screen: it is only a wall)
+      const L = await p.evaluate(() => { const G = __kb.game, L2 = G.lay; return { b: L2.y + L2.bh + 11 * L2.rd + L2.cs * 0.75, r: L2.x + 12 * L2.cs, l: L2.x + L2.cs, t: L2.y }; });
       if (L.l < 0 || L.r > w || L.b > h || L.t < 0) probs.push('bomb: the maze does not fit');
       const f3 = await fps(); if (f3 < 45) probs.push(`bomb ${f3.toFixed(0)} fps`);
       await p.evaluate(() => __kb.close());
@@ -1003,6 +1004,100 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     await q.context().close();
   }
 
+  if (want('touch')) {
+    // 2026-11-29, from an iPhone: the stick stuck in one direction and stopped answering. Real fingers (Chrome's touch
+    // protocol: several at once, each lifted on its own) on the maze's stick, 💥 and 方向键, in every way a phone
+    // can lose a lift: the screen changing size under a thumb, a touch iOS takes away, a lift never heard, the page
+    // going to the background. And the board on an upright phone: bigger, and still all on the screen.
+    console.log('\nT. Fingers on the controls (stick, 💥, 方向键), and the board on an upright phone');
+    const p = await page(browser, { viewport: { width: 390, height: 760 } });
+    const cdp = await p.context().newCDPSession(p);
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id]) => ({ x, y, id, radiusX: 8, radiusY: 8, force: 1 })) });
+    const start = async (walk = 'stick') => {
+      await p.evaluate((walk) => { __kb.BSET.walk = walk; __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'garden', two: false }); }, walk);
+      await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.click('#msg [data-m="go"]'); await sleep(300);
+      await p.evaluate(() => { const G = __kb.game; G.state = 'play'; G.paused = false; document.getElementById('msg').hidden = true; G.enemies.length = 0; for (const q of G.players) q.inv = 99; });
+    };
+    const st = () => p.evaluate(() => { const G = __kb.game, me = G.players.find((q) => !q.ai), s = __kb.IN[me.k], kn = document.querySelector('.jz .jk'); return { joy: s.joy && s.joy.join(''), bomb: s.bomb, bombs: G.bombs.length, knob: kn ? kn.style.transform : null, x: me.x, y: me.y }; });
+    await start();
+    const Z = await p.evaluate(() => { const z = document.querySelector('.jz'), r = z.getBoundingClientRect(), b = z.querySelector('.jb').getBoundingClientRect(), bt = document.querySelector('.pb[data-k="bomb"]').getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2, zx: r.left + 12, zy: r.top + r.height / 2, bx: bt.left + bt.width / 2, by: bt.top + bt.height / 2 }; });
+    const { cx, cy } = Z;
+    // one finger
+    await touch('touchStart', [[cx, cy, 1]]); await touch('touchMove', [[cx, cy - 30, 1]]); await sleep(60);
+    let a = await st(); await touch('touchEnd', [[cx, cy - 30, 1]]); await sleep(60); let b = await st();
+    ok(a.joy === 'u' && a.knob && b.joy === null && !b.knob, `one finger: up goes up (${a.joy}), lifting stops and the knob goes home`);
+    // on the ring: it answers at once, the side you touch is the way you go
+    await touch('touchStart', [[cx + 32, cy, 2]]); await sleep(40); a = await st(); await touch('touchEnd', [[cx + 32, cy, 2]]); await sleep(40);
+    ok(a.joy === 'r', `a thumb landing on the ring's right side goes right at once (${a.joy}) — no drag first`);
+    // elsewhere in its corner: it comes to the thumb, and nothing happens until the thumb moves
+    await touch('touchStart', [[Z.zx, Z.zy, 3]]); await sleep(40); a = await st(); await touch('touchMove', [[Z.zx, Z.zy + 30, 3]]); await sleep(40); b = await st(); await touch('touchEnd', [[Z.zx, Z.zy + 30, 3]]); await sleep(40);
+    ok(a.joy === null && b.joy === 'd', `landing away from the ring it comes to the thumb (${a.joy}), then follows it (${b.joy})`);
+    // a long push right, then up: up (it follows the thumb past its reach, so turning is always a short move)
+    await touch('touchStart', [[cx, cy, 4]]); for (let k = 1; k <= 6; k++) await touch('touchMove', [[cx + k * 20, cy, 4]]);
+    a = await st(); for (let k = 1; k <= 5; k++) await touch('touchMove', [[cx + 120, cy - k * 12, 4]]); b = await st();
+    ok(a.joy === 'r' && b.joy && b.joy[0] === 'u', `pushed 120 px right (${a.joy}), then the thumb goes up 60: up (${b.joy}) — it used to keep going right`);
+    // at the diagonal the way you are going holds (no flicker between two)
+    for (let k = 1; k <= 3; k++) await touch('touchMove', [[cx + 120 + k * 4, cy - 60, 4]]);
+    const holds = []; for (const [dx, dy] of [[30, -28], [28, -30], [30, -27], [27, -30]]) { await touch('touchMove', [[cx + 160 + dx, cy - 60 + dy, 4]]); holds.push((await st()).joy[0]); }
+    await touch('touchEnd', [[cx + 160, cy - 60, 4]]); await sleep(40);
+    ok(holds.every((d) => d === holds[0]), `a thumb wobbling on the diagonal keeps one way (${holds.join(' ')})`);
+    // the other thumb taps 💥 while walking: still walking, and the firework is down
+    await p.evaluate(() => { __kb.game.bombs.length = 0; });
+    await touch('touchStart', [[cx, cy, 5]]); await touch('touchMove', [[cx + 30, cy, 5]]);
+    await touch('touchStart', [[cx + 30, cy, 5], [Z.bx, Z.by, 6]]); await sleep(50); await touch('touchEnd', [[Z.bx, Z.by, 6]]); await sleep(80);
+    a = await st();
+    ok(a.joy === 'r' && a.bombs === 1, `walking right, the other thumb taps 💥: still walking (${a.joy}) and the firework is down (${a.bombs})`);
+    await touch('touchStart', [[cx + 30, cy, 5], [Z.bx, Z.by, 7]]); await sleep(40); await touch('touchEnd', [[cx + 30, cy, 5]]); await sleep(50); a = await st();
+    await touch('touchEnd', [[Z.bx, Z.by, 7]]); await sleep(50); b = await st();
+    ok(a.joy === null && a.bomb === 1 && b.bomb === 0, 'the stick\'s thumb lifts while 💥 is held: walking stops, 💥 stays held until its own lift');
+    // the screen changes size under the thumb (Safari's bar, a call banner, turning the phone)
+    const el0 = await p.evaluate(() => { window.__z0 = document.querySelector('.jz'); return true; });
+    await touch('touchStart', [[cx, cy, 8]]); await touch('touchMove', [[cx + 30, cy, 8]]); await sleep(40);
+    await p.evaluate(() => window.dispatchEvent(new Event('resize'))); await sleep(60);
+    a = await st(); const same = await p.evaluate(() => document.querySelector('.jz') === window.__z0);
+    await touch('touchEnd', [[cx + 30, cy, 8]]); await sleep(120); b = await st();
+    const redrawn = await p.evaluate(() => document.querySelector('.jz') !== window.__z0);
+    ok(el0 && a.joy === 'r' && same, 'the screen changes size mid-touch: still walking, and the controls are not redrawn under the thumb');
+    ok(b.joy === null && redrawn, 'the thumb lifts: walking stops (it used to walk on for ever), and then the controls are redrawn for the new size');
+    // iOS takes the touch away
+    await touch('touchStart', [[cx, cy, 9]]); await touch('touchMove', [[cx, cy + 30, 9]]); await touch('touchCancel', []); await sleep(60); a = await st();
+    ok(a.joy === null && !a.knob, 'iOS takes the touch away (touchcancel): released');
+    // a lift that was never heard (the phone ate it): the stick is not dead, the next touch takes over
+    await p.evaluate(() => { const z = document.querySelector('.jz'), r = z.querySelector('.jb').getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+      z.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 77, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' })); document.dispatchEvent(new PointerEvent('pointermove', { pointerId: 77, clientX: x + 30, clientY: y, bubbles: true, pointerType: 'touch' })); });
+    a = await st();
+    await touch('touchStart', [[cx, cy, 10]]); await touch('touchMove', [[cx, cy - 30, 10]]); await sleep(40); b = await st();
+    await touch('touchEnd', [[cx, cy - 30, 10]]); await sleep(60); const c2 = await st();
+    ok(a.joy === 'r' && b.joy === 'u' && c2.joy === null && !c2.knob, `a lift the phone never sent (stuck going ${a.joy}): the next touch takes over (${b.joy}), and lifting it stops everything`);
+    // 💥 whose lift was lost: the next tap still sets a firework down
+    await p.evaluate(() => { const G = __kb.game; G.bombs.length = 0; document.querySelector('.pb[data-k="bomb"]').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 88, bubbles: true, pointerType: 'touch' })); });
+    await p.waitForFunction(() => __kb.game.bombs.length === 1, null, { timeout: 3000 }).catch(() => {});
+    await p.waitForFunction(() => __kb.game.bombs.length === 0, null, { timeout: 8000 }).catch(() => {});
+    await touch('touchStart', [[Z.bx, Z.by, 11]]); await sleep(60); await touch('touchEnd', [[Z.bx, Z.by, 11]]); await sleep(80); a = await st();
+    ok(a.bombs === 1, `💥 held by a finger whose lift was lost: the next tap still sets one down (${a.bombs})`);
+    // the page goes to the background mid-touch
+    await touch('touchStart', [[cx, cy, 12]]); await touch('touchMove', [[cx - 30, cy, 12]]); await sleep(40);
+    await p.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); delete document.hidden; });
+    a = await st(); await touch('touchEnd', [[cx - 30, cy, 12]]); await sleep(40);
+    ok(a.joy === null, 'the page goes to the background mid-touch: released at once');
+    // 方向键 has the same: a lift never heard gives way to the next touch
+    await start('dpad');
+    const D = await p.evaluate(() => { const c = document.querySelector('.dz .dzc').getBoundingClientRect(); return { x: c.left + c.width / 2, y: c.top + c.height / 2, w: c.width }; });
+    await p.evaluate(() => { const z = document.querySelector('.dz'), c = z.querySelector('.dzc').getBoundingClientRect(); z.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 66, clientX: c.left + c.width * 0.85, clientY: c.top + c.height / 2, bubbles: true, pointerType: 'touch' })); });
+    a = await st(); await touch('touchStart', [[D.x, D.y - D.w * 0.35, 13]]); await sleep(40); b = await st(); await touch('touchEnd', [[D.x, D.y - D.w * 0.35, 13]]); await sleep(40); const d2 = await st();
+    ok(a.joy && a.joy[0] === 'r' && b.joy && b.joy[0] === 'u' && d2.joy === null, `方向键: stuck on ▶ by a lost lift, the next touch on ▲ takes over (${b.joy}) and lifting stops`);
+    // the board on an upright phone: bigger than the width alone allowed, rows toward square, the whole maze on screen,
+    // clear of the HUD's two rows and of the controls
+    await start('stick');
+    const L = await p.evaluate(() => { const G = __kb.game, l = G.lay, hud = [...document.querySelectorAll('#hud .hr1 .hc, #hud .hr2 .hc')].map((e) => e.getBoundingClientRect().bottom), pad = Math.min(...[...document.querySelectorAll('#pad .jz, #pad .cl')].map((e) => e.getBoundingClientRect().top));
+      return { cs: l.cs, rdr: l.rdr, x1: l.x + l.cs, x12: l.x + l.cs * 12, w: innerWidth, top: l.y, hudBot: Math.max(...hud), bot: l.y + l.bh + 11 * l.rd + l.cs * 0.75, pad, rows: document.querySelectorAll('#hud .hr1, #hud .hr2').length }; });
+    ok(L.cs >= Math.floor(390 / 13) * 1.1 && L.rdr > 0.8 && L.rdr <= 1, `upright: squares ${L.cs} px (the width alone allowed ${Math.floor(390 / 13)}), rows ${L.rdr.toFixed(2)} of a square deep`);
+    ok(L.x1 >= 0 && L.x12 <= L.w, `every square you can walk on is on the screen (columns 1–11 from ${L.x1.toFixed(0)} to ${L.x12.toFixed(0)} px of ${L.w}); only the hedge runs off`);
+    ok(L.rows === 2 && L.top >= L.hudBot - 2 && L.bot <= L.pad + 2, `the HUD is two rows, and the board sits between it (${L.hudBot.toFixed(0)}) and the controls (${L.pad.toFixed(0)}): ${L.top.toFixed(0)}–${L.bot.toFixed(0)}`);
+    await p.screenshot({ path: SHOTS + '/t_touch_board.png' });
+    ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
+    await p.context().close();
+  }
   if (want('ui')) {
     console.log('\nG1. The page at every width, light and dark');
     for (const w of [360, 390, 430, 820, 1280]) for (const scheme of ['light', 'dark']) {
@@ -1036,10 +1131,10 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
           const offscreen = ctl.filter((b) => b.left < -1 || b.top < -1 || b.right > vw + 1 || b.bottom > vh + 1).length;
           const small = [...document.querySelectorAll('#pad .pb, #pad .bzb, #pad .dzb, .tb')].filter((e) => e.getBoundingClientRect().height < 42).length;
           let board = null, under = 0;
-          if (G.kind === 'bomb') { const L = G.lay, top = L.y, bot = L.y + L.bh + 11 * L.rd, left = L.x, right = L.x + 13 * L.cs; board = { top, bot, left, right }; under = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
+          if (G.kind === 'bomb') { const L = G.lay, top = L.y, bot = L.y + L.bh + 11 * L.rd, left = L.x + L.cs, right = L.x + 12 * L.cs; board = { top, bot, left, right };   /* the squares you can walk on */ under = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
           return { offscreen, small, board, under, inside: !board || (board.top >= 0 && board.left >= 0 && board.right <= vw && board.bot <= vh), n: ctl.length };
         });
-        ok(!r.offscreen && !r.small && r.inside && !r.under, `${w}×${h} ${kind} ${o.mode}${o.two ? '·2' : ''}: ${r.n} controls all on screen and ≥ 42px${r.board ? `, the maze fully visible and no button over it (${r.under})` : ''}`);
+        ok(!r.offscreen && !r.small && r.inside && !r.under, `${w}×${h} ${kind} ${o.mode}${o.two ? '·2' : ''}: ${r.n} controls all on screen and ≥ 42px${r.board ? `, every square of the maze you can walk on visible and no button over it (${r.under})` : ''}`);
         if ((w === 390 || w === 844) && !(kind === 'kart' && o.mode === '1p' && w === 844)) await p.screenshot({ path: `${SHOTS}/t_layout_${w}_${kind}_${o.mode}${o.two ? 2 : ''}.png` });
       }
       ok(!p.errs.length, `${w}×${h}: no page errors ` + p.errs.join(' | '));
@@ -1093,6 +1188,23 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
           await new Promise((r) => setTimeout(r, 2500)); return { kart, bomb: G.t > 1, bombs: G.bombs.length + G.flames.size };
         });
         ok(r.kart && r.bomb, `both games run in WebKit (${JSON.stringify(r)})`);
+        // the stick's fingers in WebKit: pointer events as a phone sends them (no multi-touch in WebKit's test driver)
+        await p.evaluate(async () => { __kb.close(); __kb.BSET.walk = 'stick'; __kb.open('bomb', { mode: 'coop', place: 'garden', two: false }); await new Promise((r) => setTimeout(r, 300)); document.querySelector('#msg [data-m="go"]').click(); });
+        await sleep(300);
+        const s2 = await p.evaluate(async () => {
+          const G = __kb.game; G.state = 'play'; G.paused = false; document.getElementById('msg').hidden = true; G.enemies.length = 0;
+          const z = document.querySelector('.jz'), jb = z.querySelector('.jb').getBoundingClientRect(), cx = jb.left + jb.width / 2, cy = jb.top + jb.height / 2, me = G.players.find((q) => !q.ai);
+          const ev = (t, type, id, x, y) => t.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: id === 1 }));
+          const joy = () => (__kb.IN[me.k].joy || []).join('') || null, out = {};
+          ev(z, 'pointerdown', 1, cx + 30, cy); out.ring = joy(); ev(z, 'pointermove', 1, cx + 30, cy - 50); out.follow = joy(); ev(document, 'pointerup', 1, cx + 30, cy - 50); out.lift = joy();
+          ev(z, 'pointerdown', 2, cx, cy); ev(z, 'pointermove', 2, cx - 30, cy); out.stale = joy();
+          ev(z, 'pointerdown', 3, cx, cy); ev(z, 'pointermove', 3, cx, cy + 30); out.take = joy(); ev(z, 'pointercancel', 3, cx, cy + 30); out.cancel = joy();
+          ev(z, 'pointerdown', 4, cx, cy); ev(z, 'pointermove', 4, cx, cy - 30); out.held = joy();
+          const te = new Event('touchend', { bubbles: true, cancelable: true }); Object.defineProperty(te, 'touches', { value: [] }); z.dispatchEvent(te); out.all = joy();
+          return out;
+        });
+        ok(s2.ring === 'r' && s2.follow === 'ur' && s2.lift === null && s2.stale === 'l' && s2.take === 'd' && s2.cancel === null && s2.held === 'u' && s2.all === null,
+          `the stick in WebKit: the ring answers at once, it follows the thumb, a lift heard anywhere lets go, a stuck finger gives way to the next, a cancel or every finger up lets go (${JSON.stringify(s2)})`);
         await p.screenshot({ path: SHOTS + '/t_webkit.png' });
         ok(!p.errs.length, 'no page errors in WebKit ' + p.errs.join(' | '));
         await wk.close();

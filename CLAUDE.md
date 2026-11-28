@@ -2114,6 +2114,42 @@ when asked 「can both user play at the same time?」 → 「need to split it tw
   The suite's "every maze can be beaten" check was "2 wins of 3", which failed a
   third of full runs on perfectly beatable mazes; it is "2 wins within 8 tries".
 
+### 👆 Fingers on the controls, and the maze on an upright phone (2026-11-29)
+
+Reported from an iPhone with a screenshot — the 摇杆's knob stuck up-left, CS pressed into the corner, a minute in:
+「Got bug the button movement issue, help me deep checking and fix it」, and 「can improve the graphics design?」.
+Reproduced with real fingers (Chrome's touch protocol: several at once, each lifted on its own), old file against new:
+
+| | before | after |
+|---|---|---|
+| a lift the page never hears (a system gesture, a banner, the screenshot itself) | the stick kept going its last way and **ignored every new touch** (`if (pid !== null) return`) | the next touch on it takes over |
+| the screen changes size under a thumb (Safari's bar, a call banner, turning the phone) | `resize` redrew the pad, the old stick's lift went nowhere, **you walked on for ever** | nothing is redrawn while a finger is down (`padStale`); after the lift it is |
+| a long push right, then the thumb up | still right: the stick measured from where the thumb first came down | it follows the thumb past its reach, so turning is a short move |
+| 💥 whose lift was lost | the next tap placed nothing (`s.bomb` was still 1) | a press is a press |
+
+- **Only a lift ends a hold** (`HELD`, `grab`, `letGo`): pointerup / pointercancel, heard by the control or at the
+  document (capture phase); never `lostpointercapture`. Lifting every finger (`touchend` with no `touches` left) lets
+  go of everything, and so does the page going to the background (`visibilitychange`, `blur`, `pagehide`). Every
+  control — stick, 方向键, ◀ ▶, the steering bar, the round buttons — goes through it.
+- **The stick**: a thumb on the ring answers at once (the side you touch is the way you go); elsewhere in its corner
+  the ring comes to the thumb; past its reach (`STICK_MAX` 40 px) it follows; at a diagonal the way you are going holds
+  until the other axis is 1.25× bigger, so a wobbling thumb doesn't flicker between two.
+- **The maze upright on a phone** was width-bound: 13 squares across, rows at 0.8, and the lower third of the screen
+  lawn. Now the rows grow toward square (`lay.rdr`, ≤ 1, `bombSprites(PL, cs, rdr)`) and, when the squares would be
+  under 40 px, the hedge round the edge may run 0.6 of a column off each side — it is only a wall. 390×760: squares
+  30 → 33 px, the board 301 → 404 px tall. Every square you can walk on stays on the screen (kartbomb-test `devices`
+  and `layout` measure columns 1–11, not the hedge).
+- **The HUD upright is two rows**: what to do and the time between the corner buttons; your partner, 📷 and 💞 under
+  them across the whole width (`.hr1`, `.hr2` — a flex item doesn't grow from negative margins: `flex-basis` does it).
+- **The look**: 💥 is a warm round sweet you can't miss, the pet a white glass button, the stick a lit ring with a ball
+  in your colour; the light comes from the sun on the right (highlights on the right of the tops, shadows down and to
+  the left); boxes cast a shadow too (drawn each frame — they burn — from one cached picture, `S.cshadow`); glints
+  drift across the water.
+
+`tools/kartbomb-test.js` `touch` replays every row of the table and more (the ring answering at once, the ring coming
+to the thumb, the diagonal holding, 💥 tapped while walking, the page hidden mid-touch, 方向键 taking over, the board
+upright: bigger, all on screen, between the HUD and the controls).
+
 ### 🤝 各用自己的手机 — the two games on two phones (2026-11-28)
 
 The couple's private channel (§7.235) under event `kb`, kept up only while the game page is
@@ -2613,7 +2649,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it; §9: the stove and its ice, the flag keeping it, the mirrors and the booth, syrup — alone and together), all 24 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
 | `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; the stove carried and the ice melted on both; the booth's photo opening the gate on both; stuck in syrup on both and one press popping you both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
-| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
+| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card; `touch`: fingers on the controls — lost lifts, a resize mid-touch, touchcancel, two thumbs, the stick following, the board upright): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
 | `node tools/kartbomb-app-test.js` | The two games inside the app (§7.37): opening from 小游戏 full screen, never asking who you are, 倾斜 allowed, +1 for a first win / clear, nothing twice, 拿满 after three, YY's phone paying YY, the records in Prog and their merge, 今天's chip, ✕ and Esc, the app's day and night and the bands round the frame, the app's song pausing and coming back, 390 / 844×390 / 1280 / 经典, WebKit |
 | `node tools/kartbomb-net-test.js` | 🤝 卡丁车 / 烟花炸弹 on two pages of `tools/kb-harness.html` (`ONLY=kart,bomb,junk,net`, `BROWSER=webkit`): finding each other, being asked and saying no or 出发, the same track / boxes / pets on both, each drawn where they really are (timestamped, `drawGap`), a 布丁 and a 小雨云 crossing, the same finish and end card with each paid on their own phone, 再来一次 from the partner, pause, leaving; the maze: walking, monsters, a firework set down on the partner's phone going off on both, a monster's touch, a 📷, falling and being picked up, the little house, 下一关, 对战's next round; junk, our own login elsewhere, an old version; a lost 出发, a 4G line, a dropped line, ≤ 10 messages a second |
 | `node tools/kartbomb-live-test.js` | The same through app.js on two logged-in phones, live backend: the channel only while the page is open, finding each other by name, a race with the winner alone paid into 本月记录, a maze with both paid, leaving |

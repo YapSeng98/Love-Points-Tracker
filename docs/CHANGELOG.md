@@ -12,6 +12,23 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-29 — 烟花炸弹: the stick never sticks, and a bigger, prettier maze
+
+The 摇杆 could freeze: if the phone swallowed the moment you lifted your thumb (a
+system gesture, a notification, even taking a screenshot), it kept walking the last way
+and ignored every new touch. The same could happen if the screen changed size while your
+thumb was down. Now a new touch always takes over, lifting every finger always stops,
+the page going to the background lets go, and the controls are never rebuilt under your
+thumb. Turning is quicker too: the stick follows your thumb, so after a long push one way
+a small move the other way turns you (it used to keep going until you came all the way
+back), and touching the ring answers at once. 💥 can no longer get stuck either.
+
+Upright on a phone the maze is bigger — the squares a sixth larger and the board a third
+taller, filling the lawn that used to sit empty below it (the hedge round the edge may run
+off the screen a little; every square you can walk on is on it). The top shows two tidy
+rows instead of three, 💥 is a big warm button, the stick and the pet button are lit, the
+light comes from the sun on the right, boxes cast shadows, and the pond glints.
+
 ## 2026-11-28 (late night) — 一起回家 story: chapters 4–6, twelve new levels
 
 The story 「找回我们的相册」 goes on: three new chapters, four levels each, each with
