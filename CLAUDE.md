@@ -1247,6 +1247,39 @@ the two ends (`seq: ['start', 'u~<hash>', 'goal']`, `stars: [1]`, built as level
 - Found building it: **the progress sync sent `coop: null`** for anyone who had never cleared a 一起回家 level, the
   server's shape check refused the whole write, and their mini-game records had never been saved either.
 
+### The 3D look (2026-11-28)
+
+Asked for: 「一起回家 improve the game quality and make it more 3D and real」. Lit from the upper RIGHT —
+where every world's sun is (the first pass lit from the left, against the sun on screen).
+
+- **Solid tiles are blocks seen a little from above.** A tile picture is `TOPF` (0.24) of a tile taller
+  than its cell and reaches up into the cell above: a lit top face you stand IN (feet in the middle of it,
+  not on its back edge), a lip, a front face that darkens with how deep the cliff goes (mask bits 5–6:
+  solid tiles above, 0–3), strata, grain, stones with their own light and shadow, bevelled sides (lit
+  right, shaded left), a soft shadow under the lip; world by world on the top: flowers, sand ripples and
+  shells, fallen leaves, snow with icicles, frosting that drips, sprinkles, cooled lava with hot seams.
+  Planks have a top, a grained front, nails and a shadow; blocks and gift boxes are bevelled cubes.
+- **Two passes:** the solid tiles (`PASS1`) first, then what sits on them (buttons, spikes, gates,
+  plates…), so a top face never covers a button. A top face is drawn only where nothing solid is on it.
+- **The background:** the tree row and the clouds are pictures drawn once per world (`sceneSprite`,
+  capped): crowns of leaf clumps under one light, pines with snow on every tier, palms, saguaros,
+  lollipops, lit houses at night; clouds lit on top, the sky's shade below. The hills have a sunlit ridge
+  and a nearer, darker row in front. The corals (they sway) and the volcano's spires (their seams glow)
+  stay drawn live.
+- **Shadows:** `castShadow` puts a soft shadow straight down on whatever is solid under a character, the
+  pet, a monster, an item — smaller and fainter the higher it is — so a jump reads in depth.
+- **The two of you:** light from above and soft shade below are baked into the cached body pictures,
+  symmetric, so facing left is lit the same.
+- **Cost:** everything new is a cached picture or the same paths as before; the smoothness suite's
+  一起回家 scenes run 62–63 fps at 4× CPU, and opening 一起回家 has the same worst frame as before (67 ms
+  median of five, old and new).
+
+Found on the way: **a function declaration with a name already used elsewhere replaces the other one
+silently** — the colour helper was called `tone`, which is also the sound effects' oscillator, so the
+sound effects were handed colour strings (non-finite `setValueAtTime`), only when a level drew. It is
+`tint3`. And `-1 % 3` is `-1`: the tree row's index runs negative left of the start, which asked the
+palette for a colour that is not there.
+
 ### 📖 故事模式 · 🗺️ 自由选关 · ♾️ 一直走下去 2.0 — update 1 of 3 (2026-11-27)
 
 Asked for: 「make more level and more creative level … more longer with story mode … one module is story mode with long

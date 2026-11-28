@@ -12,6 +12,16 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-28 (night) — 一起回家 looks 3D
+
+The ground, the planks and the blocks are now solid things lit by the sun: you stand in a lit top
+surface, cliffs fall into shade the deeper they go, stones and edges catch the light, and every world
+has its own top — flowers, sand ripples, fallen leaves, snow with icicles, dripping frosting, cooled
+lava. The trees are full crowns of leaves (blossom, autumn red, the fair's pink and lilac), pines carry
+snow, clouds are soft and lit from above, and the hills have a sunlit ridge with a nearer row in front.
+Everyone casts a soft shadow on whatever is below them — which makes every jump feel deeper — and the
+two of you have a little more volume. It runs as smoothly as before.
+
 ## 2026-11-28 (evening) — 卡丁车 on two phones: the finish order is the real one
 
 On two phones, whoever crossed the line first could still be ranked second, with a time
