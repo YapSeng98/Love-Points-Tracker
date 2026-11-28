@@ -7,7 +7,7 @@
 // paid on their own phone; 再来一次 from either phone; pause on one pauses both; leaving is noticed; junk on the wire
 // and our own login on another device are ignored; and no phone sends more than ~12 messages a second.
 //   python3 -m http.server 8765   (or BASE=http://localhost:PORT)
-//   node tools/kartbomb-net-test.js            ONLY=kart,bomb,junk,net,rate   (sections)   BROWSER=webkit (an iPhone's engine)
+//   node tools/kartbomb-net-test.js            ONLY=kart,bomb,junk,clock,net,rate   (sections)   BROWSER=webkit (an iPhone's engine)
 const { chromium, webkit } = require(process.env.PLAYWRIGHT_CORE || '/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const fs = require('fs'), path = require('path');
 const BASE = process.env.BASE || 'http://localhost:8765';
@@ -296,6 +296,30 @@ async function drawGap(A, B, ms) {
     await ctx.close();
   }
 
+  if (want('clock')) {
+    console.log('\nC. One clock for a race on two phones (reported 2026-11-28: the first over the line had the longer time)');
+    // each phone used to time its own kart by its own game clock — which stops while that phone holds the picture for a
+    // hit, and runs slow on a struggling phone — so the finish order could be the opposite of what both of them saw
+    const { ctx, A, B } = await pair(browser, 'kart', '&lat=120&jit=60');
+    await until(async () => /YY 也在这里/.test(await E(A, () => document.getElementById('peer-kart').textContent)), 8000);
+    for (const X of [A, B]) await E(X, () => { window.__goAt = 0; const tick = () => { const G = __kb.game; if (G && G.kind === 'kart' && G.state === 'race' && !window.__goAt) window.__goAt = performance.timeOrigin + performance.now(); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); });
+    ok(await startKart(A, B), 'a race over a 120 ms line');
+    await until(async () => (await E(A, () => window.__goAt)) && (await E(B, () => window.__goAt)), 9000);
+    const [ga, gb] = await Promise.all([A, B].map((X) => E(X, () => window.__goAt)));
+    ok(Math.abs(ga - gb) < 100, `both count down from the same moment: GO ${Math.round(Math.abs(ga - gb))} ms apart (it was the line's delay, the partner's phone a step ahead)`);
+    for (let i = 0; i < 4; i++) { await E(B, () => { __kb.game.freeze = 0.5; }); await sleep(700); }   // YY's phone holds the picture for hits: 2 s
+    const finish = (X) => E(X, () => { const G = __kb.game, me = G.karts.find((k) => k.human), s = G.T.S[3]; Object.assign(me, { lap: 3, idx: G.T.N - 2, mid: true, owe: false, x: s.x, y: s.y, h: s.ang, rescue: 0, spin: 0, air: false }); return performance.timeOrigin + performance.now(); });
+    const wa = await finish(A); await sleep(300); const wb = await finish(B);
+    await until(async () => !!(await E(A, () => __kb.game.shown)) && !!(await E(B, () => __kb.game.shown)), 9000);
+    const card = (X) => E(X, () => { const G = __kb.game, cs = G.karts.find((k) => k.k === 'cs'), yy = G.karts.find((k) => k.k === 'yy'); return { h: document.querySelector('#msg .panel h2').textContent, cs: cs.time, yy: yy.time }; });
+    const [ca, cb] = await Promise.all([card(A), card(B)]);
+    if (!(/CS 第一名/.test(ca.h) && /CS 第一名/.test(cb.h)) || Math.abs((ca.yy - ca.cs) - (wb - wa) / 1000) >= 0.2) console.log('    cards', JSON.stringify(ca), JSON.stringify(cb), 'offsets', JSON.stringify(await Promise.all([A, B].map((X) => E(X, () => ({ role: __kb.NET.role, off: __kb.NET.off, offRtt: __kb.NET.offRtt, rttMin: __kb.NET.rttMin }))))));
+    ok(/CS 第一名/.test(ca.h) && /CS 第一名/.test(cb.h), `CS crossed the line ${Math.round(wb - wa)} ms before YY: CS is first on both phones, though YY's phone stopped for 2 s of hits`);
+    ok(ca.cs < ca.yy && Math.abs((ca.yy - ca.cs) - (wb - wa) / 1000) < 0.2 && ca.cs === cb.cs && ca.yy === cb.yy, `and the times say so: CS ${ca.cs.toFixed(2)} s, YY ${ca.yy.toFixed(2)} s — ${(ca.yy - ca.cs).toFixed(2)} s apart, as they crossed`);
+    ok(!A.p.errs.length && !B.p.errs.length, 'no page errors ' + A.p.errs.concat(B.p.errs).join(' | '));
+    await ctx.close();
+  }
+
   if (want('net')) {
     console.log('\nN0. YY\'s 出发 is lost on the way: it is said again until CS\'s phone has started');
     const { ctx, A, B } = await pair(browser, 'kart');
@@ -316,6 +340,9 @@ async function drawGap(A, B, ms) {
     ok(await startKart(A, B), 'the race starts over a slow, lossy line');
     await until(async () => (await E(A, () => __kb.game.state)) === 'race' && (await E(B, () => __kb.game.state)) === 'race', 8000);
     await sleep(1000);
+    // apart, as in K2: since both phones start at the same moment the karts race side by side, and a bump (each phone
+    // pushing its own kart off a copy a moment old) is real but is not what this measures
+    { const ci = await E(A, () => __kb.game.karts.find((k) => k.human).idx); await E(B, (ci) => { const G = __kb.game, me = G.karts.find((k) => k.human), i = (ci + 30) % G.T.N, s = G.T.S[i]; Object.assign(me, { x: s.x, y: s.y, h: s.ang, idx: i, v: 12, vx: 0, vy: 0 }); }, ci); }
     await autopilot(A, true); await autopilot(B, true); await sleep(600);
     const s0 = await Promise.all([A, B].map((X) => harness(X, () => __harness.sent())));
     const g = await drawGap(A, B, 8000);

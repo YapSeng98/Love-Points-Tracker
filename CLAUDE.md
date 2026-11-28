@@ -2086,6 +2086,20 @@ monsters carry ids.
   built; positions and numbers are clamped; our own login on another device (`w === ME.k`)
   is not the partner; a different `KB_V` names the old app instead of half working.
 
+- **A race on two phones runs on ONE clock** (reported 2026-11-28: 「when i done the first round
+  the timing is more than second ppl」). Each phone timed its own kart by its own game clock,
+  which stops while that phone holds the picture for a hit and runs slow on a struggling phone
+  (`dt` is capped at 1/30: a phone at 24 fps runs its whole race at 80%). The partner's phone
+  also started its countdown a network delay before the host's. So the finish order could be
+  the opposite of what both had just watched (reproduced: CS over the line 0.3 s first,
+  「YY 第一名」 0:02.5 against 0:04.2 on both phones). Now the guest's phone measures the host's
+  clock from its quickest ping (`NET.off`, NTP-style, pinging every 0.5 s until the race is on);
+  the host picks a start 0.5 s ahead on its clock (`run`), both count down from it; finishes are
+  stamped on that shared clock less each phone's own pauses (`G.clockT`, rounded once so both
+  phones hold the same number); the clock on screen is the same. GO lands 6–46 ms apart on a
+  120 ms line and the gap between two finish times is the gap between the crossings.
+  `kartbomb-net-test` `clock` replays it: YY's phone stopped for 2 s of hits, CS first anyway.
+
 What building it turned up:
 
 - **The envelope's own fields were overwritten by the payload.** `netSend` did
@@ -2110,8 +2124,11 @@ What building it turned up:
   while playing. Racing ~7.5 a second per phone, a maze host ~7, the partner ~4 walking —
   about 110 k billed an hour of two-phone play, ~18 hours inside the Free plan's 2 M a month
   with everything else. kartbomb-net-test fails above 10 a second.
-- Drawn where it really is (a kart is 2.6 long): good line 0.4 typically, ~1.2 nine times in
-  ten; a 4G line (120 ms, jitter 80, 5% lost) ~1.5 and ~3, briefer spikes on a bump or a spin.
+- Drawn where it really is (a kart is 2.6 long): good line 0.4 typically, ~1 nine times in
+  ten; a 4G line (120 ms, jitter 80, 5% lost) ~1 and ~2.5; the live backend 0.35 and 0.9.
+  Measured with the karts apart: since both start together they race side by side, and a long
+  bump (each phone pushing its own kart off a copy a moment old) is real but brief, and not what
+  the prediction is judged by.
 
 `tools/kartbomb-net-test.js` plays all of it on two pages of `tools/kb-harness.html` (a
 stand-in for the app that can add delay, jitter, loss and a dropped line; `BROWSER=webkit`);

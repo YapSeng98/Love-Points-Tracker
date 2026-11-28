@@ -85,6 +85,9 @@ async function drawGap(A, B, ms) {   // each phone's copy of the other's kart ag
   ok(await until(async () => (await E(A, () => __kb.game.state)) === 'race' && (await E(B, () => __kb.game.state)) === 'race', 12000), 'B2 says 出发: both are racing');
 
   console.log('\n2. Racing on the real network');
+  // apart, as in K2: since both phones start at the same moment the karts race side by side, and a bump (each phone
+  // pushing its own kart off a copy a moment old) is real but is not what this measures
+  { const ci = await E(A, () => __kb.game.karts.find((k) => k.human).idx); await E(B, (ci) => { const G = __kb.game, me = G.karts.find((k) => k.human), i = (ci + 30) % G.T.N, s = G.T.S[i]; Object.assign(me, { x: s.x, y: s.y, h: s.ang, idx: i, v: 12, vx: 0, vy: 0 }); }, ci); }
   await autopilot(A, true); await autopilot(B, true); await sleep(800);
   const sent0 = await Promise.all([A, B].map((X) => X.p.evaluate(() => window.__kbSent)));
   const g = await drawGap(A, B, 8000);

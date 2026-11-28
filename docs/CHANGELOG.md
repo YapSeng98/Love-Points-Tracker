@@ -12,6 +12,15 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-28 (evening) — 卡丁车 on two phones: the finish order is the real one
+
+On two phones, whoever crossed the line first could still be ranked second, with a time
+longer than the second's. Each phone timed its own driver with its own clock, which stops
+for a moment every time you are hit and runs slow on a phone that is struggling — and the
+two countdowns started a moment apart. Now both phones count down from the same moment
+and every finish is timed on one shared clock, so the order and the times are what you
+both saw.
+
 ## 2026-11-28 (later) — 卡丁车 / 烟花炸弹: a way out of every start card
 
 Every card you see before a race or a maze starts now has a ✕ in its top corner — it

@@ -375,6 +375,9 @@ const NET = { n: 0, role: null, peerAt: 0, peerG: '', peerN: 0, lastRx: 0, tx: 0
 const fin = (v) => typeof v === 'number' && isFinite(v);
 const r1 = (v) => Math.round(v * 10) / 10, r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
 const pageGame = () => PAGE_GAME || (game ? game.kind : '');
+// the host's clock, on either phone: what a two-phone race is timed by (each phone's own game clock stops for a hit and
+// runs slow on a struggling phone — the order of a finish has to be the order the karts really crossed the line)
+const sharedNow = () => performance.now() + (NET.role === 'guest' ? NET.off || 0 : 0);
 const peerHere = () => !!NET.peerAt && performance.now() - NET.peerAt < 4500;
 function netSend(t, d) {
   if (!LIVE) return false;
@@ -413,7 +416,7 @@ function paintPeer() {
   const nb = document.querySelector('[data-play="kart:net"]'); if (nb) { nb.hidden = !on; nb.setAttribute('aria-disabled', String(!(here && NET.peerG === 'kart'))); }
 }
 function netReset() {
-  NET.lags = [];
+  NET.lags = []; NET.off = 0; NET.offRtt = null;
   NET.n = 0; NET.role = null; NET.tx = 0; NET.rx = 0; NET.pend = []; NET.hold = new Map(); NET.holdAt = 0;
   NET.wait = null; NET.okMsg = null; NET.okAt = 0; NET.rq = null; NET.heard = false; NET.started = false; NET.quiet = false;
 }
@@ -453,7 +456,13 @@ function netOn(m) {
     return;
   }
   if (m.t === 'pi') { netSend('po', { a: m.a, b: now }); return; }
-  if (m.t === 'po') { const rtt = now - m.a; if (rtt >= 0 && rtt < 4000) { NET.rtts.push(rtt); if (NET.rtts.length > 8) NET.rtts.shift(); NET.rttMin = Math.min(...NET.rtts); } return; }
+  if (m.t === 'po') {
+    const rtt = now - m.a; if (!(rtt >= 0 && rtt < 4000)) return;
+    NET.rtts.push(rtt); if (NET.rtts.length > 8) NET.rtts.shift(); NET.rttMin = Math.min(...NET.rtts);
+    // the other phone's clock against this one's, from the quickest round trip: its time b was read halfway through
+    if (fin(m.b) && (NET.offRtt == null || rtt <= NET.offRtt)) { NET.offRtt = rtt; NET.off = m.b - (m.a + now) / 2; }
+    return;
+  }
   if (m.t === 'go') return netGo(m);
   if (m.t === 'bye') { if (m.n && m.n === NET.n) netPartnerLeft(); else if (NET.wait && m.n === NET.wait.go.n) netDeclined({ n: m.n, why: 'left' }); return; }
   if ((m.t === 'no' || m.t === 'busy') && NET.wait && m.n === NET.wait.go.n) return netDeclined(m);
@@ -557,7 +566,8 @@ function netTick(now) {
     NET.wait.sent = now; netSend('go', NET.wait.go);
   }
   if (!NET.n) return;
-  if (now - NET.piAt > 4000) { NET.piAt = now; netSend('pi', { a: now }); }
+  const piGap = NET.offRtt == null || NET.rtts.length < 4 || (game && game.state !== 'race' && game.state !== 'play') ? 500 : 4000;
+  if (now - NET.piAt > piGap) { NET.piAt = now; netSend('pi', { a: now }); }
   const playing = game && game.net && (game.state === 'race' || game.state === 'play' || game.state === 'count') && !game.paused;
   if (now - NET.hiAt > (playing ? 5000 : 1500)) { NET.hiAt = now; netSend('hi', { g: pageGame(), n: NET.n, ak: NET.rx }); }   // while playing, every position message already says the partner is there
   if (NET.pend.length) { NET.pend = NET.pend.filter((x) => now - x.t0 < 30000); for (const x of NET.pend) if (now - x.at > 400 && netSend('ev', x.m)) x.at = now; }
@@ -1006,6 +1016,7 @@ function closeGame() {
 function frame(now) {
   if (!game) return;
   const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  if (game.paused) { if (!game.pauseAt) game.pauseAt = now; } else if (game.pauseAt) { game.pausedMs = (game.pausedMs || 0) + now - game.pauseAt; game.pauseAt = 0; }
   if (!game.paused) game.update(dt);
   if (!game) return;
   if (game.net && NET.n && game.netTick && !game.paused) game.netTick(now);   // 🤝 a message goes the frame it is due (the 100 ms tick is the backstop)
@@ -1879,10 +1890,10 @@ function makeKart(opts) {
       }
       if (k.lap === LAPS && k.human && !G.lapSpeed) { G.lapSpeed = 1.1; Music.speed(1.1); }
       if (k.lap > LAPS && !k.done && k.human) {   // a photo finish: someone right beside you on the line
-        const close = G.karts.some((o) => o !== k && (o.done ? G.t - o.time < 0.35 : k.prog - o.prog < 5));
+        const close = G.karts.some((o) => o !== k && (o.done ? (net ? G.clockT() : G.t) - o.time < 0.35 : k.prog - o.prog < 5));
         if (close && !REDUCE) { G.freeze = 0.35; G.worldFx = Math.max(G.worldFx || 0, 0.3); }
       }
-      if (k.lap > LAPS && !k.done) { k.done = true; k.time = G.t; G.order.push(k); if (net) { G.order.sort((a, b) => a.time - b.time); netEv('fin', { k: k.k, tm: r3(k.time) }); if (k.human) G.myDoneT = G.t; } if (tt && k.human) saveGhost(k); if (k.human) { snd(G.order.length === 1 ? 'win' : 'go'); if (!REDUCE) for (let i = 0; i < 60; i++) G.confetti.push({ p: k.k, x: Math.random(), y: -0.1 - Math.random() * 0.3, vy: rand(0.25, 0.5), w: rand(0, TAU), c: ['#FF8FB8', '#FFD34D', '#8FD3FF', '#9FE09A'][i % 4] }); } }
+      if (k.lap > LAPS && !k.done) { k.done = true; k.time = net ? r3(G.clockT()) : G.t; G.order.push(k); if (net) { G.order.sort((a, b) => a.time - b.time); netEv('fin', { k: k.k, tm: r3(k.time) }); if (k.human) G.myDoneT = G.t; } if (tt && k.human) saveGhost(k); if (k.human) { snd(G.order.length === 1 ? 'win' : 'go'); if (!REDUCE) for (let i = 0; i < 60; i++) G.confetti.push({ p: k.k, x: Math.random(), y: -0.1 - Math.random() * 0.3, vy: rand(0.25, 0.5), w: rand(0, TAU), c: ['#FF8FB8', '#FFD34D', '#8FD3FF', '#9FE09A'][i % 4] }); } }
       else if (k.lap === LAPS && k.human) { k.finalT = 2.2; snd('final'); }
       else if (k.lap > 1 && k.human) { k.lapT = 1.6; snd('count'); }
     }
@@ -2421,7 +2432,7 @@ function makeKart(opts) {
     // laps and time
     const lapTxt = k.done ? '到啦！' : `第 ${clamp(k.lap - (k.owe ? 1 : 0), 1, LAPS)}/${LAPS} 圈${G.trip && G.trip.state === 1 && G.trip.chosenDef ? ' ' + G.trip.chosenDef.icon : ''}`;
     textC(g, lapTxt, mid, top, small ? 15 : 18, '#FFF', { base: 'top', lw: 4 });
-    textC(g, fmt(G.t), mid, top + (small ? 20 : 24), small ? 12 : 14, '#FFF', { base: 'top', lw: 4, weight: 800 });
+    textC(g, fmt(net && G.clockT ? G.clockT() : G.t), mid, top + (small ? 20 : 24), small ? 12 : 14, '#FFF', { base: 'top', lw: 4, weight: 800 });
     // the place, big, top right, with the small map under it
     const pl = Math.min(3, k.place || 3), plCol = ['#FFD34D', '#E6EEF8', '#F2B48A'][pl - 1], rx = v.x + v.w - 14;
     if (G.tt) {   // 影子赛: no places, just the ghost's time to beat
@@ -2485,7 +2496,7 @@ function makeKart(opts) {
             const me = G.karts.find((q) => q.human); me.msg = '读不到手机的倾斜，先用按钮'; me.msgT = 3;
           }); };
           if (net && !inv) { askTilt(); netInvite('kart', netKartOpts()); return; }   // 🤝 the host: the partner's phone is asked; the countdown starts when it says 出发
-          if (inv) netAccept();
+          if (inv) { netAccept(); G.waitRun(); askTilt(); return; }   // 🤝 the countdown starts with the host's, at the same moment
           beginRace(); askTilt();
         });
       const old = UI.msg.onclick;
@@ -2510,16 +2521,31 @@ function makeKart(opts) {
       : c === 'tilt' ? [['.tw', '像方向盘一样转手机'], ...more] : [[sel, c === 'bar' ? '按住左边或右边转弯' : '按住 ◀ ▶ 转弯'], ...more],
       two ? 'CS：A D 转弯 · S 漂移 · W 道具　YY：← → 转弯 · ↓ 漂移 · ↑ 道具　P 暂停' : '← → 转弯 · ↓ 漂移 · ↑ 道具 · P 暂停');
   }
-  function beginRace() { UI.msg.hidden = true; G.paused = false; G.state = 'count'; audioOn(); kartCoach(); setTimeout(buildTrip, 60); }
+  function beginRace() { UI.msg.hidden = true; G.paused = false; G.pauseAt = 0; G.pausedMs = 0; G.state = 'count'; audioOn(); kartCoach(); setTimeout(buildTrip, 60); }   // (only pauses from here on come off the race time)
   const netKartOpts = () => ({ place: def.id, cls: opts.cls || KSET.cls, cup: cup ? { i: cup.i, pts: cup.pts || {}, set: cup.set || 'sakura' } : null, trip: trip ? trip.opts.map((t2) => t2.id) : null });
   if (!preview) setTimeout(() => {
     if (game !== G) return;
     if (net && net.role === 'host' && net.again) { G.paused = true; netInvite('kart', Object.assign(netKartOpts(), { auto: !!net.auto })); return; }
-    if (net && net.invite && net.invite.auto) { netAccept(); beginRace(); return; }
+    if (net && net.invite && net.invite.auto) { netAccept(); G.waitRun(); return; }
     if (opts.skipCard) { G.state = 'count'; setTimeout(buildTrip, 60); } else startCard();
   }, 30);
   // 🤝 what travels between the two phones during a race
-  G.netStart = () => { if (G.state === 'card') beginRace(); };
+  // 🤝 the start: the host picks a moment on its own clock (enough ahead for the message to arrive), both phones begin the
+  // countdown then; the race is timed from the end of that countdown on the shared clock
+  const COUNT_MS = 3600;
+  G.startAt = (at) => {   // at: the host's clock
+    if (G.state !== 'card' || G.runAt) return;
+    G.runAt = at; G.goShared = at + COUNT_MS;
+    const late = sharedNow() - at;
+    const go = () => { if (game !== G || G.state !== 'card') return; beginRace(); if (late > 0) G.count = Math.max(0.05, G.count - late / 1000); };
+    if (late >= 0) go(); else setTimeout(go, -late);
+  };
+  G.netStart = () => { if (G.state !== 'card' || G.runAt) return; const at = Math.round(performance.now() + 500); netEv('run', { at }); G.startAt(at); };
+  G.waitRun = () => {   // the partner's phone after 出发: until the host's moment arrives
+    G.paused = true;
+    panel(`<div class="big">⏱️</div><h2>准备…</h2><p class="netnote">和 ${esc(NAME[PEER])} 的手机一起倒数</p><div class="btns"><button type="button" class="alt wide" data-m="x">不比了</button></div>`, () => closeGame());
+  };
+  G.clockT = () => (G.goShared != null ? Math.max(0, (sharedNow() - G.goShared - (G.pausedMs || 0)) / 1000) : G.t);   // the race time: shared on two phones
   G.netRequest = (k) => { if (G.shown && G.netAgain) G.netAgain(k, true); };
   G.stAt = 0;
   const packKart = (k) => {
@@ -2560,6 +2586,7 @@ function makeKart(opts) {
   };
   G.netEvent = (e) => {
     const K = (id) => G.karts.find((q) => q.k === id);
+    if (e.e === 'run' && fin(e.at)) { G.startAt(e.at); return; }
     if (e.e === 'fin') { const k = K(e.k); if (k && k.remote && !k.done && fin(e.tm)) { k.done = true; k.time = e.tm; G.order.push(k); G.order.sort((a, b) => a.time - b.time); } }
     else if (e.e === 'pud') { const k = K(e.f); if (k && fin(e.x) && fin(e.y) && typeof e.id === 'string' && e.id.length < 16 && !G.puddles.some((q) => q.id === e.id)) G.puddles.push({ id: e.id, x: e.x, y: e.y, t: 20, own: k, safe: 0.6 }); }
     else if (e.e === 'pudx') { const pd = G.puddles.find((q) => q.id === e.id); if (pd) { pd.t = 0; burst(pd.x, pd.y, '#FFD36E', 12); } }
