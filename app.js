@@ -40,7 +40,7 @@ const App = (() => {
     sub: '很快就好，等一下再来看看吧',
   };
 
-  const APP_VERSION = 'v2026.11.29-94';  // bump on each deploy — shown in ⚙️设置 + console
+  const APP_VERSION = 'v2026.11.29-95';  // bump on each deploy — shown in ⚙️设置 + console
 
   /* ── Theme (light / dark / follow device) ──
      Device-local preference in localStorage — deliberately NOT synced to SN,
@@ -2758,7 +2758,7 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
      the phone's motion for 倾斜, which a frame from another site (the Claude app's viewer) is refused. */
   function openKB(kind) {
     closeGames();
-    document.querySelector('body > .kb-root')?.remove();
+    { const old = document.querySelector('body > .kb-root'); if (old) { try { old._kbOff && old._kbOff(); } catch (e) {} old.remove(); } }
     window.__kbHost = {
       me: _me() === 'char2' ? 'yy' : 'cs',
       names: { cs: charDisplayName('char1'), yy: charDisplayName('char2') },
@@ -2771,18 +2771,33 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
     };
     if (!document.getElementById('kb-css')) {
       const st = document.createElement('style'); st.id = 'kb-css';
-      // the bands round the frame (the home bar, a notch held sideways) are the game page's own background, by day and by night
+      // the frame fills the screen to its edges (2026-11-29: held sideways, the bands left round it for the notch and the
+      // home bar read as 「the screen not full」). Inside a frame an iPhone reports no safe areas, so the app measures
+      // them here and hands them to the game page (--sat --sar --sab --sal), which keeps only its buttons and words clear
       st.textContent = '.kb-root{position:fixed;inset:0;z-index:150;background:#FBF5FA}html[data-theme="dark"] .kb-root{background:#16132A}'
-        + '.kb-root iframe{position:absolute;border:0;display:block;top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px);'
-        + 'width:calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));height:calc(100% - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}';
+        + '.kb-root iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}'
+        + '.kb-safe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}';
       document.head.appendChild(st);
     }
     const root = document.createElement('div'); root.className = 'kb-root';
     const fr = document.createElement('iframe'); fr.title = kind === 'kart' ? '卡丁车' : '烟花炸弹';
     fr.allow = 'accelerometer; gyroscope; autoplay';
     fr.src = `kartbomb.html?v=${encodeURIComponent(APP_VERSION)}&game=${kind === 'bomb' ? 'bomb' : 'kart'}`;
-    fr.addEventListener('load', () => { try { fr.contentWindow.focus(); } catch (e) {} });
-    root.appendChild(fr); document.body.appendChild(root);
+    const probe = document.createElement('div'); probe.className = 'kb-safe';
+    const feedSafe = () => {   // the phone's safe areas, as the game page's own CSS variables (and a resize, so it lays out again)
+      try {
+        const cs = getComputedStyle(probe), d = fr.contentDocument && fr.contentDocument.documentElement; if (!d) return;
+        const v = [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map((x) => Math.round(parseFloat(x) || 0) + 'px');
+        if (d.dataset.safe === v.join(' ')) return;
+        d.dataset.safe = v.join(' '); ['--sat', '--sar', '--sab', '--sal'].forEach((k, i) => d.style.setProperty(k, v[i]));
+        fr.contentWindow.dispatchEvent(new Event('resize'));
+      } catch (e) {}
+    };
+    const onTurn = () => { feedSafe(); setTimeout(feedSafe, 250); };   // a turned phone settles its insets a moment later
+    addEventListener('resize', onTurn); addEventListener('orientationchange', onTurn);
+    root._kbOff = () => { removeEventListener('resize', onTurn); removeEventListener('orientationchange', onTurn); };
+    fr.addEventListener('load', () => { feedSafe(); try { fr.contentWindow.focus(); } catch (e) {} });
+    root.appendChild(probe); root.appendChild(fr); document.body.appendChild(root);
     // the games have their own music: the app's song waits rather than playing underneath (the 🎵 setting is untouched)
     const bg = document.getElementById('bg-audio');
     _kbSong = !!(bg && !bg.paused); if (_kbSong) bg.pause();
@@ -2791,7 +2806,8 @@ html[data-theme="dark"] .pz-size[aria-pressed="true"]{background:linear-gradient
   }
   let _kbSong = false;
   function closeKB() {
-    document.querySelector('body > .kb-root')?.remove();
+    const root = document.querySelector('body > .kb-root');
+    if (root) { try { root._kbOff && root._kbOff(); } catch (e) {} root.remove(); }
     window.__kbHost = null;
     try { Live.want('kb', false); } catch (e) {}
     if (_kbSong) { _kbSong = false; const bg = document.getElementById('bg-audio'); if (bg) bg.play().catch(() => {}); }   // ✕ / Esc is a tap, so the song may start again

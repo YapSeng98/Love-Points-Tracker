@@ -12,6 +12,22 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-29 (later) — 卡丁车 and 烟花炸弹 fill the screen; walking in the maze is smoother
+
+Held sideways, both games now reach every edge of the screen — no more pale bands round
+them for the notch and the home bar. The buttons and words still keep clear of the notch,
+the status bar and the home bar.
+
+In 烟花炸弹 on its side, the maze fills the height: the squares are about a third bigger,
+the walls round the edge tuck under the top bar and the controls, and the top bar is a
+single row, so nothing covers you at the start.
+
+Walking feels smoother: popping a cloud, getting hit or a chain of fireworks no longer
+freezes the game for a moment (it used to stop your walking every time); at a corner, if
+you are already leaning toward the open lane you slide into it instead of bumping into the
+wall; holding the stick clearly diagonal turns you at the first opening; turning round is a
+quick flip, stopping eases out, and little puffs of dust follow your feet.
+
 ## 2026-11-29 — 烟花炸弹: the stick never sticks, and a bigger, prettier maze
 
 The 摇杆 could freeze: if the phone swallowed the moment you lifted your thumb (a

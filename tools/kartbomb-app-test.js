@@ -55,6 +55,16 @@ async function winRace(fr, place) {   // you cross the line first; the others ar
     return { list: !document.querySelector('.mg-root'), cover: document.documentElement.classList.contains('game-cover'), z: +cs.zIndex, full: rb.width === innerWidth && rb.height === innerHeight, src: f.getAttribute('src') }; });
   const ver = await p.evaluate(() => (document.querySelector('#settings-version, .app-version') || {}).textContent || '');
   ok(open.list && open.cover && open.z >= 150 && open.full && /kartbomb\.html\?v=v20\d\d/.test(open.src) && /game=kart/.test(open.src), `it opens full screen over everything (z ${open.z}), the list closes, the app behind holds still, the page loads fresh for this version`);
+  // edge to edge (2026-11-29): the frame fills the screen, and the phone's safe areas reach the game as its own CSS variables
+  // (a frame has none of its own) — given here to the app's probe, then changed as when the phone turns
+  const edge = await p.evaluate(() => { const f = document.querySelector('body > .kb-root iframe').getBoundingClientRect(); return f.left === 0 && f.top === 0 && f.width === innerWidth && f.height === innerHeight; });
+  await p.addStyleTag({ content: '.kb-safe { padding: 0px 59px 21px 59px !important; }' }); await p.evaluate(() => window.dispatchEvent(new Event('resize'))); await sleep(400);
+  const got1 = await fr.evaluate(() => { const d = document.documentElement; return ['--sat', '--sar', '--sab', '--sal'].map((k) => d.style.getPropertyValue(k)).join(' '); });
+  const xLeft1 = await fr.evaluate(() => Math.round(document.querySelector('.pgx').getBoundingClientRect().left));   // (the menu's ✕: the game's own is hidden here)
+  await p.addStyleTag({ content: '.kb-safe { padding: 59px 0px 34px 0px !important; }' }); await p.evaluate(() => window.dispatchEvent(new Event('orientationchange'))); await sleep(500);
+  const got2 = await fr.evaluate(() => { const d = document.documentElement; return ['--sat', '--sar', '--sab', '--sal'].map((k) => d.style.getPropertyValue(k)).join(' '); });
+  ok(edge && got1 === '0px 59px 21px 59px' && got2 === '59px 0px 34px 0px' && xLeft1 >= 59, `the game fills the screen to its edges (no bands), and gets the phone's safe areas from the app — sideways «${got1}», turned upright «${got2}» — so its ✕ sits clear of the notch (${xLeft1} px in)`);
+  await p.addStyleTag({ content: '.kb-safe { padding: 0px !important; }' }); await p.evaluate(() => window.dispatchEvent(new Event('resize'))); await sleep(300);
   const inside = await fr.evaluate(() => ({ who: document.querySelector('.who').hidden, other: document.querySelector('[aria-labelledby="h-bomb"]').hidden, h1: document.querySelector('header h1').textContent, x: !!document.querySelector('.pgx'), me: __kb.game ? null : true, inApp: document.documentElement.classList.contains('in-app') }));
   ok(inside.who && inside.other && /卡丁车/.test(inside.h1) && inside.x && inside.inApp, 'inside: never asks 「我是 CS/YY」 (the app knows), only 卡丁车 is shown, and there is a ✕ back');
   await fr.click('[data-play="kart:1p"]'); await fr.waitForSelector('#msg:not([hidden]) [data-o="ctl:tilt"]');

@@ -22,7 +22,7 @@
   --bg: #16132A; --card: #221E3A; --ink: #EEE8F6; --sub: #ADA4C4; --line: rgba(200, 180, 255, .14);
   --pink-ink: #FF8FB8; --blue-ink: #8DB8F2; --chip: rgba(190, 170, 255, .12); --chip-on: #EEE8F6; --chip-on-ink: #221E3A; --shadow: 0 10px 30px rgba(0, 0, 0, .35); color-scheme: dark }
 html, body { background: var(--bg); color: var(--ink); font-family: var(--font); }
-body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px; }
+body { padding-left: max(16px, var(--sal, env(safe-area-inset-left, 0px))); padding-right: max(16px, var(--sar, env(safe-area-inset-right, 0px))); padding-block: 24px 40px; }
 .wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 header h1 { margin: 0; font-size: clamp(26px, 6vw, 36px); font-weight: 900; letter-spacing: .5px; text-wrap: balance; }
 header p { margin: 6px 0 0; color: var(--sub); font-size: 15px; line-height: 1.6; max-width: 62ch; }
@@ -69,15 +69,15 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 #play { position: fixed; inset: 0; z-index: 50; background: #1E1A36; overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none; }
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #hud { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; pointer-events: none;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(max(10px, env(safe-area-inset-right, 0px)) + 100px * var(--ui)) 8px calc(max(10px, env(safe-area-inset-left, 0px)) + 50px * var(--ui)); }
+  padding: calc(var(--sat, env(safe-area-inset-top, 0px)) + 8px) calc(max(10px, var(--sar, env(safe-area-inset-right, 0px))) + 100px * var(--ui)) 8px calc(max(10px, var(--sal, env(safe-area-inset-left, 0px))) + 50px * var(--ui)); }
 .hc { display: inline-flex; align-items: center; gap: 5px; background: rgba(24, 18, 48, .58); color: #fff; font-weight: 800; font-size: calc(13px * var(--ui)); border-radius: 999px; padding: calc(6px * var(--ui)) calc(11px * var(--ui)); font-variant-numeric: tabular-nums; white-space: nowrap;
   box-shadow: 0 2px 8px rgba(10, 6, 30, .18), inset 0 1px 0 rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 #hud .hr1 { flex-basis: 100%; display: flex; justify-content: center; min-height: calc(30px * var(--ui)); align-items: center; }
 #hud .hr2 { flex: 0 0 calc(100% + 150px * var(--ui) - 4px); display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 2px calc(-100px * var(--ui) + 2px) 0 calc(-50px * var(--ui) + 2px); }   /* out under the corner buttons: the whole width */
 .hc i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.tb { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 6px); width: calc(42px * var(--ui)); height: calc(42px * var(--ui)); border-radius: 50%; border: 0; background: rgba(20, 16, 40, .62); color: #fff; font-size: calc(17px * var(--ui)); font-weight: 900; cursor: pointer; z-index: 3; display: grid; place-items: center; padding: 0; }
-#xbtn { left: max(8px, env(safe-area-inset-left, 0px)); }
-#pause { right: calc(max(8px, env(safe-area-inset-right, 0px)) + 48px * var(--ui)); }
+.tb { position: absolute; top: calc(var(--sat, env(safe-area-inset-top, 0px)) + 6px); width: calc(42px * var(--ui)); height: calc(42px * var(--ui)); border-radius: 50%; border: 0; background: rgba(20, 16, 40, .62); color: #fff; font-size: calc(17px * var(--ui)); font-weight: 900; cursor: pointer; z-index: 3; display: grid; place-items: center; padding: 0; }
+#xbtn { left: max(8px, var(--sal, env(safe-area-inset-left, 0px))); }
+#pause { right: calc(max(8px, var(--sar, env(safe-area-inset-right, 0px))) + 48px * var(--ui)); }
 #play { --ui: 1; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 #pad, #pad * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .panel .seg3 button:disabled { opacity: .45; cursor: not-allowed; }
@@ -91,7 +91,8 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
   #msg .panel .opt { padding: 6px 10px; }
   #msg .panel .pp { gap: 4px; }
 }
-#play.face .tb { top: calc(50% - 21px * var(--ui)); }   /* face to face: the corner buttons sit on the line between the two halves */
+#play.face .tb { top: calc(50% - 21px * var(--ui)); }
+.flip { --sab: var(--sat, env(safe-area-inset-top, 0px)); }   /* turned round: its foot is the top of the screen */   /* face to face: the corner buttons sit on the line between the two halves */
 /* ◀ ▶ as two big buttons: one touch area, so a thumb can slide from one to the other */
 .bz { position: absolute; pointer-events: auto; touch-action: none; display: flex; gap: calc(var(--s, 84px) * .18); align-items: center; justify-content: center; }
 .bzb { width: var(--s, 84px); height: var(--s, 84px); border-radius: 50%; border: 2px solid rgba(255, 255, 255, .78); background: rgba(30, 20, 60, .34); color: #fff; font: 900 calc(var(--s, 84px) * .34) var(--font); display: grid; place-items: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); pointer-events: none; transition: transform .08s, background .08s; }
@@ -112,24 +113,24 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .twd { width: 58px; height: 58px; border-radius: 50%; border: 6px solid rgba(255, 255, 255, .85); background: radial-gradient(circle, rgba(255, 255, 255, .9) 0 18%, transparent 19%), linear-gradient(transparent 44%, rgba(255, 255, 255, .85) 44% 56%, transparent 56%); box-shadow: 0 3px 10px rgba(0, 0, 0, .25); }
 .twl { font: 800 11.5px var(--font); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); white-space: nowrap; }
 .flip { transform: rotate(180deg); }
-#gkeys { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; justify-content: space-around; gap: 12px; pointer-events: none; z-index: 2; }
+#gkeys { position: absolute; left: 0; right: 0; bottom: calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 12px); display: flex; justify-content: space-around; gap: 12px; pointer-events: none; z-index: 2; }
 #gkeys span { background: rgba(20, 16, 40, .62); color: #fff; font: 800 calc(13px * var(--ui)) var(--font); padding: calc(6px * var(--ui)) calc(12px * var(--ui)); border-radius: 999px; white-space: nowrap; }
 #gkeys kbd { font: inherit; background: rgba(255, 255, 255, .18); border-radius: 6px; padding: 0 5px; margin: 0 1px; }
 .opt .tilt-why { flex-basis: 100%; color: #A0446D; font-size: 12px; line-height: 1.45; }
 .kb-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .coach.flip { transform: rotate(180deg); animation: none; }
-.rwb { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 168px); transform: translateX(-50%); z-index: 4; border: 0; border-radius: 999px; padding: 10px 18px; min-height: 46px; font: 900 calc(15px * var(--ui)) var(--font); color: #2C2540; background: #FFF4C2; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); cursor: pointer; animation: rwPulse 1.1s ease-in-out infinite; }
+.rwb { position: absolute; left: 50%; bottom: calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 168px); transform: translateX(-50%); z-index: 4; border: 0; border-radius: 999px; padding: 10px 18px; min-height: 46px; font: 900 calc(15px * var(--ui)) var(--font); color: #2C2540; background: #FFF4C2; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); cursor: pointer; animation: rwPulse 1.1s ease-in-out infinite; }
 .rwb kbd { font: inherit; background: rgba(44, 37, 64, .12); border-radius: 6px; padding: 0 5px; }
 @keyframes rwPulse { 50% { transform: translateX(-50%) scale(1.07); } }
 @media (pointer: fine) { .rwb { bottom: calc(76px * var(--ui)); } }
 @media (prefers-reduced-motion: reduce) { .rwb { animation: none; } }
 @media (max-height: 520px) { #msg .panel .tips { display: none; } }
 @media (max-height: 520px) and (min-width: 640px) { #msg .panel { width: min(100%, 640px); } #msg .panel .opts { display: grid; grid-template-columns: 1fr 1fr; } }
-#mute { right: max(8px, env(safe-area-inset-right, 0px)); }
+#mute { right: max(8px, var(--sar, env(safe-area-inset-right, 0px))); }
 #pad { position: absolute; inset: 0; pointer-events: none; }
-.cl { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; gap: 8px; pointer-events: none; align-items: flex-end; }
-.cl.l { left: max(12px, env(safe-area-inset-left, 0px)); }
-.cl.r { right: max(12px, env(safe-area-inset-right, 0px)); }
+.cl { position: absolute; bottom: calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 12px); display: flex; gap: 8px; pointer-events: none; align-items: flex-end; }
+.cl.l { left: max(12px, var(--sal, env(safe-area-inset-left, 0px))); }
+.cl.r { right: max(12px, var(--sar, env(safe-area-inset-right, 0px))); }
 .cl .tag, .jz .tag { position: absolute; top: -20px; font-size: 12px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
 .jz .tag { top: 6px; }
 .cl.l .tag { left: 2px; } .cl.r .tag { right: 2px; }
@@ -153,7 +154,7 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .jz.cs .jk { border: 3px solid rgba(127, 178, 236, .95); } .jz.yy .jk { border: 3px solid rgba(255, 143, 179, .95); }
 .jk { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #FFFFFF 0%, #F3EEFF 45%, #D9CFF2 100%); box-shadow: 0 3px 10px rgba(0, 0, 0, .25), inset 0 -3px 6px rgba(110, 90, 170, .25); }
 .jz.idle .jb { opacity: .55; }
-#msg { position: absolute; inset: 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); background: rgba(14, 10, 30, .55); padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 4; }   /* a definite row, so a tall card's max-height: 100% holds and it scrolls inside the screen */
+#msg { position: absolute; inset: 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); background: rgba(14, 10, 30, .55); padding: max(16px, var(--sat, env(safe-area-inset-top, 0px))) max(16px, var(--sar, env(safe-area-inset-right, 0px))) max(16px, var(--sab, env(safe-area-inset-bottom, 0px))) max(16px, var(--sal, env(safe-area-inset-left, 0px))); z-index: 4; }   /* a definite row, so a tall card's max-height: 100% holds and it scrolls inside the screen */
 .panel { box-sizing: border-box; width: min(100%, 380px); max-height: 100%; overflow: auto; background: #FFFDF9; color: #2C2540; border-radius: 24px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); }
 .panel h2 { margin: 0; font-size: 23px; font-weight: 900; }
 .panel p { margin: 0; color: #5A5170; font-size: 14.5px; line-height: 1.6; }
@@ -192,7 +193,7 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .hc.pc { position: fixed; }
 .panel .rec { color: #C23A74; font-weight: 900; font-size: 16px; }
 .panel .paid { color: #1F7A50; font-weight: 900; font-size: 15px; }
-.pgx { position: fixed; z-index: 30; top: max(10px, env(safe-area-inset-top, 0px)); left: max(10px, env(safe-area-inset-left, 0px)); width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--chip); color: var(--ink); font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: var(--shadow); }
+.pgx { position: fixed; z-index: 30; top: max(10px, var(--sat, env(safe-area-inset-top, 0px))); left: max(10px, var(--sal, env(safe-area-inset-left, 0px))); width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--chip); color: var(--ink); font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: var(--shadow); }
 html.in-app .wrap { padding-top: 56px; }
 .szl { font: 800 12px var(--font); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); pointer-events: none; }
 .sz.small .szb { height: 40px; } .sz.small .szk { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
@@ -812,7 +813,7 @@ const Music = {
 
 /* ══════════════ input: keys, buttons and thumb sticks fill the same per-player state ══════════════ */
 const IN = { cs: {}, yy: {} };
-const resetIn = () => { for (const p of ['cs', 'yy']) IN[p] = { l: 0, r: 0, u: 0, d: 0, drift: 0, item: 0, bomb: 0, skill: 0, dirs: [], joy: null, steer: 0, steerOn: false }; };
+const resetIn = () => { for (const p of ['cs', 'yy']) IN[p] = { l: 0, r: 0, u: 0, d: 0, drift: 0, item: 0, bomb: 0, skill: 0, dirs: [], joy: null, diag: 0, steer: 0, steerOn: false }; };
 resetIn();
 function press(p, k, on) {
   const s = IN[p]; if (!s) return;
@@ -822,6 +823,7 @@ function press(p, k, on) {
 }
 // the way a player wants to go: the stick, or the keys (newest first), and a second way to try at a corner
 function wants(p) { const s = IN[p]; if (s.joy) return s.joy; const n = s.dirs.length; return n ? [s.dirs[n - 1], s.dirs[n - 2] || null] : [null, null]; }
+const diagOf = (p) => { const s = IN[p]; return s.joy ? s.diag || 0 : s.dirs.length >= 2 ? 1 : 0; };
 const KEYS = {
   KeyA: ['cs', 'l'], KeyD: ['cs', 'r'], KeyW: ['cs', 'u'], KeyS: ['cs', 'd'], Space: ['cs', 'bomb'], ShiftLeft: ['cs', 'drift'], KeyQ: ['cs', 'item'],
   KeyE: ['cs', 'item'], Period: ['yy', 'item'],
@@ -855,9 +857,18 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && gam
 const UI = { play: $('#play'), cv: $('#cv'), hud: $('#hud'), pad: $('#pad'), msg: $('#msg'), keys: $('#gkeys') };
 const ctx = UI.cv.getContext('2d');
 let game = null, raf = 0, last = 0, W = 0, H = 0, DPR = 1, UIS = 1;
+// the phone's safe areas (the notch held sideways, the status bar, the home bar): the app hands them over as CSS
+// variables (a frame has none of its own), a page opened by itself has env(); read once per layout
+const SAFE = { t: 0, r: 0, b: 0, l: 0 };
+function readSafe() {
+  let pr = document.getElementById('safe-probe');
+  if (!pr) { pr = document.createElement('div'); pr.id = 'safe-probe'; pr.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:var(--sat, env(safe-area-inset-top, 0px)) var(--sar, env(safe-area-inset-right, 0px)) var(--sab, env(safe-area-inset-bottom, 0px)) var(--sal, env(safe-area-inset-left, 0px))'; document.body.appendChild(pr); }
+  const cs = getComputedStyle(pr); SAFE.t = parseFloat(cs.paddingTop) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0; SAFE.b = parseFloat(cs.paddingBottom) || 0; SAFE.l = parseFloat(cs.paddingLeft) || 0;
+}
 const HELD = new Map();   // pointerId → { el, move(e), end() }: the fingers on the controls (bindPad)
 let padStale = false;     // the screen changed while a finger was down: redraw the controls once it lifts
 function resize() {
+  readSafe();
   DPR = Math.min(2, window.devicePixelRatio || 1);
   W = UI.play.clientWidth; H = UI.play.clientHeight;
   UIS = clamp(Math.min(W / 440, H / 620), 1, 1.55);   // a laptop or a tablet: the buttons and words grow with the screen
@@ -990,7 +1001,7 @@ function bindPad() {
       const r = c.getBoundingClientRect(), dx = (x - (r.left + r.width / 2)) * flip, dy = (y - (r.top + r.height / 2)) * flip, ax = Math.abs(dx), ay = Math.abs(dy);
       if (Math.max(ax, ay) < r.width * 0.1) { IN[p].joy = null; z.dataset.a = ''; z.dataset.b = ''; return; }
       const h = dx > 0 ? 'r' : 'l', v = dy > 0 ? 'd' : 'u', j = ax >= ay ? [h, ay / ax > 0.5 ? v : null] : [v, ax / ay > 0.5 ? h : null];
-      IN[p].joy = j; z.dataset.a = j[0]; z.dataset.b = j[1] || '';
+      IN[p].joy = j; IN[p].diag = Math.min(ax, ay) / Math.max(ax, ay, 1e-6); z.dataset.a = j[0]; z.dataset.b = j[1] || '';
     };
     z.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -1031,7 +1042,7 @@ function bindPad() {
       let across = ax >= ay;
       if ((was === 'l' || was === 'r') && ay < ax * 1.25) across = true;
       else if ((was === 'u' || was === 'd') && ax < ay * 1.25) across = false;
-      IN[p].joy = across ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null];
+      IN[p].joy = across ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null]; IN[p].diag = Math.min(ax, ay) / Math.max(ax, ay, 1e-6);
     };
     rest();
     z.addEventListener('pointerdown', (e) => {
@@ -1130,7 +1141,9 @@ function setHud(html) { if (html !== hudSig) { hudSig = html; UI.hud.innerHTML =
 function reserveBomb(two) {
   if (!COARSE) return { top: Math.round(58 * UIS), bottom: Math.round(44 * UIS), side: 0 };
   // upright, two people with 方向键 stack 💥 over each cross: the board is held back by the width anyway, so the height is free
-  return W > H ? { top: 56, bottom: 8, side: 190 } : { top: 60, bottom: two ? (BSET.walk === 'stick' ? 196 : 236) : 184, side: 0 };
+  // (on its side the controls stand in bands at the two ends: room for a thumb and a button, plus the notch if there is one)
+  if (W > H) return { top: 50 + SAFE.t, bottom: 6 + SAFE.b, side: Math.max(150, Math.max(SAFE.l, SAFE.r) + 118) };
+  return { top: 60 + SAFE.t, bottom: (two ? (BSET.walk === 'stick' ? 196 : 236) : 184) + SAFE.b, side: 0 };
 }
 
 /* ══════════════ 🏎️ 卡丁车: a chase camera over a flat world, the way old consoles did it ══════════════
@@ -1741,7 +1754,7 @@ function makeKart(opts) {
     const set = (p, sz, h) => `${turn(p, `left:0;bottom:0;width:54%;height:${h}px`, sz)}<div class="cl r" style="--s:${Math.round(sz * 0.86)}px">${padBtn(p, 'drift', '漂移', 'wide')}${tt ? '' : padBtn(p, 'item', '🎁')}</div>`;   // 影子赛 has no items
     if (humans.length === 1) {
       const p = humans[0], sz = Math.min(84, Math.floor(W * 0.54 / 2.3));
-      if (c === 'tilt') UI.pad.innerHTML = `<div class="cl l" style="--s:84px">${padBtn(p, 'drift', '漂移', 'wide')}</div><button type="button" class="tw" aria-label="回正" style="left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 12px);transform:translateX(-50%)"><span class="twd"></span><span class="twl">点我回正</span></button>${tt ? '' : `<div class="cl r" style="--s:84px">${padBtn(p, 'item', '🎁')}</div>`}`;
+      if (c === 'tilt') UI.pad.innerHTML = `<div class="cl l" style="--s:84px">${padBtn(p, 'drift', '漂移', 'wide')}</div><button type="button" class="tw" aria-label="回正" style="left:50%;bottom:calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 12px);transform:translateX(-50%)"><span class="twd"></span><span class="twl">点我回正</span></button>${tt ? '' : `<div class="cl r" style="--s:84px">${padBtn(p, 'item', '🎁')}</div>`}`;
       else UI.pad.innerHTML = set(p, sz, 150);
     } else if (W > H) {
       const sz = Math.min(64, Math.floor(W * 0.24 / 2.25));
@@ -2467,7 +2480,9 @@ function makeKart(opts) {
   // what you need to see while driving: your item top left, your place big top right, laps and time in the middle
   function hudView(g, v, k) {
     const us = Math.max(1, Math.min(UIS, v.w / 330)), gap = G.face ? 34 : v.y === 0 ? 56 : 10;
-    g.save(); g.translate(v.x, v.y); g.scale(us, us); hudTop(g, { x: 0, y: 0, w: v.w / us, h: v.h / us, p: v.p }, k, gap); g.restore();
+    const sl = G.face || v.x > 1 ? 0 : SAFE.l, sr = G.face || v.x + v.w < W - 1 ? 0 : SAFE.r, st = G.face || v.y > 1 ? 0 : SAFE.t;   // the edges of the screen this view touches
+    g.save(); g.translate(v.x + sl, v.y); g.scale(us, us); hudTop(g, { x: 0, y: 0, w: (v.w - sl - sr) / us, h: v.h / us, p: v.p }, k, gap + st / us); g.restore();
+    if (!G.face) G.hudBox = { left: v.x + sl + 14 * us, right: v.x + v.w - sr - 14 * us, top: v.y + (gap + st / us) * us };   // (for the tests: where the words start)
     hudMid(g, v, k);
   }
   function hudTop(g, v, k, gap) {
@@ -2953,7 +2968,18 @@ function makeBomb(opts) {
     if (up) { rdr = clamp((ah / Math.max(12, cs) - BH - BASE) / GHt, RD, 1); cs = Math.floor(Math.min(aw / (GW - crop * 2), ah / (BH + GHt * rdr + BASE))); }
     cs = Math.max(12, cs);
     const units = BH + GHt * rdr + BASE;
-    G.lay = { cs, rd: cs * rdr, bh: cs * BH, rdr, x: Math.round(R.side + (aw - cs * GW) / 2), y: Math.round(R.top + (ah - cs * units) / 2) };
+    let lx = Math.round(R.side + (aw - cs * GW) / 2), ly = Math.round(R.top + (ah - cs * units) / 2);
+    // a phone on its side (2026-11-29, 「make it full screen when horizontal」): the height decides, so the squares you
+    // walk on (rows 1–9) fill it from under the HUD to the bottom, the walls round the edge running under the HUD, off
+    // the bottom and under the controls' bands (they are only walls); rows flatten a little only if that makes the
+    // squares bigger. 852×393 with a notch: squares 32 → 42 px
+    if (!preview && !up && COARSE) {
+      const span = (h - R.bottom) - R.top, csW = aw / (GW - 1.2), head = 0.45;   // (row 1 starts this many squares under the HUD: heads)
+      rdr = clamp(span / ((GHt - 2) + head / RD) / csW, 0.66, RD);
+      cs = Math.max(12, Math.floor(Math.min(csW, span / ((GHt - 2) * rdr + head))));
+      lx = Math.round(R.side + (aw - cs * GW) / 2); ly = Math.round(R.top + cs * head - cs * BH - cs * rdr);
+    }
+    G.lay = { cs, rd: cs * rdr, bh: cs * BH, rdr, x: lx, y: ly };
     G.bg = null; G.spr = bombSprites(PL, cs, rdr);
   };
   G.keysHtml = humans.length === 2
@@ -3011,16 +3037,28 @@ function makeBomb(opts) {
     if (o.human) snd('door');
   }
   // a step that slides round corners; it says whether anything moved
-  function moveEnt(p, dx, dy, dt, mul = 1) {
+  // round a corner: blocked straight ahead in this lane, but the next lane over — the side you already lean toward, by
+  // at least CORNER of a square — is open both beside you and ahead: slide over into it (players only; 2026-11-29)
+  const CORNER = 0.22;
+  function moveEnt(p, dx, dy, dt, mul = 1, assist = true) {
     const d = p.speed * dt * mul * (G.grid[cellOf(p.y) * GW + cellOf(p.x)] === 7 ? 0.55 : 1), x0 = p.x, y0 = p.y;   // wading through leaves
+    const slide = (v, mid, nextOpen) => { const off = v - mid; if (assist && G.players.includes(p) && Math.abs(off) >= CORNER && nextOpen(Math.sign(off))) return approach(v, mid + Math.sign(off), d); return null; };
     if (dx) {
       const nx = p.x + dx * d;
       if (boxFree(nx, p.y, p)) p.x = nx;
-      else { const r = cellOf(p.y), cy = r + 0.5; if (!solidFor(cellOf(p.x) + dx, r, p) && Math.abs(p.y - cy) > 0.001) p.y = approach(p.y, cy, d); else p.x = stopAt(p.x, nx, dx); }
+      else {
+        const c = cellOf(p.x), r = cellOf(p.y), cy = r + 0.5;
+        if (!solidFor(c + dx, r, p) && Math.abs(p.y - cy) > 0.001) p.y = approach(p.y, cy, d);
+        else { const v = slide(p.y, cy, (sd) => !solidFor(c, r + sd, p) && !solidFor(c + dx, r + sd, p)); if (v !== null) p.y = v; else p.x = stopAt(p.x, nx, dx); }
+      }
     } else if (dy) {
       const ny = p.y + dy * d;
       if (boxFree(p.x, ny, p)) p.y = ny;
-      else { const c = cellOf(p.x), cx = c + 0.5; if (!solidFor(c, cellOf(p.y) + dy, p) && Math.abs(p.x - cx) > 0.001) p.x = approach(p.x, cx, d); else p.y = stopAt(p.y, ny, dy); }
+      else {
+        const c = cellOf(p.x), r = cellOf(p.y), cx = c + 0.5;
+        if (!solidFor(c, r + dy, p) && Math.abs(p.x - cx) > 0.001) p.x = approach(p.x, cx, d);
+        else { const v = slide(p.x, cx, (sd) => !solidFor(c + sd, r, p) && !solidFor(c + sd, r + dy, p)); if (v !== null) p.x = v; else p.y = stopAt(p.y, ny, dy); }
+      }
     }
     return Math.abs(p.x - x0) + Math.abs(p.y - y0) > 1e-5;
   }
@@ -3318,7 +3356,9 @@ function makeBomb(opts) {
 
   G.update = (dt) => {
     if (G.state === 'tip') return;
-    if (G.freeze > 0) { G.freeze -= dt; return; }
+    // (2026-11-29, 「make it more smooth」: every cloud popped or hit taken used to stop the whole game for 45–70 ms — a
+    // hitch in your walking each time. The punch is the shake and the flash now; nothing stops)
+    if (G.freeze > 0) { G.freeze -= dt; if (!REDUCE) G.shake = Math.max(G.shake || 0, 0.06); }   // (reduced motion: no shake either)
     G.t += dt; G.shake = Math.max(0, G.shake - dt); G.startT -= dt; G.bannerT = Math.max(0, G.bannerT - dt); G.flash = Math.max(0, (G.flash || 0) - dt);
     if (G.state === 'play') {
       if (net && NET.quiet) { G.banner = `等 ${NAME[PEER]} 的网络…`; G.bannerT = 0.3; }
@@ -3339,10 +3379,13 @@ function makeBomb(opts) {
         else {
           const c = cellOf(p.x), r = cellOf(p.y), onIce = G.ice[r * GW + c] === 1;
           let moved = false;
-          if (onIce && p.slide) { moved = moveEnt(p, p.slide[0], p.slide[1], dt, 1.35); if (!moved) p.slide = null; }
+          if (onIce && p.slide) { moved = moveEnt(p, p.slide[0], p.slide[1], dt, 1.35, false); if (!moved) p.slide = null; }   // (sliding on ice: no rounding corners)
           else {
             p.slide = null;
-            const [a, b] = wants(p.k), vec = (d) => (d === 'l' ? [-1, 0] : d === 'r' ? [1, 0] : d === 'u' ? [0, -1] : d === 'd' ? [0, 1] : null);
+            let [a, b] = wants(p.k); const vec = (d) => (d === 'l' ? [-1, 0] : d === 'r' ? [1, 0] : d === 'u' ? [0, -1] : d === 'd' ? [0, 1] : null);
+            // two ways at once (a diagonal stick, two keys): turn at the first opening, rather than run past it the way you were going
+            // (only a clear diagonal, ≥ ~37°: a thumb wobbling 20–30° off its way would otherwise wander into every side gap)
+            if (a && b && diagOf(p.k) >= 0.75 && p.dir && (p.dir[0] || p.dir[1])) { const along = (q) => (q === 'l' || q === 'r') === !!p.dir[0]; if (along(a) && !along(b)) [a, b] = [b, a]; }
             for (const d of [a, b]) {
               const v = vec(d); if (!v) continue;
               if (moveEnt(p, v[0], v[1], dt)) { moved = true; p.dir = v; if (v[0]) p.faceL = v[0] < 0; const nc = cellOf(p.x), nr = cellOf(p.y); if (G.ice[nr * GW + nc] === 1 && (nc !== c || nr !== r)) p.slide = v; break; }
@@ -3487,6 +3530,10 @@ function makeBomb(opts) {
       const head = coop ? `<span class="hc">${PL.icon} ${G.door ? '🏠 一起去小屋' : goalLine()} · ${fmt(G.t)}</span>` : `<span class="hc">${PL.icon} 第 ${G.round} 局 · ${fmt(G.t)}</span>`;
       const more = coop ? `<span class="hc">📷 ${G.photos}/3 · 💞 ${G.combo}</span>` : '';
       setHud(`<div class="hr1">${head}</div>${ai || more ? `<div class="hr2">${ai}${more}</div>` : ''}${mine}`);
+    } else if (COARSE && W > H && !preview) {   // a phone on its side: one row, so the maze can start right under it
+      const short = (p) => `${p.state === 'down' ? '倒下了' : p.state === 'out' ? '出局' : '❤' + Math.max(0, p.hearts)} 🎆${p.maxB} ✨${p.range}${p.pierce ? ' 🌈' + p.pierce : ''}${p.love ? ' 💞' + p.love : ''} ${PETS[p.pet].icon}${p.cd > 0 ? Math.ceil(p.cd) : '✓'}`;
+      const head = coop ? `<span class="hc">${PL.icon} ${G.door ? '🏠 去小屋' : goalLine()} · 📷${G.photos}/3 · 💞${G.combo} · ${fmt(G.t)}</span>` : `<span class="hc">${PL.icon} 第 ${G.round} 局 · ${fmt(G.t)}</span>`;
+      setHud(G.players.map((p) => `<span class="hc" title="${NAME[p.k]}"><i style="background:${CH[p.k].tint}"></i>${p.ai ? '🤖' : ''}${short(p)}</span>`).join('') + head);
     } else setHud(G.players.map((p) => `<span class="hc"><i style="background:${CH[p.k].tint}"></i>${NAME[p.k]}${p.ai ? '🤖' : ''} ${stat(p)}</span>`).join('') + top);
   }
   // ── drawing ──
@@ -3629,7 +3676,13 @@ function makeBomb(opts) {
   function drawPlayer(g, p, cs, rd) {
     const x = GX(p.x), y = GY(p.y), z = p.hop ? Math.sin(Math.min(1, p.hop.t) * Math.PI) * cs * 0.7 : 0;
     if (p.state === 'ok' && p.inv > 0 && p.inv < 1.5 && Math.floor(G.t * 12) % 2) return;
-    const hgt = cs * 1.15, wdt = hgt * 100 / 112, step = REDUCE || !p.walk ? 0 : Math.sin(p.walk * 14), bob = Math.abs(step) * cs * 0.07;
+    // the walk eases in and out (it used to snap upright the frame you stopped), and turning round is a quick flip
+    const fdt = clamp(G.t - (p._dn ?? G.t), 0, 0.05); p._dn = G.t;
+    if (p.walk > 0) p._ph = p.walk;
+    p._wa = approach(p._wa || 0, p.walk > 0 ? 1 : 0, fdt * (p.walk > 0 ? 10 : 6));
+    const fT = p.faceL ? -1 : 1; p._fx = REDUCE ? fT : approach(p._fx ?? fT, fT, fdt * 12);
+    const hgt = cs * 1.15, wdt = hgt * 100 / 112, step = REDUCE ? 0 : Math.sin((p._ph || 0) * 14) * p._wa, bob = Math.abs(step) * cs * 0.07;
+    if (!REDUCE && p.walk > 0 && p.state === 'ok' && !p.hop && (p._dust = (p._dust || 0) - fdt) <= 0) { p._dust = 0.2; G.parts.push({ smoke: true, x: p.x - (p.dir ? p.dir[0] : 0) * 0.25, y: p.y + 0.18 - (p.dir ? p.dir[1] : 0) * 0.1, z: 0.05, vx: 0, vy: 0, vz: 0.25, life: 0.45, max: 0.45, small: true }); }
     g.fillStyle = 'rgba(20,20,40,.3)'; g.beginPath(); g.ellipse(x, y + rd * 0.1, cs * 0.34 * (1 - z / cs * 0.4), rd * 0.16, 0, 0, TAU); g.fill();
     if (p.state === 'down') {
       g.save(); g.translate(x, y); g.rotate(p.faceL ? -1.35 : 1.35); g.drawImage(IMG[p.k + 'down'], -wdt / 2, -hgt * 0.75, wdt, hgt); g.restore();
@@ -3639,7 +3692,7 @@ function makeBomb(opts) {
     }
     const face = p.inv > 1.3 && p.hearts < p.maxH ? 'hurt' : p.stun > 0 ? 'hurt' : G.state === 'end' && (G.how === 'win' || G.how === p.k) ? 'happy' : 'normal';
     const sq = p.placedT > 0 ? 1 - p.placedT * 0.8 : 1;
-    g.save(); g.translate(x, y + rd * 0.12 - z); if (p.faceL) g.scale(-1, 1); g.rotate(step * 0.06); g.scale(1 / Math.sqrt(sq), sq);
+    g.save(); g.translate(x, y + rd * 0.12 - z); g.scale(Math.abs(p._fx) < 0.14 ? 0.14 * Math.sign(p._fx || 1) : p._fx, 1); g.rotate(step * 0.06); g.scale(1 / Math.sqrt(sq), sq);
     g.drawImage(IMG[p.k + face + 'F'], -wdt / 2, -hgt - bob, wdt, hgt);
     g.restore();
     if (p.shield > 0) { const a = 0.5 + 0.3 * Math.sin(G.t * 8); g.strokeStyle = `rgba(255,190,120,${a})`; g.fillStyle = 'rgba(255,220,170,.18)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y - hgt * 0.45 - z, cs * 0.62, hgt * 0.62, 0, 0, TAU); g.fill(); g.stroke(); }
@@ -3792,7 +3845,7 @@ function makeBomb(opts) {
       const a = clamp(p.life / p.max, 0, 1), x = GX(p.x), y = GY(p.y) - (p.z || 0) * cs;
       if (p.ring) { const big = p.big || 1.6; g.strokeStyle = `rgba(255,240,190,${a})`; g.lineWidth = 3; g.beginPath(); g.ellipse(x, GY(p.y), cs * (big - a * (big - 0.4)), rd * (big - a * (big - 0.4)), 0, 0, TAU); g.stroke(); continue; }
       if (p.text) { g.globalAlpha = a; drawEmo(g, p.text, x, y, cs * 0.5); g.globalAlpha = 1; continue; }
-      if (p.smoke) { g.globalAlpha = a * 0.42; g.fillStyle = PL.night ? '#8C86AA' : '#EEEAF2'; g.beginPath(); g.arc(x, y, cs * (0.18 + (1 - a) * 0.34), 0, TAU); g.fill(); g.globalAlpha = 1; continue; }
+      if (p.smoke) { g.globalAlpha = a * (p.small ? 0.3 : 0.42); g.fillStyle = PL.night ? '#8C86AA' : '#EEEAF2'; g.beginPath(); g.arc(x, y, cs * (p.small ? 0.08 + (1 - a) * 0.12 : 0.18 + (1 - a) * 0.34), 0, TAU); g.fill(); g.globalAlpha = 1; continue; }
       g.globalAlpha = a; g.fillStyle = p.c; g.beginPath(); g.arc(x, y, Math.max(1, p.r * cs), 0, TAU); g.fill();
     }
     g.globalAlpha = 1;

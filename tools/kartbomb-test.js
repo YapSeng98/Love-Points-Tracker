@@ -1,6 +1,6 @@
 // 🏎️ 卡丁车 and 💣 烟花炸弹 (kartbomb.html, CLAUDE.md §7.37): the game page on its own, the full suite.
 // The app around it (opening from 小游戏, the points, the records): tools/kartbomb-app-test.js.
-//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb exit touch ui layout perf motion webkit)
+//   node tools/kartbomb-test.js [section…]      KB_URL=… to test another copy (default: the file in this repo) (sections: geo kart mech cup e2ek e2et ux ctl fun devices newmaps maps stages bmech vs e2eb exit touch move full ui layout perf motion webkit)
 const { chromium, webkit } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
 const fs = require('fs'), path = require('path');
 const URL = process.env.KB_URL || 'file://' + path.join(__dirname, '..', 'kartbomb.html');
@@ -458,9 +458,10 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     ok(await b.evaluate(() => !!document.querySelector('.jz') && !document.querySelector('.dz') && __kb.BSET.walk === 'stick'), 'the pause menu switches to the stick, and remembers it');
     await b.click('#msg [data-m="go"]'); await sleep(60);
     await b.setViewportSize({ width: 844, height: 390 }); await sleep(300);
-    const bs = await b.evaluate(() => { const G = __kb.game, L = G.lay, board = { l: L.x, r: L.x + 13 * L.cs, b: L.y + L.bh + 11 * L.rd }, ctl = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dz')].map((e) => e.getBoundingClientRect());
-      return { on: ctl.every((r) => r.left >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1), clear: ctl.every((r) => r.right <= board.l + 4 || r.left >= board.r - 4), fits: board.l >= 0 && board.r <= innerWidth && board.b <= innerHeight }; });
-    ok(bs.on && bs.clear && bs.fits, 'turned on its side mid-game: the maze fits between the controls');
+    // (the squares you walk on: on its side the walls round the edge may run under the controls' bands, the HUD and off the bottom)
+    const bs = await b.evaluate(() => { const G = __kb.game, L = G.lay, board = { l: L.x + L.cs, r: L.x + 12 * L.cs, t: L.y + L.bh + L.rd, b: L.y + L.bh + 10 * L.rd }, ctl = [...document.querySelectorAll('#pad .pb, #pad .jz .jb, #pad .dz .dzc')].map((e) => e.getBoundingClientRect());
+      return { on: ctl.every((r) => r.left >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1), clear: ctl.every((r) => r.right <= board.l + 4 || r.left >= board.r - 4), fits: board.l >= 0 && board.r <= innerWidth && board.b <= innerHeight && board.t >= 0 }; });
+    ok(bs.on && bs.clear && bs.fits, 'turned on its side mid-game: every square of the maze you walk on fits between the controls');
     await b.setViewportSize({ width: 390, height: 844 }); await sleep(100);
     await b.evaluate(() => { __kb.BSET.walk = 'dpad'; __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'beach', two: true }); }); await b.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await b.click('#msg [data-m="go"]'); await sleep(200);
     const two = await b.evaluate(() => { const els = [...document.querySelectorAll('#pad .pb, #pad .dzb, .hc.pc')].map((e) => e.getBoundingClientRect()), hit = (a, c) => a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1;
@@ -651,7 +652,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
       await sleep(60); if (!(await p.evaluate(() => __kb.game.bombs.some((b) => b.own.human)))) probs.push('bomb: no firework placed');
       if (await fits('#pad .pb, #pad .dzb, #pad .jz, .tb, .hc')) probs.push('bomb: something off the screen');
       // every square you can walk on (upright on a phone the hedge round the edge may run off the screen: it is only a wall)
-      const L = await p.evaluate(() => { const G = __kb.game, L2 = G.lay; return { b: L2.y + L2.bh + 11 * L2.rd + L2.cs * 0.75, r: L2.x + 12 * L2.cs, l: L2.x + L2.cs, t: L2.y }; });
+      const L = await p.evaluate(() => { const G = __kb.game, L2 = G.lay; return { b: L2.y + L2.bh + 10 * L2.rd, r: L2.x + 12 * L2.cs, l: L2.x + L2.cs, t: L2.y + L2.bh + L2.rd }; });
       if (L.l < 0 || L.r > w || L.b > h || L.t < 0) probs.push('bomb: the maze does not fit');
       const f3 = await fps(); if (f3 < 45) probs.push(`bomb ${f3.toFixed(0)} fps`);
       await p.evaluate(() => __kb.close());
@@ -1098,6 +1099,112 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
     await p.context().close();
   }
+  if (want('move')) {
+    // 2026-11-29, 「help improve the movement experience and make it more smooth」: walking in the maze on the real
+    // physics, one 60th of a second at a time — nothing ever stops your walking (a cloud popped, a hit, a chain used to
+    // hold the whole game 45–70 ms), corners are rounded when you already lean toward the open lane, a diagonal stick
+    // turns at the first opening, turning round is a flip, and a route walked with a wobbly thumb gets stuck far less.
+    console.log('\nM. Walking in the maze: smooth, forgiving at corners, turning where you mean');
+    const p = await page(browser, { viewport: { width: 852, height: 393 } });
+    await p.evaluate(() => { __kb.BSET.walk = 'stick'; __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'garden', two: false }); });
+    await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.click('#msg [data-m="go"]'); await sleep(300);
+    // a clean board (walls, pillars and water only: no boxes, nobody else), the player under test control
+    const SETUP = `(() => { const G = __kb.game; G.state = 'play'; G.paused = false; G.startT = -9; document.getElementById('msg').hidden = true;
+      G.enemies.length = 0; G.bombs.length = 0; G.flames.clear(); for (let k = 0; k < G.grid.length; k++) if (G.grid[k] >= 2 && G.grid[k] <= 4) G.grid[k] = 0;
+      const me = G.players.find((q) => q.human); for (const q of G.players) if (q !== me) { q.state = 'out'; } me.inv = 999; me.speed = 3.3; me.dir = null; return me; })()`;
+    const open = (c, r) => `!(__kb.game.grid[${r} * 13 + ${c}] > 0 && __kb.game.grid[${r} * 13 + ${c}] !== 7)`;
+    // a corridor square with a wall above it and an opening above the square to its right
+    await p.evaluate(SETUP);   // (the boxes cleared first: a box is not a wall)
+    const spot = await p.evaluate(() => { const G = __kb.game, op = (c, r) => !(G.grid[r * 13 + c] > 0 && G.grid[r * 13 + c] !== 7) && G.grid[r * 13 + c] !== 5;
+      for (let r = 2; r < 10; r++) for (let c = 1; c < 11; c++) if (op(c, r) && op(c + 1, r) && !op(c, r - 1) && op(c + 1, r - 1) && op(c + 1, r - 2)) return { c, r }; return null; });
+    ok(!!spot, `a corner to test on: a wall above (${spot && spot.c},${spot && spot.r - 1}), an opening above the square beside it`);
+    const run = (n, joy, render) => `(() => { const G = __kb.game, me = G.players.find((q) => q.human), out = []; __kb.IN[me.k].joy = ${JSON.stringify(joy)};
+      for (let k = 0; k < ${n}; k++) { const x = me.x, y = me.y; G.update(1 / 60); ${render ? '__kb.game.render(document.querySelector("canvas").getContext("2d"));' : ''} out.push([+(me.x - x).toFixed(4), +(me.y - y).toFixed(4)]); }
+      __kb.IN[me.k].joy = null; return { x: me.x, y: me.y, steps: out }; })()`;
+    // 1. nothing stops your walking: a cloud popped (or a hit, a chain) every third of a second while you walk
+    let r = await p.evaluate(`(() => { const me = ${SETUP}; const G = __kb.game; me.x = 1.5; me.y = 1.5; let zero = 0, n = 0; __kb.IN[me.k].joy = ['d', null];
+      for (let k = 0; k < 60; k++) { if (k % 20 === 5) G.freeze = 0.07; const y = me.y; G.update(1 / 60); if (me.y - y < 1e-4 && me.y < 8.4) zero++; n++; } __kb.IN[me.k].joy = null; return { zero, n, y: me.y, shake: G.shake }; })()`);
+    ok(r.zero === 0, `walking down for a second while clouds pop every third of a second: ${r.n - r.zero}/${r.n} frames moved (it used to stand still 45–70 ms each time)`);
+    // 2. a corner: leaning toward the open lane (a quarter of a square over), pushing up rounds it
+    r = await p.evaluate(`(() => { const me = ${SETUP}; me.x = ${spot.c} + 0.5 + 0.3; me.y = ${spot.r} + 0.5; return ${run(90, ['u', null])}; })()`);
+    ok(r.y < spot.r - 0.4 && Math.abs(r.x - (spot.c + 1.5)) < 0.16, `leaning ${0.3} toward the opening, up goes round the corner: from (${(spot.c + 0.8).toFixed(1)}, ${spot.r + 0.5}) to (${r.x.toFixed(2)}, ${r.y.toFixed(2)})`);
+    r = await p.evaluate(`(() => { const me = ${SETUP}; me.x = ${spot.c} + 0.5 + 0.08; me.y = ${spot.r} + 0.5; return ${run(60, ['u', null])}; })()`);
+    ok(Math.abs(r.x - (spot.c + 0.58)) < 0.02 && r.y > spot.r + 0.3, `standing in the middle of a blocked lane (0.08 over), up does not wander off sideways (x ${r.x.toFixed(2)}, y ${r.y.toFixed(2)})`);
+    // 3. a diagonal stick turns at the first opening instead of running past it
+    r = await p.evaluate(`(() => { const me = ${SETUP}; me.x = ${spot.c} + 0.5; me.y = ${spot.r} + 0.5; me.dir = [1, 0];
+      const G = __kb.game; __kb.IN[me.k].joy = ['r', 'u']; __kb.IN[me.k].diag = 0.85; let maxX = 0;
+      for (let k = 0; k < 120; k++) { G.update(1 / 60); maxX = Math.max(maxX, me.x); if (me.y < ${spot.r} - 0.4) break; }
+      __kb.IN[me.k].joy = null; __kb.IN[me.k].diag = 0; return { maxX, x: me.x, y: me.y }; })()`);
+    ok(r.y < spot.r - 0.3 && r.maxX < spot.c + 2 - 0.3 && Math.abs(r.x - (spot.c + 1.5)) < 0.2, `a clear diagonal (up and right) along a row turns up at the first opening (x ${r.x.toFixed(2)}, y ${r.y.toFixed(2)}, never further right than ${r.maxX.toFixed(2)})`);
+    // 4. turning round is a quick flip, not a snap; and stopping eases the walk out
+    r = await p.evaluate(`(() => { const me = ${SETUP}; me.x = 3.5; me.y = 1.5; me.faceL = false; const G = __kb.game, cv = document.querySelector('canvas').getContext('2d'), fx = [];
+      __kb.IN[me.k].joy = ['r', null]; for (let k = 0; k < 10; k++) { G.update(1 / 60); G.render(cv); }
+      __kb.IN[me.k].joy = ['l', null]; for (let k = 0; k < 14; k++) { G.update(1 / 60); G.render(cv); fx.push(+(me._fx || 0).toFixed(2)); }
+      __kb.IN[me.k].joy = null; const wa = []; for (let k = 0; k < 6; k++) { G.update(1 / 60); G.render(cv); wa.push(+(me._wa || 0).toFixed(2)); }
+      return { fx, wa }; })()`);
+    ok(r.fx.some((v) => v > -0.95 && v < 0.95) && r.fx[r.fx.length - 1] < -0.9, `turning round flips through the middle (${r.fx.slice(0, 6).join(' ')} …), then faces the new way`);
+    ok(r.wa[0] > 0 && r.wa[0] < 1 && r.wa[r.wa.length - 1] < r.wa[0], `stopping eases the walk out (${r.wa.join(' ')}) instead of snapping upright`);
+    // 5. a route walked the way a thumb walks it: the stick pointing at the next square of a path, wobbling up to 28°
+    const route = await p.evaluate(`(() => { const me = ${SETUP}; const G = __kb.game; me.x = 1.5; me.y = 1.5;
+      const op = (c, r) => !(G.grid[r * 13 + c] > 0 && G.grid[r * 13 + c] !== 7) && G.grid[r * 13 + c] !== 5;
+      const prev = new Map([['1,1', null]]), q = [[1, 1]];   // a path to the far corner (breadth first)
+      while (q.length) { const [c, r] = q.shift(); for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (c + dc) + ',' + (r + dr); if (!prev.has(k) && op(c + dc, r + dr)) { prev.set(k, c + ',' + r); q.push([c + dc, r + dr]); } } }
+      const goal = [...prev.keys()].map((k) => k.split(',').map(Number)).sort((a, b) => (b[0] + b[1]) - (a[0] + a[1]))[0];
+      const path = []; for (let k = goal.join(','); k; k = prev.get(k)) path.unshift(k.split(',').map(Number));
+      let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      let i = 1, stuck = 0, frames = 0, wob = 0;
+      while (i < path.length && frames < 60 * 40) {
+        const [tc, tr] = path[i], dx = tc + 0.5 - me.x, dy = tr + 0.5 - me.y;
+        if (Math.hypot(dx, dy) < 0.35) { i++; continue; }
+        if (frames % 12 === 0) wob = (rnd() * 2 - 1) * 28 * Math.PI / 180;   // the thumb wobbles a little, now and then
+        const a = Math.atan2(dy, dx) + wob, ax = Math.abs(Math.cos(a)), ay = Math.abs(Math.sin(a)), h = Math.cos(a) > 0 ? 'r' : 'l', v = Math.sin(a) > 0 ? 'd' : 'u';
+        __kb.IN[me.k].joy = ax >= ay ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null];
+        const x = me.x, y = me.y; G.update(1 / 60); frames++;
+        if (Math.abs(me.x - x) + Math.abs(me.y - y) < 1e-4) stuck++;
+      }
+      __kb.IN[me.k].joy = null; return { squares: path.length, done: i >= path.length, secs: +(frames / 60).toFixed(2), stuck }; })()`);
+    console.log(`    (route: ${route.squares} squares, ${route.done ? 'reached' : 'NOT reached'} in ${route.secs} s, stuck ${route.stuck} frames)`);
+    ok(route.done && route.stuck <= Math.max(6, route.squares * 0.25), `a ${route.squares}-square route to the far corner with a thumb wobbling up to 28°: reached in ${route.secs} s, stuck ${route.stuck} frames`);
+    ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
+    await p.context().close();
+  }
+  if (want('full')) {
+    // 2026-11-29, 「the screen not full」 / 「make it full screen when horizontal」: the app now lets the game reach every
+    // edge and hands it the phone's safe areas (--sat --sar --sab --sal: a frame has none of its own). Here an iPhone 15's
+    // are given, held sideways and upright: the buttons and words stay clear of them, the maze fills the screen, every
+    // square you can walk on is in sight — clear of the HUD, the controls and the notch.
+    console.log('\nF. Edge to edge, with an iPhone\'s safe areas: sideways and upright');
+    for (const [w, h, sa, tag] of [[852, 393, [0, 59, 21, 59], 'sideways'], [393, 852, [59, 0, 34, 0], 'upright']]) {
+      const p = await page(browser, { viewport: { width: w, height: h } });
+      await p.evaluate((sa) => { const d = document.documentElement; ['--sat', '--sar', '--sab', '--sal'].forEach((k, i) => d.style.setProperty(k, sa[i] + 'px')); }, sa);
+      await p.evaluate(() => { __kb.BSET.walk = 'stick'; __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'beach', two: false }); });
+      await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.click('#msg [data-m="go"]'); await sleep(2600);
+      const r = await p.evaluate((sa) => {
+        const G = __kb.game, l = G.lay, [t, rt, b, lf] = sa, rect = (e) => e.getBoundingClientRect();
+        const hud = [...document.querySelectorAll('#hud .hc:not(.pc)')].map(rect), hudBot = Math.max(...hud.map((q) => q.bottom)), rows = new Set(hud.map((q) => Math.round(q.top))).size;
+        const btn = [...document.querySelectorAll('.tb')].map(rect), ctl = [...document.querySelectorAll('#pad .pb, #pad .jz .jb')].map(rect);
+        const walk = { left: l.x + l.cs, right: l.x + 12 * l.cs, top: l.y + l.bh + l.rd, bottom: l.y + l.bh + 10 * l.rd };
+        const hits = ctl.filter((q) => q.left < walk.right - 2 && q.right > walk.left + 2 && q.top < walk.bottom - 2 && q.bottom > walk.top + 2).length;
+        return { cs: l.cs, rows, hudBot, walk, hits, W: innerWidth, H: innerHeight,
+          btnOk: btn.every((q) => q.left >= lf - 0.5 && q.right <= innerWidth - rt + 0.5 && q.top >= t - 0.5),
+          ctlOk: ctl.every((q) => q.left >= lf - 60 && q.right <= innerWidth - rt + 0.5 && q.bottom <= innerHeight - b + 0.5),
+          safe: [t, rt, b, lf] };
+      }, sa);
+      const inside = r.walk.left >= sa[3] - 0.5 && r.walk.right <= r.W - sa[1] + 0.5 && r.walk.bottom <= r.H - sa[2] + 0.5 && r.walk.top >= r.hudBot + r.cs * 0.25;
+      ok(r.btnOk && r.ctlOk, `${tag}: ✕ ⏸ 🔊 clear of the notch and the bar, the stick and the buttons inside the safe area`);
+      ok(inside && r.hits === 0, `${tag}: every square you walk on in sight and clear of the notch, the bar, the HUD (${Math.round(r.hudBot)} → row 1 at ${Math.round(r.walk.top)}) and the controls (${r.hits} over it)`);
+      if (tag === 'sideways') ok(r.cs >= 38 && r.rows === 1, `sideways: the maze fills the height — squares ${r.cs} px (it was 32 before the frame reached the edges) — under a HUD of one row (${r.rows})`);
+      else ok(r.cs >= 32, `upright: squares ${r.cs} px`);
+      // 卡丁车's words on the canvas stay clear of the notch too
+      await p.evaluate(() => { __kb.close(); __kb.open('kart', { mode: '1p', place: 'beach', skipCard: true }); const G = __kb.game; G.count = 0.01; });
+      await sleep(600);
+      const hb = await p.evaluate(() => __kb.game.hudBox);
+      ok(hb && hb.left >= sa[3] + 12 && hb.right <= w - sa[1] - 12 && hb.top >= sa[0], `${tag} 卡丁车: the item box, the place and the map start clear of the safe areas (${hb && Math.round(hb.left)}…${hb && Math.round(hb.right)} of ${w})`);
+      await p.screenshot({ path: `${SHOTS}/t_full_${tag}.png` });
+      ok(!p.errs.length, `${tag}: no page errors ` + p.errs.join(' | '));
+      await p.context().close();
+    }
+  }
   if (want('ui')) {
     console.log('\nG1. The page at every width, light and dark');
     for (const w of [360, 390, 430, 820, 1280]) for (const scheme of ['light', 'dark']) {
@@ -1131,7 +1238,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
           const offscreen = ctl.filter((b) => b.left < -1 || b.top < -1 || b.right > vw + 1 || b.bottom > vh + 1).length;
           const small = [...document.querySelectorAll('#pad .pb, #pad .bzb, #pad .dzb, .tb')].filter((e) => e.getBoundingClientRect().height < 42).length;
           let board = null, under = 0;
-          if (G.kind === 'bomb') { const L = G.lay, top = L.y, bot = L.y + L.bh + 11 * L.rd, left = L.x + L.cs, right = L.x + 12 * L.cs; board = { top, bot, left, right };   /* the squares you can walk on */ under = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
+          if (G.kind === 'bomb') { const L = G.lay, top = L.y + L.bh + L.rd, bot = L.y + L.bh + 10 * L.rd, left = L.x + L.cs, right = L.x + 12 * L.cs; board = { top, bot, left, right };   /* the squares you can walk on */ under = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
           return { offscreen, small, board, under, inside: !board || (board.top >= 0 && board.left >= 0 && board.right <= vw && board.bot <= vh), n: ctl.length };
         });
         ok(!r.offscreen && !r.small && r.inside && !r.under, `${w}×${h} ${kind} ${o.mode}${o.two ? '·2' : ''}: ${r.n} controls all on screen and ≥ 42px${r.board ? `, every square of the maze you can walk on visible and no button over it (${r.under})` : ''}`);

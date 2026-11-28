@@ -2150,6 +2150,47 @@ Reproduced with real fingers (Chrome's touch protocol: several at once, each lif
 to the thumb, the diagonal holding, 💥 tapped while walking, the page hidden mid-touch, 方向键 taking over, the board
 upright: bigger, all on screen, between the HUD and the controls).
 
+### 📐 Edge to edge, and walking that never hitches (2026-11-29, later)
+
+Two more reports the same day: a screenshot of 卡丁车 held sideways — 「The screen not full」 — and 「for the 炸弹game help
+improve the movement experience and make it more smooth and also make it full screen when horizontal, do deep testing」.
+
+- **The frame reaches every edge.** `openKB` used to inset the frame by the phone's safe areas, because inside a frame
+  an iPhone reports none (env() is 0) — which left bands of the app's background round the game (left, right and
+  bottom when held sideways). Now the frame is `inset: 0`; the app measures the safe areas with a probe of its own
+  (`.kb-safe`, padding = env(safe-area-inset-*)) and writes them onto the game page's root as `--sat --sar --sab --sal`
+  (again on resize / orientationchange, then a resize inside, so it lays out again). Every safe-area rule in
+  kartbomb.html is `var(--sa?, env(safe-area-inset-?, 0px))`, so the page opened by itself still uses env(). `readSafe()`
+  turns them into `SAFE` for what the canvas draws: 卡丁车's item box, place and map (`hudView`, `G.hudBox` for the
+  tests) and the maze's room for the controls (`reserveBomb`). The face-to-face half is turned round, so inside `.flip`
+  its foot (`--sab`) is the top's inset.
+- **The maze on its side fills the height.** It was width-bound by bands of 190 px for the controls and rows of 0.8.
+  Now the bands are the controls' own (`max(150, notch + 118)`), the walls round the edge run under the HUD, off the
+  bottom and under the bands (they are only walls), the walkable rows 1–9 start 0.45 of a square under the HUD (a
+  character stands taller than its square) and end above the home bar, and the rows flatten (≥ 0.66) only if that
+  makes the squares bigger. 852×393 with a notch: squares 32 → 42 px. The HUD on its side is one row: hearts as a
+  number, the goal, 📷, 💞 and the time in one chip — a second row covered you at your starting square.
+- **Nothing stops your walking.** Every cloud popped (45 ms), hit taken (60 ms) or chain (70 ms) ran
+  `if (G.freeze > 0) return` — the whole game held, your walking with it: up to 15 frames in 60 standing still while
+  clouds popped. The punch is the shake now.
+- **Corners are rounded** (`CORNER` 0.22, players only, not sliding on ice): blocked straight ahead in your lane, but
+  the next lane over — the side you already lean toward by a fifth of a square or more — open beside you and ahead:
+  you slide into it and go. Standing in the middle of a blocked lane, nothing moves you sideways.
+- **A clear diagonal turns at the first opening.** With two ways wished at once the way across your last move is tried
+  first — but only when the wish is really diagonal (`IN.diag` ≥ 0.75, ~37°, or two keys). A first version did it for
+  any secondary way and a thumb wobbling 20–30° wandered into side gaps: the wobbly-thumb route got 6% slower.
+- **The walk eases** in and out (`_wa`), turning round is a flip through the middle (`_fx`), a little dust at the feet
+  — on the game's own clock (`G.t`), not the wall clock: it stops while paused, and the tests (frames drawn back to back)
+  see it at all.
+
+kartbomb-test `move` (on the real physics, a 60th of a second at a time: no frame without movement while clouds pop, a
+corner rounded, none in the middle of a lane, a clear diagonal at the first opening, the flip, the walk easing out, a
+19-square route with a thumb wobbling up to 28° — reached, no frame stuck) and `full` (an iPhone 15's safe areas given
+as the app would, sideways and upright: buttons clear, every walkable square in sight and clear of the HUD, controls and
+notch, one HUD row, squares ≥ 38 sideways, 卡丁车's words clear). The old file fails four of `move` (15 frames in 60 still,
+no corner, no flip, no easing). kartbomb-app-test checks the frame fills the screen and the safe areas reach the game,
+sideways and turned.
+
 ### 🤝 各用自己的手机 — the two games on two phones (2026-11-28)
 
 The couple's private channel (§7.235) under event `kb`, kept up only while the game page is
@@ -2649,7 +2690,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it; §9: the stove and its ice, the flag keeping it, the mirrors and the booth, syrup — alone and together), all 24 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
 | `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; the stove carried and the ice melted on both; the booth's photo opening the gate on both; stuck in syrup on both and one press popping you both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
-| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card; `touch`: fingers on the controls — lost lifts, a resize mid-touch, touchcancel, two thumbs, the stick following, the board upright): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
+| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card; `touch`: fingers on the controls — lost lifts, a resize mid-touch, touchcancel, two thumbs, the stick following, the board upright; `move`: walking — no hitches, corners, diagonals, the flip, a wobbly-thumb route; `full`: edge to edge with an iPhone's safe areas, sideways and upright): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
 | `node tools/kartbomb-app-test.js` | The two games inside the app (§7.37): opening from 小游戏 full screen, never asking who you are, 倾斜 allowed, +1 for a first win / clear, nothing twice, 拿满 after three, YY's phone paying YY, the records in Prog and their merge, 今天's chip, ✕ and Esc, the app's day and night and the bands round the frame, the app's song pausing and coming back, 390 / 844×390 / 1280 / 经典, WebKit |
 | `node tools/kartbomb-net-test.js` | 🤝 卡丁车 / 烟花炸弹 on two pages of `tools/kb-harness.html` (`ONLY=kart,bomb,junk,net`, `BROWSER=webkit`): finding each other, being asked and saying no or 出发, the same track / boxes / pets on both, each drawn where they really are (timestamped, `drawGap`), a 布丁 and a 小雨云 crossing, the same finish and end card with each paid on their own phone, 再来一次 from the partner, pause, leaving; the maze: walking, monsters, a firework set down on the partner's phone going off on both, a monster's touch, a 📷, falling and being picked up, the little house, 下一关, 对战's next round; junk, our own login elsewhere, an old version; a lost 出发, a 4G line, a dropped line, ≤ 10 messages a second |
 | `node tools/kartbomb-live-test.js` | The same through app.js on two logged-in phones, live backend: the channel only while the page is open, finding each other by name, a race with the winner alone paid into 本月记录, a maze with both paid, leaving |
