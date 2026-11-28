@@ -12,6 +12,20 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-29 (evening) — 烟花炸弹: walk with your thumb anywhere on the left
+
+No more aiming at a joystick: in 烟花炸弹 the whole left half of the screen is for walking
+now — put your thumb down anywhere there (over the maze too) and drag. Nothing sits on
+the screen until you touch; a light ring appears under your thumb while you walk and
+disappears when you let go. 💥 and the pet button stay on the right. This is the new
+standard way to walk (走路 · 左半屏); if you used the joystick before you are moved to it,
+and the joystick with its ring (摇杆) and the arrow pad (方向键) are still there in 走路.
+
+The first time you play this way, a tip points at a faint ring in the bottom-left corner,
+where your thumb naturally rests, and goes away as soon as you touch the screen. With two
+people on one phone, CS walks on the left half and YY on the right. The tips no longer
+cover the ✕ in the corner.
+
 ## 2026-11-29 (later) — 卡丁车 and 烟花炸弹 fill the screen; walking in the maze is smoother
 
 Held sideways, both games now reach every edge of the screen — no more pale bands round

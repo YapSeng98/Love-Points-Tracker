@@ -154,6 +154,14 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .jz.cs .jk { border: 3px solid rgba(127, 178, 236, .95); } .jz.yy .jk { border: 3px solid rgba(255, 143, 179, .95); }
 .jk { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #FFFFFF 0%, #F3EEFF 45%, #D9CFF2 100%); box-shadow: 0 3px 10px rgba(0, 0, 0, .25), inset 0 -3px 6px rgba(110, 90, 170, .25); }
 .jz.idle .jb { opacity: .55; }
+.jz.half .jb { transition: opacity .12s; } .jz.half.idle .jb { opacity: 0; }   /* 左半屏: nothing on show until a thumb comes down */
+/* the moment a thumb comes down the movement button is there under it, clear over any maze (a tinted ring in your
+   colour and a bright knob), nothing blurred under it; it goes when the thumb lifts */
+.jz.half .jb { background: radial-gradient(circle, rgba(30, 20, 60, .1) 0%, rgba(30, 20, 60, .22) 68%, rgba(255, 255, 255, .3) 100%); -webkit-backdrop-filter: none; backdrop-filter: none; border-width: 3px; box-shadow: 0 3px 14px rgba(10, 6, 30, .25), inset 0 0 0 1px rgba(255, 255, 255, .35); }
+.jz.half .jk { opacity: 1; }
+.jz.half.idle.jz-hint .jb { opacity: .6; animation: jzHint 1.6s ease-in-out infinite; }   /* the first-play tip points at it */
+@keyframes jzHint { 50% { transform: scale(1.07); } }
+@media (prefers-reduced-motion: reduce) { .jz.half.idle.jz-hint .jb { animation: none; } }
 #msg { position: absolute; inset: 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); background: rgba(14, 10, 30, .55); padding: max(16px, var(--sat, env(safe-area-inset-top, 0px))) max(16px, var(--sar, env(safe-area-inset-right, 0px))) max(16px, var(--sab, env(safe-area-inset-bottom, 0px))) max(16px, var(--sal, env(safe-area-inset-left, 0px))); z-index: 4; }   /* a definite row, so a tall card's max-height: 100% holds and it scrolls inside the screen */
 .panel { box-sizing: border-box; width: min(100%, 380px); max-height: 100%; overflow: auto; background: #FFFDF9; color: #2C2540; border-radius: 24px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); }
 .panel h2 { margin: 0; font-size: 23px; font-weight: 900; }
@@ -188,6 +196,7 @@ kbd { font: inherit; font-size: 12px; font-weight: 800; background: var(--chip);
 .coach { position: absolute; z-index: 5; pointer-events: none; background: #FFF8E1; color: #2C2540; font: 800 13.5px/1.35 var(--font); padding: 7px 11px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); max-width: min(92vw, 640px); animation: coachIn .35s ease-out both; }
 .coach::after { content: ""; position: absolute; left: var(--ax, 50%); bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-top-color: #FFF8E1; border-bottom: 0; }
 .coach.below::after { display: none; }
+.coach.under::after { top: -7px; bottom: auto; border-top: 0; border-bottom: 7px solid #FFF8E1; }   /* under its button, pointing up */
 @keyframes coachIn { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .coach { animation: none; } }
 .hc.pc { position: fixed; }
@@ -915,7 +924,17 @@ const Tilt = {
     }).then((ok) => { Tilt.state = ok ? 'on' : 'none'; return ok; });
   },
 };
-const BSET = Object.assign({ walk: 'dpad' }, store.get('kb_bset', {}));
+const BSET = Object.assign({ walk: 'half' }, store.get('kb_bset', {}));
+// 2026-11-29, 「the button can hide and the left side is for movement, then the user will not need the button's place」:
+// 左半屏 — the stick anywhere on the left half of the screen, nothing on show until a thumb comes down — is the default,
+// and a phone that had chosen 摇杆 moves to it once (it is the same stick, without aiming at a ring). 方向键 and the ring
+// you can see (摇杆) are still in 走路 for anyone who wants them.
+if (!BSET.v2) {
+  if (BSET.walk === 'stick') BSET.walk = 'half';
+  BSET.v2 = 1; store.set('kb_bset', BSET);
+  if (BSET.walk === 'half' && store.get('kb_coach_bomb', 0) > 1) store.set('kb_coach_bomb', 1);   // walking works differently now: the first-play tips once more
+}
+const stickWalk = () => BSET.walk === 'stick' || BSET.walk === 'half';
 // why 倾斜 isn't there: a preview inside another site can't have the phone's motion; anywhere else this device didn't give it
 const TILT_WHY = () => (EMBEDDED ? '倾斜手机转弯要在 app 里玩才行（这个预览页拿不到手机的感应器）' : '这部设备没有给倾斜（没有感应器，或者刚才没有允许），先用按钮或滑条吧');
 // shown inside ANOTHER site's page (the Claude app's viewer) the phone's motion is out of reach; the app's own frame may have it
@@ -923,16 +942,22 @@ const EMBEDDED = (() => { try { if (window.self === window.top) return false; vo
 addEventListener('resize', () => { if (game) resize(); });
 function padBtn(p, k, label, cls = '', aria) { return `<button type="button" class="pb ${p} ${cls}" data-p="${p}" data-k="${k}" aria-label="${aria || label}">${label}</button>`; }
 const joyZone = (p, style, tag) => `<div class="jz ${p} idle" data-p="${p}" style="${style}">${tag ? `<span class="tag" style="left:10px">${tag}</span>` : ''}<div class="jb"><div class="jk"></div></div></div>`;
+// 左半屏: a whole half of the screen (below the corner buttons) is the stick; its ring shows only under a thumb
+// (hx, hy: where its ring rests, inside the zone — where the 摇杆 ring stood, under a resting thumb. Nobody sees it there
+// except during the first-play tip, which points at it)
+const HALF_TOP = () => Math.round(SAFE.t + 54);
+const halfZone = (p, side, hx, hy) => `<div class="jz half ${p} idle" data-p="${p}" data-hx="${Math.round(hx)}" data-hy="${Math.round(hy)}" style="${side}:0;top:${HALF_TOP()}px;width:50%;bottom:0" aria-label="${NAME[p]}：在这半边屏幕随便哪里按住拖动走路"><div class="jb"><div class="jk"></div></div></div>`;
 // little bubbles that point at the controls on the first few plays, gone at the first touch or after a while
 let coachT = 0;
-function coachOff() { clearTimeout(coachT); for (const c of document.querySelectorAll('.coach')) c.remove(); }
+function coachOff() { clearTimeout(coachT); for (const c of document.querySelectorAll('.coach')) c.remove(); for (const z of document.querySelectorAll('.jz-hint')) z.classList.remove('jz-hint'); }
 function coach(kind, items, keysLine) {
   const n = store.get('kb_coach_' + kind, 0); if (n >= 2) return;
   store.set('kb_coach_' + kind, n + 1); coachOff();
   const placed = [];
-  const add = (txt, x, y, below) => {
+  const add = (txt, x, y, below, yb) => {
     const c = document.createElement('div'); c.className = 'coach' + (below ? ' below' : ''); c.textContent = txt; UI.play.appendChild(c);
     const w = c.offsetWidth, h = c.offsetHeight; let left = clamp(x - w / 2, 8, innerWidth - w - 8), top = below ? y : y - h - 12;
+    if (!below && yb != null && top < SAFE.t + 50) { top = yb + 12; c.classList.add('under'); }   // it would cover ✕ ⏸ 🔊: under its button instead
     for (const q of placed) if (top < q.top + q.h && top + h > q.top && left < q.left + q.w + 6 && left + w + 6 > q.left) {
       const l2 = q.left - 6 - w;   // two tips side by side: this one steps to the left of the other, its arrow still on its button
       if (l2 >= 8 && x - l2 <= w - 12) left = l2; else top = q.top - h - 6;
@@ -940,19 +965,23 @@ function coach(kind, items, keysLine) {
     c.style.left = left + 'px'; c.style.top = top + 'px'; c.style.setProperty('--ax', clamp(x - left, 12, w - 12) + 'px'); placed.push({ left, top, w, h });
   };
   if (COARSE) {
-    const at = items.map(([sel, txt, flip]) => { const el = UI.pad.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return [txt, r.left + r.width / 2, flip ? r.bottom : r.top, flip]; }).filter(Boolean);
+    const at = items.map(([sel, txt, flip]) => {
+      let el = UI.pad.querySelector(sel); if (!el) return null;
+      if (el.classList.contains('half')) { el.classList.add('jz-hint'); el = el.querySelector('.jb'); }   // 左半屏: at its ring, where a thumb rests
+      const r = el.getBoundingClientRect(); return [txt, r.left + r.width / 2, flip ? r.bottom : r.top, flip, r.bottom];
+    }).filter(Boolean);
     for (const a of at.filter((q) => q[3])) {   // across the table: under the control on the screen, turned round, its arrow pointing up at it
       const c = document.createElement('div'); c.className = 'coach flip'; c.textContent = a[0]; UI.play.appendChild(c);
       const w = c.offsetWidth, left = clamp(a[1] - w / 2, 8, innerWidth - w - 8); c.style.left = left + 'px'; c.style.top = (a[2] + 12) + 'px'; c.style.setProperty('--ax', clamp(left + w - a[1], 12, w - 12) + 'px');
     }
-    for (const a of at.filter((q) => !q[3]).sort((a, b) => b[1] - a[1])) add(a[0], a[1], a[2]);   // right to left
+    for (const a of at.filter((q) => !q[3]).sort((a, b) => b[1] - a[1])) add(a[0], a[1], a[2], false, a[4]);   // right to left
   } else add(keysLine, innerWidth / 2, 70, true);
   coachT = setTimeout(coachOff, 6500);
 }
 function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 // a thumb on a control must never start the page scrolling, zooming or selecting (iPhones take the touch away when they do)
-UI.pad.addEventListener('touchstart', (e) => { if (e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });
-UI.pad.addEventListener('touchmove', (e) => { if (e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });
+UI.pad.addEventListener('touchstart', (e) => { if (e.cancelable && e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });   // (a touch the browser has already let go of can't be cancelled: don't try)
+UI.pad.addEventListener('touchmove', (e) => { if (e.cancelable && e.target.closest('.pb, .bz, .dz, .sz, .jz')) e.preventDefault(); }, { passive: false });
 // A finger on a control (2026-11-29, from an iPhone: the stick stuck in one direction and stopped answering). Only a
 // lift ends a hold — pointerup / pointercancel, heard by the control or anywhere on the page — never a dropped capture;
 // a new touch on the same control takes over from one whose lift was never heard; lifting every finger lets go of
@@ -1031,7 +1060,11 @@ function bindPad() {
   for (const z of UI.pad.querySelectorAll('.jz')) {
     const p = z.dataset.p, base = z.querySelector('.jb'), knob = z.querySelector('.jk');
     let sx = 0, sy = 0;
-    const rest = () => { const r = z.getBoundingClientRect(); base.style.left = r.width / 2 + 'px'; base.style.top = r.height / 2 + 'px'; knob.style.transform = ''; z.classList.add('idle'); };
+    const half = z.classList.contains('half');
+    const rest = (first) => {   // 左半屏: the ring starts where a thumb rests and, after a lift, fades where it was
+      if (!half || first) { const r = z.getBoundingClientRect(); base.style.left = (half ? +z.dataset.hx : r.width / 2) + 'px'; base.style.top = (half ? +z.dataset.hy : r.height / 2) + 'px'; }
+      knob.style.transform = ''; z.classList.add('idle');
+    };
     const place = () => { const r = z.getBoundingClientRect(); base.style.left = (sx - r.left) + 'px'; base.style.top = (sy - r.top) + 'px'; };
     const aim = (x, y) => {
       let dx = x - sx, dy = y - sy; const len = Math.hypot(dx, dy);
@@ -1044,11 +1077,11 @@ function bindPad() {
       else if ((was === 'u' || was === 'd') && ax < ay * 1.25) across = false;
       IN[p].joy = across ? [h, ay / ax > 0.38 ? v : null] : [v, ax / ay > 0.38 ? h : null]; IN[p].diag = Math.min(ax, ay) / Math.max(ax, ay, 1e-6);
     };
-    rest();
+    rest(true);
     z.addEventListener('pointerdown', (e) => {
       e.preventDefault(); coachOff();
       const r = z.getBoundingClientRect(), bx = r.left + (parseFloat(base.style.left) || r.width / 2), by = r.top + (parseFloat(base.style.top) || r.height / 2);
-      if (Math.hypot(e.clientX - bx, e.clientY - by) <= RING) { sx = bx; sy = by; }   // on the ring: it stays, and answers at once
+      if (!half && Math.hypot(e.clientX - bx, e.clientY - by) <= RING) { sx = bx; sy = by; }   // on the ring: it stays, and answers at once
       else { sx = e.clientX; sy = e.clientY; place(); }   // elsewhere: it comes to the thumb
       z.classList.remove('idle');
       grab(e, z, (m) => aim(m.clientX, m.clientY), () => { IN[p].joy = null; rest(); });
@@ -1110,7 +1143,7 @@ function ctlRow() {   // on a phone: how you steer (卡丁车) or walk (烟花�
     const c = game.ctl(), one = game.humans.length === 1;
     return `<div class="opts"><div class="opt"><b>转弯</b><div class="seg3">${seg('btn', '按钮', c === 'btn')}${seg('bar', '滑条', c === 'bar')}${one ? seg('tilt', '倾斜', c === 'tilt', EMBEDDED ? 'disabled' : '') : ''}</div>${one && (EMBEDDED || Tilt.state === 'none') ? `<small class="tilt-why">${TILT_WHY()}</small>` : ''}</div></div>`;
   }
-  return `<div class="opts"><div class="opt"><b>走路</b><div class="seg3">${seg('dpad', '方向键', BSET.walk === 'dpad')}${seg('stick', '摇杆', BSET.walk === 'stick')}</div></div></div>`;
+  return `<div class="opts"><div class="opt"><b>走路</b><div class="seg3">${seg('half', '左半屏', BSET.walk === 'half')}${seg('stick', '摇杆', BSET.walk === 'stick')}${seg('dpad', '方向键', BSET.walk === 'dpad')}</div></div></div>`;
 }
 // a tap on 转弯 / 走路: save it, rebuild the buttons; 倾斜 asks the phone inside this same tap
 function pickCtl(c, after) {
@@ -1143,7 +1176,7 @@ function reserveBomb(two) {
   // upright, two people with 方向键 stack 💥 over each cross: the board is held back by the width anyway, so the height is free
   // (on its side the controls stand in bands at the two ends: room for a thumb and a button, plus the notch if there is one)
   if (W > H) return { top: 50 + SAFE.t, bottom: 6 + SAFE.b, side: Math.max(150, Math.max(SAFE.l, SAFE.r) + 118) };
-  return { top: 60 + SAFE.t, bottom: (two ? (BSET.walk === 'stick' ? 196 : 236) : 184) + SAFE.b, side: 0 };
+  return { top: 60 + SAFE.t, bottom: (two ? (stickWalk() ? 196 : 236) : 184) + SAFE.b, side: 0 };
 }
 
 /* ══════════════ 🏎️ 卡丁车: a chase camera over a flat world, the way old consoles did it ══════════════
@@ -2987,11 +3020,16 @@ function makeBomb(opts) {
     : '<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键 走 · <kbd>空格</kbd> 放烟花 · <kbd>E</kbd> 宠物技能 · <kbd>P</kbd> 暂停 · <kbd>Esc</kbd> 退出</span>';
   G.buildPad = () => {
     if (!COARSE) { UI.pad.innerHTML = ''; return; }
-    const land = W > H, R = reserveBomb(humans.length === 2), stick = BSET.walk === 'stick';
+    const land = W > H, R = reserveBomb(humans.length === 2), stick = stickWalk(), half = BSET.walk === 'half';
+    const J = (p, style, tag, w, h) => {   // (w × h: the corner box the 摇杆 would have; 左半屏 rests its ring at that box's middle)
+      if (!half) return joyZone(p, style, tag);
+      const side = humans.length === 2 && p === 'yy' ? 'right' : 'left', top = HALF_TOP();
+      return halfZone(p, side, clamp(side === 'left' ? w / 2 : W / 2 - w / 2, 70, W / 2 - 70), clamp(H - h / 2 - top, 70, H - top - 70));   // (the whole ring on the screen, pulsing too)
+    };
     const pet = (p) => { const id = G.players.find((q) => q.k === p).pet; return `<img src="${IMG['pet_' + id].src}" alt="" style="width:68%;height:68%;pointer-events:none">`; };
     const sk = (p) => padBtn(p, 'skill', pet(p), 'sk', `${PETS[G.players.find((q) => q.k === p).pet].kind}的技能`);
     const cross = (p, style, sz, tag) => `<div class="dz ${p}" data-p="${p}" style="${style};--s:${sz}px" aria-label="${NAME[p]} 方向键">${tag ? `<span class="tag">${tag}</span>` : ''}<div class="dzc"><span class="dzb u">▲</span><span class="dzb l">◀</span><span class="dzm"></span><span class="dzb r">▶</span><span class="dzb d">▼</span></div></div>`;
-    const walk = (p, style, w, h, tag) => (stick ? joyZone(p, style, tag) : cross(p, style, Math.min(58, Math.floor(Math.min(w, h) / 3.2)), tag));
+    const walk = (p, style, w, h, tag) => (stick ? J(p, style, tag, w, h) : cross(p, style, Math.min(58, Math.floor(Math.min(w, h) / 3.2)), tag));
     if (!stick && humans.length === 2 && !land) {   // upright, two on one phone: each cross in its own half, 💥 and the pet above it
       const sz = Math.min(50, Math.floor(W * 0.5 / 3.3)), hh = sz * 3 + 18;
       UI.pad.innerHTML = `${cross('cs', `left:0;bottom:0;width:50%;height:${hh}px`, sz, 'CS')}<div class="cl" style="--s:56px;left:calc(25% - 56px);bottom:${hh + 10}px;align-items:center">${padBtn('cs', 'bomb', '💥')}<div style="--s:48px">${sk('cs')}</div></div>
@@ -3007,8 +3045,8 @@ function makeBomb(opts) {
       UI.pad.innerHTML = `${walk('cs', `left:0;bottom:0;width:${R.side}px;height:60%`, R.side, H * 0.6, 'CS')}<div class="cl" style="--s:58px;top:70px;bottom:auto;left:${Math.round(R.side / 2 - 62)}px">${padBtn('cs', 'bomb', '💥')}${sk('cs')}</div>
         ${walk('yy', `right:0;bottom:0;width:${R.side}px;height:60%`, R.side, H * 0.6, 'YY')}<div class="cl" style="--s:58px;top:70px;bottom:auto;right:${Math.round(R.side / 2 - 62)}px">${sk('yy')}${padBtn('yy', 'bomb', '💥')}</div>`;
     } else {
-      UI.pad.innerHTML = `${joyZone('cs', `left:0;bottom:0;width:31%;height:${R.bottom}px`, 'CS')}<div class="cl" style="--s:58px;left:31%;bottom:${Math.round(R.bottom / 2 - 62)}px;flex-direction:column">${sk('cs')}${padBtn('cs', 'bomb', '💥')}</div>
-        ${joyZone('yy', `right:0;bottom:0;width:31%;height:${R.bottom}px`, 'YY')}<div class="cl" style="--s:58px;right:31%;bottom:${Math.round(R.bottom / 2 - 62)}px;flex-direction:column">${sk('yy')}${padBtn('yy', 'bomb', '💥')}</div>`;
+      UI.pad.innerHTML = `${J('cs', `left:0;bottom:0;width:31%;height:${R.bottom}px`, 'CS', W * 0.31, R.bottom)}<div class="cl" style="--s:58px;left:31%;bottom:${Math.round(R.bottom / 2 - 62)}px;flex-direction:column">${sk('cs')}${padBtn('cs', 'bomb', '💥')}</div>
+        ${J('yy', `right:0;bottom:0;width:31%;height:${R.bottom}px`, 'YY', W * 0.31, R.bottom)}<div class="cl" style="--s:58px;right:31%;bottom:${Math.round(R.bottom / 2 - 62)}px;flex-direction:column">${sk('yy')}${padBtn('yy', 'bomb', '💥')}</div>`;
     }
   };
   G.restart = () => openGame('bomb', Object.assign({}, opts, { round: 1, wins: { cs: 0, yy: 0 } }));
@@ -3883,8 +3921,8 @@ function makeBomb(opts) {
       panel(`<button type="button" class="pclose" data-m="${inv ? 'no' : 'back'}" aria-label="${inv ? '不玩了' : '返回'}">✕</button><div class="big">${inv ? '🤝' : PL.icon}</div><h2>${inv ? `${esc(NAME[inv.by])} 想和你${coop ? '一起闯' : '对战'} · ${PL.icon} ${PL.name}` : `${net ? '🤝 ' : ''}${coop ? `第 ${PLACES.indexOf(PL) + 1} 关 · ${PL.name}` : `对战 · ${PL.name}`}`}</h2>${net && !inv ? `<p class="netnote">和 ${esc(NAME[PEER])} 各用自己的手机：你选好地方，TA 的手机上会问要不要一起。</p>` : ''}<p>${coop ? PL.tip : '三颗心，自己的烟花也会炸到自己。先赢两局的人获胜。'}</p>
         ${coop ? `<p style="font-size:13px">每关还藏着 <b>3 张照片 📷</b>；两个人的烟花同时炸开是一次 <b>💞 默契</b>，会放出爱心烟花，宠物技能也马上准备好。${ai ? `<br>这次 <b>${NAME[ai.k]}</b> 由电脑陪你一起，带着${PETS[ai.pet].kind}。` : ''}</p>` : ''}
         ${picker()}
-        ${COARSE ? `<div class="opts"><div class="opt"><b>走路</b><div class="seg3"><button type="button" data-w="dpad" aria-pressed="${BSET.walk !== 'stick'}">方向键</button><button type="button" data-w="stick" aria-pressed="${BSET.walk === 'stick'}">摇杆</button></div></div></div>` : ''}
-        <p style="font-size:12.5px">${COARSE ? (BSET.walk === 'stick' ? '按住左边随便哪里拖动就能走' : '按住方向键走，手指可以直接滑到别的方向') + '；💥 放烟花，宠物按钮放技能。' : 'CS：W A S D 走、空格放烟花、E 宠物技能；YY：方向键走、Enter 放烟花、句号 . 宠物技能。P 暂停。'}</p>
+        ${COARSE ? `<div class="opts"><div class="opt"><b>走路</b><div class="seg3"><button type="button" data-w="half" aria-pressed="${BSET.walk === 'half'}">左半屏</button><button type="button" data-w="stick" aria-pressed="${BSET.walk === 'stick'}">摇杆</button><button type="button" data-w="dpad" aria-pressed="${BSET.walk === 'dpad'}">方向键</button></div></div></div>` : ''}
+        <p style="font-size:12.5px">${COARSE ? (BSET.walk === 'half' ? '左半边屏幕随便哪里按住拖动就能走，不用找按钮' : BSET.walk === 'stick' ? '按住左下角的圆圈拖动就能走' : '按住方向键走，手指可以直接滑到别的方向') + '；💥 放烟花，宠物按钮放技能。' : 'CS：W A S D 走、空格放烟花、E 宠物技能；YY：方向键走、Enter 放烟花、句号 . 宠物技能。P 暂停。'}</p>
         <div class="btns">${inv ? '<button type="button" class="alt" data-m="no">不玩了</button><button type="button" data-m="go">出发！</button>' : `<button type="button" class="alt" data-m="back">返回</button><button type="button" data-m="go">${net ? `叫 ${esc(NAME[PEER])} 一起` : '开始！'}</button>`}</div>`,
         (m) => {
           if (m === 'no') { netDecline(); closeGame(); return; }
@@ -3907,8 +3945,9 @@ function makeBomb(opts) {
   function beginPlay() {
           applyPassives(); resize();
           UI.msg.hidden = true; G.paused = false; G.state = 'play'; G.startT = 1.8; Music.start(songFor(PL.id, true));
-          const wz = BSET.walk === 'stick' ? '.jz' : '.dz', wt = BSET.walk === 'stick' ? '按住拖动走路' : '按住方向键走路';
-          coach('bomb', humans.length === 2 ? [[`${wz}.cs`, 'CS ' + wt], [`${wz}.yy`, 'YY ' + wt], ['[data-p="cs"][data-k="bomb"]', '放烟花']] : [[wz, wt], ['[data-k="bomb"]', '放烟花'], ['[data-k="skill"]', '宠物技能']],
+          const wz = stickWalk() ? '.jz' : '.dz', wt = BSET.walk === 'half' ? '左半边随便哪里按住拖动都能走' : BSET.walk === 'stick' ? '按住拖动走路' : '按住方向键走路';
+          const wt2 = (p) => (BSET.walk === 'half' ? `${p === 'cs' ? 'CS 左' : 'YY 右'}半边按住拖动走` : `${p === 'cs' ? 'CS' : 'YY'} ${wt}`);
+          coach('bomb', humans.length === 2 ? [[`${wz}.cs`, wt2('cs')], [`${wz}.yy`, wt2('yy')], ['[data-p="cs"][data-k="bomb"]', '放烟花']] : [[wz, wt], ['[data-k="bomb"]', '放烟花'], ['[data-k="skill"]', '宠物技能']],
             humans.length === 2 ? 'CS：W A S D 走 · 空格 烟花 · E 宠物　YY：方向键走 · Enter 烟花 · 句号 宠物　P 暂停' : 'W A S D 走 · 空格 放烟花 · E 宠物技能 · P 暂停');
   }
   const netBombOpts = (auto) => ({ mode, place: PL.id, seed: opts.seed, pets: { [ME.k]: (G.players.find((q) => q.k === ME.k) || {}).pet || 'dog' }, round: G.round, wins: G.wins, auto: !!auto });

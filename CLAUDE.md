@@ -2191,6 +2191,35 @@ notch, one HUD row, squares ≥ 38 sideways, 卡丁车's words clear). The old f
 no corner, no flip, no easing). kartbomb-app-test checks the frame fills the screen and the safe areas reach the game,
 sideways and turned.
 
+### 🫳 左半屏 — the whole left half walks you (2026-11-29, later still)
+
+Asked: 「For the button can hide and for the left side is for movement then user will not based on the button location
+to click it」. 走路 has three ways now — **左半屏** (the default), 摇杆, 方向键:
+
+- **左半屏** (`BSET.walk = 'half'`, `halfZone`): the whole left half of the screen below the corner buttons
+  (`top: SAFE.t + 54`) is the stick — over the maze too. Nothing is on show until a thumb comes down; then a light ring
+  (no blur over the maze) appears under it and follows it, and fades when it lifts. The right half is the buttons'
+  (💥 and the pet stay visible: you do aim at those). Two people on one phone: a half each.
+- **A phone that had 摇杆 moved to 左半屏 once** (`BSET.v2`): it is the same stick without aiming at a ring. 方向键
+  stays as chosen; a phone that never chose starts on 左半屏. The visible ring (摇杆) is still there for whoever wants it.
+- `stickWalk()` is "a stick of either kind" (the room the maze keeps, the hints); on the ring you can see, a touch on it
+  answers at once; in 左半屏 there is no ring to touch, so it always comes to the thumb.
+- The pad only cancels a touch the browser lets it (`e.cancelable`): one that can no longer be cancelled got a console
+  warning for trying.
+- **A tip about half the screen must point at something.** The first-play tip points at the top edge of what it labels
+  — for a zone that is half the screen that was the corner buttons (two people upright: off the top). The ring now
+  RESTS where the 摇杆 ring stood, bottom-left under a resting thumb (`data-hx/hy`, kept 70 px off the edges: it pulses),
+  shows faintly while the tip points at it (`.jz-hint`, gone at the first touch), and after a lift fades where the thumb
+  was instead of jumping back. A tip that would still land in the top bar goes under its button (`.coach.under`; two
+  people on its side had 「放烟花」 on the ✕). A phone that had seen the tips gets them once more (`kb_coach_bomb` → 1 in
+  the `v2` step): walking works differently now.
+
+kartbomb-test `touch`: the setting (摇杆 → 左半屏 once, 方向键 kept, new → 左半屏; the tips once more), the first game's
+tip and its faint ring, the card, the zone (the left half, nothing on show after the first touch), a thumb over the
+maze, at the bottom corner and near the middle walking with a ring that shows and hides, the right half not walking,
+💥 tapped with the other thumb while walking, the ✕ still the ✕, and the tips in all four layouts (one / two people,
+upright / sideways): on the screen, apart, none over ✕ ⏸ 🔊.
+
 ### 🤝 各用自己的手机 — the two games on two phones (2026-11-28)
 
 The couple's private channel (§7.235) under event `kb`, kept up only while the game page is
@@ -2690,7 +2719,7 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it; §9: the stove and its ice, the flag keeping it, the mirrors and the booth, syrup — alone and together), all 24 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
 | `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; the stove carried and the ice melted on both; the booth's photo opening the gate on both; stuck in syrup on both and one press popping you both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
-| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card; `touch`: fingers on the controls — lost lifts, a resize mid-touch, touchcancel, two thumbs, the stick following, the board upright; `move`: walking — no hitches, corners, diagonals, the flip, a wobbly-thumb route; `full`: edge to edge with an iPhone's safe areas, sideways and upright): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
+| `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card; `touch`: fingers on the controls — lost lifts, a resize mid-touch, touchcancel, two thumbs, the stick following, 左半屏 (the left half walks, nothing on show), the board upright; `move`: walking — no hitches, corners, diagonals, the flip, a wobbly-thumb route; `full`: edge to edge with an iPhone's safe areas, sideways and upright): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
 | `node tools/kartbomb-app-test.js` | The two games inside the app (§7.37): opening from 小游戏 full screen, never asking who you are, 倾斜 allowed, +1 for a first win / clear, nothing twice, 拿满 after three, YY's phone paying YY, the records in Prog and their merge, 今天's chip, ✕ and Esc, the app's day and night and the bands round the frame, the app's song pausing and coming back, 390 / 844×390 / 1280 / 经典, WebKit |
 | `node tools/kartbomb-net-test.js` | 🤝 卡丁车 / 烟花炸弹 on two pages of `tools/kb-harness.html` (`ONLY=kart,bomb,junk,net`, `BROWSER=webkit`): finding each other, being asked and saying no or 出发, the same track / boxes / pets on both, each drawn where they really are (timestamped, `drawGap`), a 布丁 and a 小雨云 crossing, the same finish and end card with each paid on their own phone, 再来一次 from the partner, pause, leaving; the maze: walking, monsters, a firework set down on the partner's phone going off on both, a monster's touch, a 📷, falling and being picked up, the little house, 下一关, 对战's next round; junk, our own login elsewhere, an old version; a lost 出发, a 4G line, a dropped line, ≤ 10 messages a second |
 | `node tools/kartbomb-live-test.js` | The same through app.js on two logged-in phones, live backend: the channel only while the page is open, finding each other by name, a race with the winner alone paid into 本月记录, a maze with both paid, leaving |

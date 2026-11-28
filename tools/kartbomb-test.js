@@ -338,7 +338,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
       await q.evaluate((two) => __kb.open('bomb', { mode: 'coop', place: 'garden', two }), two); await q.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await q.click('#msg [data-m="go"]'); await sleep(250);
       const r = await q.evaluate((two) => {
         const box = (e) => e.getBoundingClientRect(), hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
-        const mine = [...document.querySelectorAll('.hc.pc')].map(box), ctl = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb, .tb')].map(box), top = [...document.querySelectorAll('#hud .hc:not(.pc)')].map(box);
+        const mine = [...document.querySelectorAll('.hc.pc')].map(box), ctl = [...document.querySelectorAll('#pad .pb, #pad .jz:not(.half), #pad .dzb, .tb')].map(box), top = [...document.querySelectorAll('#hud .hc:not(.pc)')].map(box);   // (左半屏's walking half is invisible: not a button)
         const cv = document.getElementById('cv').getBoundingClientRect();
         return { n: mine.length, clear: mine.every((m) => !ctl.some((c) => hit(m, c)) && !mine.some((o) => o !== m && hit(m, o))), on: mine.every((m) => m.left >= 0 && m.right <= innerWidth && m.bottom <= innerHeight),
           topClear: top.every((t) => !ctl.some((c) => hit(t, c))), tips: document.querySelectorAll('.coach').length };
@@ -440,10 +440,12 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     ok(fov.f < fov.bw * 0.7, `on its side the camera sees wider instead of zooming in (focal ${fov.f.toFixed(0)}, was ${Math.round(fov.bw * 0.78)})`);
     ok(!q.errs.length, 'no page errors ' + q.errs.join(' | '));
     await q.context().close();
-    // 烟花炸弹: 方向键 first, the stick a tap away; turn the phone mid-game
+    // 烟花炸弹: 左半屏 first (2026-11-29), 摇杆 and 方向键 a tap away; 方向键 here; turn the phone mid-game
     const b = await page(browser);
     await b.evaluate(() => __kb.open('bomb', { mode: 'coop', place: 'garden', two: false })); await b.waitForSelector('#msg:not([hidden]) [data-w="dpad"]');
-    ok(await b.evaluate(() => document.querySelector('#msg [data-w="dpad"]').getAttribute('aria-pressed') === 'true' && !!document.querySelector('#msg [data-w="stick"]')), 'the start card offers 方向键 / 摇杆, 方向键 to begin with');
+    ok(await b.evaluate(() => [...document.querySelectorAll('#msg [data-w]')].map((e) => e.textContent + (e.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(' ') === '左半屏* 摇杆 方向键'), 'the start card offers 左半屏 / 摇杆 / 方向键, 左半屏 to begin with');
+    await b.click('#msg [data-w="dpad"]'); await sleep(80);
+    ok(await b.evaluate(() => __kb.BSET.walk === 'dpad' && document.querySelector('#msg [data-w="dpad"]').getAttribute('aria-pressed') === 'true'), '…and 方向键 is one tap away');
     await b.click('#msg [data-m="go"]'); await sleep(150);
     await b.evaluate(() => { __kb.game.enemies.length = 0; });
     const arm = (k) => b.evaluate((k) => { const r = document.querySelector(`.dz .dzb.${k}`).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, k);
@@ -645,7 +647,11 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
       await p.click('#msg [data-m="go"]'); await sleep(300);
       await p.evaluate(() => { __kb.game.enemies.length = 0; });
       const x0 = await p.evaluate(() => __kb.game.players.find((q) => q.human).x);
-      if (touch) { if (!(await press('.dz', 600, 0.85, 0.5))) probs.push('no 方向键'); } else await hold('KeyD', 600);
+      // (2026-11-29: the default way to walk is 左半屏 — a thumb anywhere on the left half, dragged; the arrow pad is chosen)
+      const drag = async (ms) => { const at = await p.evaluate(() => { const z = document.querySelector('.jz.half'); if (!z) return null; const r = z.getBoundingClientRect(); return [r.left + r.width * 0.5, r.top + r.height * 0.6]; }); if (!at) return false;
+        await p.evaluate(([x, y]) => { const z = document.querySelector('.jz.half'); z.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 78, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' })); document.dispatchEvent(new PointerEvent('pointermove', { pointerId: 78, clientX: x + 34, clientY: y, bubbles: true, pointerType: 'touch' })); }, at); await sleep(ms);
+        await p.evaluate(([x, y]) => document.dispatchEvent(new PointerEvent('pointerup', { pointerId: 78, clientX: x + 34, clientY: y, bubbles: true, pointerType: 'touch' })), at); return true; };
+      if (touch) { if (!(await drag(600))) probs.push('no 左半屏'); } else await hold('KeyD', 600);
       const x1 = await p.evaluate(() => __kb.game.players.find((q) => q.human).x);
       if (!(x1 > x0 + 0.4)) probs.push(`bomb: did not walk right (${(x1 - x0).toFixed(2)})`);
       if (touch) await press('[data-k="bomb"]', 60); else await p.keyboard.press('Space');
@@ -937,6 +943,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     ok(!p.errs.length, 'no page errors ' + p.errs.join(' | '));
     await p.context().close();
     const m = await page(browser);
+    await m.evaluate(() => { __kb.BSET.walk = 'dpad'; });   // (this one walks with 方向键; 左半屏, the default, is the `touch` section's)
     await m.click('[data-play="bomb:coop"]'); await m.waitForSelector('#msg:not([hidden]) [data-m="1"]'); await m.click('#msg [data-m="1"]');
     await m.waitForSelector('#msg:not([hidden]) [data-m="go"]');
     ok(await m.evaluate(() => /由电脑陪你/.test(document.querySelector('#msg .panel').textContent)), 'alone, the card says the computer plays your partner');
@@ -1019,7 +1026,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
       await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.click('#msg [data-m="go"]'); await sleep(300);
       await p.evaluate(() => { const G = __kb.game; G.state = 'play'; G.paused = false; document.getElementById('msg').hidden = true; G.enemies.length = 0; for (const q of G.players) q.inv = 99; });
     };
-    const st = () => p.evaluate(() => { const G = __kb.game, me = G.players.find((q) => !q.ai), s = __kb.IN[me.k], kn = document.querySelector('.jz .jk'); return { joy: s.joy && s.joy.join(''), bomb: s.bomb, bombs: G.bombs.length, knob: kn ? kn.style.transform : null, x: me.x, y: me.y }; });
+    const st = () => p.evaluate(() => { const G = __kb.game, me = G.players.find((q) => !q.ai), s = __kb.IN[me.k], kn = document.querySelector('.jz .jk'); return { joy: s.joy && s.joy.join(''), bomb: s.bomb, bombs: G.bombs.filter((b) => b.own === me).length, knob: kn ? kn.style.transform : null, x: me.x, y: me.y }; });
     await start();
     const Z = await p.evaluate(() => { const z = document.querySelector('.jz'), r = z.getBoundingClientRect(), b = z.querySelector('.jb').getBoundingClientRect(), bt = document.querySelector('.pb[data-k="bomb"]').getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2, zx: r.left + 12, zy: r.top + r.height / 2, bx: bt.left + bt.width / 2, by: bt.top + bt.height / 2 }; });
     const { cx, cy } = Z;
@@ -1087,6 +1094,65 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
     await p.evaluate(() => { const z = document.querySelector('.dz'), c = z.querySelector('.dzc').getBoundingClientRect(); z.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 66, clientX: c.left + c.width * 0.85, clientY: c.top + c.height / 2, bubbles: true, pointerType: 'touch' })); });
     a = await st(); await touch('touchStart', [[D.x, D.y - D.w * 0.35, 13]]); await sleep(40); b = await st(); await touch('touchEnd', [[D.x, D.y - D.w * 0.35, 13]]); await sleep(40); const d2 = await st();
     ok(a.joy && a.joy[0] === 'r' && b.joy && b.joy[0] === 'u' && d2.joy === null, `方向键: stuck on ▶ by a lost lift, the next touch on ▲ takes over (${b.joy}) and lifting stops`);
+    // 左半屏 (2026-11-29, 「the button can hide and the left side is for movement」): the default; nothing on show, the whole
+    // left half below the corner buttons is the stick, over the maze too; the right half is not; a phone that had 摇杆 moves
+    // to it once, 方向键 stays
+    // (and walking works differently now: a phone that has had the first-play tips gets them once more, a new one twice)
+    const migr = [];
+    for (const [v, seen] of [['{"walk":"stick"}', '2'], ['{"walk":"dpad"}', '2'], [null, null], [null, '2']]) {
+      await p.evaluate(([v, seen]) => { if (v) localStorage.setItem('kb_bset', v); else localStorage.removeItem('kb_bset'); if (seen) localStorage.setItem('kb_coach_bomb', seen); else localStorage.removeItem('kb_coach_bomb'); }, [v, seen]);
+      await p.reload(); await p.waitForFunction(() => window.__kb && document.querySelector('#kart-places button'));
+      migr.push(await p.evaluate(() => __kb.BSET.walk + ':' + (localStorage.getItem('kb_coach_bomb') || 0)));
+    }
+    ok(migr.join() === 'half:1,dpad:2,half:0,half:1', `the setting: a phone that had 摇杆 moves to 左半屏 once, 方向键 stays, a phone that never chose starts on 左半屏; the tips come back once where walking changed (${migr.join(' / ')})`);
+    await p.evaluate(() => { __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'garden', two: false }); });
+    await p.waitForSelector('#msg:not([hidden]) [data-m="go"]');
+    const card = await p.evaluate(() => [...document.querySelectorAll('#msg [data-w]')].map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(' '));
+    await p.click('#msg [data-m="go"]'); await sleep(450);
+    // the tip: a faint ring where a thumb rests (the bottom of the left half), the bubble pointing at it, clear of ✕ ⏸ 🔊
+    const tip = await p.evaluate(() => { const z = document.querySelector('.jz'), jb = z.querySelector('.jb').getBoundingClientRect(), c = [...document.querySelectorAll('.coach')].find((e) => /左半边/.test(e.textContent)), x = document.getElementById('xbtn').getBoundingClientRect();
+      const r = c && c.getBoundingClientRect(), ax = c && r.left + parseFloat(getComputedStyle(c).getPropertyValue('--ax'));
+      return { tip: !!c, ring: +getComputedStyle(z.querySelector('.jb')).opacity, rx: jb.left + jb.width / 2, ry: jb.top + jb.height / 2, ax, tb: r && r.bottom, tt: r && r.top, jt: jb.top, xb: x.bottom, W: innerWidth, H: innerHeight }; });
+    ok(tip.tip && tip.ring > 0.3 && tip.ring < 0.9 && tip.rx < tip.W / 2 && tip.ry > tip.H * 0.6 && Math.abs(tip.ax - tip.rx) < 14 && tip.tb <= tip.jt && tip.tt > tip.xb,
+      `the first game in 左半屏: a faint ring (${tip.ring}) where a thumb rests (${Math.round(tip.rx)}, ${Math.round(tip.ry)}), the tip pointing at it, below the corner buttons`);
+    await p.evaluate(() => { const G = __kb.game; G.state = 'play'; G.paused = false; document.getElementById('msg').hidden = true; G.enemies.length = 0; for (const q of G.players) q.inv = 99; });
+    const cdp2 = await p.context().newCDPSession(p);
+    const tch = (type, pts) => cdp2.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y, id]) => ({ x, y, id, radiusX: 8, radiusY: 8, force: 1 })) });
+    await tch('touchStart', [[tip.W * 0.3, tip.H * 0.5, 20]]); await sleep(40); await tch('touchEnd', [[tip.W * 0.3, tip.H * 0.5, 20]]); await sleep(300);
+    const after = await p.evaluate(() => ({ tips: document.querySelectorAll('.coach').length, hint: document.querySelectorAll('.jz-hint').length }));
+    ok(after.tips === 0 && after.hint === 0, `the first touch puts the tip and its ring away (${after.tips} tips, ${after.hint} hints)`);
+    const H2 = await p.evaluate(() => { const z = document.querySelector('.jz'), r = z.getBoundingClientRect(), bt = document.querySelector('.pb[data-k="bomb"]').getBoundingClientRect(), x = document.getElementById('xbtn').getBoundingClientRect();
+      return { half: z.classList.contains('half'), l: r.left, t: r.top, w: r.width, b: r.bottom, ring: getComputedStyle(z.querySelector('.jb')).opacity, bx: bt.left + bt.width / 2, by: bt.top + bt.height / 2, xb: x.bottom, xx: x.left + x.width / 2, xy: x.top + x.height / 2, W: innerWidth, H: innerHeight }; });
+    ok(card === '左半屏* 摇杆 方向键' && H2.half && H2.l === 0 && Math.abs(H2.w - H2.W / 2) < 1 && H2.t >= H2.xb - 1 && H2.b === H2.H && H2.ring === '0',
+      `左半屏 (the card: ${card}): the whole left half below the corner buttons is the stick (${Math.round(H2.w)}×${Math.round(H2.b - H2.t)} px), and nothing is on show (ring ${H2.ring})`);
+    const stH = () => p.evaluate(() => { const G = __kb.game, me = G.players.find((q) => !q.ai), z = document.querySelector('.jz'); return { joy: (__kb.IN[me.k].joy || []).join('') || null, shown: !z.classList.contains('idle'), ring: +getComputedStyle(z.querySelector('.jb')).opacity, bombs: G.bombs.filter((b) => b.own === me).length }; });   /* (yours: the computer drops some too; the ring fades in 0.12 s, so read it settled) */
+    for (const [x, y, where] of [[H2.W * 0.25, H2.H * 0.3, 'over the maze'], [H2.W * 0.08, H2.H * 0.9, 'at the bottom corner'], [H2.W * 0.45, H2.H * 0.6, 'near the middle']]) {
+      await tch('touchStart', [[x, y, 21]]); await tch('touchMove', [[x, y - 30, 21]]); await sleep(280); const a = await stH();
+      await tch('touchEnd', [[x, y - 30, 21]]); await sleep(280); const b = await stH();
+      ok(a.joy === 'u' && a.shown && a.ring > 0.5 && b.joy === null && !b.shown && b.ring < 0.05, `a thumb ${where} of the left half walks (${a.joy}, a light ring under it), and lifting it stops and hides the ring`);
+    }
+    await tch('touchStart', [[H2.W * 0.7, H2.H * 0.3, 22]]); await tch('touchMove', [[H2.W * 0.7, H2.H * 0.3 - 30, 22]]); await sleep(120); let a2 = await stH(); await tch('touchEnd', [[H2.W * 0.7, H2.H * 0.3 - 30, 22]]); await sleep(80);
+    ok(a2.joy === null, 'a thumb on the right half (not on a button) does not walk');
+    await p.evaluate(() => { __kb.game.bombs.length = 0; });
+    await tch('touchStart', [[H2.W * 0.2, H2.H * 0.5, 23]]); await tch('touchMove', [[H2.W * 0.2 + 30, H2.H * 0.5, 23]]);
+    await tch('touchStart', [[H2.W * 0.2 + 30, H2.H * 0.5, 23], [H2.bx, H2.by, 24]]); await sleep(50); await tch('touchEnd', [[H2.bx, H2.by, 24]]); await sleep(80); a2 = await stH();
+    await tch('touchEnd', [[H2.W * 0.2 + 30, H2.H * 0.5, 23]]); await sleep(60);
+    ok(a2.joy === 'r' && a2.bombs === 1, `walking with the left thumb, the right taps 💥: still walking (${a2.joy}) and the firework is down (${a2.bombs})`);
+    const xOk = await p.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('#xbtn')); }, [H2.xx, H2.xy]);
+    ok(xOk, 'the ✕ in the corner is still the ✕ (the walking half starts below it)');
+    for (const [w, h, two] of [[390, 760, false], [852, 393, false], [390, 760, true], [852, 393, true]]) {
+      await p.setViewportSize({ width: w, height: h });
+      await p.evaluate((two) => { localStorage.removeItem('kb_coach_bomb'); __kb.close(); __kb.open('bomb', { mode: 'coop', place: 'garden', two }); }, two);
+      await p.waitForSelector('#msg:not([hidden]) [data-m="go"]'); await p.click('#msg [data-m="go"]'); await sleep(450);
+      const t = await p.evaluate(() => { const box = (e) => e.getBoundingClientRect(), hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const tips = [...document.querySelectorAll('.coach')].map(box), corner = ['#xbtn', '#pause', '#mute'].map((s) => box(document.querySelector(s)));
+        const rings = [...document.querySelectorAll('.jz.half')].map((z) => { const r = box(z.querySelector('.jb')), zr = box(z); return r.left >= zr.left - 1 && r.right <= zr.right + 1 && r.bottom <= innerHeight + 1 && +getComputedStyle(z.querySelector('.jb')).opacity > 0.3; });
+        return { n: tips.length, on: tips.every((r) => r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight), clear: tips.every((r) => !corner.some((c) => hit(r, c))), apart: tips.every((r, i) => !tips.some((o, j) => j !== i && hit(r, o))), rings };
+      });
+      ok(t.n === 3 && t.on && t.clear && t.apart && t.rings.length === (two ? 2 : 1) && t.rings.every(Boolean),
+        `${two ? 'two people' : 'one'} at ${w}×${h}: 3 tips on the screen, apart, none over ✕ ⏸ 🔊, ${two ? 'each half\'s ring' : 'the ring'} faint at the bottom of its half`);
+    }
+    await p.setViewportSize({ width: 390, height: 760 });
     // the board on an upright phone: bigger than the width alone allowed, rows toward square, the whole maze on screen,
     // clear of the HUD's two rows and of the controls
     await start('stick');
@@ -1238,7 +1304,7 @@ const DRIVER = `(() => { const G = __kb.game, T = G.T; return (k) => { const IN 
           const offscreen = ctl.filter((b) => b.left < -1 || b.top < -1 || b.right > vw + 1 || b.bottom > vh + 1).length;
           const small = [...document.querySelectorAll('#pad .pb, #pad .bzb, #pad .dzb, .tb')].filter((e) => e.getBoundingClientRect().height < 42).length;
           let board = null, under = 0;
-          if (G.kind === 'bomb') { const L = G.lay, top = L.y + L.bh + L.rd, bot = L.y + L.bh + 10 * L.rd, left = L.x + L.cs, right = L.x + 12 * L.cs; board = { top, bot, left, right };   /* the squares you can walk on */ under = [...document.querySelectorAll('#pad .pb, #pad .jz, #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
+          if (G.kind === 'bomb') { const L = G.lay, top = L.y + L.bh + L.rd, bot = L.y + L.bh + 10 * L.rd, left = L.x + L.cs, right = L.x + 12 * L.cs; board = { top, bot, left, right };   /* the squares you can walk on; 左半屏's zone is invisible */ under = [...document.querySelectorAll('#pad .pb, #pad .jz:not(.half), #pad .dzb')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < right - 4 && b.right > left + 4 && b.top < bot - 4 && b.bottom > top + 4; }).length; }
           return { offscreen, small, board, under, inside: !board || (board.top >= 0 && board.left >= 0 && board.right <= vw && board.bot <= vh), n: ctl.length };
         });
         ok(!r.offscreen && !r.small && r.inside && !r.under, `${w}×${h} ${kind} ${o.mode}${o.two ? '·2' : ''}: ${r.n} controls all on screen and ≥ 42px${r.board ? `, every square of the maze you can walk on visible and no button over it (${r.under})` : ''}`);
