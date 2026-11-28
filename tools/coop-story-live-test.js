@@ -3,6 +3,9 @@
 // then the level starts on both. A key picked up on one phone is carried on the other and a lock it opens is open on
 // both; a balloon held on one phone floats on the other; a clock button pressed on one phone holds the gate open on
 // both, and it shuts on both; the frame goes up onto both heads, rides between two phones and opens the gate on both.
+// Chapters 4–6 (2026-11-28): the stove carried on one phone is carried on the other and the ice it melts is gone on
+// both; one phone's button turns the mirror, the beam reaches the booth and the gate opens on both; stuck in syrup on
+// both phones, and one press beside your partner pops you both out, on both phones.
 //   python3 -m http.server 8765   (or APP_URL=http://localhost:PORT/index.html)
 //   node tools/coop-story-live-test.js
 //   node supabase/cleanup-test-accounts.mjs --yes      (it leaves a couple behind)
@@ -63,7 +66,7 @@ async function startStory(A, B, k) {
 
   console.log('\n1. The comic before chapter 1 shows on both phones, and either can turn the page');
   await A.p.click('[data-go="story"]'); await sleep(200);
-  ok(await T(A.p, () => [...document.querySelectorAll('.cg-node')].slice(0, 3).every(b => !b.disabled)), 'two phones: the chapters in this update are all open (either of you may be ahead)');
+  ok(await T(A.p, () => [...document.querySelectorAll('.cg-node')].slice(0, 6).every(b => !b.disabled)), 'two phones: the chapters there are so far (1–6) are all open (either of you may be ahead)');
   await A.p.click('.cg-lv[data-s="0"]');
   ok(await until(async () => ((await sc(A.p)) || {}).id === 'pro' && ((await sc(B.p)) || {}).id === 'pro', 5000), 'A1 taps 1-1: the prologue opens on both phones');
   await B.p.click('.cg-sc [data-a="next"]');
@@ -87,7 +90,7 @@ async function startStory(A, B, k) {
   ok(await until(async () => (await T(B.p, () => !!CoopGames.test.G.players[1].key)) && (await T(A.p, () => !!CoopGames.test.G.players[1].key)), 5000), 'B2 picks up the pink key: A1\'s phone sees it');
   await B.p.keyboard.down('ArrowRight'); await sleep(1100); await B.p.keyboard.up('ArrowRight');
   ok(await until(async () => (await lockGone(A.p, TP)) && (await lockGone(B.p, TP)), 5000), '…and the pink lock opens on both');
-  await T(A.p, () => { const G = CoopGames.test.G; G.save.seen = Object.assign({}, G.save.seen, { o1: 1, o2: 1 }); });
+  await T(A.p, () => { const G = CoopGames.test.G; G.save.seen = Object.assign({}, G.save.seen, { o1: 1, o2: 1, o3: 1, o4: 1, o5: 1 }); });
 
   console.log('\n3. A balloon held on one phone floats on the other (2-1)');
   ok(await startStory(A, B, 4), '2-1 starts on both');
@@ -126,10 +129,54 @@ async function startStory(A, B, k) {
   ok(placed && (await fst(A.p)) === 'placed', 'walked over together, it goes onto its stand (A1\'s phone runs it)');
   ok(await until(async () => (await fst(B.p)) === 'placed' && (await T(B.p, (ch) => !!CoopGames.test.G.chanOn[ch], f.ch)), 5000), '…on B2\'s phone too, and the gate is open there');
 
-  console.log('\n6. Never trust the wire');
+  console.log('\n6. The 小火炉 across two phones (4-1)');
+  ok(await startStory(A, B, 12), '4-1 starts on both');
+  await until(async () => (await st(A.p)).state === 'play' && (await st(B.p)).state === 'play', 8000);
+  c = await chunk(A.p, 'I1_intro');
+  const stoveOf = (p) => T(p, () => { const k = CoopGames.test.G.players[0].key; return !!k && k.col === 2; });
+  await tpMe(A.p, c.x0 + 5.1, 9.82);
+  ok(await until(async () => (await stoveOf(A.p)) && (await stoveOf(B.p)), 5000), 'A1 picks up the stove: B2\'s phone sees A1 carrying it');
+  const TI = await T(A.p, () => CoopGames.test.T_ICEW);
+  await A.p.keyboard.down('ArrowRight'); await sleep(1100); await A.p.keyboard.up('ArrowRight');
+  ok(await until(async () => (await lockGone(A.p, TI)) && (await lockGone(B.p, TI)), 5000), 'A1 walks it into the ice wall: the wall is gone on both phones');
+  ok(await stoveOf(A.p) && await stoveOf(B.p), '…and A1 still has the stove, on both');
+
+  console.log('\n7. The 镜子屋 across two phones (5-1)');
+  ok(await startStory(A, B, 16), '5-1 starts on both');
+  await until(async () => (await st(A.p)).state === 'play' && (await st(B.p)).state === 'play', 8000);
+  const m = await T(A.p, () => { const L = CoopGames.test.G.L, n = L.chunks.findIndex(c => c.ch.id === 'M1_intro'), pl = L.plates.find(q => q.ch === n); return { n, c: pl.c, r: pl.r, gx: L.chunks[n].x0 + 19 }; });
+  const latched = (p) => T(p, (m) => !!CoopGames.test.G.latch[m.n] && !CoopGames.test.solidCell(m.gx, 10, 'cs'), m);
+  ok(!(await latched(A.p)) && !(await latched(B.p)), 'nobody on the button: the gate is shut on both');
+  await tpMe(B.p, m.c + 0.11, m.r + 1 - 1.18);
+  ok(await until(async () => (await latched(A.p)) && (await latched(B.p)), 5000), 'B2 steps on the button: the mirror turns, the light reaches the booth — 咔嚓 — and the gate is open on both phones');
+  await tpMe(B.p, m.c - 3, m.r + 1 - 1.18); await sleep(1200);
+  ok(await latched(A.p) && await latched(B.p), '…and stays open on both after B2 steps off');
+
+  console.log('\n8. 糖浆 across two phones (6-1)');
+  ok(await startStory(A, B, 20), '6-1 starts on both');
+  await until(async () => (await st(A.p)).state === 'play' && (await st(B.p)).state === 'play', 8000);
+  c = await chunk(A.p, 'Y1_intro');
+  const stuck = (p, i) => T(p, (i) => CoopGames.test.G.players[i].stuck > 0, i);
+  await tpMe(A.p, c.x0 + 6.6, 9.82);
+  ok(await until(async () => (await stuck(A.p, 0)) && (await stuck(B.p, 0)), 5000), 'A1 walks into the syrup: stuck on A1\'s phone, and on B2\'s');
+  await tpMe(B.p, c.x0 + 7.5, 9.82);
+  ok(await until(async () => (await stuck(B.p, 1)) && (await stuck(A.p, 1)), 5000), 'B2 too, beside A1, on both phones');
+  const ys = async (p) => T(p, () => CoopGames.test.G.players.map(q => q.y));
+  const y0s = await ys(A.p);
+  let topA = [99, 99], topB = [99, 99];
+  await A.p.keyboard.down('Space'); await sleep(120); await A.p.keyboard.up('Space');
+  const out = await until(async () => {
+    const a = await ys(A.p), b = await ys(B.p);
+    topA = topA.map((v, i) => Math.min(v, a[i])); topB = topB.map((v, i) => Math.min(v, b[i]));
+    return y0s[0] - topA[0] > 2.6 && y0s[1] - topA[1] > 2.6 && y0s[0] - topB[0] > 2.6 && y0s[1] - topB[1] > 2.6;
+  }, 4000, 30);
+  ok(out, `A1 presses jump beside B2: you both pop out, high, on both phones (A1's phone ${topA.map((v, i) => (y0s[i] - v).toFixed(1)).join(' / ')}, B2's ${topB.map((v, i) => (y0s[i] - v).toFixed(1)).join(' / ')} tiles)`);
+  ok(await until(async () => (await stuck(A.p, 0)) && (await stuck(A.p, 1)) && (await stuck(B.p, 0)) && (await stuck(B.p, 1)), 5000), '…straight up and back down into the syrup: both stuck again, the same on both phones');
+
+  console.log('\n9. Never trust the wire');
   await home(A); await home(B); await sleep(800);
-  await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'scn', v: 8, id: 'nope', p: 0, who: 0 }));
-  await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'scn', v: 8, id: 'c0', p: 'x', who: 0 }));
+  await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'scn', v: CoopGames.test.NET_V, id: 'nope', p: 0, who: 0 }));
+  await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'scn', v: CoopGames.test.NET_V, id: 'c0', p: 'x', who: 0 }));
   await sleep(1200);
   ok(!(await sc(B.p)), 'a comic nobody knows (or a page that is not a number) opens nothing on the other phone');
   ok(!A.errs.length && !B.errs.length, `no page errors ${A.errs.concat(B.errs).slice(0, 3).join(' | ')}`);

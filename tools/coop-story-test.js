@@ -4,7 +4,8 @@
 //
 // The start screen is three ways to play. 故事模式: the comics before a chapter (the prologue once), each new thing
 // to do together on its own (keys only their owner can carry, locks, balloons, the tide, clock buttons, the frame you
-// carry together), all twelve levels played by the bot (two on a phone, and one person playing both), a chapter
+// carry together; since 2026-11-28 the 小火炉 and its ice, the 镜子屋's beam and booth, 糖浆 — section 9), all the
+// story's levels played by the bot (two on a phone, and one person playing both), a chapter
 // opening the next, its ending finding one of your own photos (or a drawing when there is none, or it won't load),
 // points for a first clear. 自由选关: world cards, a random level, the levels short of stars, the story's levels. 一直
 // 走下去: a blessing after each 段, camps every 5 段 that keep the run, the road of the day, events on the road. Then
@@ -55,7 +56,7 @@ const steps = (p, n) => T(p, (n) => { const t = CoopGames.test; for (let k = 0; 
     ok(/第 1 章「花瓣里的第一张」/.test(await text(p, '.cg-m-story')) && /开始/.test(await text(p, '.cg-m-story .go')), 'the story card says where you are: 第 1 章「花瓣里的第一张」, 开始');
     await p.click('[data-go="story"]');
     const map = await T(p, () => [...document.querySelectorAll('.cg-node')].map(b => (b.disabled ? (b.textContent.includes('⏳') ? 'soon' : 'lock') : 'open')));
-    ok(map.join() === ['open', 'lock', 'lock', 'soon', 'soon', 'soon', 'soon', 'soon', 'soon', 'soon'].join(), `the chapter map: 1 open, 2–3 locked, 4–10 coming (${map.join(' ')})`);
+    ok(map.join() === ['open', 'lock', 'lock', 'lock', 'lock', 'lock', 'soon', 'soon', 'soon', 'soon'].join(), `the chapter map: 1 open, 2–6 locked, 7–10 coming (${map.join(' ')})`);
     const lv = await T(p, () => [...document.querySelectorAll('.cg-lv')].map(b => b.disabled));
     ok(JSON.stringify(lv) === '[false,true,true,true]' && /0 \/ 10/.test(await text(p, '.cg-album')), 'chapter 1: only 1-1 is open, no photos found yet (0 / 10)');
     await p.click('.cg-lv[data-s="0"]'); await sleep(300);
@@ -197,14 +198,15 @@ const steps = (p, n) => T(p, (n) => { const t = CoopGames.test; for (let k = 0; 
   }
 
   if (on(3)) {
-    console.log('\n3. All twelve story levels, played by the bot (two on a phone, and one person playing both; real hits)');
+    console.log('\n3. All the story\'s levels, played by the bot (two on a phone, and one person playing both; real hits)');
     const { p, ctx, errs } = await demoPage(browser, { w: 900, h: 560 });
     await p.addScriptTag({ content: BOT });
     for (const mode of ['duo', 'solo']) {
       const res = [];
-      for (let k = 0; k < 12; k++) res.push(await T(p, ([i, m]) => window.__bot.play(i, false, m), [1000 + k, mode]));
+      const N = await T(p, () => CoopGames.test.STORY_LV.length);
+      for (let k = 0; k < N; k++) res.push(await T(p, ([i, m]) => window.__bot.play(i, false, m), [1000 + k, mode]));
       const bad = res.filter(r => !r.ok);
-      ok(!bad.length, `${mode === 'duo' ? '两个人' : '一个人'}: ${12 - bad.length}/12 cleared${bad.length ? ' — ' + bad.map(r => `${r.level}@${r.chunk}(${r.why})`).join(' ') : ''} · hearts left ${res.map(r => r.hp).join(' ')}`);
+      ok(!bad.length && N === 24, `${mode === 'duo' ? '两个人' : '一个人'}: ${N - bad.length}/${N} cleared${bad.length ? ' — ' + bad.map(r => `${r.level}@${r.chunk}(${r.why})`).join(' ') : ''} · hearts left ${res.map(r => r.hp).join(' ')}`);
     }
     ok(!errs.length, `no page errors ${errs.slice(0, 2).join(' | ')}`);
     await ctx.close();
@@ -372,6 +374,106 @@ const steps = (p, n) => T(p, (n) => { const t = CoopGames.test; for (let k = 0; 
     ok(m.coop.day.d === 6, 'the same day\'s road: the farther walk');
     const m2 = await T(p, () => App._progTest.merge({ coop: { best: {}, day: { date: '2026-11-26', d: 9 } } }, { coop: { best: {}, day: { date: '2026-11-27', d: 2 } } }));
     ok(m2.coop.day.date === '2026-11-27' && m2.coop.day.d === 2, 'a newer day replaces an older one');
+    await ctx.close();
+  }
+
+  if (on(9)) {
+    console.log('\n9. 第 4–6 章, one by one: the 小火炉 and its ice, the 镜子屋, 糖浆');
+    const { p, ctx, errs } = await demoPage(browser);
+    // the highest the feet get after a jump from standing (in tiles)
+    const JUMP = `(i) => { const t = CoopGames.test, P = t.G.players[i], y0 = P.y; let top = y0; t.inp(i, {}); t.stepFn(t.STEP); t.inp(i, { j: true }); for (let k = 0; k < 90; k++) { t.stepFn(t.STEP); top = Math.min(top, P.y); } t.inp(i, {}); for (let k = 0; k < 90; k++) t.stepFn(t.STEP); return +(y0 - top).toFixed(2); }`;
+    // 小火炉 (4-1: I1_intro, I1_step)
+    let r = await T(p, (JS) => {
+      const t = CoopGames.test, G = t.G, jump = eval(JS); t.start(t.SI + 12, 'duo'); t.set('god', true);
+      const c = G.L.chunks.find(c => c.ch.id === 'I1_intro'), x0 = c.x0, st = G.L.items.find(it => it.type === 'key' && it.col === 2), out = {};
+      const ice = () => G.L.grid.filter((v, k) => v === t.T_ICEW && k % G.L.w >= x0 && k % G.L.w < x0 + c.ch.w).length;
+      out.ice0 = ice();
+      t.tp(0, x0 + 1, 9.82); t.tp(1, st.x - 0.4, 9.82); for (let k = 0; k < 30; k++) t.stepFn(t.STEP);
+      out.yyTook = G.players[1].key === st;   // anyone may carry it: here YY
+      out.jumpWith = jump(1); out.jumpCS = jump(0);
+      t.inp(1, { r: true }); for (let k = 0; k < 240 && ice(); k++) t.stepFn(t.STEP); t.inp(1, {});
+      out.melted = ice() === 0; out.kept = G.players[1].key === st && !st.used;
+      t.tp(1, 3, 20); for (let k = 0; k < 20; k++) t.stepFn(t.STEP);
+      out.home = !st.got && !G.players[1].key && Math.abs(st.x - st.ox) < 0.01;
+      return out;
+    }, JUMP);
+    ok(r.yyTook, '小火炉: either of you picks it up (here YY)');
+    ok(r.jumpWith > 1.3 && r.jumpWith < 1.9 && r.jumpCS > 3.9, `…it is heavy: a jump of ${r.jumpWith} tiles with it, ${r.jumpCS} without (a 2-high step needs the partner's head)`);
+    ok(r.ice0 === 4 && r.melted && r.kept, `…carried into the ice wall: all ${r.ice0} tiles of it melt, and the stove stays in your hands`);
+    ok(r.home, '…falling into a pit sends it back to where it was');
+    // a flag keeps the stove; restarting there, the melted ice stays melted (4-2: I2_button, cp, I2_shelf)
+    r = await T(p, () => {
+      const t = CoopGames.test, G = t.G; t.start(t.SI + 13, 'duo'); t.set('god', true);
+      const c = G.L.chunks.find(c => c.ch.id === 'I2_button'), cells = [], stoves = G.L.items.filter(it => it.type === 'key' && it.col === 2);
+      for (let k = 0; k < G.L.grid.length; k++) if (G.L.grid[k] === t.T_ICEW && k % G.L.w >= c.x0 && k % G.L.w < c.x0 + c.ch.w) cells.push(k);
+      const st = stoves[0]; G.players[0].key = st; st.got = true; st.held = 0;
+      t.unlock(cells[0] % G.L.w, Math.floor(cells[0] / G.L.w));
+      const melted = cells.every(k => G.L.grid[k] === 0), kept = G.players[0].key === st;
+      t.flag(G.L.cps[0]);
+      const parked = !G.players[0].key && !!st.parked && st.used, other = !stoves[1].got;
+      t.restartCp();
+      return { n: cells.length, stoves: stoves.length, melted, kept, parked, other, still: cells.every(k => G.L.grid[k] === 0), drawn: !!G.L.items.filter(it => it.type === 'key' && it.col === 2)[0].parked };
+    });
+    ok(r.n === 5 && r.melted && r.kept, `the frozen button: its ice (${r.n} tiles) melts at a touch of the stove, which you keep`);
+    ok(r.stoves === 2 && r.parked && r.other, 'a flag keeps the stove you carried there (it stays by the flag, warm); the shelf after it has its own');
+    ok(r.still && r.drawn, 'restarting at the flag: the ice you melted is still gone, and the stove is still by the flag');
+    // 镜子屋 (5-1: M1_intro, M2_two)
+    r = await T(p, () => {
+      const t = CoopGames.test, G = t.G; t.start(t.SI + 16, 'duo'); t.set('god', true);
+      const L = G.L, n1 = L.chunks.findIndex(c => c.ch.id === 'M1_intro'), n2 = L.chunks.findIndex(c => c.ch.id === 'M2_two'), out = {};
+      const cam1 = L.cams.find(cm => cm.ch === n1), pl1 = L.plates.find(q => q.ch === n1), m1 = L.mirrors.filter(m => m.ch === n1);
+      t.tp(0, L.chunks[n1].x0 + 1, 9.82); t.tp(1, L.chunks[n1].x0 + 2, 9.82); for (let k = 0; k < 30; k++) t.stepFn(t.STEP);
+      out.offHit = !!cam1.hit; out.offLatch = !!G.latch[n1]; out.gateShut = t.solidCell(L.chunks[n1].x0 + 19, 10, 'cs');
+      out.tied = m1[0].btn === pl1 && pl1.mc === 0 && m1[1].btn === null;   // the button turns its own mirror, the other is fixed
+      t.tp(0, pl1.c + 0.11, 9.82); for (let k = 0; k < 60; k++) t.stepFn(t.STEP);
+      out.onHit = cam1.hit && cam1.hit.ch === n1; out.latch = !!G.latch[n1]; out.path = cam1.path.length;
+      t.tp(0, L.chunks[n1].x0 + 1, 9.82); for (let k = 0; k < 60; k++) t.stepFn(t.STEP);
+      out.stays = !!G.latch[n1] && !t.solidCell(L.chunks[n1].x0 + 19, 10, 'cs');   // stepped off: the gate stays open (the picture is taken)
+      const pl2 = L.plates.filter(q => q.ch === n2).sort((a, b) => a.r - b.r || a.c - b.c), cam2 = L.cams.find(cm => cm.ch === n2);
+      t.tp(1, pl2[0].c + 0.11, pl2[0].r + 1 - 1.18); for (let k = 0; k < 60; k++) t.stepFn(t.STEP);
+      out.oneOf2 = !G.latch[n2] && !cam2.hit;
+      t.tp(0, pl2[1].c + 0.11, pl2[1].r + 1 - 1.18); for (let k = 0; k < 60; k++) t.stepFn(t.STEP);
+      out.both = !!G.latch[n2];
+      return out;
+    });
+    ok(!r.offHit && !r.offLatch && r.gateShut && r.tied, '镜子屋: nobody on the button — the beam misses the booth, the gate is shut; the button turns its own mirror (same colour), the other mirror is fixed');
+    ok(r.onHit && r.latch && r.path >= 4, `…on the button: the mirror turns, the beam (${r.path} points) reaches the booth — 咔嚓, the gate opens`);
+    ok(r.stays, '…and stays open after you step off (the picture has been taken)');
+    ok(r.oneOf2 && r.both, '5-1\'s second room: one button turns one mirror and the light still misses; both buttons together reach the booth');
+    // 糖浆 (6-1: Y1_intro, Y2_wall)
+    r = await T(p, (JS) => {
+      const t = CoopGames.test, G = t.G, jump = eval(JS); t.start(t.SI + 20, 'duo'); t.set('god', true);
+      const L = G.L, c = L.chunks.find(c => c.ch.id === 'Y1_intro'), x0 = c.x0, [A, B] = G.players, out = {};
+      const press = (i) => { t.inp(i, {}); t.stepFn(t.STEP); t.inp(i, { j: true }); t.stepFn(t.STEP); t.inp(i, {}); t.stepFn(t.STEP); };
+      const settle = (n = 30) => { for (let k = 0; k < n; k++) { t.inp(0, {}); t.inp(1, {}); t.stepFn(t.STEP); } };
+      t.tp(1, x0 + 1, 9.82); t.tp(0, x0 + 6.2, 9.82); settle();
+      out.stuck = A.stuck > 0;
+      const x = A.x; t.inp(0, { r: true }); for (let k = 0; k < 60; k++) t.stepFn(t.STEP); t.inp(0, {}); out.noWalk = Math.abs(A.x - x) < 0.01;
+      // alone: five taps, a small hop out
+      let top = A.y; const y0 = A.y;
+      for (let k = 0; k < 4; k++) press(0);
+      out.still4 = A.stuck > 0 && A.wig === 4;
+      press(0); for (let k = 0; k < 90; k++) { t.stepFn(t.STEP); top = Math.min(top, A.y); }
+      out.self = +(y0 - top).toFixed(2);
+      settle(60);
+      // B walks up beside the stuck one: nothing happens by itself; B on A's head: still nothing (a step)
+      t.tp(0, x0 + 6.2, 9.82); settle(); t.tp(1, x0 + 5.4, 9.82); settle(60);
+      out.besideNoPop = A.stuck > 0 && t.touching(A, B);
+      t.tp(1, A.x, A.y - 1.3); settle(60);
+      out.headStep = A.stuck > 0 && B.grounded && B.ground && B.ground.ref === A;
+      // beside each other, a press pops you both, higher than alone
+      t.tp(1, x0 + 7.1, 9.82); settle(40);
+      out.bothStuck = A.stuck > 0 && B.stuck > 0 && t.touching(A, B);
+      const ya = A.y, yb = B.y; let ta = ya, tb = yb;
+      press(1); for (let k = 0; k < 90; k++) { t.stepFn(t.STEP); ta = Math.min(ta, A.y); tb = Math.min(tb, B.y); }
+      out.pull = [+(ya - ta).toFixed(2), +(yb - tb).toFixed(2)];
+      return out;
+    }, JUMP);
+    ok(r.stuck && r.noWalk, '糖浆: walk onto it and it holds your feet (you can\'t walk)');
+    ok(r.still4 && r.self > 1.6 && r.self < 2.6, `…alone: four taps and still stuck, the fifth pops you out — a small hop (${r.self} tiles)`);
+    ok(r.besideNoPop && r.headStep, '…your partner walking up beside you does nothing by itself, and standing on your head neither (you are their step)');
+    ok(r.bothStuck && r.pull[0] > 3.2 && r.pull[1] > 3.2, `…side by side, one press pops you both, higher (${r.pull.join(' / ')} tiles) — enough for the 3-high wall in 6-1, the wriggle is not`);
+    ok(!errs.length, `no page errors ${errs.slice(0, 2).join(' | ')}`);
     await ctx.close();
   }
 

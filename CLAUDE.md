@@ -1357,6 +1357,41 @@ levels short of stars, the story's levels you have played (straight in, no comic
 **In the tests:** `CoopGames.test.ui(screen, world)` moves between the screens; the two-phone and
 frame-rate suites pick the 50 through 自由选关 now (their old `.cg-worlds` tabs are gone).
 
+### 📖 故事 · 第 4–6 章 — update 2 of 3 (2026-11-28)
+
+Asked for: 「add more 关卡」, then 「continue」 — the next three chapters of the approved story (A 找回我们的相册): 冬
+「冻住的笑脸」, 游乐园 「拍照亭」, 糖果 「甜甜的陷阱」, four levels each (`S13…S24`), their comics (`o3…c5`, each ending
+on the couple's 4th / 5th / 6th photo) and three new things to do together. `NET_V` is 9: a phone on 8 would be sent
+a level it doesn't have.
+
+| | chars | what it is |
+|---|---|---|
+| 小火炉 / 冰墙 | `s` stove, `W` ice | the stove is a **key of nobody's colour** (`type: 'key', col: 2`), so pick-up, carrying, the fall sending it home and the `item` / `unlock` / `keyback` events are the keys' own. Its "lock" is `T_ICEW`: a touch melts every touching ice tile and **the stove is not used up**. Carrying it, you jump 1.6 tiles (`STOVE_JUMP`, quicksand's number): a 2-high step needs the partner's head. **A flag keeps it** (`flagOn` parks it, `it.parked`, drawn by the flag): what comes after a flag brings its own stove, so a segment is its own puzzle. Picked up on both phones at once, CS keeps it |
+| 镜子屋 | `w` camera (`cam: 'u'…` per piece), `/` and `x` mirrors, `@` the booth (two tiles tall) | in a piece with a camera, **its k-th button in reading order turns its k-th mirror** (a mirror past the last button is fixed); ring and button wear the same colour (`MIR_HUE`). The beam (`traceBeam`) turns at mirrors and stops at anything solid; reaching the booth is the **latch** (`latchOn`, the 同心锁 event), so the gates open for good and a bridge stays. **There, the buttons don't open the gates themselves** (`mirCh`) — otherwise standing on one would skip the puzzle. A clock button keeps its mirror turned for `TIMER_S` |
+| 糖浆 | `y` | landing on it holds you (`p.stuck`): no walking, no jumping, no wind, no balloon. **Alone**: `WIG_N` (5) taps of jump → a small hop out (`POP_SELF`, 2.1 tiles). **Beside your partner** (`touching`: side by side, not on the head): one press pops **both** of you, higher (`POP_PULL`, 3.8 tiles) — the tall syrup steps need that. The rise is a spring's (`springy`), so not holding jump doesn't cut it short. Your own phone decides your state and says so (`stk`: stuck / popped, where you are); hearing a partner's pop beside you while stuck, you pop too |
+
+- **A touch must not pop anyone.** The first rule freed a stuck player the moment the partner touched them. Then the
+  partner could never climb onto a stuck partner's head (walking up to them popped them) — and the bot found it before
+  any level did. The pop is the stuck one's press.
+- **Pops are judged by height, not distance.** Horizontal reach depends on the take-off spot and how soon you steer;
+  height doesn't. Every syrup puzzle is "3 tiles up" (the hop can't, the pop together can). And the syrup always runs
+  **right up to the wall**: the first island had a two-tile gap before its ledge, and a pop from the island's middle
+  came down in it.
+- **A rising lift can't be boarded.** 冰梯 first had a clock button beside a lift: whoever pressed it then walked into
+  the empty shaft. It became a clock *bridge* the stove can't jump (5 wide; carrying the stove you clear ~4.3).
+- **Shelves, not pillars.** A 5-high block in the path splits you for good once one of you is on top; the plates up
+  high sit on shelves you can walk under.
+- **The wire tests were sending an old version.** coop-story-live-test sent `v: 8` and coop-editor-live-test `v: 7`, so
+  the other phone dropped the junk for its version and its content was never tested. They send `NET_V` now.
+- **One phone, two people (`solo`) lets go 3 tiles apart.** Popping out of syrup, one lands on the ledge and the other
+  drops back — the bot (like a person) then switches to the one who is out, goes back, and takes hands again
+  (`syrupOut` in coop-bot.js). On two phones (and `duo`) it is two people side by side with one input each.
+
+`tools/coop-story-test.js` §9 checks each one on its own (who may carry the stove, the jump with it, the melt, the flag,
+a restart there; the beam on and off, one button of two, the gate staying open; stuck, the five taps, a partner beside
+you and on your head doing nothing, the pop together and its height); §3 plays all 24; `coop-story-live-test.js` §6–8
+does the stove, the photo and the syrup across two phones on the live backend; the stars oracle covers the 24.
+
 ### Points
 
 **+1 for the FIRST clear of each level, for the person holding the phone
@@ -2574,9 +2609,9 @@ whoever was already signed in keeps using a half-updated build).
 | `node tools/coop-editor-live-test.js` | The same on two logged-in phones, live backend: A1 makes, clears and sends a level (it reaches A1's save), B2 lists it, both play it together, B2's result comes back to A1's card, a made level with bad rows on the wire is ignored |
 | `node tools/coop-endless-test.js` | ♾️ 一直走下去 on one phone: 4000 made stretches checked for fairness (gaps, runways, steps, spikes, no springs), 200 段 of specs (a new world each 段, storms, the dark, 1→2→3 puzzles, each from its own world), the wire refusing junk, the bot walking 144 段 in both modes and most with real hits, the run (card, next 段 by itself, hearts that carry over, 这一段重来, stopping, running out, the record), points at 3 / 6 / 10 段, the sync merge, 360–820 both themes. `RUNS`/`DMAX`/`ONLY` |
 | `node tools/coop-endless-live-test.js` | The same on two logged-in phones, live backend: 一起出发 starts the same 段 on both, a 段 walked and the next one on both, the hearts the same on both, the guest hurrying it on, stopping from either phone, another run from the guest, running out, both records, an unknown piece on the wire ignored |
-| `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 — the 50 and the story's 12 — can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, balloons (rise, then drift to meet it), at high tide where there is one, with and without the partner holding the buttons (and using the keys) — and no star only by a perfect jump (a 10% weaker jump must still do it) |
-| `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it), all 12 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
-| `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; junk comics on the wire ignored |
+| `node tools/coop-stars-test.js` | Every ⭐ and 💗 in 一起回家 — the 50 and the story's 24 — can be taken, with the real physics: jumps, stacks, springs, updrafts, rides, lifts, balloons (rise, then drift to meet it), at high tide where there is one, with and without the partner holding the buttons (and using the keys) — and no star only by a perfect jump (a 10% weaker jump must still do it) |
+| `node tools/coop-story-test.js` | 📖 故事模式 · 自由选关 · 一直走下去 2.0 on one phone (`ONLY=…`, `BROWSER=webkit`): the start screen, the story screen, the prologue and a chapter's opening before its first level (once), each new thing on its own (keys only for their owner, locks, a key home after a fall, a checkpoint keeping locks open, balloons, the tide and swimming from the seabed, clock buttons, the frame — not lifted by walking past it; §9: the stove and its ice, the flag keeping it, the mirrors and the booth, syrup — alone and together), all 24 levels by the bot (two on a phone and one person, real hits), a chapter through to its ending and your photo (no photos / a dead link → a drawing), the next chapter, points once, 自由选关 (worlds, random, short of stars, story levels), blessings, camps, the road of the day, events, the save merge, 360–820 both themes |
+| `node tools/coop-story-live-test.js` | The story on two logged-in phones, live backend: the comic on both and either turns the page, then the level starts on both; keys carried and locks opened across the phones; a balloon held and let go on both; a clock button holding the gate open on both and shutting it on both; the frame up on both heads, carried between the phones and opening the gate on both; the stove carried and the ice melted on both; the booth's photo opening the gate on both; stuck in syrup on both and one press popping you both; junk comics on the wire ignored |
 | `node tools/coop-live-test.js` | The same games on two logged-in phones, live backend: mirrored moves, hearts, stacking, held gates, pause, both paid on a win, the two-person box, the seesaw, the guest's stomp, 同心锁, wind, portals, the button-driven wheel, the storm, lanterns, the cannon fired from the other phone, the vents' shared clock and the partner's button putting them out, leaving, 默契拍拍's shared verdict |
 | `node tools/kartbomb-test.js` | 🏎️ 卡丁车 and 💣 烟花炸弹 themselves (sections as arguments, `KB_URL` to point elsewhere; `exit`: a way out of every start card): track geometry, every kart mechanic (drift, jumps, trampolines, wind, leaf piles, falling off the sky track, season gates, rewind, ghosts), both cups, races and mazes end to end, controls (buttons, slider, tilt, stick, d-pad) held both ways up, all nine tracks and seven mazes, each maze's goal, phone → laptop sizes, frame rate, reduced motion, WebKit |
 | `node tools/kartbomb-app-test.js` | The two games inside the app (§7.37): opening from 小游戏 full screen, never asking who you are, 倾斜 allowed, +1 for a first win / clear, nothing twice, 拿满 after three, YY's phone paying YY, the records in Prog and their merge, 今天's chip, ✕ and Esc, the app's day and night and the bands round the frame, the app's song pausing and coming back, 390 / 844×390 / 1280 / 经典, WebKit |

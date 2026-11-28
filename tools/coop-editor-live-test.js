@@ -84,7 +84,7 @@ const atDoor = (X, dx) => T(X.p, (dx) => { const T2 = CoopGames.test, G = T2.G, 
 
   console.log('\n4. Never trust the wire');
   const before = await st(B.p);
-  const sent = await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'go', v: 7, n: 424242, lv: -2, who: 0, cp: null, u: { id: 'ux', n: 'bad', w: 0, r: 'not|a|level', by: 'cs' } }));
+  const sent = await T(A.p, () => App._coopApiTest().live.send('cg', { t: 'go', v: CoopGames.test.NET_V, n: 424242, lv: -2, who: 0, cp: null, u: { id: 'ux', n: 'bad', w: 0, r: 'not|a|level', by: 'cs' } }));
   await sleep(1500);
   const after = await st(B.p);
   ok(sent !== false && after.n === before.n && await T(B.p, () => !!document.querySelector('.cg-home:not([hidden])')), 'a made level whose rows are not a level is ignored by the other phone');

@@ -32,6 +32,7 @@ function supportBelow(x, feet, who, depth) {
 function runInput(i, tx, tol = 0.18) {
   const p = P(i), who = p.k, x = cx(p), dir = Math.sign(tx - x), inp = { l: dir < 0, r: dir > 0, j: false };
   if (p.dead) return {};
+  if (p.stuck) return { j: true, l: dir < 0, r: dir > 0 };   // 糖浆: wriggle (go() makes every other step a fresh press)
   if (Math.abs(tx - x) < tol) return { j: false };
   if (!p.grounded) {
     inp.j = p.vy < 0;
@@ -279,6 +280,79 @@ function carryTo(n, tx, max = 3000) {
   if (G.mode === 'solo' && G.hold) C.toggleHold();
   return f.st === 'placed' || 'frame:' + f.st;
 }
+/* ── 📖 第 4–6 章 (2026-11-28) ── */
+// 冰墙: walk the stove into it until the wall in that column is gone
+const iceAt = (lx) => { const c = Math.floor(lx); for (let r = 0; r < 13; r++) if (G.L.grid[r * G.L.w + c] === C.T_ICEW) return true; return false; };
+function toIce(i, lx, max = 1200) {
+  if (!iceAt(lx)) return true;
+  if (!P(i).key || P(i).key.col !== 2) return false;
+  take(i);
+  return until(() => !iceAt(lx), () => { go(i, lx + 0.8, 0.05); IN[1 - i] = {}; }, max);
+}
+// 糖浆: get i stuck near tx (a number, or a function for a moving goal) — walking (go: it jumps the gaps), steering
+// in the air, stepping off the partner's head toward it, and, when stuck somewhere else, wriggling toward it
+function syrupTo(i, tx, max = 3000, near = 1.2, doneIf) {
+  if (G.mode === 'solo') unstack(i);
+  take(i); let k = 0;
+  const goal = () => (typeof tx === 'function' ? tx() : tx);
+  return until(() => (doneIf && doneIf()) || (near > 0 && P(i).stuck && Math.abs(cx(P(i)) - goal()) < near), () => {
+    const p = P(i), g = goal(), dx = g - cx(p); IN[1 - i] = {};
+    if (p.stuck) IN[i] = { j: k++ % 2 === 0, l: dx < -0.25, r: dx > 0.25 };
+    else if (p.grounded && p.ground && p.ground.kind === 'player') IN[i] = dx < 0 ? { l: true } : { r: true };   // landed on the partner: step off toward the goal
+    else if (!p.grounded) IN[i] = { l: dx < -0.3, r: dx > 0.3, j: p.vy < 0 };
+    else go(i, g, 0.1);
+  }, max);
+}
+// wriggle out alone and land somewhere that is not syrup, toward tx
+function syrupFree(i, tx, max = 1500) {
+  take(i); let k = 0;
+  return until(() => P(i).grounded && !P(i).stuck && P(i).ground && P(i).ground.code !== C.T_SYRUP && !(P(i).unstick > 0), () => {
+    const p = P(i), dx = tx - cx(p); IN[1 - i] = {};
+    IN[i] = p.stuck ? { j: k++ % 2 === 0, l: dx < -0.1, r: dx > 0.1 } : { l: dx < -0.1, r: dx > 0.1 };
+  }, max);
+}
+// 糖浆 together, the way two people do it: side by side (the same input for both, as 牵手 gives on one phone) you walk
+// in, get stuck together, and a press pops you both — higher than alone — so you steer for ta / tb and, if a pop comes
+// down in syrup, do it again. Split up (one out on the ledge, one stuck below): the free one goes back in beside the
+// other; both stuck apart: wriggle toward each other.
+function syrupOut(first, ta, tb, feetMax, max = 8000) {
+  const f = first, s2 = 1 - first;
+  const done = () => [0, 1].every(i => !P(i).dead && P(i).grounded && !P(i).stuck && P(i).y + P(i).h <= feetMax && Math.abs(cx(P(i)) - (i ? tb : ta)) < 1.6);
+  // side by side first (the second just behind the first)
+  if (G.mode === 'solo') { solo(f, cx(P(f)), 600, 0.4); solo(s2, cx(P(f)) - 0.86, 1500, 0.2); take(f); if (!G.hold) C.toggleHold(); }
+  else both(f ? cx(P(f)) - 0.86 : cx(P(0)), f ? cx(P(1)) : cx(P(0)) - 0.86, 1500, 0.2);
+  const back = [false, false];   // on the way to a stuck partner (the way down steers for them, not for the target)
+  // beside them: the near side, or the left when coming down from above (the targets are to the right, past a wall)
+  const side = (p, q) => cx(q) + (cx(p) > cx(q) && p.y + p.h > q.y + q.h - 0.5 ? 0.86 : -0.86);
+  const rule = (i, k, tch) => {
+    const p = P(i), q = P(1 - i), t = i ? tb : ta;
+    if (p.dead) return {};
+    if (p.stuck) {
+      back[i] = !tch && q.stuck;
+      const dx = (tch ? t : side(p, q)) - cx(p);
+      return tch || q.stuck ? { j: k % 2 === 0, l: dx < -0.3, r: dx > 0.3 } : {};   // beside: pop; apart: wriggle closer; partner free: wait for them
+    }
+    if (p.grounded && p.ground && p.ground.kind === 'player') return t > cx(q) ? { l: true } : { r: true };   // off their head, on the side with room
+    if (!p.grounded) { const dx = (back[i] && q.stuck && !q.dead ? side(p, q) : t) - cx(p); return { l: dx < -0.25, r: dx > 0.25, j: p.vy < 0 }; }
+    if (q.stuck && !q.dead && tch) { const dx = t - cx(p); return { j: k % 2 === 0, l: dx < -0.3, r: dx > 0.3 }; }   // beside them: press (their phone or hand in hand passes it on)
+    if (q.stuck && !q.dead) { back[i] = true; go(i, side(p, q), 0.1); return IN[i]; }
+    back[i] = false; go(i, t, 0.3); return IN[i];
+  };
+  let k = 0;
+  const ok = until(done, () => {
+    const a = P(0), b = P(1), together = !a.dead && !b.dead && Math.abs(a.x - b.x) < 1.8 && Math.abs(a.y - b.y) < 1.1, tch = C.touching(a, b);
+    if (G.mode === 'solo') {   // hand in hand lets go 3 tiles apart: the one who is out goes back for the other, and takes their hand again
+      const ac = P(G.active), o = P(1 - G.active);
+      if (ac.stuck && !o.stuck && !o.dead && o.grounded && !tch) { IN[0] = {}; IN[1] = {}; C.swap(); }
+      if (!G.hold && together) C.toggleHold();
+      IN[G.active] = rule(G.active, k, tch); IN[1 - G.active] = {};
+    } else if (together) { IN[f] = rule(f, k, tch); IN[s2] = Object.assign({}, IN[f]); }   // side by side: the same input
+    else { IN[0] = rule(0, k, tch); IN[1] = rule(1, k + 1, tch); }
+    k++;
+  }, max);
+  if (G.mode === 'solo' && G.hold) C.toggleHold();
+  return ok || 'out';
+}
 function stepChunk(n) {
   const c = G.L.chunks[n], id = c.ch.id, x0 = c.x0, x1 = c.x0 + c.ch.w;
   // a piece starts with nobody on anybody's head: the one carrying can't jump (a piece can end with one landed on the other)
@@ -439,6 +513,130 @@ function stepChunk(n) {
       const r = carryTo(n, x0 + 42.5, 4000); if (r !== true) return r;
       return both(x1 + 0.5, x1 + 1.5);
     }
+    // ── 第 4 章：小火炉和冰墙
+    case 'I1_intro':
+      if (!solo(A, x0 + 5.5, 2500, 0.3)) return 'stove';
+      if (!P(A).key) return 'no-stove';
+      if (!toIce(A, x0 + 11)) return 'melt';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I1_step':
+      if (!solo(B, x0 + 8.4, 2500, 0.2)) return 'base';
+      if (!climbOn(A, B)) return 'stack';
+      if (!leapTo(A, x0 + 11, 9.1)) return 'step';
+      if (!leapTo(B, x0 + 13, 9.1)) return 'step-b';
+      if (!toIce(A, x0 + 17)) return 'melt';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I2_button':
+      if (!solo(A, x0 + 3.5, 2500, 0.3)) return 'stove';
+      if (!P(A).key) return 'no-stove';
+      if (!toIce(A, x0 + 7)) return 'melt';
+      if (!solo(A, x0 + 8.5, 1500, 0.2)) return 'plate';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'gate';
+      if (!solo(B, x0 + 23.5, 2500, 0.25)) return 'through-b';
+      if (!solo(A, x0 + 22, 2500, 0.3)) return 'through-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I2_shelf':
+      if (!both(x0 + 7.0, x0 + 5.6, 2500, 0.25)) return 'gather';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 9.6, 6.1)) return 'shelf';
+      if (!P(B).key && (!solo(B, x0 + 9.5, 600, 0.2) || !P(B).key)) return 'no-stove';
+      if (!toIce(B, x0 + 22, 2500)) return 'melt';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I3_bridge':
+      if (!solo(A, x0 + 3.5, 2500, 0.3)) return 'stove';
+      if (!P(A).key) return 'no-stove';
+      if (!solo(A, x0 + 8.4, 2500, 0.2)) return 'edge';
+      if (!solo(B, x0 + 6.5, 2500, 0.2)) return 'clock';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'bridge';
+      if (!solo(A, x0 + 15.5, 1200, 0.3)) return 'cross';
+      if (!solo(B, x0 + 14.5, 1500, 0.3)) return 'cross-b';
+      if (!toIce(A, x0 + 19)) return 'melt';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I4_climb':
+      if (!solo(A, x0 + 4.5, 2500, 0.3)) return 'stove';
+      if (!P(A).key) return 'no-stove';
+      if (!solo(B, x0 + 7.4, 2500, 0.2)) return 'base1';
+      if (!climbOn(A, B)) return 'stack1';
+      if (!leapTo(A, x0 + 10, 9.1)) return 'step1';
+      if (!leapTo(B, x0 + 12.4, 9.1)) return 'up-b';
+      if (!solo(B, x0 + 13.4, 1500, 0.2)) return 'base2';
+      if (!climbOn(A, B)) return 'stack2';
+      if (!leapTo(A, x0 + 16, 7.1)) return 'step2';
+      if (!leapTo(B, x0 + 17.5, 7.1)) return 'up-b2';
+      if (!toIce(A, x0 + 19)) return 'melt';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'I4_bridge':
+      if (!solo(A, x0 + 4.5, 2500, 0.3)) return 'stove';
+      if (!P(A).key) return 'no-stove';
+      if (!toIce(A, x0 + 7)) return 'melt';
+      if (!solo(A, x0 + 8.5, 1500, 0.2)) return 'plate';
+      if (!until(() => G.chanOn[n], idle, 60)) return 'bridge';
+      if (!solo(B, x0 + 28.5, 3000, 0.25)) return 'cross-b';
+      if (!solo(A, x0 + 26.5, 3000, 0.3)) return 'cross-a';
+      return both(x1 + 0.5, x1 + 1.5);
+    // ── 第 5 章：镜子屋
+    case 'M1_intro':
+      if (!solo(A, x0 + 8.5, 2500, 0.2)) return 'plate';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'M2_two':
+      if (!solo(B, x0 + 13.5, 2500, 0.2)) return 'ledge';
+      if (!solo(A, x0 + 6.5, 2500, 0.2)) return 'floor';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'M3_clock':
+      if (!solo(B, x0 + 16.5, 2500, 0.2)) return 'plate';
+      if (!solo(A, x0 + 3.5, 2500, 0.2)) return 'clock';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'M4_three':
+      if (!both(x0 + 5.0, x0 + 3.4, 2500, 0.25)) return 'gather';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 7.5, 6.1)) return 'ledge';
+      if (!solo(B, x0 + 7.5, 600, 0.2)) return 'ledge-plate';
+      if (!solo(A, x0 + 4.5, 1500, 0.2)) return 'clock';
+      if (!solo(A, x0 + 18.5, 1500, 0.2)) return 'plate';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      if (!solo(B, x0 + 12, 1500, 0.4)) return 'down';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'M5_stack':
+      if (!both(x0 + 11.0, x0 + 9.4, 2500, 0.25)) return 'gather';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 13.5, 6.1)) return 'ledge';
+      if (!solo(B, x0 + 13.5, 600, 0.2)) return 'ledge-plate';
+      if (!solo(A, x0 + 22.5, 1500, 0.2)) return 'floor';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      if (!solo(B, x0 + 19, 1500, 0.4)) return 'down';
+      return both(x1 + 0.5, x1 + 1.5);
+    case 'M5_bridge':
+      if (!solo(B, x0 + 10.5, 2500, 0.2)) return 'plate';
+      if (!solo(A, x0 + 4.5, 2500, 0.2)) return 'clock';
+      if (!until(() => G.latch[n], idle, 120)) return 'photo';
+      return both(x1 + 0.5, x1 + 1.5);
+    // ── 第 6 章：糖浆
+    case 'Y1_intro': return syrupOut(0, x1 + 0.6, x1 - 0.4, 11.05);
+    case 'Y2_wall': return syrupOut(0, x0 + 18, x0 + 17, 8.05);
+    case 'Y3_island': return syrupOut(0, x0 + 18, x0 + 17, 8.05);
+    case 'Y4_step': {
+      const e = G.L.elevs.find(q => q.x0 >= x0 && q.x0 < x1);
+      if (!syrupTo(A, x0 + 8.8, 3000, 0.5)) return 'a-syrup';
+      if (!climbOn(B, A)) return 'stack';
+      if (!leapTo(B, x0 + 12.5, 6.1)) return 'ledge';
+      if (!syrupFree(A, x0 + 6.3)) return 'wriggle';
+      if (!solo(A, x0 + 6.5, 2000, 0.3)) return 'lift';
+      if (!solo(B, x0 + 11.5, 1000, 0.25)) return 'plate';
+      if (!until(() => e.y <= e.yTop + 0.05, idle, 600)) return 'up';
+      if (!leapTo(A, x0 + 12.6, 6.1)) return 'across';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'Y5_key': {
+      if (!syrupTo(B, x0 + 10.4, 3000, 0.9) || !P(B).key) return 'key';   // YY lands under her key
+      const r = syrupOut(1, x0 + 17.5, x0 + 18.5, 8.05); if (r !== true) return r;
+      if (!P(B).key) return 'no-key';
+      if (!toLock(B, x0 + 21, 1500)) return 'lock';
+      return both(x1 + 0.5, x1 + 1.5);
+    }
+    case 'Y6_climb': return syrupOut(0, x0 + 25, x0 + 24, 5.05);
     case 'C_stack':
       if (!both(x0 + 5.5, x0 + 3.5)) return false;
       if (!climbOn(B, A)) return false;

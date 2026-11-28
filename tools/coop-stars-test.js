@@ -52,7 +52,7 @@ const { chromium } = require('/Users/ycs/.npm/_npx/e41f203b7505f1fb/node_modules
         for (const pass of [[false, true], [true, true], [false, false], [true, false]]) {   // comfortable first (with/without buttons), then perfect
           const [force, weakPass] = pass;
           G.forceChan = force; if (force) G.latch.fill(1); else G.latch.fill(0);
-          if (force) for (let k = 0; k < L.grid.length; k++) if (L.grid[k] === T.T_LOCKB || L.grid[k] === T.T_LOCKP) L.grid[k] = 0;   // the keys used
+          if (force) for (let k = 0; k < L.grid.length; k++) if (L.grid[k] === T.T_LOCKB || L.grid[k] === T.T_LOCKP || L.grid[k] === T.T_ICEW) L.grid[k] = 0;   // the keys used, the ice melted
           if (L.tides.length) G.wt = L.tides[0].period * 0.5;   // high tide
           for (let k = 0; k < 3; k++) T.stepFn(T.STEP);
           const spots = [];

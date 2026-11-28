@@ -1900,6 +1900,275 @@ Object.assign(CHUNKS, {
     '.H.......r....F...t.....r.................U......D..',
     '#####fff#################bbbbbbbb###################',
     '#########################........###################'] },
+  // ── 第 4 章 · 冬：小火炉和冰墙
+  I1_intro: { sign: '小火炉谁都能拿起来：抱着它碰一下冰墙，冰就化了。它很重，抱着它只能跳一点点高。', rows: [
+    '...........#........',
+    '...........#........',
+    '...........#........',
+    '...........#........',
+    '...........#........',
+    '...........#........',
+    '...........#........',
+    '...........W........',
+    '...........W........',
+    '...........W...*....',
+    '.H...s.....W........',
+    '####################',
+    '####################'] },
+  I1_step: { sign: '台阶有两格高，抱着小火炉跳不上去：先站到 TA 头上，再跳一下。', rows: [
+    '.................#....',
+    '.................#....',
+    '.................#....',
+    '.................#....',
+    '.................#....',
+    '.............*...W....',
+    '.................W....',
+    '.................W....',
+    '.................W....',
+    '.........#############',
+    '.H.......#############',
+    '######################',
+    '######################'] },
+  I2_button: { sign: '按钮冻在冰里了：先用小火炉把冰化开。一个人踩着按钮，另一个过去踩那边的按钮。', rows: [
+    '..................#.......',
+    '..................#.......',
+    '..................#.......',
+    '..................#.......',
+    '..................#.......',
+    '..................#.......',
+    '............*.....#.......',
+    '..................D.......',
+    '..................D.......',
+    '.......WWW........D.......',
+    '.H.s...WoW........D....o..',
+    '##########################',
+    '##########################'] },
+  I2_shelf: { sign: '小火炉放在高高的架子上：叠罗汉上去拿，再去化开冰墙。', rows: [
+    '......................#.',
+    '......................#.',
+    '......................#.',
+    '..........*...........#.',
+    '......................#.',
+    '.........s............#.',
+    '........####..........#.',
+    '........####..........W.',
+    '......................W.',
+    '......................W.',
+    '.H....................W.',
+    '########################',
+    '########################'] },
+  I3_bridge: { sign: '坑有五格宽，抱着小火炉跳不过去：TA 踩一下钟表按钮，桥会出来 5 秒，快抱着它走过去！', rows: [
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...................#......',
+    '...........*.......#......',
+    '...................W......',
+    '...................W......',
+    '...................W......',
+    '.H.s..r............W......',
+    '#########bbbbb############',
+    '#########.....############'] },
+  I4_climb: { sign: '两级高台阶：抱着小火炉的人要踩着 TA 的头上去两次。', rows: [
+    '...................#....',
+    '...................#....',
+    '...................#....',
+    '................*..#....',
+    '...................W....',
+    '...................W....',
+    '...................W....',
+    '..............##########',
+    '..............##########',
+    '........################',
+    '.H..s...################',
+    '########################',
+    '########################'] },
+  I4_bridge: { sign: '冰里冻着的按钮会变出一座桥：化开冰，踩住按钮让 TA 先过去，再换 TA 帮你。', rows: [
+    '..............................',
+    '..............................',
+    '..............................',
+    '..............................',
+    '..............................',
+    '..............................',
+    '..............*...............',
+    '..............................',
+    '..............................',
+    '.......WWW....................',
+    '.H..s..WoW..................o.',
+    '##########bbbbbbbbbb##########',
+    '##########..........##########'] },
+  // ── 第 5 章 · 游乐园：镜子屋（w 相机，/ 和 x 镜子，@ 拍照亭；第 k 个按钮转第 k 面镜子）
+  M1_intro: { sign: '镜子屋：踩住按钮，和它同颜色的镜子就会转过来。让相机的光照进拍照亭——咔嚓！门就开了。', cam: 'u', rows: [
+    '...................#..',
+    '...................#..',
+    '...................#..',
+    '...................#..',
+    '.#.x............x..#..',
+    '...................#..',
+    '.........*.........#..',
+    '...................D..',
+    '...................D..',
+    '...................D..',
+    '.H.w....o.......@..D..',
+    '######################',
+    '######################'] },
+  M2_two: { sign: '两面镜子要一起转：一个人跳上高台踩橙色的按钮，另一个踩地上的绿色按钮。', cam: 'u', rows: [
+    '.....................#......',
+    '.....................#......',
+    '.....................#......',
+    '#.x................./#......',
+    '.....................#......',
+    '.....................#......',
+    '.......*.............#......',
+    '.............o.......D......',
+    '...........#####.....D......',
+    '...........#####.....D......',
+    '.Hw...o....#####....@D......',
+    '############################',
+    '############################'] },
+  M3_clock: { sign: '钟表按钮让镜子转 5 秒：一个人踩住绿色的按钮，另一个去踩钟表按钮——一个人玩的话，踩完钟表快跑过去！', cam: 'u', rows: [
+    '.........................#....',
+    '.........................#....',
+    '..#...x............./....#....',
+    '.........................#....',
+    '.........................#....',
+    '.........................#....',
+    '...........*.............#....',
+    '.........................D....',
+    '.........................D....',
+    '.........................D....',
+    '.H.r..w.........o...@....D....',
+    '##############################',
+    '##############################'] },
+  M4_three: { sign: '三面镜子：一个人叠罗汉上高台踩住按钮，另一个先踩钟表按钮，再跑去踩紫色的按钮。', cam: 'u', rows: [
+    '.............................#..',
+    '#.x........./................#..',
+    '.............................#..',
+    '........*....................#..',
+    '.............................#..',
+    '.......o...#/.........@......#..',
+    '......####............###....#..',
+    '......####...................D..',
+    '.............................D..',
+    '.............................D..',
+    '.Hw.r............o...........D..',
+    '################################',
+    '################################'] },
+  M5_stack: { sign: '拍照亭在后面：光要从右边绕一大圈回来。一个人上高台踩按钮，另一个踩地上的按钮。', cam: 'u', rows: [
+    '.............................#..',
+    '.............................#..',
+    '.....x...................../.#..',
+    '.............*...............#..',
+    '.............................#..',
+    '.............o...............#..',
+    '............####.............#..',
+    '............####.............D..',
+    '.............................D..',
+    '.............................D..',
+    '.H...@................o....w.D..',
+    '################################',
+    '################################'] },
+  M5_bridge: { sign: '最后一张：光照进拍照亭，坑上就会出现一座桥，以后一直都在。', cam: 'u', rows: [
+    '....................................',
+    '#.x.........../.....................',
+    '....................................',
+    '....................................',
+    '..............x...............x.....',
+    '....................................',
+    '....................................',
+    '.....................*..............',
+    '....................................',
+    '....................................',
+    '.Hw.r.....o...................@.....',
+    '############bbbbbbbbbbbbb###########',
+    '############.............###########'] },
+  // ── 第 6 章 · 糖果：糖浆
+  Y1_intro: { sign: '糖浆会黏住脚！连按跳 5 下就能挣脱；挨着 TA 按一下跳，两个人会一起「啵」地弹出来，弹得更高。', rows: [
+    '....................',
+    '....................',
+    '....................',
+    '....................',
+    '....................',
+    '....................',
+    '..........*.........',
+    '....................',
+    '....................',
+    '....................',
+    '.H..................',
+    '#####yyyyyy#########',
+    '####################'] },
+  Y2_wall: { sign: '一个人挣脱出来，弹不上这么高的墙：两个人挨在一起按跳，一起弹上去！', rows: [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '...................*....',
+    '........................',
+    '........................',
+    '........................',
+    '..............##########',
+    '..............##########',
+    '.H............##########',
+    '####yyyyyyyyyy##########',
+    '########################'] },
+  Y3_island: { sign: '跳过坑就是糖浆：两个人都跳过去、挨在一起按跳，才能一起弹上高台。', rows: [
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..........................',
+    '..................*.......',
+    '..........................',
+    '..........................',
+    '.............#############',
+    '.............#############',
+    '.H...........#############',
+    '######...yyyy#############',
+    '######...#################'] },
+  Y4_step: { sign: '被黏住的人站得最稳：踩着 TA 的头跳上高台，踩住按钮，电梯就会升起来接 TA。', elevTop: 6, rows: [
+    '........................',
+    '........................',
+    '........................',
+    '...........*............',
+    '........................',
+    '...........o............',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '..........######........',
+    '.H........######........',
+    '#####Y..yy##############',
+    '########################'] },
+  Y5_key: { sign: '粉钥匙挂在糖浆小岛上：YY 上岛拿钥匙，两个人一起从岛上弹到高台，打开粉色的锁。', rows: [
+    '.....................#......',
+    '.....................#......',
+    '.....................#......',
+    '.....................#......',
+    '..........*..........J......',
+    '.....................J......',
+    '.....................J......',
+    '.....................J......',
+    '.............###############',
+    '..........g..###############',
+    '.H...........###############',
+    '######...yyyy###############',
+    '######...###################'] },
+  Y6_climb: { sign: '糖浆台阶：每一级都要两个人挨在一起按跳，「啵」地一起弹上去。', rows: [
+    '..................................',
+    '..................................',
+    '..................................',
+    '.........................*........',
+    '..................................',
+    '.....................#############',
+    '.....................#############',
+    '.....................#############',
+    '............yyyyyyyyy#############',
+    '............######################',
+    '.H..........######################',
+    '####yyyyyyyy######################',
+    '##################################'] },
 });
 // the same preparing the 50's pieces get above (rows padded to 13, width and id): these are added after that loop ran
 for (const id in CHUNKS) if (!CHUNKS[id].id) {
@@ -1927,6 +2196,22 @@ const STORY_LV = [
     tip: { art: 'frame', title: '一起抬', text: '两个人都站到大相框下面，它就会落到你们头上。抬着的时候不能跳；两个人走散了，它就会掉下来，回到原来的地方。一个人玩的时候，先「牵手」。' } },
   { id: 'S11', c: 2, name: '秋风', world: 2, seq: ['start', 'R3_wind', 'cp', 'F3_lockframe', 'goal'], stars: [1, 2, 3] },
   { id: 'S12', c: 2, name: '风里的信', world: 2, seq: ['start', 'F4_finale', 'cp', 'P_gap3', 'goal'], stars: [1, 2, 3], finale: true },
+  // 2026-11-28 · 第 4–6 章 (a flag keeps the stove: what comes after it brings its own)
+  { id: 'S13', c: 3, name: '小火炉', world: 3, seq: ['start', 'I1_intro', 'I1_step', 'P_flat', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'stove', title: '小火炉', text: '小火炉谁都能抱起来。抱着它碰一下冰墙，冰就化了。它很重：抱着它只能跳一点点高，高的台阶要踩着 TA 的头上去。到了小旗子，它就留在那里取暖。' } },
+  { id: 'S14', c: 3, name: '冰封的按钮', world: 3, seq: ['start', 'I2_button', 'cp', 'I2_shelf', 'goal'], stars: [1, 2, 3] },
+  { id: 'S15', c: 3, name: '冰梯', world: 3, seq: ['start', 'P_pyramid', 'I3_bridge', 'cp', 'P_spikes', 'goal'], stars: [1, 2, 3] },
+  { id: 'S16', c: 3, name: '冻住的笑脸', world: 3, seq: ['start', 'I4_climb', 'cp', 'I4_bridge', 'goal'], stars: [1, 2, 3], finale: true },
+  { id: 'S17', c: 4, name: '镜子屋', world: 4, seq: ['start', 'M1_intro', 'P_flat', 'M2_two', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'mirror', title: '镜子屋', text: '踩住按钮，和它同颜色的镜子就会转过来。让相机的光照进拍照亭——咔嚓！门就开了，以后一直开着。有的路要两个人一起踩。' } },
+  { id: 'S18', c: 4, name: '一起按', world: 4, seq: ['start', 'M3_clock', 'cp', 'P_puffy', 'goal'], stars: [1, 2, 3] },
+  { id: 'S19', c: 4, name: '哈哈镜', world: 4, seq: ['start', 'P_gap3', 'M4_three', 'cp', 'goal'], stars: [1, 2, 3] },
+  { id: 'S20', c: 4, name: '咔嚓', world: 4, seq: ['start', 'M5_stack', 'cp', 'M5_bridge', 'goal'], stars: [1, 2, 3], finale: true },
+  { id: 'S21', c: 5, name: '黏黏的糖浆', world: 5, seq: ['start', 'Y1_intro', 'P_puffy', 'Y2_wall', 'goal'], stars: [1, 2, 3],
+    tip: { art: 'syrup', title: '糖浆', text: '踩到糖浆会被黏住。连按跳 5 下能自己挣脱，但只能弹一点点高；挨着 TA 按一下跳，两个人会一起「啵」地弹出来，弹得更高。踩在被黏住的人头上没关系，TA 站得最稳。' } },
+  { id: 'S22', c: 5, name: '糖浆小岛', world: 5, seq: ['start', 'Y3_island', 'cp', 'Y4_step', 'goal'], stars: [1, 2, 3] },
+  { id: 'S23', c: 5, name: '甜甜的钥匙', world: 5, seq: ['start', 'P_spikes', 'Y5_key', 'cp', 'goal'], stars: [1, 2, 3] },
+  { id: 'S24', c: 5, name: '甜甜的陷阱', world: 5, seq: ['start', 'Y6_climb', 'cp', 'P_float2', 'goal'], stars: [1, 2, 3], finale: true },
 ];
 // rank (how fast the walkers go) is a level's place among the 50 for those; a story level's index is 1000+, which sent
 // the puffballs across at 31 tiles a second — so each takes its world's own: chapter c, level n → c·5 + n
@@ -1936,9 +2221,9 @@ const CHAPTERS = [
   { title: '花瓣里的第一张', world: 0, line: '照片挂在最高的樱花树上。', lv: [0, 1, 2, 3] },
   { title: '漂流瓶', world: 1, line: '闷闷掀起大浪，照片装进漂流瓶漂走了。', lv: [4, 5, 6, 7] },
   { title: '风里的信', world: 2, line: '秋风把照片吹成一阵叶子雨。', lv: [8, 9, 10, 11] },
-  { title: '冻住的笑脸', world: 3, line: '照片冻在冰墙里。', lv: [] },
-  { title: '拍照亭', world: 4, line: '小乌云们在镜子屋里乱按快门。', lv: [] },
-  { title: '甜甜的陷阱', world: 5, line: '糖浆地板黏住了脚。', lv: [] },
+  { title: '冻住的笑脸', world: 3, line: '照片冻在冰墙里。', lv: [12, 13, 14, 15] },
+  { title: '拍照亭', world: 4, line: '小乌云们在镜子屋里乱按快门。', lv: [16, 17, 18, 19] },
+  { title: '甜甜的陷阱', world: 5, line: '糖浆地板黏住了脚。', lv: [20, 21, 22, 23] },
   { title: '沉进海里的一页', world: 6, line: '照片沉进了海底。', lv: [] },
   { title: '海市蜃楼', world: 7, line: '有的路只有一个人看得见。', lv: [] },
   { title: '最烫的一张', world: 8, line: '熔岩往上涨。', lv: [] },
@@ -2079,6 +2364,14 @@ const T_LOCKB = 22, T_LOCKP = 23, T_TPLATE = 24, TIMER_S = 5;
 Object.assign(TILE_OF, { F: T_LOCKB, J: T_LOCKP, r: T_TPLATE });
 // 气球: held, it lifts you this fast (with your partner on your head, slower) for at most BAL_T seconds
 const BAL_RISE = 4.4, BAL_RISE2 = 3.0, BAL_T = 5.5;
+// 2026-11-28 故事 · 第 4–6 章: 冰墙 (W: ice only the 小火炉 melts. The stove is a key of nobody's colour — either of you
+// carries it — and it is heavy: you jump 1.6 tiles with it, so your partner's head is the step up), 糖浆 (y: it holds
+// your feet; tap jump WIG_N times to wriggle out, or touch each other and both of you pop out, higher) and 镜子屋 (w a
+// camera, / and x mirrors, @ the photo booth: each button turns one mirror, and the beam reaching the booth opens the
+// piece's gates for good)
+const T_ICEW = 25, T_SYRUP = 26, WIG_N = 5, STOVE_JUMP = 0.62, POP_PULL = 0.95, POP_SELF = 0.7;
+Object.assign(TILE_OF, { W: T_ICEW, y: T_SYRUP });
+const MIR_HUE = ['#FFB547', '#4FCFC0', '#B98CFF', '#FF7FA8'];
 
 const G = {
   L: null, mode: 'duo', petImg: null, petName: '', meIdx: 0, wt: 0, ghost: 0,
@@ -2096,7 +2389,7 @@ const isHost = () => !ONLINE() || NET.role === 'host';
 function makePlayer(idx, sp) {
   return { idx, k: idx ? 'yy' : 'cs', x: sp.x, y: sp.y, w: PW, h: PH, vx: 0, vy: 0, dx: 0, dy: 0, px: sp.x, py: sp.y, face: idx ? -1 : 1,
     grounded: false, ground: null, coyote: 0, jbuf: 0, prevJ: false, inv: 0, lock: 0, wings: false, usedDouble: false, shield: false,
-    launch: null, springy: false, dead: 0, push: null, strain: 0, happy: 0,
+    launch: null, springy: false, dead: 0, push: null, strain: 0, happy: 0, stuck: 0, wig: 0, unstick: 0,
     an: { t: 0, run: 0, squash: 0, blinkT: 1 + idx, blink: 0, flap: 0 } };
 }
 
@@ -2109,7 +2402,8 @@ function buildLevel(i) {
   // rank: how fast the walkers are (by the level's place in the list; the endless road by how far you have got)
   const L = { i, rank: spec.rank != null ? spec.rank : i, spec, world, w, grid: new Uint8Array(w * R), chunkOf: new Int16Array(w), chunks, plates: [], signs: [], decor: [], spawn: [], door: null, cps: [],
     items: [], enemies: [], movers: [], elevs: [], springs: [], boxes: [], seesaws: [], boss: null, heartsTotal: 0, qCount: 0,
-    pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [], tplates: [], balloons: [], frames: [], stands: [], tides: [] };
+    pairs: [], fans: [], portals: [], wheels: [], lamps: [], cannons: [], jets: [], tplates: [], balloons: [], frames: [], stands: [], tides: [],
+    mirrors: [], cams: [], booths: [], mirCh: null, mirAt: null, boothAt: null };
   const rng = mulberry(spec.seed != null ? spec.seed : 1000 + i * 7919);
   for (const c of chunks) {
     for (let x = 0; x < c.ch.w; x++) L.chunkOf[c.x0 + x] = c.n;
@@ -2154,6 +2448,21 @@ function buildLevel(i) {
     L.jets.push({ c: x, r, top, ch: n, powered: powered(n), ph });
   }
   L.hasSand = L.grid.includes(T_SAND);
+  L.hasSyrup = L.grid.includes(T_SYRUP);
+  // 镜子屋: in a piece with a camera, its k-th button (in reading order) turns its k-th mirror, and the buttons no
+  // longer open the gates themselves — the beam reaching the booth does (G.latch)
+  if (L.cams.length) {
+    L.mirCh = new Uint8Array(chunks.length);
+    for (const cm of L.cams) L.mirCh[cm.ch] = 1;
+    for (const c of chunks) {
+      if (!L.mirCh[c.n]) continue;
+      const btns = [...L.plates.filter(p => p.ch === c.n), ...L.tplates.filter(p => p.ch === c.n).map(p => Object.assign(p, { timer: true }))].sort((a, b) => a.r - b.r || a.c - b.c);
+      L.mirrors.filter(m => m.ch === c.n).forEach((m, k) => { m.btn = btns[k] || null; m.hue = k; if (m.btn) m.btn.mc = k; });
+    }
+    L.mirAt = new Map(L.mirrors.map(m => [m.r * w + m.c, m]));
+    L.boothAt = new Map();
+    for (const b of L.booths) { L.boothAt.set(b.r * w + b.c, b); if (b.r > 0) L.boothAt.set((b.r - 1) * w + b.c, b); }
+  }
   // 涨潮: a level's sea, { lo, hi, period } in rows — over the whole beach, the way a tide comes in
   if (spec.tide) L.tides.push(Object.assign({ x0: -50, x1: w + 50, ph: 0 }, spec.tide));
   if (spec.ev === 'hearts') for (const c of chunks) if (c.ch.gen) for (let x = c.x0 + 3; x < c.x0 + c.ch.w - 3; x += 6) {
@@ -2215,19 +2524,25 @@ function marker(L, ch, x, r, c, starOn, rng) {
       break;
     }
     case 'U': L.stands.push({ x: cx, foot, ch: c.n }); break;
+    case 's':   // 小火炉: sits on the floor; either of you can pick it up
+      L.items.push({ type: 'key', col: 2, x: cx, y: foot - 0.42, ox: cx, oy: foot - 0.42, ph: rng() * 6, held: null, used: false });
+      break;
+    case 'w': L.cams.push({ c: x, r, ch: c.n, dir: c.ch.cam || 'r', path: [], hit: null }); break;
+    case '/': case 'x': { const o = ch === '/' ? 0 : 1; L.mirrors.push({ c: x, r, ch: c.n, o0: o, o, a: o, btn: null, hue: 0 }); break; }
+    case '@': L.booths.push({ c: x, r, ch: c.n, flash: 0 }); break;
     case 'Z': L.boss = { x: x - 1, y: 1.6, px: x - 1, py: 1.6, w: 3, h: 2, hp: 3, st: 'float', t: 3.5, inv: 0, rain: 1.4, ax0: c.x0 + 2, ax1: c.x0 + c.ch.w - 6, dead: 0 }; break;
   }
 }
 
 /* ── tiles ── */
-const solidCell2 = (L, c, r) => r >= 0 && r < R && c >= 0 && c < L.w && [T_GROUND, T_BLOCK, T_ICE, T_GIFT, T_GIFTQ, T_CONVL, T_CONVR, T_SAND, T_VENT, T_BLUE, T_PINK, T_GATE, T_LOCKB, T_LOCKP].includes(L.grid[r * L.w + c]);
+const solidCell2 = (L, c, r) => r >= 0 && r < R && c >= 0 && c < L.w && [T_GROUND, T_BLOCK, T_ICE, T_GIFT, T_GIFTQ, T_CONVL, T_CONVR, T_SAND, T_VENT, T_BLUE, T_PINK, T_GATE, T_LOCKB, T_LOCKP, T_ICEW, T_SYRUP].includes(L.grid[r * L.w + c]);
 const code = (c, r) => (r < 0 || r >= R ? 0 : c < 0 || c >= G.L.w ? T_GROUND : G.L.grid[r * G.L.w + c]);
 function crumbSolid(c, r) { const s = G.crumbs.get(r * G.L.w + c); return !s || s.st !== 'gone'; }
 function solidCell(c, r, who) {
   if (r < 0 || r >= R) return false;
   if (c < 0 || c >= G.L.w) return true;
   switch (G.L.grid[r * G.L.w + c]) {
-    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: case T_SAND: case T_VENT: case T_LOCKB: case T_LOCKP: return true;
+    case T_GROUND: case T_BLOCK: case T_ICE: case T_GIFT: case T_GIFTQ: case T_USED: case T_CONVL: case T_CONVR: case T_SAND: case T_VENT: case T_LOCKB: case T_LOCKP: case T_ICEW: case T_SYRUP: return true;
     case T_BLUE: return who !== 'yy';
     case T_PINK: return who !== 'cs';
     case T_GATE: return !G.chanOn[G.L.chunkOf[c]];
@@ -2325,7 +2640,7 @@ function updatePlates() {
   const on = G.chanOn; on.fill(0);
   for (const pl of G.L.plates) {
     const was = pl.down; pl.down = pressed(pl);
-    if (pl.down) on[pl.ch] = 1;
+    if (pl.down && !(G.L.mirCh && G.L.mirCh[pl.ch])) on[pl.ch] = 1;
     if (pl.down !== was) sfx(pl.down ? 'click' : 'unclick');
   }
   if (G.L.pairs.length) {
@@ -2337,7 +2652,8 @@ function updatePlates() {
     }
     for (const [ch, list] of by) if (!G.latch[ch] && list.length >= 2 && list.every(p => p.down)) latchOn(ch, false);
   }
-  if (G.L.tplates.length) { tplateTick(); for (let n = 0; n < on.length; n++) if (G.tmr[n] > G.wt) on[n] = 1; }
+  if (G.L.tplates.length) { tplateTick(); for (let n = 0; n < on.length; n++) if (G.tmr[n] > G.wt && !(G.L.mirCh && G.L.mirCh[n])) on[n] = 1; }
+  if (G.L.cams.length) beamTick();
   for (let n = 0; n < on.length; n++) if (G.latch[n]) on[n] = 1;
   if (G.forceChan) for (let n = 0; n < on.length; n++) on[n] = 1;   // play-testing only: "the partner is holding every button"
 }
@@ -2345,8 +2661,46 @@ function updatePlates() {
 function latchOn(ch, fromNet) {
   if (G.latch[ch]) return;
   G.latch[ch] = 1; sfx('latch');
+  for (const b of G.L.booths) if (b.ch === ch) {   // 咔嚓: the booth takes the picture
+    b.flash = 1; G.flash = Math.max(G.flash, 0.55); sfx('snap');
+    G.fx.push({ kind: 'text', text: '咔嚓！📸', x: b.c + 0.5, y: b.r - 1.4, t: 1.6, max: 1.6, col: '#E0508F' });
+    sparkle(b.c + 0.5, b.r - 0.2, '#FFE08A', 16);
+  }
   for (const pl of G.L.pairs) if (pl.ch === ch) { sparkle(pl.c + 0.5, pl.r + 0.6, '#FF8FB3', 14); G.fx.push({ kind: 'popheart', x: pl.c + 0.5, y: pl.r, vx: 0, vy: -6, t: 0.9, max: 0.9 }); }
   if (!fromNet && ONLINE()) netEv('latch', { ch });
+}
+// 镜子屋: each mirror turns while its button is held (a clock button: for TIMER_S after); the beam leaves the camera,
+// turns at every mirror, stops at anything solid, and reaching the booth takes the picture. Both phones work it out
+// from the same buttons; the latch is the shared event.
+function beamTick() {
+  const L = G.L;
+  for (const m of L.mirrors) {
+    const b = m.btn, act = !!b && (b.timer ? G.tmr[m.ch] > G.wt : b.down), o = m.o0 ^ (act ? 1 : 0);
+    if (o !== m.o) { m.o = o; sfx('mirror'); }
+    m.a = approach(m.a, m.o, STEP * 7);
+  }
+  for (const b of L.booths) if (b.flash > 0) b.flash = Math.max(0, b.flash - STEP * 1.2);
+  for (const cm of L.cams) {
+    const res = traceBeam(cm);
+    cm.path = res.path; cm.hit = res.hit;
+    if (res.hit && !G.latch[res.hit.ch] && G.state === 'play') latchOn(res.hit.ch, false);
+  }
+}
+const BEAM_D = { r: [1, 0], l: [-1, 0], u: [0, -1], d: [0, 1] };
+function traceBeam(cm) {
+  const L = G.L;
+  let [dx, dy] = BEAM_D[cm.dir] || BEAM_D.r, c = cm.c, r = cm.r;
+  const path = [[c + 0.5, r + 0.5]];
+  for (let k = 0; k < 320; k++) {
+    const nc = c + dx, nr = r + dy;
+    if (nr < 0 || nr >= R || nc < 0 || nc >= L.w || solidCell(nc, nr, 'beam')) { path.push([c + 0.5 + dx * 0.5, r + 0.5 + dy * 0.5]); return { path, hit: null }; }
+    c = nc; r = nr;
+    const bo = L.boothAt.get(r * L.w + c);
+    if (bo) { path.push([c + 0.5, r + 0.5]); return { path, hit: bo }; }
+    const m = L.mirAt.get(r * L.w + c);
+    if (m) { path.push([c + 0.5, r + 0.5]); [dx, dy] = m.o === 0 ? [-dy, -dx] : [dy, dx]; }
+  }
+  return { path, hit: null };
 }
 function updateMover(m) {
   m.px = m.x; m.py = m.y;
@@ -2465,6 +2819,7 @@ const framed = (p) => G.L.frames.some(f => f.st === 'up' && underFrame(p, f));
 function doJump(p, v) {
   v *= WK(p).jump;
   if (p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND) v *= 0.62;   // quicksand: 1.6 tiles instead of 4.2
+  if (p.key && p.key.col === 2) v *= STOVE_JUMP;   // 小火炉 is heavy: the same 1.6 tiles
   const g = p.ground && p.ground.ref;
   if (g && g.dx) p.vx += g.dx / STEP * 0.9;   // leave a moving thing with its speed
   p.vy = -v; p.grounded = false; p.ground = null; p.coyote = 0; p.jbuf = 0;
@@ -2487,7 +2842,7 @@ function updatePlayer(p, dt) {
     p.dx = p.dy = 0; return;
   }
   const inp = inputFor(p);
-  const jp = inp.j && !p.prevJ; p.prevJ = inp.j;
+  let jp = inp.j && !p.prevJ; p.prevJ = inp.j;
   // ride whatever you are standing on
   if (p.grounded && p.ground && p.ground.ref) {
     const g = p.ground.ref;
@@ -2502,6 +2857,22 @@ function updatePlayer(p, dt) {
   if (p.grounded && p.ground && p.ground.kind === 'tile' && (p.ground.code === T_CONVL || p.ground.code === T_CONVR)) moveX(p, (p.ground.code === T_CONVR ? 2.6 : -2.6) * dt, p.k);
   let dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
   if (p.lock > 0) { p.lock -= dt; dir = 0; }
+  // 糖浆 holds your feet: tap jump WIG_N times to wriggle out (a small hop), or press jump beside your partner and you
+  // both pop out, higher. Only your own phone decides (the partner's hears it). Walking up to a stuck partner does
+  // nothing by itself, so their head is a safe step
+  if (p.unstick > 0) p.unstick -= dt;
+  if (!G.ghost && !p.stuck && !(p.unstick > 0) && p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SYRUP) stickIn(p, true);
+  if (p.stuck) {
+    dir = 0; p.vx = 0; p.jbuf = 0; p.stuck += dt;
+    if (jp) {
+      p.an.wig = 0.2;
+      const q = G.players[1 - p.idx];
+      if (G.ghost) { /* the partner's own phone decides */ }
+      else if (q && !q.dead && touching(p, q)) { popFree(p, 'pull', true); if (q.stuck && isLocal(q)) popFree(q, 'pull', true); }
+      else { p.wig++; sfx('squish'); if (p.wig >= WIG_N) popFree(p, 'self', true); }
+    }
+    jp = false;
+  }
   const ice = p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_ICE;
   // a seesaw throw stops the moment you steer; a cannon shot only if you steer against it (holding forward mid-shot is a reflex)
   if (p.launch) { if (dir && !(p.launch.keep && dir === Math.sign(p.launch.vx))) p.launch = null; else p.vx = p.launch.vx; }
@@ -2515,7 +2886,7 @@ function updatePlayer(p, dt) {
   p.coyote = p.grounded ? 0.1 : Math.max(0, p.coyote - dt);
   const heavy = carrying(p) || framed(p);
   // 气球: touch one to take hold of it (only your own phone decides; the partner's hears it), jump to let go
-  if (!p.balloon && !G.ghost && G.L.balloons.length && G.state === 'play') for (const b of G.L.balloons) {
+  if (!p.balloon && !p.stuck && !G.ghost && G.L.balloons.length && G.state === 'play') for (const b of G.L.balloons) {
     if (b.held >= 0 || b.back > 0) continue;
     if (Math.hypot(p.x + p.w / 2 - b.x, p.y + 0.15 - b.y) < 0.8) { grabBalloon(p, b, true); break; }
   }
@@ -2533,7 +2904,7 @@ function updatePlayer(p, dt) {
     else if (!p.grounded && p.wings && !p.usedDouble) { doJump(p, JUMP_V * 0.92); p.usedDouble = true; p.an.flap = 0.4; }
   }
   const g = p.vy < 0 ? (inp.j || p.launch || p.springy ? GRAV : GRAV * 2.3) : GRAV * 1.35;
-  const wind = p.balloon ? null : windFor(p);
+  const wind = p.balloon || p.stuck ? null : windFor(p);
   if (p.balloon) {   // up, but never off the top of the world: the balloon stops under the sky
     p.vy = approach(p.vy, p.y < 0.4 ? 0 : -(carrying(p) ? BAL_RISE2 : BAL_RISE), 30 * dt);
     if (p.grounded) { p.grounded = false; p.ground = null; }
@@ -2577,7 +2948,8 @@ function updatePlayer(p, dt) {
   a.t += dt * (Math.abs(p.vx) / RUN) * 2.8;
   a.squash = Math.max(0, a.squash - dt * 6);
   const inSand = p.grounded && p.ground && p.ground.kind === 'tile' && p.ground.code === T_SAND;
-  a.sink = approach(a.sink || 0, inSand ? 1 : 0, dt * (inSand ? 3 : 9));   // you sink in slowly and pop out at once
+  a.sink = approach(a.sink || 0, inSand ? 1 : p.stuck ? 0.55 : 0, dt * (inSand || p.stuck ? 3 : 9));   // you sink in slowly and pop out at once
+  if (a.wig > 0) a.wig = Math.max(0, a.wig - dt);
   a.flap = Math.max(0, a.flap - dt);
   a.blinkT -= dt; if (a.blinkT <= 0) { a.blink = 0.12; a.blinkT = 2 + Math.random() * 2.6; }
   a.blink = Math.max(0, a.blink - dt);
@@ -2586,6 +2958,25 @@ function updatePlayer(p, dt) {
   p.dx = p.x - sx; p.dy = p.y - sy;
 }
 
+// side by side (not one on the other's head)
+const touching = (p, q) => Math.abs(p.x + p.w / 2 - (q.x + q.w / 2)) < p.w + 0.22 && p.y < q.y + q.h - 0.35 && q.y < p.y + p.h - 0.35;
+function stickIn(p, mine) {
+  p.stuck = 0.001; p.wig = 0; p.vx = 0; p.launch = null;
+  if (!mine) return;
+  sfx('stick'); sparkle(p.x + p.w / 2, p.y + p.h, '#FF9DC0', 6);
+  if (!p.stuckSeen) { p.stuckSeen = 1; G.fx.push({ kind: 'text', text: '黏住了！', x: p.x + p.w / 2, y: p.y - 0.5, t: 1.4, max: 1.4, col: '#D9467F' }); }
+  if (ONLINE()) netEv('stk', { on: 1, x: +p.x.toFixed(2), y: +p.y.toFixed(2) });
+}
+// out you pop: higher when your partner pulls you (a spring's rise, so not holding jump doesn't cut it short)
+function popFree(p, how, mine) {
+  if (!p.stuck) return;
+  p.stuck = 0; p.wig = 0; p.unstick = 0.45;
+  doJump(p, JUMP_V * (how === 'pull' ? POP_PULL : POP_SELF)); p.springy = true;
+  sparkle(p.x + p.w / 2, p.y + p.h, '#FF9DC0', 10);
+  if (how === 'pull') { p.happy = 1; G.fx.push({ kind: 'popheart', x: p.x + p.w / 2, y: p.y, vx: 0, vy: -5, t: 0.9, max: 0.9 }); }
+  sfx('pop');
+  if (mine && ONLINE()) netEv('stk', { on: 0, how, x: +p.x.toFixed(2), y: +p.y.toFixed(2) });
+}
 function windFor(p) {
   for (const f of G.L.fans) {
     if (f.powered && !G.chanOn[f.ch]) continue;
@@ -2716,7 +3107,7 @@ function chaseTick() {
 }
 function respawn(p) {
   const q = G.players[1 - p.idx];
-  p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; p.springy = false; p.inv = 1.6; p.dead = 0;
+  p.vx = p.vy = 0; p.grounded = false; p.ground = null; p.launch = null; p.springy = false; p.inv = 1.6; p.dead = 0; p.stuck = 0; p.wig = 0;
   if (q && !q.dead && q.grounded && q.ground && (q.ground.kind === 'tile' || q.ground.kind === 'box') && q.y > 2) {
     // beside the partner, on the same ground, if there is some: arriving on their head left them unable to jump
     // (a carrier can't), so in 一个人玩 the next gap took you both, again and again
@@ -2893,7 +3284,7 @@ function updateItems(dt) {
     if (it.rise > 0) { it.rise -= dt; it.y -= dt * 1.8; continue; }
     for (const p of G.players) {
       if (p.dead || !isLocal(p)) continue;
-      if (it.type === 'key' && (p.idx !== it.col || p.key)) continue;
+      if (it.type === 'key' && ((it.col < 2 && p.idx !== it.col) || p.key)) continue;
       const cx = clamp(it.x, p.x, p.x + p.w), cy = clamp(it.y, p.y, p.y + p.h), rad = it.type === 'star' ? 0.5 : 0.4;
       if ((cx - it.x) ** 2 + (cy - it.y) ** 2 < rad * rad) { collect(p, it); break; }
     }
@@ -2915,7 +3306,7 @@ function collect(p, it, fromNet) {
   // the host's own pickup carries the new 💗 count (the guest takes it at once instead of waiting for the next world)
   if (!fromNet && ONLINE()) netEv('item', { i: G.L.items.indexOf(it), key: it.key || '', he: isHost() ? G.hearts + (it.type === 'heart' ? 1 : 0) : undefined });
   // the host keeps the 💗 count; the guest hears it in the world update (adding it here too counted a resent one twice)
-  if (it.type === 'key') { p.key = it; it.held = p.idx; it.used = false; if (!fromNet) { sfx('power'); sparkle(it.x, it.y, it.col ? '#FF8FB3' : '#8FC4FF', 12); } return; }
+  if (it.type === 'key') { p.key = it; it.held = p.idx; it.used = false; if (!fromNet) { sfx('power'); sparkle(it.x, it.y, it.col === 2 ? '#FFB36B' : it.col ? '#FF8FB3' : '#8FC4FF', 12); } return; }
   if (fromNet) { if (it.type === 'heart') { if (isHost()) addHearts(1, it.x, it.y); } else if (it.type === 'star') { G.stars[it.n] = true; starFx(it); } return; }
   if (it.type === 'heart') { addHearts(1, it.x, it.y); sparkle(it.x, it.y, '#FF8FB3', 5); sfx('heart'); }
   else if (it.type === 'star') { G.stars[it.n] = true; starFx(it); }
@@ -2926,21 +3317,27 @@ function collect(p, it, fromNet) {
 function keyLocks() {
   for (const p of G.players) {
     if (p.dead || !p.key || !isLocal(p)) continue;
-    const want = p.key.col ? T_LOCKP : T_LOCKB;
-    const c0 = Math.floor(p.x - 0.18), c1 = Math.floor(p.x + p.w + 0.18), r0 = Math.floor(p.y - 0.2), r1 = Math.floor(p.y + p.h - 0.05);
+    const want = p.key.col === 2 ? T_ICEW : p.key.col ? T_LOCKP : T_LOCKB, rad = p.key.col === 2 ? 0.3 : 0.18;
+    const c0 = Math.floor(p.x - rad), c1 = Math.floor(p.x + p.w + rad), r0 = Math.floor(p.y - 0.2), r1 = Math.floor(p.y + p.h - 0.05);
     for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (code(c, r) === want) { unlockAt(c, r, true); return; }
   }
 }
 // every lock tile of that colour touching this one goes, and the key that opened it is used up
 function unlockAt(c, r, mine, quiet) {
   const L = G.L, t = code(c, r);
-  if (t !== T_LOCKB && t !== T_LOCKP) return;
-  const gone = [], todo = [[c, r]];
+  if (t !== T_LOCKB && t !== T_LOCKP && t !== T_ICEW) return;
+  const gone = [], todo = [[c, r]], ice = t === T_ICEW;
   while (todo.length) { const [x, y] = todo.pop(); if (code(x, y) !== t || x < 0 || x >= L.w) continue; L.grid[y * L.w + x] = 0; gone.push([x, y]); todo.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); }
   G.opened.push([c, r]);
-  const holder = G.players.find(p => p.key && (p.key.col ? T_LOCKP : T_LOCKB) === t);
-  if (holder) { holder.key.used = true; holder.key.held = null; holder.key = null; holder.happy = 1.2; }
-  if (!quiet) { for (const [x, y] of gone) sparkle(x + 0.5, y + 0.5, t === T_LOCKB ? '#8FC4FF' : '#FF8FB3', 5); sfx('latch'); G.shake = Math.max(G.shake, 0.1); }
+  // a key is used up; the stove melts ice and stays in your hands
+  const holder = G.players.find(p => p.key && (p.key.col === 2 ? T_ICEW : p.key.col ? T_LOCKP : T_LOCKB) === t);
+  if (holder && !ice) { holder.key.used = true; holder.key.held = null; holder.key = null; holder.happy = 1.2; }
+  else if (holder) holder.happy = 1.2;
+  if (!quiet) {
+    for (const [x, y] of gone) { if (ice) { sparkle(x + 0.5, y + 0.5, '#E8F7FF', 4); G.fx.push({ kind: 'splash', x: x + 0.5, y: y + 1, t: 0.6, max: 0.6 }); } else sparkle(x + 0.5, y + 0.5, t === T_LOCKB ? '#8FC4FF' : '#FF8FB3', 5); }
+    if (ice) for (let k = 0; k < Math.min(6, gone.length); k++) G.parts.push({ x: gone[k][0] + 0.5, y: gone[k][1] + 0.3, vx: (Math.random() - 0.5) * 1.2, vy: -2.4 - Math.random() * 1.5, t: 1.1, max: 1.1, col: 'rgba(255,255,255,.75)', s: 0.22 + Math.random() * 0.12 });
+    sfx(ice ? 'melt' : 'latch'); G.shake = Math.max(G.shake, 0.1);
+  }
   if (mine && ONLINE()) netEv('unlock', { c, r });
 }
 // a key goes back to where it was when the one carrying it falls
@@ -3036,7 +3433,12 @@ function checkpoints() {
     flagOn(k); netEv('cp', { i: G.L.cps.indexOf(k) });
   }
 }
-function flagOn(k) { if (k.on) return; k.on = true; G.cp = { x: k.x, y: k.y }; snapAtCp(); sfx('cp'); sparkle(k.x, k.y - 2, '#FF8FB3', 14); }
+function flagOn(k) {
+  if (k.on) return; k.on = true; G.cp = { x: k.x, y: k.y };
+  // a stove carried to a flag stays there to keep it warm: what comes after the flag brings its own
+  for (const p of G.players) if (p.key && p.key.col === 2) { const it = p.key; p.key = null; it.held = null; it.used = true; it.parked = { x: k.x + 0.85, y: k.y - 0.42 }; }
+  snapAtCp(); sfx('cp'); sparkle(k.x, k.y - 2, '#FF8FB3', 14);
+}
 function checkDoor(dt) {
   const d = G.L.door; if (!d) return;
   if (G.state === 'won') {
@@ -3175,7 +3577,7 @@ function resize() {
    frame costs what it did. Solid tiles are drawn first and the thin things that sit on them (buttons, spikes, gates…)
    after, so a top face never covers a button. */
 const TOPF = 0.24;
-const PASS1 = new Set([T_GROUND, T_ICE, T_BLOCK, T_PLAT, T_GIFT, T_GIFTQ, T_USED, T_CRUMB, T_BLUE, T_PINK, T_SAND]);
+const PASS1 = new Set([T_GROUND, T_ICE, T_BLOCK, T_PLAT, T_GIFT, T_GIFTQ, T_USED, T_CRUMB, T_BLUE, T_PINK, T_SAND, T_SYRUP]);
 const hexRGB = (h) => { const n = parseInt(h.slice(1, 7), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgbHex = (a) => '#' + a.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 function tint3(h, f) { const c = hexRGB(h); return rgbHex(f >= 0 ? c.map((v) => v + (255 - v) * f) : c.map((v) => v * (1 + f))); }   // f > 0 lighter, < 0 darker
@@ -3464,7 +3866,7 @@ function sprite(kind, m = 0) {
   if (!s) { s = drawSprite(kind, m, V.ts, G.L.world); V.spr.set(key, s); }
   return s;
 }
-const DEEP = new Set(['ground', 'ice', 'plat', 'block', 'gift', 'giftq', 'used', 'crumb', 'blue', 'pink', 'sand']);   // pictures with room above for a top face
+const DEEP = new Set(['ground', 'ice', 'plat', 'block', 'gift', 'giftq', 'used', 'crumb', 'blue', 'pink', 'sand', 'syrup']);   // pictures with room above for a top face
 function drawSprite(kind, m, ts, wd) {
   const top = DEEP.has(kind) ? Math.round(ts * TOPF) : 0, cvs = mk(ts, ts + top), c = cvs.getContext('2d'), u = ts / 100;
   if (top) c.translate(0, top);
@@ -3479,6 +3881,16 @@ function drawSprite(kind, m, ts, wd) {
     for (const [x, y] of [[30, 60], [74, 78]]) { c.beginPath(); c.ellipse(x * u, y * u, 9 * u, 4.5 * u, 0, Math.PI * 1.1, Math.PI * 2.4); c.stroke(); }
     if (m & 1) { c.fillStyle = '#D9A45A'; c.beginPath(); c.moveTo(0, 20 * u); for (let x = 0; x < 100; x += 25) c.quadraticCurveTo((x + 12.5) * u, 8 * u, (x + 25) * u, 20 * u); c.lineTo(ts, 0); c.lineTo(0, 0); c.closePath(); c.fill();
       c.fillStyle = 'rgba(255,240,205,.6)'; rrect(c, 10 * u, 4 * u, 34 * u, 5 * u, 2.5 * u); c.fill(); rrect(c, 60 * u, 6 * u, 18 * u, 4 * u, 2 * u); c.fill(); }
+  } else if (kind === 'syrup') {   // 糖浆: thick strawberry syrup — glossy on top, drips over the edge, a bubble or two
+    const g = c.createLinearGradient(0, 0, 0, ts); g.addColorStop(0, '#EE77A2'); g.addColorStop(1, '#B9446F'); c.fillStyle = g; c.fillRect(0, 0, ts, ts);
+    c.fillStyle = 'rgba(255,255,255,.16)'; for (const [x, y, r] of [[24, 60, 8], [70, 78, 6], [58, 42, 4]]) { ell(c, x * u, y * u, r * u, r * u); c.fill(); }
+    c.strokeStyle = 'rgba(255,214,232,.5)'; c.lineWidth = 3 * u; c.lineCap = 'round'; c.beginPath(); c.moveTo(12 * u, 34 * u); c.quadraticCurveTo(50 * u, 24 * u, 88 * u, 36 * u); c.stroke();
+    if (m & 1) {   // the top you stand in: glossy, reaching up into the top face, with drips over the front
+      const tf = TOPF * 100;
+      c.fillStyle = '#FF9EC2'; c.beginPath(); c.moveTo(0, -tf * 0.75 * u); c.quadraticCurveTo(50 * u, -tf * 1.02 * u, ts, -tf * 0.75 * u); c.lineTo(ts, 10 * u); c.lineTo(0, 10 * u); c.closePath(); c.fill();
+      c.fillStyle = '#E8689A'; for (const [x, h] of [[18, 22], [50, 14], [80, 26]]) { rrect(c, (x - 5) * u, 4 * u, 10 * u, h * u, 5 * u); c.fill(); }
+      c.fillStyle = 'rgba(255,255,255,.75)'; rrect(c, 58 * u, -tf * 0.8 * u, 28 * u, 5 * u, 2.5 * u); c.fill(); rrect(c, 20 * u, -tf * 0.55 * u, 14 * u, 4 * u, 2 * u); c.fill();
+    }
   } else if (kind === 'vent') {   // a fire vent: dark rock with a slit (its glow and the flame are drawn live)
     c.fillStyle = '#2E2226'; rrect(c, 0, 0, ts, ts, 6 * u); c.fill();
     c.fillStyle = '#4E3B3D'; rrect(c, 3 * u, 3 * u, ts - 6 * u, 34 * u, 8 * u); c.fill();
@@ -3682,7 +4094,7 @@ function foot(x, y, c) { ell(ctx, x, y, 11, 6); ctx.fillStyle = c.body; ctx.fill
 function drawChar(p, al) {
   if (p.dead > 0 || p.hide) return;
   const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0);
-  const X = sx(x + p.w / 2), Y = sy(y + p.h) + (p.an.sink || 0) * 0.24 * TP, s = TP * 1.5 / 112, a = p.an, c = CH[p.k];
+  const X = sx(x + p.w / 2) + (p.an.wig > 0 && !REDUCE ? Math.sin(G.clock * 70) * p.an.wig * TP * 0.45 : 0), Y = sy(y + p.h) + (p.an.sink || 0) * 0.24 * TP, s = TP * 1.5 / 112, a = p.an, c = CH[p.k];
   let bob = 0, rot = 0, kx = 1, ky = 1, f1x = 0, f1y = 0, f2x = 0, f2y = 0;
   if (!p.grounded) { if (p.vy < 0) { kx = 0.93; ky = 1.07; f1y = f2y = -3; f1x = 3; f2x = -3; } else { kx = 1.03; ky = 0.98; f1y = f2y = -1; } }
   else if (a.run > 0.05) { const ph = Math.sin(a.t * Math.PI * 2); bob = -Math.abs(ph) * 3.5 * a.run; rot = -0.045 * a.run; f1y = -Math.max(0, ph) * 6 * a.run; f2y = -Math.max(0, -ph) * 6 * a.run; f1x = ph * 4 * a.run; f2x = -ph * 4 * a.run; }
@@ -3835,7 +4247,9 @@ function drawBoss(al) {
   if (b.st !== 'dead') for (let k = 0; k < 3; k++) { ctx.fillStyle = k < b.hp ? '#FF5C93' : 'rgba(255,255,255,.35)'; heartPath(ctx, X + (k - 1) * TP * 0.5, sy(y) - TP * 0.55, TP * 0.18); ctx.fill(); }
 }
 function drawItem(it) {
+  if (it.parked) { castShadow(it.parked.x, it.parked.y + 0.42, 0.3, true); drawStove(sx(it.parked.x), sy(it.parked.y - 0.06), TP * 1.05); return; }
   if (it.got) return;
+  if (it.type === 'key' && it.col === 2) { castShadow(it.x, it.y + 0.42, 0.3, true); drawStove(sx(it.x), sy(it.y - 0.08), TP * 1.2); return; }
   const bob = REDUCE ? 0 : Math.sin(G.clock * 3 + it.ph) * 0.08;
   const X = sx(it.x), Y = sy(it.y + bob);
   castShadow(it.x, it.y + 0.3, 0.17 * (1 - bob), false);
@@ -3859,6 +4273,27 @@ function drawItem(it) {
   else if (it.type === 'shield') {
     ell(ctx, X, Y, TP * 0.32, TP * 0.32); ctx.fillStyle = 'rgba(160,225,255,.45)'; ctx.fill(); ctx.strokeStyle = '#BDEBFF'; ctx.lineWidth = TP * 0.05; ctx.stroke();
     ctx.fillStyle = '#FFFFFF'; ell(ctx, X - TP * 0.1, Y - TP * 0.1, TP * 0.07, TP * 0.045, -0.6); ctx.fill();
+  }
+}
+// 小火炉: a little pot-bellied stove with a fire in its window and steam from its chimney, lit from the upper right
+function drawStove(X, Y, sz) {
+  const u = sz / 50, t = G.clock, fl = REDUCE ? 0.5 : 0.5 + 0.5 * Math.sin(t * 9 + X * 0.013);
+  const g = ctx.createRadialGradient(X, Y + 4 * u, 3 * u, X, Y + 4 * u, 48 * u);
+  g.addColorStop(0, `rgba(255,186,104,${0.38 + 0.1 * fl})`); g.addColorStop(1, 'rgba(255,186,104,0)');
+  ctx.fillStyle = g; ell(ctx, X, Y + 4 * u, 48 * u, 48 * u); ctx.fill();
+  ctx.fillStyle = '#2E262B'; for (const sd of [-1, 1]) { rrect(ctx, X + sd * 11 * u - 3 * u, Y + 13 * u, 6 * u, 9 * u, 2 * u); ctx.fill(); }
+  ctx.lineWidth = 2.6 * u; ctx.strokeStyle = '#2B2328';
+  ctx.fillStyle = '#5E4E57'; rrect(ctx, X + 4 * u, Y - 30 * u, 8 * u, 16 * u, 2 * u); ctx.fill(); ctx.stroke();   // chimney
+  ctx.fillStyle = '#6A5862'; ell(ctx, X, Y + 3 * u, 19 * u, 16 * u); ctx.fill(); ctx.stroke();                    // the belly
+  ctx.fillStyle = '#4C3F46'; ell(ctx, X - 5 * u, Y + 7 * u, 13 * u, 11 * u); ctx.fill();                          // shade on the left
+  ctx.fillStyle = '#7A6670'; rrect(ctx, X - 16 * u, Y - 16 * u, 32 * u, 7 * u, 3 * u); ctx.fill(); ctx.stroke();  // the top plate
+  ctx.fillStyle = 'rgba(255,255,255,.28)'; ell(ctx, X + 9 * u, Y - 4 * u, 4.5 * u, 7 * u, 0.5); ctx.fill();
+  ctx.fillStyle = '#24160F'; rrect(ctx, X - 8.5 * u, Y - 1 * u, 17 * u, 12 * u, 5 * u); ctx.fill();              // the window
+  ctx.fillStyle = `rgb(255,${(140 + 70 * fl) | 0},64)`; ell(ctx, X, Y + 6 * u, 6.5 * u, (3.6 + 1.6 * fl) * u); ctx.fill();
+  ctx.fillStyle = '#FFE9A6'; ell(ctx, X, Y + 7 * u, 3 * u, 2 * u); ctx.fill();
+  if (!REDUCE) for (let k = 0; k < 2; k++) {
+    const ph = (t * 0.7 + k * 0.5) % 1;
+    ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - ph)})`; ell(ctx, X + 8 * u + ph * 7 * u, Y - 33 * u - ph * 17 * u, (3 + ph * 5) * u, (3 + ph * 5) * u); ctx.fill();
   }
 }
 // a key: gold, with a ribbon in its owner's colour
@@ -4045,6 +4480,81 @@ function drawCannon(cn, front) {
     ctx.fillStyle = '#E2B34E'; ell(ctx, X + sd * 28 * u, Y - 11 * u, 4 * u, 4 * u); ctx.fill();
   }
 }
+// 镜子屋: the beam first (under all it lights), then the booth, the mirrors and the camera
+function drawMirrorHouse() {
+  const L = G.L;
+  for (const cm of L.cams) {
+    const pts = cm.path; if (!pts || pts.length < 2) continue;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    pts.forEach(([x, y], k) => (k ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
+    ctx.strokeStyle = 'rgba(255,232,140,.26)'; ctx.lineWidth = TP * 0.36; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,244,196,.8)'; ctx.lineWidth = TP * 0.13; ctx.stroke();
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = TP * 0.045; ctx.stroke();
+    if (!REDUCE) {   // little sparks running along it, toward where it goes
+      const seg = []; let tot = 0;
+      for (let k = 1; k < pts.length; k++) { const d = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); seg.push(d); tot += d; }
+      ctx.fillStyle = 'rgba(255,255,255,.95)';
+      for (let s0 = 0; s0 < tot; s0 += 1.7) {
+        let d = (s0 + G.clock * 4.5) % tot, k = 0; while (k < seg.length - 1 && d > seg[k]) { d -= seg[k]; k++; }
+        const f = seg[k] ? d / seg[k] : 0; starPath(ctx, sx(pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f), sy(pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f), TP * 0.08); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  for (const b of L.booths) drawBooth(b);
+  for (const m of L.mirrors) drawMirror(m);
+  for (const cm of L.cams) drawCam(cm);
+}
+// a mirror on a hinge: the ring is its button's colour (the button wears the same colour), so you can see which turns which
+function drawMirror(m) {
+  const X = sx(m.c + 0.5), Y = sy(m.r + 0.5), u = TP / 100, a = -Math.PI / 4 + m.a * Math.PI / 2, hue = m.btn ? MIR_HUE[m.hue % MIR_HUE.length] : '#AEB6CC';
+  ctx.strokeStyle = hue; ctx.lineWidth = 6 * u; ell(ctx, X, Y, 30 * u, 30 * u); ctx.stroke();
+  ctx.save(); ctx.translate(X, Y); ctx.rotate(a);
+  ctx.fillStyle = 'rgba(40,30,60,.18)'; rrect(ctx, -50 * u, -6 * u, 100 * u, 18 * u, 8 * u); ctx.fill();
+  ctx.fillStyle = '#7E86A3'; rrect(ctx, -50 * u, -10 * u, 100 * u, 18 * u, 8 * u); ctx.fill();
+  const g = ctx.createLinearGradient(0, -6 * u, 0, 6 * u); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#BFD8F2');
+  ctx.fillStyle = g; rrect(ctx, -44 * u, -6 * u, 88 * u, 9 * u, 4.5 * u); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; rrect(ctx, 8 * u, -5 * u, 22 * u, 3 * u, 1.5 * u); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = hue; ell(ctx, X, Y, 8 * u, 8 * u); ctx.fill(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5 * u; ctx.stroke();
+}
+// an old camera on a tripod, its lens the way the beam goes
+function drawCam(cm) {
+  const X = sx(cm.c + 0.5), Y = sy(cm.r + 0.5) - TP * 0.08, u = TP / 100 * 1.32, foot = sy(cm.r + 1);
+  ctx.strokeStyle = '#6C5A4C'; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.beginPath();
+  for (const dx of [-22, 0, 22]) { ctx.moveTo(X, Y + 10 * u); ctx.lineTo(X + dx * u, foot); }
+  ctx.stroke();
+  ctx.save(); ctx.translate(X, Y); ctx.rotate(cm.dir === 'u' ? -Math.PI / 2 : cm.dir === 'd' ? Math.PI / 2 : 0); if (cm.dir === 'l') ctx.scale(-1, 1);
+  ctx.fillStyle = '#41496A'; ctx.strokeStyle = '#232A40'; ctx.lineWidth = 3 * u;
+  rrect(ctx, -34 * u, -20 * u, 58 * u, 38 * u, 9 * u); ctx.fill(); ctx.stroke();
+  rrect(ctx, -22 * u, -30 * u, 24 * u, 12 * u, 4 * u); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#5A6488'; rrect(ctx, -30 * u, -16 * u, 50 * u, 9 * u, 4 * u); ctx.fill();
+  ctx.fillStyle = '#232A40'; ell(ctx, 24 * u, 0, 16 * u, 16 * u); ctx.fill();
+  const g = ctx.createRadialGradient(28 * u, -4 * u, 1, 24 * u, 0, 12 * u); g.addColorStop(0, '#E8F6FF'); g.addColorStop(1, '#4F8FD8');
+  ctx.fillStyle = g; ell(ctx, 24 * u, 0, 11 * u, 11 * u); ctx.fill();
+  ctx.fillStyle = '#FF6F9F'; ell(ctx, -26 * u, -26 * u, 4.5 * u, 4.5 * u); ctx.fill();
+  const on = (G.clock * 2) % 1 < 0.5; ctx.fillStyle = on && !REDUCE ? '#FFF4B0' : '#FFD75E'; ell(ctx, -2 * u, -24 * u, 5 * u, 5 * u); ctx.fill();
+  ctx.restore();
+}
+// the photo booth: two tiles tall; the beam reaching its lens takes the picture, and a strip comes out of the slot
+function drawBooth(b) {
+  const u = TP / 100, X = sx(b.c), Ww = TP, Y0 = sy(b.r - 1) + 4 * u, Y1 = sy(b.r + 1), lit = G.latch && G.latch[b.ch];
+  ctx.fillStyle = 'rgba(40,20,40,.18)'; ell(ctx, X + Ww / 2, Y1, Ww * 0.55, 8 * u); ctx.fill();
+  ctx.fillStyle = '#E8507F'; ctx.strokeStyle = '#A82E5A'; ctx.lineWidth = 3.5 * u; rrect(ctx, X + 3 * u, Y0, Ww - 6 * u, Y1 - Y0, 12 * u); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#C23A66'; ctx.fillRect(X + 5 * u, Y1 - 12 * u, Ww - 10 * u, 10 * u);
+  ctx.fillStyle = 'rgba(255,255,255,.22)'; rrect(ctx, X + Ww - 20 * u, Y0 + 10 * u, 9 * u, Y1 - Y0 - 30 * u, 4 * u); ctx.fill();
+  ctx.fillStyle = '#FFD75E'; rrect(ctx, X + 10 * u, Y0 + 8 * u, Ww - 20 * u, 22 * u, 7 * u); ctx.fill();
+  ctx.fillStyle = '#A82E5A'; ctx.font = `900 ${Math.round(15 * u)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('拍照', X + Ww / 2, Y0 + 24 * u);
+  const my = Y0 + 58 * u;   // the lens the beam has to reach
+  ctx.fillStyle = '#232A40'; ell(ctx, X + Ww / 2, my, 20 * u, 20 * u); ctx.fill();
+  ctx.fillStyle = lit ? '#FFF4B0' : '#7FC4FF'; ell(ctx, X + Ww / 2, my, 12 * u, 12 * u); ctx.fill();
+  ctx.fillStyle = lit ? '#FFF8E0' : '#7B5CC7'; rrect(ctx, X + 12 * u, my + 30 * u, Ww - 24 * u, Y1 - my - 46 * u, 6 * u); ctx.fill();   // the curtain
+  if (lit) {   // the photo strip
+    ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#D9D2E6'; ctx.lineWidth = 2 * u; rrect(ctx, X + Ww - 8 * u, Y1 - 64 * u, 20 * u, 46 * u, 3 * u); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#9ED3F5'; for (let k = 0; k < 3; k++) ctx.fillRect(X + Ww - 4 * u, Y1 - 60 * u + k * 14 * u, 12 * u, 10 * u);
+  }
+  if (b.flash > 0) { ctx.fillStyle = `rgba(255,252,230,${0.85 * b.flash})`; ell(ctx, X + Ww / 2, my, TP * (0.6 + (1 - b.flash) * 1.6), TP * (0.6 + (1 - b.flash) * 1.6)); ctx.fill(); }
+}
 // standing in quicksand: you sink a little (drawChar), and a lip of sand closes over your feet
 function sandRim(p, al) {
   const k = p.an && p.an.sink || 0;
@@ -4055,6 +4565,20 @@ function sandRim(p, al) {
   ctx.fillStyle = '#D9A45A'; ell(ctx, X, Y + 1 * u, 50 * u, 11 * u); ctx.fill();
   ctx.fillStyle = 'rgba(255,236,190,.55)'; ell(ctx, X - 14 * u, Y - 3 * u, 14 * u, 3.5 * u); ctx.fill();
   ctx.globalAlpha = 1;
+}
+function syrupRim(p, al) {
+  if (p.dead > 0 || !p.stuck) return;
+  const x = p.px + (p.x - p.px) * al + (p.vox || 0), X = sx(x + p.w / 2), Y = sy(p.py + (p.y - p.py) * al + p.h), u = TP / 100;
+  ctx.fillStyle = '#D9578A'; ell(ctx, X, Y + 6 * u, 54 * u, 15 * u); ctx.fill();
+  ctx.fillStyle = '#FF9EC2'; ell(ctx, X, Y + 1 * u, 48 * u, 10 * u); ctx.fill();
+  ctx.strokeStyle = '#E8689A'; ctx.lineWidth = 4 * u; ctx.lineCap = 'round'; ctx.beginPath();
+  for (const sd of [-1, 1]) { ctx.moveTo(X + sd * 30 * u, Y); ctx.quadraticCurveTo(X + sd * 34 * u, Y - 22 * u, X + sd * 22 * u, Y - 34 * u); }
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(ctx, X - 14 * u, Y - 2 * u, 13 * u, 3 * u); ctx.fill();
+  if (p.stuck > 0.25) {   // ●●○○○ over your head: the wriggles so far
+    const top = sy(p.py + (p.y - p.py) * al) - 26 * u;
+    for (let k = 0; k < WIG_N; k++) { ctx.fillStyle = k < p.wig ? '#FF6F9F' : 'rgba(255,255,255,.9)'; ctx.strokeStyle = '#C23A66'; ctx.lineWidth = 3 * u; ell(ctx, X + (k - (WIG_N - 1) / 2) * 21 * u, top - 4 * u, 8 * u, 8 * u); ctx.fill(); ctx.stroke(); }
+  }
 }
 function drawDecor(dc) {
   const wd = G.L.world.key, X = sx(dc.x), Y = sy(dc.y), u = TP / 100 * dc.s;
@@ -4460,6 +4984,7 @@ function render(al, dt) {
   if (L.door) drawHouse(L.door);
   for (const s of L.signs) drawSign(s);
   for (const cn of L.cannons) drawCannon(cn, false);
+  if (L.cams.length) drawMirrorHouse();
   // tufts of grass along the tops (snow lumps in winter), swaying a little; drawn over the tiles' top edge
   ctx.strokeStyle = TUFT; ctx.fillStyle = TUFT; ctx.lineCap = 'round';
   for (const t of L.tufts) {
@@ -4494,10 +5019,11 @@ function render(al, dt) {
   for (const p of order) drawChar(p, al);
   for (const f of L.frames) if (f.st === 'up') drawFrame(f);
   for (const b of L.balloons) if (b.held >= 0) drawBalloon(b, true);
-  for (const p of order) if (p.key && !p.dead) { const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0); drawKey(sx(x + p.w / 2 + 0.05), sy(y - 0.42 + (REDUCE ? 0 : Math.sin(G.clock * 4) * 0.05)), TP * 0.72, p.key.col); }
+  for (const p of order) if (p.key && !p.dead) { const x = p.px + (p.x - p.px) * al + (p.vox || 0), y = p.py + (p.y - p.py) * al + (p.voy || 0); if (p.key.col === 2) { drawStove(sx(x + p.w / 2 + p.face * 0.36), sy(y + 0.66 + (p.an.sink || 0) * 0.24), TP * 0.92); continue; } drawKey(sx(x + p.w / 2 + 0.05), sy(y - 0.42 + (REDUCE ? 0 : Math.sin(G.clock * 4) * 0.05)), TP * 0.72, p.key.col); }
   if (L.tides.length) drawWater(W, H);
   if (L.tplates.length) drawTimers();
   if (L.hasSand) for (const p of order) sandRim(p, al);
+  if (L.hasSyrup) for (const p of order) syrupRim(p, al);
   for (const cn of L.cannons) drawCannon(cn, true);
   for (const j of L.jets) drawJet(j);
   for (const p of order) drawTag(p, al);
@@ -4537,6 +5063,7 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
   else if (t === T_PLAT) deep(sprite('plat', (code(c - 1, r) === T_PLAT ? 2 : 0) | (code(c + 1, r) === T_PLAT ? 4 : 0)), X, Y);
   else if (t === T_SPIKE) ctx.drawImage(sprite('spike'), X, Y, Ww, Hh);
   else if (t === T_SAND) deep(sprite('sand', code(c, r - 1) === T_SAND || isGround(code(c, r - 1)) ? 0 : 1), X, Y);
+  else if (t === T_SYRUP) deep(sprite('syrup', covered ? 0 : 1), X, Y);
   else if (t === T_VENT) ctx.drawImage(sprite('vent'), X, Y, Ww, Hh);
   else if (t === T_GIFT || t === T_GIFTQ || t === T_USED) {
     const bump = G.bumps.find(g => g.c === c && g.r === r);
@@ -4602,6 +5129,27 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
     ctx.fillStyle = '#8D95AE'; rrect(ctx, X + 8 * u, Y + Hh - 14 * u, Ww - 16 * u, 14 * u, 5 * u); ctx.fill();
     if (down) { ctx.fillStyle = 'rgba(255,215,94,.35)'; ell(ctx, X + Ww / 2, Y + Hh - 8 * u, Ww * 0.55, 14 * u); ctx.fill(); }
     ctx.fillStyle = down ? '#FFD75E' : '#E8A53A'; rrect(ctx, X + 18 * u, Y + Hh - (down ? 20 : 32) * u, Ww - 36 * u, (down ? 8 : 20) * u, 6 * u); ctx.fill();
+    if (pl && pl.mc != null) { ctx.fillStyle = MIR_HUE[pl.mc % MIR_HUE.length]; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5 * u; ell(ctx, X + Ww / 2, Y + Hh - (down ? 16 : 22) * u, 10 * u, 6 * u); ctx.fill(); ctx.stroke(); }
+  } else if (t === T_ICEW) {   // 冰墙: clear blue ice; only its outside edges are drawn, so a wall reads as one block
+    const u = Ww / 100, up = code(c, r - 1) !== T_ICEW, dn = code(c, r + 1) !== T_ICEW, lf = code(c - 1, r) !== T_ICEW, rt = code(c + 1, r) !== T_ICEW, v = (c * 7 + r * 13) % 3;
+    ctx.fillStyle = 'rgba(196,232,252,.94)'; ctx.fillRect(X, Y, Ww, Hh);
+    ctx.fillStyle = 'rgba(150,204,240,.5)'; ctx.fillRect(X, Y + Hh * 0.5, Ww, Hh * 0.5);
+    ctx.fillStyle = 'rgba(120,180,228,.35)'; if (lf) ctx.fillRect(X, Y, 16 * u, Hh);   // the shaded side (the light is on the right)
+    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.beginPath();
+    if (v === 0) { ctx.moveTo(X + 24 * u, Y + 80 * u); ctx.lineTo(X + 50 * u, Y + 24 * u); ctx.moveTo(X + 60 * u, Y + 86 * u); ctx.lineTo(X + 76 * u, Y + 52 * u); }
+    else if (v === 1) { ctx.moveTo(X + 34 * u, Y + 70 * u); ctx.lineTo(X + 64 * u, Y + 16 * u); }
+    else { ctx.moveTo(X + 18 * u, Y + 40 * u); ctx.lineTo(X + 30 * u, Y + 18 * u); ctx.moveTo(X + 52 * u, Y + 90 * u); ctx.lineTo(X + 80 * u, Y + 36 * u); }
+    ctx.stroke();
+    ctx.strokeStyle = '#7FB4DE'; ctx.lineWidth = 4 * u; ctx.beginPath();
+    if (lf) { ctx.moveTo(X + 2 * u, Y); ctx.lineTo(X + 2 * u, Y + Hh); } if (rt) { ctx.moveTo(X + Ww - 2 * u, Y); ctx.lineTo(X + Ww - 2 * u, Y + Hh); }
+    if (dn) { ctx.moveTo(X, Y + Hh - 2 * u); ctx.lineTo(X + Ww, Y + Hh - 2 * u); }
+    ctx.stroke();
+    if (up) { ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.moveTo(X, Y + 10 * u); ctx.quadraticCurveTo(X + 25 * u, Y - 8 * u, X + 50 * u, Y + 4 * u); ctx.quadraticCurveTo(X + 75 * u, Y - 10 * u, X + Ww, Y + 8 * u); ctx.lineTo(X + Ww, Y + 14 * u); ctx.lineTo(X, Y + 16 * u); ctx.closePath(); ctx.fill(); }
+    // the stove close by: it starts to drip
+    if (dn && !REDUCE && G.players.some(p => p.key && p.key.col === 2 && !p.dead && Math.abs(p.x + p.w / 2 - c - 0.5) < 2.4 && Math.abs(p.y + p.h / 2 - r) < 3)) {
+      const ph = (G.clock * 1.4 + c * 0.37) % 1;
+      ctx.fillStyle = '#9FD8FF'; ell(ctx, X + (30 + v * 18) * u, Y + Hh + ph * 40 * u, 5 * u, 7 * u); ctx.fill();
+    }
   } else if (t === T_LOCKB || t === T_LOCKP) {   // a lock: a block in its key's colour with a keyhole
     const u = Ww / 100, blue = t === T_LOCKB;
     ctx.fillStyle = blue ? '#8FB8EE' : '#F7A8C6'; ctx.strokeStyle = blue ? '#3F72B8' : '#C04A80'; ctx.lineWidth = 5 * u;
@@ -4614,6 +5162,7 @@ function drawTile(t, c, r, X, Y, Ww, Hh) {
     ctx.fillStyle = '#8D95AE'; rrect(ctx, X + 8 * u, Y + Hh - 14 * u, Ww - 16 * u, 14 * u, 5 * u); ctx.fill();
     const top = Y + Hh - (down ? 20 : 34) * u;
     ctx.fillStyle = down ? '#9FE0C4' : '#6CC9A4'; rrect(ctx, X + 16 * u, top, Ww - 32 * u, (down ? 8 : 22) * u, 6 * u); ctx.fill();
+    if (tp && tp.mc != null) { ctx.fillStyle = MIR_HUE[tp.mc % MIR_HUE.length]; ell(ctx, X + 24 * u, top + 6 * u, 6 * u, 6 * u); ctx.fill(); }
     ctx.fillStyle = '#FFFDF6'; ctx.strokeStyle = '#2F8A6A'; ctx.lineWidth = 4 * u; ell(ctx, X + Ww / 2, top - 16 * u, 15 * u, 15 * u); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(X + Ww / 2, top - 16 * u); ctx.lineTo(X + Ww / 2, top - 26 * u); ctx.moveTo(X + Ww / 2, top - 16 * u); ctx.lineTo(X + Ww / 2 + 7 * u, top - 13 * u); ctx.stroke();
   } else if (t === T_BGATE) {
@@ -4946,7 +5495,7 @@ function snapAtCp() { G.cpSnap = { cp: { ...G.cp }, hearts: G.hearts, stars: G.s
 function applySnap(snap) {
   if (!snap) return;
   G.cp = { ...snap.cp }; G.hearts = snap.hearts; G.stars = snap.stars.slice(); G.time = snap.time; G.cpSnap = snap;
-  G.L.items.forEach((it, k) => { if (snap.got[k] === '1') { it.got = true; if (it.type === 'key') it.used = true; } });
+  G.L.items.forEach((it, k) => { if (snap.got[k] === '1') { it.got = true; if (it.type === 'key') it.used = true; if (it.type === 'key' && it.col === 2) it.parked = { x: snap.cp.x + 0.85, y: snap.cp.y - 0.42 }; } });
   if (Array.isArray(snap.opened)) for (const o of snap.opened) if (Array.isArray(o) && fin(o[0]) && fin(o[1])) unlockAt(o[0] | 0, o[1] | 0, false, true);
   if (typeof snap.placed === 'string') G.L.frames.forEach((f, k) => { if (snap.placed[k] === '1') frameSet(f, 'placed', null, true); });
   for (const k of G.L.cps) if (k.x <= snap.cp.x + 0.01) k.on = true;
@@ -5018,7 +5567,7 @@ const lvName = (i) => (i === -2 ? `🛠️ ${G.uspec ? G.uspec.name : ''}` : i <
 function tipArt(kind) {
   const c = (k, st = '') => `<span style="display:inline-block;width:58px;${st}">${fullSvg(k, 'happy')}</span>`;
   if (kind === 'stack') return `<div class="tip-art" style="height:118px;position:relative;width:70px;margin:0 auto">${c('cs', 'position:absolute;left:6px;bottom:0')}${c('yy', 'position:absolute;left:6px;bottom:52px')}</div>`;
-  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧', endless: '♾️', key: '🔑🔒', balloon: '🎈', tide: '🌊', timer: '⏳🚪', frame: '🖼️' }[kind] || '💞';
+  const icon = { cannon: '💥', fire: '🔥', sand: '⏳', plate: '🟡🚪', lift: '🛗', color: '🟦🟪', box: '📦', seesaw: '⚖️', wings: '🪽', boss: '⛈️', pair: '💞🔒', wind: '🌬️', portal: '🌀', wheel: '🎡', belt: '➡️', dark: '🏮', chase: '⛈️🏃', candy: '🍬', sea: '🫧', endless: '♾️', key: '🔑🔒', balloon: '🎈', tide: '🌊', timer: '⏳🚪', frame: '🖼️', stove: '🔥🧊', mirror: '🪞📸', syrup: '🍯' }[kind] || '💞';
   return `<div class="tip-art">${c('cs')}<span style="font-size:34px;align-self:center">${icon}</span>${c('yy')}</div>`;
 }
 function controlsLine() {
@@ -5547,6 +6096,11 @@ function sfx(n) {
     case 'latch': arp([784, 988, 1318, 1568], 0.07, 'sine', 0.08, 0.22); break;
     case 'portal': tone(400, 1400, 0.22, 'sine', 0.06); tone(1400, 600, 0.18, 'sine', 0.04, 0.12); break;
     case 'lamp': tone(1200, 1500, 0.12, 'sine', 0.05); break;
+    case 'stick': tone(260, 120, 0.2, 'sine', 0.08); break;
+    case 'squish': tone(330, 560, 0.06, 'sine', 0.05); break;
+    case 'melt': noise(0.3, 0.035); tone(900, 300, 0.35, 'sine', 0.04); break;
+    case 'snap': noise(0.07, 0.08); tone(2200, 3000, 0.05, 'square', 0.03); break;
+    case 'mirror': tone(1400, 1900, 0.07, 'sine', 0.035); break;
   }
 }
 
@@ -5661,7 +6215,7 @@ function renderStory() {
       <svg viewBox="0 0 320 180" aria-hidden="true"><path d="${path}" fill="none" stroke="rgba(190,180,255,.5)" stroke-width="5" stroke-dasharray="2 9" stroke-linecap="round"/></svg>
       ${CHAPTERS.map((x, k) => { const [px, py] = pts[k], open = chOpen(k), done = chDone(k), soon = !chLv(k).length;
         return `<button type="button" class="cg-node${k === c ? ' on' : ''}${done ? ' done' : ''}" data-ch="${k}" style="left:${(px / 320 * 100).toFixed(1)}%;top:${(py / 180 * 100).toFixed(1)}%" ${open ? '' : 'disabled'} aria-label="第 ${k + 1} 章 ${x.title}${soon ? '（下次更新）' : open ? '' : '（还没解锁）'}">${open ? WORLDS[x.world].icon : soon ? '⏳' : '🔒'}${done ? '<i>✓</i>' : ''}</button>`; }).join('')}
-      <span class="cg-smap-lab">⏳ 第 4–10 章，下次更新见</span>
+      <span class="cg-smap-lab">⏳ 第 7–10 章，下次更新见</span>
     </div>
     <div class="cg-card cg-album"><span class="cg-lab">📷 找回的照片 ${photosFound()} / ${CHAPTERS.length}</span>
       <div class="cg-slots">${CHAPTERS.map((x, k) => `<span class="cg-slot${chDone(k) ? ' got' : ''}" data-ph="${k}" aria-label="${chDone(k) ? `第 ${k + 1} 张` : '还没找到'}">${chDone(k) ? '' : '?'}</span>`).join('')}</div></div>
@@ -5756,6 +6310,13 @@ const scKey = (x, y, col, sc = 1) => `<g transform="translate(${x} ${y}) rotate(
 const scBalloon = (x, y, col) => `<g transform="translate(${x} ${y})"><path d="M0 18q4 10 0 22" stroke="rgba(80,70,90,.7)" stroke-width="1.6" fill="none"/><ellipse cx="0" cy="0" rx="12" ry="15" fill="${col}" stroke="rgba(0,0,0,.2)" stroke-width="2"/><ellipse cx="-4" cy="-6" rx="3" ry="5" fill="rgba(255,255,255,.6)" transform="rotate(-20 -4 -6)"/></g>`;
 const scBottle = (x, y, r = 0) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-8" y="-16" width="16" height="26" rx="6" fill="rgba(170,230,210,.75)" stroke="#5AA88E" stroke-width="2"/><rect x="-4" y="-22" width="8" height="7" rx="2" fill="#C9A26B"/>${scPhoto(0, -2, 8, '#FFC9DA', 0.4)}</g>`;
 const scFrame = (x, y, sc = 1) => `<g transform="translate(${x} ${y}) scale(${sc})"><rect x="-40" y="-14" width="80" height="28" rx="4" fill="#F2C35E" stroke="#A67718" stroke-width="3"/><rect x="-33" y="-8" width="66" height="16" fill="#E6F4FF"/></g>`;
+const scStove = (x, y, sc = 1) => `<g transform="translate(${x} ${y}) scale(${sc})"><ellipse cx="0" cy="-6" rx="32" ry="24" fill="rgba(255,186,104,.35)"/><rect x="5" y="-34" width="7" height="14" rx="2" fill="#5E4E57" stroke="#2B2328" stroke-width="2"/><ellipse cx="0" cy="-8" rx="16" ry="13" fill="#6A5862" stroke="#2B2328" stroke-width="2"/><rect x="-14" y="-22" width="28" height="6" rx="3" fill="#7A6670" stroke="#2B2328" stroke-width="2"/><rect x="-7" y="-10" width="14" height="10" rx="4" fill="#24160F"/><ellipse cx="0" cy="-4" rx="5" ry="3.5" fill="#FFB347"/><rect x="-11" y="3" width="5" height="6" rx="2" fill="#2E262B"/><rect x="6" y="3" width="5" height="6" rx="2" fill="#2E262B"/><circle cx="12" cy="-44" r="4" fill="#fff" opacity=".75"/><circle cx="17" cy="-55" r="5.5" fill="#fff" opacity=".5"/></g>`;
+const scIce = (x, y, w, h, inner = '') => `<g transform="translate(${x} ${y})"><rect x="${-w / 2}" y="${-h}" width="${w}" height="${h}" rx="6" fill="rgba(196,232,252,.92)" stroke="#7FB4DE" stroke-width="3"/>${inner}<path d="M${-w / 2 + 10} -14L${-w / 2 + 24} ${-h + 12}M${w / 2 - 22} -10L${w / 2 - 12} ${-h / 2}" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".8"/></g>`;
+const scCam = (x, y) => `<g transform="translate(${x} ${y})"><path d="M0 0L-14 34M0 0L14 34M0 0V34" stroke="#6C5A4C" stroke-width="3" stroke-linecap="round"/><rect x="-22" y="-26" width="38" height="26" rx="6" fill="#41496A" stroke="#232A40" stroke-width="2"/><circle cx="12" cy="-13" r="10" fill="#232A40"/><circle cx="12" cy="-13" r="6.5" fill="#7FC4FF"/><circle cx="-6" cy="-30" r="4" fill="#FFF4B0"/></g>`;
+const scMirror = (x, y, a = -45, col = '#FFB547') => `<g transform="translate(${x} ${y})"><circle r="18" fill="none" stroke="${col}" stroke-width="4"/><g transform="rotate(${a})"><rect x="-30" y="-6" width="60" height="11" rx="5" fill="#7E86A3"/><rect x="-26" y="-3.5" width="52" height="6" rx="3" fill="#EAF4FF"/></g><circle r="5" fill="${col}" stroke="#fff" stroke-width="1.6"/></g>`;
+const scBooth = (x, y, strip = false) => `<g transform="translate(${x} ${y})"><rect x="-20" y="-70" width="40" height="70" rx="8" fill="#E8507F" stroke="#A82E5A" stroke-width="2.5"/><rect x="-14" y="-64" width="28" height="13" rx="4" fill="#FFD75E"/><text x="0" y="-54" text-anchor="middle" font-size="9" font-weight="900" fill="#A82E5A">拍照</text><circle cx="0" cy="-36" r="9" fill="#232A40"/><circle cx="0" cy="-36" r="5.5" fill="${strip ? '#FFF4B0' : '#7FC4FF'}"/><rect x="-12" y="-22" width="24" height="18" rx="4" fill="#7B5CC7"/>${strip ? '<rect x="14" y="-42" width="14" height="34" rx="2" fill="#fff" stroke="#D9D2E6"/><rect x="17" y="-39" width="8" height="7" fill="#9ED3F5"/><rect x="17" y="-30" width="8" height="7" fill="#FFC9DA"/><rect x="17" y="-21" width="8" height="7" fill="#FFE29A"/>' : ''}</g>`;
+const scSyrup = (x, y, w) => `<g transform="translate(${x} ${y})"><ellipse cx="0" cy="0" rx="${w / 2}" ry="9" fill="#E8689A"/><ellipse cx="0" cy="-2" rx="${w / 2 - 6}" ry="6" fill="#FF9EC2"/><ellipse cx="${-w / 5}" cy="-3" rx="${w / 8}" ry="2" fill="#fff" opacity=".7"/></g>`;
+const scBeam = (pts) => `<polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="rgba(255,232,140,.45)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
 const scTree = (x, y, col = '#F9B8CF', sc = 1) => `<g transform="translate(${x} ${y}) scale(${sc})"><rect x="-3" y="-4" width="6" height="22" rx="2" fill="#9A6A4A"/><circle cx="-10" cy="-10" r="12" fill="${col}"/><circle cx="8" cy="-14" r="13" fill="${col}"/><circle cx="2" cy="-2" r="12" fill="${col}"/></g>`;
 function scBg(kind) {
   const B = {
@@ -5765,6 +6326,9 @@ function scBg(kind) {
     beach: '<rect width="320" height="200" fill="#BFE8FF"/><rect y="118" width="320" height="40" fill="#6FC3EA"/><path d="M0 118q20 -6 40 0t40 0t40 0t40 0t40 0t40 0t40 0t40 0" fill="none" stroke="#fff" stroke-width="3"/><rect y="150" width="320" height="50" fill="#F7E6AE"/>',
     autumn: `<rect width="320" height="200" fill="#FFE3C8"/><path d="M0 140Q90 116 180 134T320 122V200H0Z" fill="#EBB088"/><rect y="150" width="320" height="50" fill="#D99A5E"/>${scTree(44, 132, '#EA8B3F')}${scTree(280, 128, '#D9662E', 0.9)}`,
     snow: '<rect width="320" height="200" fill="#DCEBFA"/><path d="M0 150L70 70L140 150Z" fill="#FFFFFF" stroke="#BFD3E8" stroke-width="2"/><path d="M120 150L200 56L280 150Z" fill="#F4F9FF" stroke="#BFD3E8" stroke-width="2"/><rect y="150" width="320" height="50" fill="#FFFFFF"/>',
+    park: `<rect width="320" height="200" fill="#FFE6F4"/><g opacity=".55"><circle cx="252" cy="78" r="52" fill="none" stroke="#B98CFF" stroke-width="5"/>${[0, 1, 2, 3, 4, 5].map(k => `<circle cx="${(252 + 52 * Math.cos(k * 1.047)).toFixed(1)}" cy="${(78 + 52 * Math.sin(k * 1.047)).toFixed(1)}" r="8" fill="${['#FF8FB3', '#8FC4FF', '#FFD75E'][k % 3]}"/>`).join('')}<path d="M252 78L232 150M252 78L272 150" stroke="#B98CFF" stroke-width="5"/></g><rect y="150" width="320" height="50" fill="#F5B8D2"/><path d="M0 150H320" stroke="#E08AB0" stroke-width="2"/>`,
+    candy: `<rect width="320" height="200" fill="#FFF0F6"/><path d="M0 140Q80 112 160 132T320 118V200H0Z" fill="#C8F0E2"/><rect y="150" width="320" height="50" fill="#FFC9DA"/>${[[34, 116, '#FF8FB3'], [290, 108, '#8FD8FF']].map(([x, y, c]) => `<path d="M${x} ${y}V150" stroke="#fff" stroke-width="4"/><circle cx="${x}" cy="${y}" r="16" fill="${c}"/><path d="M${x - 10} ${y}a10 10 0 0 1 20 0" fill="none" stroke="#fff" stroke-width="3"/>`).join('')}`,
+    sea: '<rect width="320" height="200" fill="#5AB3E0"/><rect y="150" width="320" height="50" fill="#F2DFA8"/><path d="M30 150q6 -30 0 -60M50 150q-8 -24 0 -44" stroke="#3FAE8E" stroke-width="5" fill="none"/><circle cx="200" cy="70" r="5" fill="#fff" opacity=".6"/><circle cx="210" cy="50" r="3.5" fill="#fff" opacity=".6"/><circle cx="196" cy="34" r="2.5" fill="#fff" opacity=".6"/>',
   };
   return B[kind] || B.spring;
 }
@@ -5806,7 +6370,37 @@ const SCENES = {
   c2: [
     { art: () => scBg('autumn') + `${scFrame(160, 96, 1.2)}${scPhoto(160, 96, 0, '#FFE29A', 0.7)}${scChar('cs', 'happy', 92, 104, 46)}${scChar('yy', 'happy', 184, 104, 46, true)}`, say: '照片正好落进了你们抬着的相框里。' },
     { photo: 2, say: '第 3 张照片找回来了！' },
-    { art: () => scBg('snow') + `${scMM(230, 56, 0.7)}${scBubble(70, 18, '雪山上，谁也找不到！', 150)}`, say: '闷闷往雪山飞去……下一章「冻住的笑脸」，下次更新见。', who: 'mm' },
+    { art: () => scBg('snow') + `${scMM(230, 56, 0.7)}${scBubble(70, 18, '雪山上，谁也找不到！', 150)}`, say: '闷闷往雪山飞去了……', who: 'mm' },
+  ],
+  o3: [
+    { art: () => scBg('snow') + `${scIce(160, 150, 92, 104, scPhoto(0, -54, -8, '#FFE29A', 1.2))}${scMM(262, 44, 0.55)}${scChar('cs', 'hurt', 30, 104, 44)}${scChar('yy', 'hurt', 66, 104, 44)}`, say: '闷闷把照片冻进了雪山上的冰墙里。', who: 'mm' },
+    { art: () => scBg('snow') + `${scStove(160, 146, 1.3)}${scChar('cs', 'happy', 70, 98, 48)}${scChar('yy', 'happy', 204, 98, 48, true)}${scBubble(110, 30, '好暖和！', 70)}`, say: '雪地里有一个小火炉：谁都能抱起来。抱着它碰一下冰墙，冰就化了。' },
+    { art: () => scBg('snow') + `<rect x="190" y="104" width="130" height="46" fill="#FFFFFF" stroke="#BFD3E8" stroke-width="2"/>${scChar('cs', 'strain', 128, 98, 48)}${scChar('yy', 'happy', 128, 44, 48)}${scStove(174, 98, 0.9)}${scBubble(16, 30, '踩着我的头上去！', 120)}`, say: '小火炉很重，抱着它只能跳一点点高——TA 的头，就是你的台阶。' },
+  ],
+  c3: [
+    { art: () => scBg('snow') + `${scIce(160, 150, 92, 46)}${scPhoto(160, 70, 10, '#FFE29A', 1.1)}${[120, 150, 186, 204].map((x, i) => `<path d="M${x} ${104 + i * 6}q3 6 0 9q-3 -3 0 -9z" fill="#8CC8FF"/>`).join('')}${scChar('cs', 'happy', 50, 100, 46)}${scChar('yy', 'happy', 226, 100, 46, true)}`, say: '冰化开了，照片掉了出来，还暖暖的。' },
+    { photo: 3, say: '第 4 张照片找回来了！' },
+    { art: () => scBg('park') + `${scMM(110, 60, 0.75)}${scBubble(40, 112, '游乐园的镜子会帮我藏起来！', 180)}`, say: '闷闷飞向了游乐园……', who: 'mm' },
+  ],
+  o4: [
+    { art: () => scBg('park') + `${scMM(70, 60, 0.38)}${scMM(150, 40, 0.32)}${scMM(118, 104, 0.3)}${[[60, 40], [170, 70], [100, 128]].map(([x, y]) => `<path d="M${x} ${y}l4 -12l4 12l12 4l-12 4l-4 12l-4 -12l-12 -4z" fill="#FFF4B0"/>`).join('')}${scBooth(240, 150)}`, say: '小乌云们在镜子屋里乱按快门，把照片藏进了拍照亭。', who: 'mm' },
+    { art: () => scBg('park') + `${scBeam([[62, 124], [62, 48], [170, 48], [170, 96], [244, 96]])}${scCam(50, 130)}${scMirror(62, 48, -45)}${scMirror(170, 48, 45, '#4FCFC0')}${scBooth(256, 150, true)}`, say: '踩住按钮，和它同颜色的镜子就会转：让相机的光照进拍照亭——咔嚓！' },
+    { art: () => scBg('park') + `<rect x="66" y="144" width="40" height="8" rx="3" fill="#E8A53A"/><ellipse cx="86" cy="146" rx="8" ry="4" fill="#FFB547"/><rect x="206" y="144" width="40" height="8" rx="3" fill="#E8A53A"/><ellipse cx="226" cy="146" rx="8" ry="4" fill="#4FCFC0"/>${scChar('cs', 'happy', 62, 92, 48)}${scChar('yy', 'happy', 202, 92, 48, true)}${scBubble(100, 30, '一起踩，一、二、三！', 128)}`, say: '有的路，要两个人同时踩住。' },
+  ],
+  c4: [
+    { art: () => scBg('park') + `${scBooth(160, 150, true)}${scChar('cs', 'happy', 70, 98, 46)}${scChar('yy', 'happy', 204, 98, 46, true)}`, say: '咔嚓！拍照亭吐出了一张照片。' },
+    { photo: 4, say: '第 5 张照片找回来了！' },
+    { art: () => scBg('candy') + `${scMM(230, 56, 0.7)}${scBubble(40, 18, '糖果乐园黏黏的，你们走不动！', 186)}`, say: '闷闷往糖果乐园溜了……', who: 'mm' },
+  ],
+  o5: [
+    { art: () => scBg('candy') + `<rect x="226" y="40" width="40" height="110" rx="8" fill="#FFB3CF" stroke="#E0508F" stroke-width="3"/><path d="M226 70H266M226 100H266" stroke="#fff" stroke-width="5"/>${scPhoto(246, 30, 8, '#FFE29A', 0.9)}${scSyrup(90, 152, 90)}${scSyrup(170, 154, 60)}${scMM(80, 50, 0.6)}`, say: '闷闷把糖浆洒了一地，照片粘在了最高的糖果塔上。', who: 'mm' },
+    { art: () => scBg('candy') + `${scSyrup(110, 152, 96)}${scChar('cs', 'hurt', 86, 104, 48)}${scChar('yy', 'normal', 196, 96, 48, true)}${scBubble(44, 40, '黏住了！', 66)}${scBubble(176, 36, '我来拉你！', 76)}`, say: '踩到糖浆会被黏住！连按跳能自己挣脱，但只能弹一点点高。' },
+    { art: () => scBg('candy') + `${scSyrup(160, 152, 120)}${scChar('cs', 'happy', 108, 48, 48)}${scChar('yy', 'happy', 166, 44, 48, true)}${[140, 160, 180].map((x, i) => `<path d="M${x} ${116 - i * 8}c-6 -8 -16 0 0 10c16 -10 6 -18 0 -10z" fill="#FF6F9F"/>`).join('')}`, say: '挨着 TA 按一下跳，两个人会一起「啵」地弹出来，弹得更高。' },
+  ],
+  c5: [
+    { art: () => scBg('candy') + `<rect x="140" y="60" width="40" height="90" rx="8" fill="#FFB3CF" stroke="#E0508F" stroke-width="3"/>${scPhoto(160, 44, -6, '#FFE29A', 1.1)}${scChar('cs', 'happy', 70, 100, 46)}${scChar('yy', 'happy', 204, 100, 46, true)}`, say: '照片在糖果塔顶上，甜甜的。' },
+    { photo: 5, say: '第 6 张照片找回来了！' },
+    { art: () => scBg('sea') + `${scMM(220, 70, 0.7, 'sad')}${scBubble(40, 24, '海里谁也找不到……', 140)}`, say: '闷闷沉进了海里……下一章「沉进海里的一页」，下次更新见。', who: 'mm' },
   ],
 };
 function playScene(id, done, share) {
@@ -6238,7 +6832,7 @@ function onHomeClick(e) {
    a stomp, a flag) travels as an event. Rafts follow a world clock both phones
    keep in step. Nothing is stored anywhere; it all rides the couple's private
    live channel (the one the shared fireworks use). */
-const NET_V = 8, DELAY = 110;   // 8: 📖 故事模式 — story levels (lv ≥ SI), keys, balloons, timer buttons, the frame, blessings (2026-11-27); 7: 🛠️ a made level in \`go\` (2026-11-26); 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
+const NET_V = 9, DELAY = 110;   // 9: 故事 · 第 4–6 章 — 12 more story levels, 小火炉, 镜子屋, 糖浆 (`stk`) (2026-11-28); 8: 📖 故事模式 — story levels (lv ≥ SI), keys, balloons, timer buttons, the frame, blessings (2026-11-27); 7: 🛠️ a made level in \`go\` (2026-11-26); 6: ♾️ 一直走下去, a 段 in \`go\` (2026-11-26); 5: 50 levels, 沙漠 and 火山 before 夜, the cannon (2026-11-24); 4: 40 levels, the level numbers moved (2026-11-24); 3: the partner simulated from their buttons (2026-11-22); 2: numbered events; another version is told to reopen the app
 let verAt = 0;   // when a message from a different version last arrived
 const verOff = () => verAt && performance.now() - verAt < 5000;
 const VER_HINT = '对方手机上的 app 不是最新的：两个人都把 app 关掉重新打开一次';
@@ -6584,7 +7178,25 @@ function netBossStep(dt) {
 function netEvent(m) {
   const L = G.L, me = G.players[G.meIdx], them = G.players[1 - G.meIdx];
   switch (m.k) {
-    case 'item': { const it = m.key ? L.items.find(x => x.key === m.key) : L.items[m.i]; if (it && !it.got) collect(them, it, true); if (!isHost() && fin(m.he)) G.hearts = Math.max(G.hearts, m.he | 0); break; }
+    case 'item': {
+      const it = m.key ? L.items.find(x => x.key === m.key) : L.items[m.i];
+      if (it && !it.got) collect(them, it, true);
+      // the stove, picked up on both phones at once: CS keeps it (both phones apply the same rule)
+      else if (it && it.type === 'key' && it.col === 2 && them.idx === 0 && me.key === it) { me.key = null; them.key = it; it.held = them.idx; }
+      if (!isHost() && fin(m.he)) G.hearts = Math.max(G.hearts, m.he | 0);
+      break;
+    }
+    case 'stk': {
+      if (them.dead) break;
+      if (fin(m.x) && fin(m.y) && m.x > -2 && m.x < L.w + 2 && m.y > -4 && m.y < R + 2) { them.x = m.x; them.y = m.y; }
+      if (m.on) stickIn(them, false);
+      else {
+        if (!them.stuck) them.stuck = 0.001;
+        popFree(them, m.how === 'pull' ? 'pull' : 'self', false);
+        if (m.how === 'pull' && me.stuck && !me.dead && touching(me, them)) popFree(me, 'pull', true);   // side by side: out together
+      }
+      break;
+    }
     case 'gift': if (fin(m.c) && fin(m.r)) hitGift(m.c | 0, m.r | 0, true); break;
     case 'crumb': if (fin(m.c) && fin(m.r) && code(m.c | 0, m.r | 0) === T_CRUMB) triggerCrumb(m.c | 0, m.r | 0, true); break;
     case 'cp': { const k = L.cps[m.i]; if (k) flagOn(k); break; }
@@ -6885,9 +7497,9 @@ window.CoopGames = {
   close() { if (BT.root) beatClose(); if (UI.home || UI.stage) closeHome(); },
   // for the play-tests: drive both characters one fixed step at a time
   test: {
-    LEVELS, CHUNKS, G, NET, BT,
+    LEVELS, CHUNKS, G, NET, BT, NET_V,
     start(i, mode = 'duo') { G.mode = mode; if (mode !== 'online') { NET.n = 0; } openStage(i); G.test = true; begin(); },
-    SI, STORY_LV, CHAPTERS, waterLevel, T_LOCKB, T_LOCKP, T_TPLATE, isStory, storyNext,
+    SI, STORY_LV, CHAPTERS, waterLevel, T_LOCKB, T_LOCKP, T_TPLATE, T_ICEW, T_SYRUP, WIG_N, isStory, storyNext, traceBeam, touching,
     // the start screen's screens: ui('free', 0) is 自由选关's first world, ui('story') the story, ui('home') the start
     ui(scr, w) { screen = scr || 'home'; freeWorld = w == null ? null : w; storyCh = null; renderHome(); }, screenNow: () => ({ screen, freeWorld, storyCh }),
     playScene: (id) => playScene(id, null, true), sceneState: () => (SC.root ? { id: SC.id, k: SC.k } : null), SCENES, BLESS, blessOffer, EVENTS, campKey: () => campKey(), dayStr,

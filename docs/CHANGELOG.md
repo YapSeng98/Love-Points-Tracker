@@ -12,6 +12,30 @@ message. They are written to explain the reasoning, not just the diff.
 
 ---
 
+## 2026-11-28 (late night) — 一起回家 story: chapters 4–6, twelve new levels
+
+The story 「找回我们的相册」 goes on: three new chapters, four levels each, each with
+its own comic at the start and the end, and the end of each finding one more of your
+own photos (the 4th, 5th and 6th). Three new things to do together:
+
+- **小火炉 (冬 · 冻住的笑脸)** — a little stove either of you can carry. Walk it into
+  an ice wall and the ice melts (and you keep the stove). It is heavy: you can only
+  jump a little while carrying it, so a high step means climbing on your partner's
+  head. A button frozen in ice has to be melted first. A flag keeps the stove warm:
+  what comes after it brings its own.
+- **镜子屋 (游乐园 · 拍照亭)** — a camera shines a beam of light. Each button turns the
+  mirror of the same colour; get the light into the photo booth and — 咔嚓 — the gate
+  opens for good. Some rooms need both of you on two buttons at once, one needs a clock
+  button and a run, and in the last one the photo makes a bridge.
+- **糖浆 (糖果 · 甜甜的陷阱)** — syrup holds your feet. Tap jump five times to wriggle out
+  (a small hop), or press jump beside your partner and you both pop out together, much
+  higher — the only way up the syrup's tall steps. Standing on a stuck partner is fine:
+  they are the steadiest step there is.
+
+Both phones see the same stove, the same melted ice, the same photo and the same
+popping out of syrup. Every star can be taken without a perfect jump. Chapters 7–10 and
+the ending come next.
+
 ## 2026-11-28 (night) — 一起回家 looks 3D
 
 The ground, the planks and the blocks are now solid things lit by the sun: you stand in a lit top
